@@ -114,6 +114,7 @@ function applySetting(key?: keyof Settings) {
   if (all || key === 'volume') sound.setVolume(settings.volume)
   if (all || key === 'fov') rig.setFov(settings.fov)
   if (all || key === 'cameraShake') rig.setShake(settings.cameraShake ? 1 : 0)
+  if (all || key === 'cameraStyle') rig.setStyle(settings.cameraStyle)
   if (all || key === 'viewDistance') setViewDistance?.(settings.viewDistance)
   if (all || key === 'landingAssist') if (stageReady) stage.env.assist = settings.landingAssist
   if (key === 'npcs') npcs?.setVisible(settings.npcs)
@@ -148,7 +149,15 @@ interface Ride {
   lift: Lift
   path: RidePath
   s: number
+  /** Getting off at the top: stand up and glide down the unload ramp. */
+  unload: { t: number; from: THREE.Vector3; to: THREE.Vector3; yaw: number } | null
 }
+
+/** Seconds of ride left after Skip, so you arrive at the top and get off. */
+const SKIP_LEAD = 2.2
+const UNLOAD_TIME = 1.8
+/** Metres past the top terminal where the unload ramp ends. */
+const UNLOAD_DISTANCE = { aerial: 10, surface: 5 }
 
 let stage: Stage
 let stageReady = false
@@ -512,7 +521,7 @@ function startRide(lift: Lift) {
     finishRide(lift)
     return
   }
-  ride = { lift, path, s: path.boardingDistance }
+  ride = { lift, path, s: path.boardingDistance, unload: null }
   ui.title.textContent = `Riding ${lift.name}`
   ui.best.textContent = '–'
   ui.ride.hidden = false
@@ -521,13 +530,58 @@ function startRide(lift: Lift) {
   rig.snap()
 }
 
-/** Top of the lift: start the run you were on if it begins here, otherwise the nearest one. */
-function finishRide(lift: Lift) {
+/** Skip: jump to just before the top and ride in. A second press steps straight off. */
+function skipRide() {
+  if (!ride) return
+  if (ride.unload) {
+    finishRide(ride.lift, ride.unload)
+    return
+  }
+  const lead = ride.path.speed * SKIP_LEAD
+  if (ride.s < ride.path.total - lead) {
+    // Jump whole chair spacings so the rider is still sitting on a chair.
+    const spacing = ride.path.spacing ?? 0
+    const jump = ride.path.total - lead - ride.s
+    ride.s += spacing > 0 ? Math.floor(jump / spacing) * spacing : jump
+    rig.snap()
+  } else beginUnload(ride)
+}
+
+/** Off the chair (or the T-bar) at the top: glide from the seat to the end of the ramp. */
+function beginUnload(current: Ride) {
+  const from = new THREE.Vector3()
+  const yaw = sampleRide(current.path, current.path.total, from)
+  const reach = current.path.aerial ? UNLOAD_DISTANCE.aerial : UNLOAD_DISTANCE.surface
+  const x = from.x + Math.sin(yaw) * reach
+  const z = from.z + Math.cos(yaw) * reach
+  const ground = stage.slope.sampleTerrain(x, z)
+  if (!ground) {
+    finishRide(current.lift)
+    return
+  }
+  current.unload = { t: 0, from, to: new THREE.Vector3(x, ground.height, z), yaw }
+  ui.rideText.textContent = `Top of ${current.lift.name}`
+}
+
+/**
+ * Top of the lift: you are standing at the end of the unload ramp, free to
+ * pick a way down. The course (for the HUD and run times) is the run that
+ * starts nearest, as before.
+ */
+function finishRide(lift: Lift, at?: { to: THREE.Vector3; yaw: number }) {
   ride = null
   ui.ride.hidden = true
   const world = stage.world
   if (world) course = chooseCourse(world.resort, world.grid.heightAt, lift.name, course?.startRun?.name ?? 'Grandfather')
+  if (course && at) course = { ...course, spawn: { x: at.to.x, z: at.to.z, heading: Math.atan2(-Math.sin(at.yaw), Math.cos(at.yaw)) } }
   spawn()
+  if (at) {
+    ui.title.textContent = `Top of ${lift.name}`
+    // Keep the glide off the ramp going.
+    skier.vx = Math.sin(at.yaw) * 2
+    skier.vz = Math.cos(at.yaw) * 2
+    rig.snap()
+  }
 }
 
 function handleActions() {
@@ -576,7 +630,7 @@ function handleActions() {
         panel.hidden = true
         if (!ui.menu.hidden) $('#btn-resume').focus()
       }
-    } else if (action === 'skip' && ride && !overlaysOpen()) finishRide(ride.lift)
+    } else if (action === 'skip' && ride && !overlaysOpen()) skipRide()
     else if (action.startsWith('slope') && !stage.world) {
       const preset = PRESETS[Number(action.slice(5)) - 1]
       if (preset) startDev(preset.id)
@@ -693,6 +747,7 @@ function tick(dt: number, frameMs: number) {
 /** Move the rider along the lift. Hold tuck to fast-forward. */
 function stepRide(dt: number, fast: boolean): SkierPose {
   const current = ride!
+  if (current.unload) return stepUnload(current, current.unload, dt)
   const speed = current.path.speed * (fast ? 6 : 1)
   current.s += speed * dt
   const yaw = sampleRide(current.path, current.s, ridePoint)
@@ -707,8 +762,36 @@ function stepRide(dt: number, fast: boolean): SkierPose {
     heading: Math.atan2(-Math.sin(yaw), Math.cos(yaw)),
   })
   ui.rideText.textContent = `Riding ${current.lift.name} · ${Math.ceil(Math.max(0, current.path.total - current.s) / speed)} s${fast ? ' ▸▸' : mobile ? ' · hold Tuck to speed up' : ' · hold W to speed up'}`
-  if (current.s >= current.path.total) finishRide(current.lift)
+  if (current.s >= current.path.total) beginUnload(current)
   return current.path.aerial ? 'sit' : 'stand'
+}
+
+/** Stand up off the seat and glide down the ramp, then hand over control. */
+function stepUnload(current: Ride, unload: NonNullable<Ride['unload']>, dt: number): SkierPose {
+  unload.t += dt
+  const k = Math.min(1, unload.t / UNLOAD_TIME)
+  // Ease in from the seat, carry a little speed off the end.
+  const along = k * k * (3 - 2 * k) * 0.7 + k * 0.3
+  const x = unload.from.x + (unload.to.x - unload.from.x) * along
+  const z = unload.from.z + (unload.to.z - unload.from.z) * along
+  const ground = stage.slope.sampleTerrain(x, z)?.height ?? unload.to.y
+  // Off a chair the seat drops to the snow in the first third; a T-bar is already on it.
+  const drop = current.path.aerial ? Math.min(1, along * 3) : 1
+  const y = Math.max(ground, unload.from.y + (ground - unload.from.y) * drop)
+  const speed = 2.5
+  Object.assign(skier, {
+    x,
+    y,
+    z,
+    vx: Math.sin(unload.yaw) * speed,
+    vy: 0,
+    vz: Math.cos(unload.yaw) * speed,
+    speed,
+    heading: Math.atan2(-Math.sin(unload.yaw), Math.cos(unload.yaw)),
+  })
+  if (k >= 1) finishRide(current.lift, unload)
+  // Sitting until the skis touch, then standing: the rider view crossfades between them.
+  return current.path.aerial && drop < 0.6 ? 'sit' : 'stand'
 }
 
 function cameraBlocked(x: number, z: number): boolean {

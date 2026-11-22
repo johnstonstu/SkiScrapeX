@@ -24,6 +24,8 @@ export interface RidePath {
   boardingDistance: number
   /** Surface lifts: the rider stands on the snow under the rope, not on it. */
   onSnow?: boolean
+  /** Metres between chairs or hangers; moving the rider by a multiple keeps them on one. */
+  spacing?: number
 }
 
 /** Position and travel yaw at `s` metres along a path. */
@@ -205,6 +207,7 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
     update(dt: number, fastLift?: string) {
       for (const rope of ropes) {
         const spacing = rope.circuit.total / rope.chairs.count
+        rope.uphill.spacing = spacing
         rope.distance = (rope.distance + dt * rope.uphill.speed * (rope.liftId === fastLift ? 6 : 1)) % rope.circuit.total
         rope.uphill.boardingDistance = rope.distance % spacing
         for (let i = 0; i < rope.chairs.count; i++) {
@@ -260,18 +263,24 @@ function chair(): THREE.BufferGeometry {
   return merged
 }
 
+/**
+ * Chairlift terminal: a slim column carrying the bull-wheel housing above
+ * the rope, so riders (and the camera behind them) pass underneath it.
+ */
 function terminal(
   paint: THREE.Material,
   roof: THREE.Material,
   disposables: { dispose(): void }[],
 ): THREE.Group {
   const group = new THREE.Group()
-  const base = new THREE.BoxGeometry(1.4, 4, 5)
-  base.translate(0, 2, 0)
-  const top = new THREE.BoxGeometry(9, 1, 11)
-  top.translate(0, 4.5, 0)
-  disposables.push(base, top)
-  group.add(new THREE.Mesh(base, paint), new THREE.Mesh(top, roof))
+  const column = new THREE.BoxGeometry(0.9, STATION_HEIGHT + 0.6, 1.6)
+  column.translate(0, (STATION_HEIGHT + 0.6) / 2, 0)
+  const housing = new THREE.BoxGeometry(HALF_GAUGE * 2 + 1.2, 0.9, 6.5)
+  housing.translate(0, STATION_HEIGHT + 0.85, 0)
+  const cap = new THREE.BoxGeometry(HALF_GAUGE * 2 + 1.5, 0.18, 6.8)
+  cap.translate(0, STATION_HEIGHT + 1.38, 0)
+  disposables.push(column, housing, cap)
+  group.add(new THREE.Mesh(column, paint), new THREE.Mesh(housing, paint), new THREE.Mesh(cap, roof))
   return group
 }
 

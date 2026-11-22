@@ -33,6 +33,7 @@ const POSES: Pose[] = [
   },
   { label: 'Tuck', setup: (s) => ((s.speed = 20), { ...idle, tuck: true }) },
   { label: 'Snowplough', setup: (s) => ((s.speed = 3), { ...idle, brake: 1 }) },
+  { label: 'Pushing', setup: (s) => ((s.speed = 0.8), { ...idle, tuck: true }) },
   { label: 'Skating', setup: (s) => ((s.speed = 2.5), { ...idle, tuck: true }) },
   { label: 'Hockey stop', setup: (s) => ((s.speed = 8), (s.edgeAngle = 0.7), { ...idle, brake: 1 }) },
   {

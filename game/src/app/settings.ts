@@ -18,6 +18,8 @@ export interface Settings {
   /** Follow-camera field of view, degrees. */
   fov: number
   cameraShake: boolean
+  /** Steady looks down the hill; tight turns with the skis. */
+  cameraStyle: 'steady' | 'tight'
   landingRing: boolean
   /** Rotation snap near touchdown. */
   landingAssist: boolean
@@ -34,6 +36,7 @@ export const DEFAULT_SETTINGS: Settings = {
   volume: 0.8,
   fov: 58,
   cameraShake: true,
+  cameraStyle: 'steady',
   landingRing: true,
   landingAssist: true,
   npcs: true,
@@ -197,6 +200,7 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
     slider('Steering sensitivity', 'steering', 0.5, 1.5, 0.05, percent)
     chips('Flip controls (up and down)', 'invertPitch', [[false, 'Normal'], [true, 'Inverted']])
     slider('Camera field of view', 'fov', 48, 75, 1, (v) => `${v}°`)
+    chips('Camera follow', 'cameraStyle', [['steady', 'Steady'], ['tight', 'Tight']], 'steady looks down the hill, tight turns with the skis')
     chips('Camera shake', 'cameraShake', [[true, 'On'], [false, 'Off']])
     slider('Volume', 'volume', 0, 1, 0.05, percent)
     chips('Other skiers', 'npcs', [[true, 'On'], [false, 'Off']])
