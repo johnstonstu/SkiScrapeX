@@ -142,6 +142,9 @@ export function createSkierView(): {
   let railEntry = 0
   let entryTurn = 0
   let lastHeading = 0
+  /** Travel direction last frame and the smoothed sideways acceleration of the path, m/s². */
+  let lastTravel: number | null = null
+  let pathAccel = 0
   let railLook = 0
   const ease = (rate: number, dt: number) => 1 - Math.exp(-rate * dt)
 
@@ -371,12 +374,24 @@ export function createSkierView(): {
       const skating = skiing && input.tuck && !braking && speed < PHYSICS.skateMaxSpeed && !boarding
       const charging = skiing && state.popCharge > 0
       const edge = skiing ? state.edgeAngle * stance : 0
-      // Inclination the carve needs: tan(lean) = lateral g (ski-coach balance).
-      const lateralG = skiing && Number.isFinite(state.carveRadius) ? Math.sqrt(Math.max(0, state.carveLoad ** 2 - 1)) : 0
+      // Lean for the turn the skier is really making: the path's curvature
+      // times speed is the sideways acceleration to balance, tan(lean) = a / g.
+      // (The carve model's load misses pivoted and skidded turns.)
+      const horizontal = Math.hypot(state.vx, state.vz)
+      const travel = Math.atan2(-state.vx, state.vz)
+      let turnRate = 0
+      if (lastTravel !== null && horizontal > 1 && dt > 0) {
+        const delta = Math.atan2(Math.sin(travel - lastTravel), Math.cos(travel - lastTravel))
+        if (Math.abs(delta) < 0.5) turnRate = delta / dt
+      }
+      lastTravel = travel
+      pathAccel += ((skiing ? turnRate * horizontal : 0) - pathAccel) * ease(11, dt)
+      const lateralG = pathAccel / PHYSICS.gravity
       // Scaled and capped: full race inclination reads as falling at game camera distances.
-      const wantIncline = skiing ? Math.sign(edge) * Math.min(0.72, Math.max(Math.atan(lateralG) * 0.72, Math.abs(edge) * 0.35)) : 0
-      // Slightly under-damped: the hips swing through the edge change and settle.
-      incline.step(wantIncline, dt, 2.4, 0.72)
+      const wantIncline = skiing
+        ? stance * Math.sign(lateralG || edge) * Math.min(0.85, Math.max(Math.atan(Math.abs(lateralG)) * 0.78, Math.abs(edge) * 0.15))
+        : 0
+      incline.step(wantIncline, dt, 2.6, 0.92)
 
       // Edge change: pole plant on the new inside hand, and the legs extend to
       // release the old edges before flexing into the new turn.
@@ -462,7 +477,9 @@ export function createSkierView(): {
       const shift = -Math.sin(incline.x) * 0.32
       skis[0].position.set(halfStance + shift, 0.03, 0.04 - lead)
       skis[1].position.set(-halfStance + shift, 0.03, 0.04 + lead)
-      const edgeVisual = pose === 'ski' && !air ? edge * 0.9 : 0
+      // Skis tilt with the legs plus a little knee angulation, so the full-turn
+      // pose holds together instead of skis on 45° under an upright body.
+      const edgeVisual = pose === 'ski' && !air ? Math.sign(edge) * Math.min(Math.abs(edge) * 0.9, Math.abs(incline.x) + 0.32) : 0
       for (const ski of skis) ski.rotation.z = edgeVisual
       if (plow.x > 0.01) {
         // Snowplough: tips together, tails out, both skis on their inside edges.
@@ -549,13 +566,13 @@ export function createSkierView(): {
       // Angulation: the hips and spine tilt back against the inclination so the
       // shoulders stay near level and the knees drive into the hill.
       hips.rotation.y = boarding ? -Math.PI / 2 + 0.25 : counter.x * 0.3
-      hips.rotation.z = -incline.x * 0.24
+      hips.rotation.z = -incline.x * 0.12
       // The back bends in two parts, so a deep crouch or a tuck rounds it.
       const bend = 0.12 + flex * 0.72 + tuck.x * 0.6 + press.x * 0.18 + skateAmount * 0.18 + plow.x * 0.05 + doublePole * dp.crunch
       spine.rotation.x = bend * 0.55
       chest.rotation.x = bend * 0.45 - tuck.x * 0.08
-      spine.rotation.z = -incline.x * 0.34
-      chest.rotation.z = -incline.x * 0.24
+      spine.rotation.z = -incline.x * 0.2
+      chest.rotation.z = -incline.x * 0.14
       const upperTwist = boarding
         ? 0.45 + spinLead * 0.5
         : counter.x * 0.7 + spinLead * 0.5 + switchLook * 0.25 + railLook * 0.55 - stride * 0.12
@@ -581,7 +598,8 @@ export function createSkierView(): {
         const inside = Math.sign(incline.x) === -side ? 1 : 0 // left hand (side 1) is inside on a left turn (incline < 0)
         const planting = plantSide === side && skiing ? plantWeight : 0
         // Hands forward and a little wide, about belt height, as if holding a tray.
-        const hand = v1.set(side * 0.31, 0.0 + breathe + inside * Math.abs(incline.x) * 0.08, 0.42 + inside * 0.05)
+        // In a turn the inside hand reaches forward and down toward the next plant; the outside one stays wide.
+        const hand = v1.set(side * (0.31 + (1 - inside) * Math.abs(incline.x) * 0.08), breathe - inside * Math.abs(incline.x) * 0.12, 0.42 + inside * Math.abs(incline.x) * 0.14)
         // Plant: a forward reach and wrist flick, then the hand rides past the planted pole.
         const reachIn = plantSide === side && skiing && plantAge < PLANT_REACH ? smooth(plantAge / PLANT_REACH) : 0
         hand.z += planting * (0.06 + reachIn * 0.06)
