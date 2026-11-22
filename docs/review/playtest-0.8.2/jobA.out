@@ -1,0 +1,155 @@
+Grandfather's Trail picked true spawn {"x":1532.17,"y":572.56,"z":1538.53,"speedKmh":0.81,"heading":129.44,"mode":"still","grounded":true,"air":false,"rail":null,"crashed":0,"offMap":false,"trick":null,"hud":"Grandfather's Trail · from Quickdraw","spd":"1","time":"0:00.0","trickFeed":""} spawn->line start 10
+shot run_grandfather-s-trail_0start
+shot run_grandfather-s-trail_1mid
+shot run_grandfather-s-trail_2mid
+shot run_grandfather-s-trail_9end
+{
+ "samples": 425,
+ "secs": 242,
+ "maxKmh": 77.3,
+ "avgKmh": 31,
+ "maxOffLine": 61,
+ "endIdx": 37,
+ "crashes": [],
+ "stuck": [],
+ "huds": [
+  "Grandfather's Trail · from Quickdraw"
+ ],
+ "modes": [
+  "tucked",
+  "carving",
+  "straight",
+  "skidding"
+ ],
+ "results": false,
+ "lastTime": "3:16.0",
+ "airSamples": 0,
+ "end": {
+  "t": 242443,
+  "idx": 37,
+  "d": 26,
+  "x": 67,
+  "z": 993,
+  "y": 385,
+  "v": 45,
+  "mode": "straight",
+  "g": true,
+  "air": false,
+  "cr": 0,
+  "hud": "Grandfather's Trail · from Quickdraw",
+  "time": "3:16.0",
+  "trick": "",
+  "res": false,
+  "fade": false
+ }
+}
+results text: 
+Gunbarrel picked true spawn {"x":1086.69,"y":511.69,"z":1157.5,"speedKmh":10.87,"heading":-149.13,"mode":"straight","grounded":true,"air":false,"rail":null,"crashed":0,"offMap":false,"trick":null,"hud":"Gunbarrel · from Quickdraw","spd":"11","time":"0:01.0","trickFeed":""} spawn->line start 12
+shot run_gunbarrel_0start
+shot run_gunbarrel_1mid
+shot run_gunbarrel_9end
+{
+ "samples": 82,
+ "secs": 56,
+ "maxKmh": 90.1,
+ "avgKmh": 54,
+ "maxOffLine": 43,
+ "endIdx": 12,
+ "crashes": [],
+ "stuck": [],
+ "huds": [
+  "Gunbarrel · from Quickdraw"
+ ],
+ "modes": [
+  "carving",
+  "tucked",
+  "straight",
+  "air",
+  "braking",
+  "still",
+  "skidding"
+ ],
+ "results": false,
+ "lastTime": "0:39.8",
+ "airSamples": 24,
+ "end": {
+  "t": 56104,
+  "idx": 12,
+  "d": 5,
+  "x": 1161,
+  "z": 686,
+  "y": 263,
+  "v": 52.4,
+  "mode": "straight",
+  "g": true,
+  "air": false,
+  "cr": 0,
+  "hud": "Gunbarrel · from Quickdraw",
+  "time": "0:39.8",
+  "trick": "AirSketchy · +2 · combo ×5",
+  "res": false,
+  "fade": false
+ }
+}
+results text: 
+Juniper picked true spawn {"x":1541.79,"y":570.62,"z":1527.19,"speedKmh":7.16,"heading":153.91,"mode":"straight","grounded":true,"air":false,"rail":null,"crashed":0,"offMap":false,"trick":null,"hud":"Juniper · from Quickdraw","spd":"7","time":"0:01.0","trickFeed":""} spawn->line start 12
+shot run_juniper_0start
+shot run_juniper_1mid
+shot run_juniper_9end
+{
+ "samples": 103,
+ "secs": 57,
+ "maxKmh": 79.6,
+ "avgKmh": 61,
+ "maxOffLine": 45,
+ "endIdx": 18,
+ "crashes": [],
+ "stuck": [],
+ "huds": [
+  "Juniper · from Quickdraw"
+ ],
+ "modes": [
+  "straight",
+  "tucked",
+  "carving",
+  "skidding",
+  "braking"
+ ],
+ "results": false,
+ "lastTime": "0:55.3",
+ "airSamples": 0,
+ "end": {
+  "t": 56879,
+  "idx": 18,
+  "d": 2,
+  "x": 1808,
+  "z": 883,
+  "y": 314,
+  "v": 76,
+  "mode": "straight",
+  "g": true,
+  "air": false,
+  "cr": 0,
+  "hud": "Juniper · from Quickdraw",
+  "time": "0:55.3",
+  "trick": "Skied Juniper1/84 runs",
+  "res": false,
+  "fade": false
+ }
+}
+results text: 
+Dude ney Trail picked true spawn {"x":2060.68,"y":352.81,"z":1790.09,"speedKmh":1.14,"heading":-164.82,"mode":"straight","grounded":true,"air":false,"rail":null,"crashed":0,"offMap":false,"trick":null,"hud":"Dude ney Trail · from Stock's Chair","spd":"1","time":"0:00.0","trickFeed":""} spawn->line start 10
+shot run_dude-ney-trail_0start
+shot run_dude-ney-trail_1mid
+shot run_dude-ney-trail_2mid
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+page.waitForTimeout: Target page, context or browser has been closed
+    at pilotRun (/workspace/skiscrapex-live/pw/pt_ski.mjs:45:16)
+    at async file:///workspace/skiscrapex-live/pw/t3_runs.mjs:18:15 {
+  log: []
+}
+
+Node.js v24.22.1

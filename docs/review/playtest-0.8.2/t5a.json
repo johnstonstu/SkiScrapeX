@@ -1,0 +1,29 @@
+{
+ "gunbarrel": {
+  "at": "1124,955,180",
+  "hud": "Grandfather's Trail · from Quickdraw",
+  "minimap": "Gunbarrel",
+  "x": 1124,
+  "z": 954.86,
+  "mode": "straight"
+ },
+ "cam0": "Camera · First person",
+ "cam1": "Camera · Orbit",
+ "cam2": "Camera · Follow",
+ "juniper": {
+  "at": "1539,1113,180",
+  "hud": "Grandfather's Trail · from Quickdraw",
+  "minimap": "Juniper",
+  "x": 1539.07,
+  "z": 1112.48,
+  "mode": "straight"
+ },
+ "whipsaw": {
+  "at": "2589,1774,90",
+  "hud": "Grandfather's Trail · from Quickdraw",
+  "minimap": "Whipsaw",
+  "x": 2589.01,
+  "z": 1774,
+  "mode": "still"
+ }
+}

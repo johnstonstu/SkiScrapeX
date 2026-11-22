@@ -1,0 +1,156 @@
+{
+ "title": "SkiScrapex\n\nApex Mountain Resort, Penticton BC\n\nLearn to ski\nFree ski\nChallenges\nRider\nSettings\n\n0 0 0\nRuns skied 0/84\nNuggets 0/12",
+ "version": "v0.8.2",
+ "status": "",
+ "res": [
+  [
+   "/SkiScrapeX/assets/main-BzkzdkTu.js",
+   70440,
+   70140,
+   57
+  ],
+  [
+   "/SkiScrapeX/assets/main-Cm2PYKSN.css",
+   4625,
+   4325,
+   86
+  ],
+  [
+   "/SkiScrapeX/assets/riderPanel-CWq6_Fzw.js",
+   161093,
+   160793,
+   112
+  ],
+  [
+   "/SkiScrapeX/data/terrain.json",
+   2146,
+   1846,
+   34
+  ],
+  [
+   "/SkiScrapeX/data/heights.f32",
+   1133090,
+   1132790,
+   103
+  ],
+  [
+   "/SkiScrapeX/data/heights-2m.u16",
+   3941906,
+   3941606,
+   224
+  ],
+  [
+   "/SkiScrapeX/data/canopy-cover.u8",
+   181441,
+   181141,
+   54
+  ],
+  [
+   "/SkiScrapeX/data/canopy-height.u8",
+   268390,
+   268090,
+   41
+  ],
+  [
+   "/SkiScrapeX/data/references.json",
+   1633,
+   1333,
+   17
+  ],
+  [
+   "/SkiScrapeX/data/features.json",
+   77196,
+   76896,
+   42
+  ],
+  [
+   "/SkiScrapeX/data/hillshade.png",
+   300,
+   0,
+   24
+  ],
+  [
+   "/SkiScrapeX/data/horizon.json",
+   768,
+   468,
+   24
+  ],
+  [
+   "/SkiScrapeX/data/horizon.f32",
+   724694,
+   724394,
+   76
+  ],
+  [
+   "/SkiScrapeX/data/horizon-canopy.u8",
+   147721,
+   147421,
+   36
+  ],
+  [
+   "/SkiScrapeX/data/hillshade.png",
+   175644,
+   175344,
+   10
+  ]
+ ],
+ "nav": {
+  "name": "https://johnstonstu.github.io/SkiScrapeX/",
+  "entryType": "navigation",
+  "startTime": 0,
+  "duration": 336,
+  "navigationId": 8690,
+  "initiatorType": "navigation",
+  "deliveryType": "",
+  "nextHopProtocol": "h2",
+  "renderBlockingStatus": "non-blocking",
+  "contentType": "text/html",
+  "contentEncoding": "gzip",
+  "workerStart": 0,
+  "workerRouterEvaluationStart": 0,
+  "workerCacheLookupStart": 0,
+  "workerMatchedRouterSource": "",
+  "workerFinalRouterSource": "",
+  "workerMatchedSourceType": "",
+  "workerFinalSourceType": "",
+  "redirectStart": 0,
+  "redirectEnd": 0,
+  "fetchStart": 0.19999999925494194,
+  "domainLookupStart": 2.5,
+  "domainLookupEnd": 4.199999999254942,
+  "connectStart": 4.199999999254942,
+  "secureConnectionStart": 4.800000000745058,
+  "connectEnd": 48.30000000074506,
+  "requestStart": 48.69999999925494,
+  "responseStart": 124.59999999962747,
+  "firstInterimResponseStart": 0,
+  "finalResponseHeadersStart": 124.59999999962747,
+  "responseEnd": 125.69999999925494,
+  "transferSize": 1543,
+  "encodedBodySize": 1243,
+  "decodedBodySize": 3569,
+  "responseStatus": 200,
+  "serverTiming": [],
+  "unloadEventStart": 0,
+  "unloadEventEnd": 0,
+  "domInteractive": 135.09999999962747,
+  "domContentLoadedEventStart": 335.30000000074506,
+  "domContentLoadedEventEnd": 335.5,
+  "domComplete": 336,
+  "loadEventStart": 336,
+  "loadEventEnd": 336,
+  "type": "navigate",
+  "redirectCount": 0,
+  "activationStart": 0,
+  "criticalCHRestart": 0,
+  "notRestoredReasons": null,
+  "confidence": {
+   "randomizedTriggerRate": 0.4994798,
+   "value": "high"
+  }
+ },
+ "titleMs": 7543,
+ "totalTransfer": 6891087,
+ "totalEncoded": 6886587,
+ "http": []
+}
