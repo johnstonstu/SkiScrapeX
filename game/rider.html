@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SkiScrapex · Rider lab</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #c9d8e4; font: 14px system-ui, sans-serif; color: #132637; }
+      canvas { display: block; width: 100%; height: 100%; }
+      #labels { position: fixed; left: 0; right: 0; bottom: 12px; display: flex; justify-content: space-around; pointer-events: none; }
+      #labels span { background: #ffffffcc; padding: 2px 8px; border-radius: 6px; }
+      #note { position: fixed; top: 10px; left: 12px; background: #ffffffcc; padding: 4px 10px; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <p id="note">Rider lab · drag to orbit · <code>?anim</code> plays the moves · <code>?h=90</code> side view · <code>?fit=slim&amp;headwear=beanie&amp;jacket=2f7fe0</code></p>
+    <div id="labels"></div>
+    <script type="module" src="/src/tools/riderLab.ts"></script>
+  </body>
+</html>

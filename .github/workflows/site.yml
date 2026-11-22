@@ -1,0 +1,89 @@
+name: Test and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: [Build Apex data]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: site
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: game/package-lock.json
+      - name: Fetch generated data for the Apex test
+        run: |
+          if git fetch --depth 1 origin data; then
+            mkdir -p game/public/data
+            git --work-tree=game/public/data checkout FETCH_HEAD -- .
+          fi
+      - name: Game tests and build
+        working-directory: game
+        run: |
+          npm ci
+          npm test
+          npm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: OSM tool tests
+        working-directory: tools/osm
+        run: |
+          python3 -m pip install -r requirements.txt
+          python3 -m unittest discover -s tests
+
+  deploy:
+    # Skipped until GitHub Pages is enabled. Set the repo variable PAGES_ENABLED=true to turn it on.
+    if: vars.PAGES_ENABLED == 'true'
+    needs: test
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: game/package-lock.json
+      - name: Fetch generated data
+        run: |
+          if git fetch --depth 1 origin data; then
+            mkdir -p game/public/data
+            git --work-tree=game/public/data checkout FETCH_HEAD -- .
+            ls -la game/public/data
+          else
+            echo "::warning::No data branch yet. Run the Build Apex data workflow."
+          fi
+      - name: Build
+        working-directory: game
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: game/dist
+      - id: pages
+        uses: actions/deploy-pages@v4

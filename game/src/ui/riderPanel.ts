@@ -1,0 +1,154 @@
+import { SKI_GRAPHICS, type SkiGraphic } from '../render/rider/skierView'
+import { KEYS, readJson, writeJson } from '../app/storage'
+
+/** Rider customization: colours, kit and ski model. */
+export type SkiModel = 'allMountain' | 'park' | 'powder'
+
+export interface Outfit {
+  jacket: string
+  pants: string
+  helmet: string
+  skis: string
+  /** Neck gaiter colour. */
+  gaiter: string
+  model: SkiModel
+  fit: 'baggy' | 'slim'
+  headwear: 'helmet' | 'beanie'
+  jacketAccent: string
+  skiGraphic: SkiGraphic
+  skiAccent: string
+  backpack: boolean
+}
+
+export const SKI_MODELS: Record<SkiModel, { label: string; note: string; sidecutRadius: number; floatScale: number }> = {
+  allMountain: { label: 'All-mountain', note: '14 m sidecut, quick to carve', sidecutRadius: 14, floatScale: 1 },
+  park: { label: 'Park twin', note: '18 m sidecut, loose and playful', sidecutRadius: 18, floatScale: 1.05 },
+  powder: { label: 'Powder', note: '22 m sidecut, floats in deep snow', sidecutRadius: 22, floatScale: 1.45 },
+}
+
+export type SkiModelSpec = (typeof SKI_MODELS)[SkiModel]
+
+/** Reward colours, shown locked until earned. */
+export const REWARD_COLOURS: { colour: string; unlock: string; label: string }[] = [
+  { colour: '#d4a72c', unlock: 'colour:gold', label: 'Gold' },
+  { colour: '#b8c2cc', unlock: 'colour:chrome', label: 'Chrome' },
+]
+const REWARD_GRAPHICS: Record<string, string> = { topo: 'graphic:topo', nugget: 'graphic:nugget' }
+
+export const PALETTE = ['#d42a2f', '#f2b705', '#2f7fe0', '#2e9e4a', '#7b3fbf', '#ff7a2a', '#1b1f24', '#f2f5f8', '#27313f', '#8a6243', '#e85d9b', '#3fc7c7']
+
+export const DEFAULT_OUTFIT: Outfit = { jacket: '#d42a2f', pants: '#27313f', helmet: '#f2f5f8', skis: '#f2b705', gaiter: '#59606b', model: 'allMountain', fit: 'baggy', headwear: 'helmet', jacketAccent: '#8f1c20', skiGraphic: 'stripes', skiAccent: '#1b1f24', backpack: false }
+
+export function readOutfit(): Outfit {
+  return readJson<Outfit>(KEYS.outfit, { ...DEFAULT_OUTFIT })
+}
+
+export function writeOutfit(outfit: Outfit): void {
+  writeJson(KEYS.outfit, outfit)
+}
+
+/** Builds the style panel; calls `onChange` with the new outfit after every pick. */
+export function createStylePanel(
+  panel: HTMLElement,
+  outfit: Outfit,
+  onChange: (outfit: Outfit) => void,
+  unlocked: () => Set<string> = () => new Set(),
+  hint: (id: string) => string = () => '',
+): { refresh(): void } {
+  const render = () => {
+    const earned = unlocked()
+    panel.innerHTML = '<header><h2>Rider</h2><button type="button" class="close" aria-label="Close">✕</button></header>'
+    panel.querySelector('.close')!.addEventListener('click', () => (panel.hidden = true))
+    for (const [key, title] of [
+      ['jacket', 'Jacket'],
+      ['jacketAccent', 'Jacket panels'],
+      ['pants', 'Pants'],
+      ['helmet', 'Helmet or beanie'],
+      ['gaiter', 'Neck gaiter'],
+      ['skis', 'Skis'],
+      ['skiAccent', 'Ski graphic colour'],
+    ] as const) {
+      const row = document.createElement('div')
+      row.className = 'style-row'
+      row.innerHTML = `<span>${title}</span>`
+      const swatches = document.createElement('div')
+      swatches.className = 'swatches'
+      for (const colour of [...PALETTE, ...REWARD_COLOURS.map((r) => r.colour)]) {
+        const reward = REWARD_COLOURS.find((r) => r.colour === colour)
+        const swatch = document.createElement('button')
+        swatch.type = 'button'
+        swatch.style.background = colour
+        if (reward && !earned.has(reward.unlock)) {
+          swatch.disabled = true
+          swatch.classList.add('locked')
+          swatch.title = `${reward.label}: ${hint(reward.unlock)}`
+          swatches.append(swatch)
+          continue
+        }
+        if (reward) swatch.classList.add('reward')
+        swatch.setAttribute('aria-label', `${title} ${reward?.label ?? colour}`)
+        swatch.setAttribute('aria-pressed', String(outfit[key] === colour))
+        swatch.addEventListener('click', () => {
+          outfit[key] = colour
+          onChange(outfit)
+          render()
+        })
+        swatches.append(swatch)
+      }
+      row.append(swatches)
+      panel.append(row)
+    }
+    const models = document.createElement('div')
+    models.className = 'style-row models'
+    models.innerHTML = '<span>Ski model</span>'
+    for (const [id, model] of Object.entries(SKI_MODELS) as [SkiModel, (typeof SKI_MODELS)[SkiModel]][]) {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'model'
+      button.setAttribute('aria-pressed', String(outfit.model === id))
+      button.innerHTML = `<strong>${model.label}</strong><small>${model.note}</small>`
+      button.addEventListener('click', () => {
+        outfit.model = id
+        onChange(outfit)
+        render()
+      })
+      models.append(button)
+    }
+    panel.append(models)
+    const toggles: [string, keyof Outfit, [string, string][]][] = [
+      ['Fit', 'fit', [['baggy', 'Baggy'], ['slim', 'Slim']]],
+      ['Head', 'headwear', [['helmet', 'Helmet'], ['beanie', 'Beanie']]],
+      ['Pack', 'backpack', [['false', 'None'], ['true', 'Backpack']]],
+      ['Ski graphic', 'skiGraphic', SKI_GRAPHICS.map((g) => [g, g[0].toUpperCase() + g.slice(1)] as [string, string])],
+    ]
+    for (const [title, key, options] of toggles) {
+      const row = document.createElement('div')
+      row.className = 'style-row models'
+      row.innerHTML = `<span>${title}</span>`
+      for (const [value, label] of options) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = 'model'
+        button.setAttribute('aria-pressed', String(String(outfit[key]) === value))
+        button.innerHTML = `<strong>${label}</strong>`
+        const reward = key === 'skiGraphic' ? REWARD_GRAPHICS[value] : undefined
+        if (reward && !earned.has(reward)) {
+          button.disabled = true
+          button.classList.add('locked')
+          button.innerHTML = `<strong>${label}</strong><small>${hint(reward)}</small>`
+          row.append(button)
+          continue
+        }
+        button.addEventListener('click', () => {
+          ;(outfit as unknown as Record<string, string | boolean>)[key] = value === 'true' ? true : value === 'false' ? false : value
+          onChange(outfit)
+          render()
+        })
+        row.append(button)
+      }
+      panel.append(row)
+    }
+  }
+  render()
+  return { refresh: render }
+}

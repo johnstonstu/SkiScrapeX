@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "generator": "ski-scrapex-osm-export",
+  "generatedAt": "2026-01-01T00:00:00Z",
+  "source": {
+    "name": "OpenStreetMap",
+    "api": "Overpass API",
+    "osmTimestamp": null,
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+    "example": true,
+    "note": "Shape example for version 1. The coordinates illustrate the local frame. They are not an OpenStreetMap extract."
+  },
+  "crs": {
+    "horizontal": "EPSG:2955",
+    "horizontalName": "NAD83(CSRS) / UTM zone 11N",
+    "vertical": "EPSG:6647",
+    "verticalName": "CGVD2013",
+    "sourceHorizontal": "EPSG:4326"
+  },
+  "transform": {
+    "originEasting": 286882.5,
+    "originNorthing": 5475437.5,
+    "originElevation": 1600.0,
+    "originSource": "documented-crop",
+    "axes": "+X east, +Y up, +Z south",
+    "formula": {
+      "x": "easting - originEasting",
+      "y": "elevation - originElevation",
+      "z": "originNorthing - northing"
+    }
+  },
+  "heights": {
+    "attached": false,
+    "source": null
+  },
+  "bufferMetres": 50,
+  "boundary": {
+    "id": "way/1",
+    "osmType": "way",
+    "osmId": 1,
+    "name": "Example resort",
+    "geometry": "area",
+    "points": [
+      {"osmId": 10, "x": 0.0, "y": null, "z": 0.0},
+      {"osmId": 11, "x": 100.0, "y": null, "z": 0.0},
+      {"osmId": 12, "x": 100.0, "y": null, "z": 80.0},
+      {"osmId": 13, "x": 0.0, "y": null, "z": 80.0},
+      {"osmId": 10, "x": 0.0, "y": null, "z": 0.0}
+    ]
+  },
+  "runs": [
+    {
+      "name": "Example Run",
+      "difficulty": "easy",
+      "grooming": null,
+      "geometry": "line",
+      "topology": "path",
+      "orderedDownhill": false,
+      "orderSource": "openstreetmap",
+      "members": [
+        {
+          "id": "way/2",
+          "osmType": "way",
+          "osmId": 2,
+          "name": "Example Run",
+          "difficulty": "easy",
+          "grooming": null,
+          "geometry": "line",
+          "points": [
+            {"osmId": 20, "x": 12.5, "y": null, "z": -4.0},
+            {"osmId": 21, "x": 40.0, "y": null, "z": 25.0}
+          ]
+        }
+      ],
+      "points": [
+        {"osmId": 20, "x": 12.5, "y": null, "z": -4.0},
+        {"osmId": 21, "x": 40.0, "y": null, "z": 25.0}
+      ]
+    }
+  ],
+  "terrainParks": [],
+  "lifts": [
+    {
+      "id": "way/3",
+      "osmType": "way",
+      "osmId": 3,
+      "name": "Example Lift",
+      "aerialway": "chair_lift",
+      "orderedBottomToTop": false,
+      "stations": [
+        {"osmId": 30, "role": "start", "inferred": false, "x": 10.0, "y": null, "z": 0.0},
+        {"osmId": 32, "role": "end", "inferred": false, "x": 30.0, "y": null, "z": 50.0}
+      ],
+      "towers": [
+        {"osmId": 31, "index": 0, "x": 20.0, "y": null, "z": 25.0}
+      ],
+      "line": [
+        {"osmId": 30, "kind": "station", "x": 10.0, "y": null, "z": 0.0},
+        {"osmId": 31, "kind": "pylon", "x": 20.0, "y": null, "z": 25.0},
+        {"osmId": 32, "kind": "station", "x": 30.0, "y": null, "z": 50.0}
+      ]
+    }
+  ],
+  "buildings": [
+    {
+      "id": "way/4",
+      "osmType": "way",
+      "osmId": 4,
+      "name": "Example Lodge",
+      "building": "yes",
+      "geometry": "area",
+      "points": [
+        {"osmId": 40, "x": 5.0, "y": null, "z": 60.0},
+        {"osmId": 41, "x": 15.0, "y": null, "z": 60.0},
+        {"osmId": 42, "x": 15.0, "y": null, "z": 70.0},
+        {"osmId": 40, "x": 5.0, "y": null, "z": 60.0}
+      ]
+    }
+  ],
+  "roads": [
+    {
+      "id": "way/5",
+      "osmType": "way",
+      "osmId": 5,
+      "name": "Example Road",
+      "highway": "service",
+      "geometry": "line",
+      "points": [
+        {"osmId": 50, "x": 0.0, "y": null, "z": 40.0},
+        {"osmId": 51, "x": 20.0, "y": null, "z": 40.0}
+      ]
+    }
+  ],
+  "peaks": [
+    {
+      "id": "node/6",
+      "osmType": "node",
+      "osmId": 6,
+      "name": "Example Peak",
+      "ele": 2000,
+      "x": 80.0,
+      "y": null,
+      "z": 10.0
+    }
+  ]
+}

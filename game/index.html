@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#132637" />
+    <title>SkiScrapex · Apex Mountain</title>
+  </head>
+  <body>
+    <canvas id="view" tabindex="-1"></canvas>
+    <header id="hud">
+      <p id="run-name">SkiScrapex</p>
+      <div class="readouts">
+        <div><span id="speed">0</span><small>km/h</small></div>
+        <div><span id="time">0:00.0</span><small>time</small></div>
+        <div><span id="best">–</span><small>best</small></div>
+      </div>
+      <div class="slopes" id="slopes" hidden></div>
+    </header>
+    <div id="buttons">
+      <button type="button" id="btn-menu" aria-controls="pause-menu" aria-expanded="false">Pause</button>
+    </div>
+    <section id="pause-menu" hidden aria-labelledby="pause-title">
+      <h2 id="pause-title">Paused</h2>
+      <button type="button" id="btn-resume">Resume <kbd>Esc</kbd></button>
+      <button type="button" id="btn-challenges">Challenges <kbd>H</kbd></button>
+      <button type="button" id="btn-runs">Runs and parks <kbd>T</kbd></button>
+      <button type="button" id="btn-style">Rider and skis <kbd>O</kbd></button>
+      <button type="button" id="btn-settings">Settings <kbd>G</kbd></button>
+      <button type="button" id="btn-reset">Restart run <kbd>R</kbd></button>
+      <button type="button" id="btn-camera"><span id="camera-label">Camera · Follow</span> <kbd>C</kbd></button>
+      <button type="button" id="btn-map" aria-pressed="true">Resort map <kbd>M</kbd></button>
+      <button type="button" id="btn-sound" aria-pressed="true">Sound · On</button>
+      <button type="button" id="btn-info" aria-pressed="false">Performance info <kbd>I</kbd></button>
+      <button type="button" id="btn-title">Main menu</button>
+      <p><kbd>WASD</kbd> or <kbd>↑ ← ↓ →</kbd><br>Up pushes or tucks, down brakes, left and right turn.</p>
+      <p>Hold and release <kbd>Space</kbd> to jump. Hold <kbd>J</kbd> to grab.</p>
+      <p class="version" id="version"></p>
+    </section>
+    <pre id="debug" hidden></pre>
+    <figure id="map-panel" hidden><canvas id="minimap" aria-label="Resort map"></canvas><figcaption id="map-location"></figcaption></figure>
+    <p id="status" role="status">Loading…</p>
+    <p id="help"></p>
+    <p id="credits"></p>
+    <section id="runs" hidden aria-label="Choose a run">
+      <header><h2>Runs</h2><button type="button" id="btn-close-runs" aria-label="Close">✕</button></header>
+      <div id="run-list"></div>
+    </section>
+    <section id="style" hidden aria-label="Rider style"></section>
+    <section id="settings" hidden aria-label="Settings"></section>
+    <section id="challenges" hidden aria-label="Challenges"></section>
+    <section id="results" hidden aria-label="Results"></section>
+    <section id="title-screen" aria-label="SkiScrapex"></section>
+    <div id="run-card" hidden></div>
+    <div id="ride" hidden>
+      <span id="ride-text">Riding</span>
+      <button type="button" id="btn-skip">Skip ▸▸</button>
+    </div>
+    <div id="trick" aria-live="polite"></div>
+    <div id="hint"></div>
+    <div id="fade"><p id="fade-text"></p></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

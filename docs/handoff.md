@@ -1,0 +1,42 @@
+# Development notes
+
+Practical notes for anyone (human or agent) picking up the code. Read them with [README.md](../README.md), [docs/status.md](status.md), [docs/roadmap.md](roadmap.md) and [AGENTS.md](../AGENTS.md).
+
+## Workflow
+
+- Feature work happens on branches. `main` only moves at milestones the maintainer has played; each merge bumps `game/package.json`, adds a `CHANGELOG.md` entry and gets a `vX.Y.Z` tag.
+- Run `npm test` and `npm run build` in `game/` before pushing.
+- Generated data is never on `main`. The **Build Apex data** workflow builds LidarBC terrain and canopy, the NRCan MRDEM horizon and the OSM export, and force-pushes them to the orphan `data` branch. Fetch them for local work:
+
+  ```
+  git fetch origin data && git --work-tree=game/public/data checkout FETCH_HEAD -- . && git reset -q
+  ```
+
+- **Test and deploy** runs the tests on every push to `main`. Deploying to GitHub Pages is skipped unless the repository variable `PAGES_ENABLED=true` is set and Pages uses GitHub Actions as its source.
+
+## Testing without a GPU
+
+- Headless Chrome with SwiftShader renders at a few frames per second, so input-timing scripts are imprecise. Rely on the unit tests and `npm run tune` (the tuning bots) for physics, and use screenshots for looks.
+- `?test` exposes the scene, skier, challenge, goals and other skiers on `window.__game` for scripted smoke tests.
+
+## URL parameters
+
+| Parameter | Effect |
+|---|---|
+| `?dev` | Test slopes instead of Apex |
+| `?touch` | Force touch controls |
+| `?noshadows` | Shadows off |
+| `?at=x,z,headingDeg` | Start somewhere else on the crop |
+| `?ride=quickdraw` | Start on a lift |
+| `?park=claim` | Start at a terrain park |
+| `?perf` | Load-phase and frame timing on `window.__perf` |
+| `?test` | Smoke-test handles on `window.__game` |
+
+Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
+
+## Where to tune
+
+- Ski physics: `PHYSICS` in `src/sim/constants.ts`, surfaces in `src/sim/surface.ts`.
+- Freestyle: `FREESTYLE` in `src/sim/freestyle.ts`, kicker and rail specs in `src/world/park.ts`.
+- Medal targets: the pace bot in `src/world/challenges.ts` (times) and `parkTargets` (park scores).
+- Apex facts the OSM data gets wrong: `src/world/corrections.ts`; traced runs: `src/world/runOverlay.ts`. Sources are in `docs/apex-sources.md` and `docs/run-names.md`.
