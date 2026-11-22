@@ -328,3 +328,58 @@ Acceptance tests to add (deterministic, fixed dt): carve beats skid on the same 
 4. **Inject into the sim** as `sampleSurface(x, z) → SurfaceParams`, alongside `sampleTerrain`, so `sim` keeps no world or Three.js dependency.
 5. **Blend, do not switch.** Bilinearly weight the parameter vectors (not the ids) of the four nearest texels, then smooth over time with τ ≈ 0.15 s. At 30 m/s the skier crosses about 12 texels a second, so hard switching would pop.
 6. **Later:** reduce powder `depth` where the snowflow-style track buffer shows the snow has been skied, so powder gets tracked out.
+
+## Jibbin reference
+
+Static analysis of the recovered `Jibbin.exe`, its accompanying `Controls.dat`, and 36 models under `Level Data`. Code addresses below are offsets in the extracted Blitz3D module. The executable stores that module in PE resource 1111 (RCDATA). Its symbol and relocation tables identify the relevant functions and calls. [Blitz3D runtime loader](https://github.com/blitz-research/blitz3d/blob/master/bbruntime_dll/bbruntime_dll.cpp#L195)
+
+| Mechanic | What the recovered files show | How it could fit SkiScrapex |
+| --- | --- | --- |
+| Grabs | Ten named actions with up to two simultaneous key bindings. The animation routine starts a pose in the air and has shorter animation segments it can reverse on early release. The main skier file has 500 frames at a nominal 30 fps. | Add Blunt, Liu-Kang and Uncrossed Mute using the existing rider IK. Let players release a partial pose smoothly and keep the current grab controls and scoring as the baseline. |
+| Rail presses | The straight-rail routine requires a grind input on entry. The tail and nose inputs also assert that grind input and set separate backward and forward stance flags. | Keep the existing rail path, alignment checks and balance simulation. Test an explicit nose or tail press as a choice within a slide. Give the stance a distinct pose and trick name. |
+| Butters | The main loop enables a butter while the configured key is held, the skier has contact and no rail is being contacted. The butter routine changes rider pitch and yaw. The two separate butter files each have 40 frames at 30 fps. | Prototype a grounded press that can pivot into a switch takeoff. Gate it to snow contact, and use the current pop and landing systems. |
+| Air rotation | `InAirTricks` applies separate directional pitch and yaw increments, starting at up to 10° per simulation step after the directional divisors reset on contact. Each divisor increases during the air phase, faster while its direction is released, and caps at 8. The main loop is configured for 30 updates per second. | Test front-loaded rotation as an optional tuning change. Holding direction early should carry more authority than a last-moment correction. Compare it with the existing pre-wind and landing assist on one ramp. |
+| Jump | The jump routine charges a value while the jump key is held and applies lift on release. A level naming marker for normal jumps changes the charge cap and release behavior. The raw lift values describe movement in Blitz3D units per update. | Keep the current metre-based pop model and test per-feature tuning only after comparing repeatable jumps. |
+| Feature types | The loader recognizes named jump, straight-rail, halfpipe and quarterpipe nodes. The executable has separate routines for pipes, hips and several rail orientations. Halfpipe nodes appeared in 19 instances and quarterpipe nodes in 10 across the 36-model sample. These are node counts. | Use feature metadata alongside geometry. For an Apex test park, start with two independent practice lanes and add an original hip or quarterpipe once takeoff and re-entry are testable. |
+| Practice | The manual documents nine saved positions per level. | The local park mode implements Shift + 1 through 9 to save and 1 through 9 to return at rest. |
+
+### Recovered keyboard profile
+
+This is the profile shipped in this copy of `Controls.dat`. The loader reads 30 little-endian integers. The file maps arrows to direction, Space to jump, W to regular grind, Q to tailpress grind, E to nosepress grind, Left Shift to butter and P to camera. The included manual lists a different nose-grind binding. The table follows the file and the executable's read order. [Blitz3D scan codes](https://github.com/aminrouslan/blitz3d-docs/blob/main/scancodes.md)
+
+| Grab | Saved binding | Source animation frame range |
+| --- | --- | --- |
+| Phil | Z + X | 0–20 |
+| Safety | A | 32–52 |
+| Mute | D | 288–307 |
+| Uncrossed mute | F | 308–327 |
+| Tail | S | 328–347 |
+| Blunt | C + V | 348–367 |
+| Liu-Kang | V | 368–387 |
+| Nose | C | 388–407 |
+| Critical | Z | 408–427 |
+| Japan | X | 428–447 |
+
+Frame ranges are the full sequences passed to the engine. Early-release segments for the first grab end at frames 5, 10 and 15 and play backward after release. The nominal 30 fps and frame ranges establish authored timing. Runtime time spent in a pose depends on the animation path and player input. [Blitz3D model format](https://docs.luanti.org/for-creators/models/b3d-spec/)
+
+Verification points in the module include control loading at `0x00a4e5`, clip registration around `0x01f424`, the park node scan at `0x021091`, butter entry at `0x02aa4f`, jump at `0x044e20`, air rotation at `0x045c10`, grabs at `0x0460c0` and straight-rail handling at `0x055520`.
+
+The original game has yet to be run for a side-by-side comparison. Airborne and rail behavior in the table comes from the executable and assets. Real-world speed, airtime and landing tolerances still need measurement or further analysis.
+
+### Whole-build audit
+
+The audit covers the playable `Jibbin.exe` from `jibbin.rar` (SHA-256 `74fae78118d02e935dcd7fabc41745fe6f1edc1a22199484cc97a8918008cc27`). The 488,304-byte game module contains 5,351 symbols, 13,425 relative relocations and 11,784 absolute relocations. I inventoried 168 named entry points, including three menu, setup and game-loop labels and 94 Blitz3D scene-extension functions. The inventory uses symbol ranges, their call targets, and references from the main loop. The implementation details below come from inspecting the relevant instructions and checking them against the recovered files.
+
+| System | Confirmed in this build | What matters for SkiScrapex |
+| --- | --- | --- |
+| Ground movement and surfaces | Separate slope, brake and movement-update routines. Slope probes read collision geometry and the picked surface normal. The loader recognizes groomed and powder setup, and braking can generate snow spray. Runtime call sites include `Slope` (`0x051810`), `Brake` (`0x04b540`) and the main loop (`0x029795`). | Keep the existing terrain sampler and measured surface model. Test how much speed can be scrubbed in the park without making the approach hard to repeat. |
+| Air and landing | Charged pop, feature-sensitive jump behavior, directional air rotation, animation timing, left/right landing correction, and tumble states. The running game also counts rotations for the trick display. See `Jump`, `InAirTricks`, `UpdateGame` (`0x043bc0`), `Land` (`0x05d930`) and `CountRotations` (`0x069e70`). | Compare spin timing and recovery on repeatable jumps. Keep the current grading thresholds until there are measurements. |
+| Jibs and park geometry | Ground butters, three grind inputs, multiple rail handlers, rail approach orientation markers, and a wood material branch. Dedicated paths handle ramps, hips, halfpipes, quarterpipes, and wall interaction. The level scanner and game loop also call warp handlers. See `SRail` (`0x04c100`), `HipFunc` (`0x058270`), `HalfPipeFunc` (`0x059700`), `QuarterPipeFunc` (`0x05c4f0`), `WarpWorld` (`0x067af0`) and `Wall` (`0x072190`). | Prioritize rail presses and butters. Then try a wall feature or hip with its own entry and exit rules. Use original park layouts. |
+| Scoring and feedback | `Score` (`0x073690`) adds points during grinding, applies a tumble deduction, and awards different points by grab sequence and animation progress. Directional rotation state affects the award. The HUD includes an optional trick display, and numeric rotation labels from 180 to 1440 are authored. | Show which stance or grab earned points and preserve the existing landing grade and combo banking. Jibbin's per-step awards are useful evidence about feedback and timing. |
+| Practice and replays | Position save/recall is distinct from replay. Replay save/load handles initial session data and a stream of input records, and playback feeds the game loop. The recording list and preview image have separate paths. See `SaveSessionPoints` (`0x05e1d0`), `PlayReplay` (`0x06dba0`), `SaveRecordFile` (`0x070be0`) and `ReadLoadedRecording` (`0x071bd0`). | Later add a short local replay of a practiced line. An input log plus an initial state fits the fixed-step sim, provided terrain and settings are included in replay identity. |
+| Rider and modding | Character save/load, outfit textures, ski topsheets, replacement grab-model packs, a lodge, level selection, and a custom-level scanner. `FindLevels` (`0x042ab0`) enumerates the directory. `ChangeCharacter` (`0x040810`) applies mesh visibility, colors and textures. | Keep the original SkiScrapex rider. A typed feature schema can support user-made park layouts without depending on legacy mesh names. |
+| Controls, settings and presentation | Rebindable keys, joystick input, camera controls, graphics modes, sound levels, camera range, optional HUD elements, visible reaction-time settings, snow particles, ski tracks and screenshots. The executable distinguishes rail entry, loop and exit audio. The exact effect of each reaction-time setting still needs verification. | Material and contact-specific audio can make rail entry, balance and pop-off easier to read. Review camera and input response during gameplay. |
+
+Across all 170 loose `.b3d` files in the extracted RAR, 119 distinct byte contents remained after deduplication. The scan found 67 distinct valid scenes containing a `Start` node. Of those, 65 contain `jump`, 60 contain `straight rail`, 18 contain `halfpipe`, 14 contain `quarterpipe`, 10 contain `hip`, 11 contain `wall`, and 19 contain `warp out`. These counts describe scene markers. They can include collision helpers and should not be used as counts of skiable features. One legacy grab file is zero bytes in both loose and nested form. The five nested RAR listings contained asset packs. The separate ZIP likewise contains gear and grab packs.
+
+No network call targets appeared in the game module's relocation tables. That check covers the loader-linked application calls found in this build. A running Windows reference is still needed for the feel of each state transition, consistent unit calibration, input timing under different settings, and replay behavior across sessions. The separate Inno Setup copy has not been unpacked and compared with the RAR build.
