@@ -388,13 +388,15 @@ No network call targets appeared in the game module's relocation tables. That ch
 
 ### First candidate: nose and tail rail presses
 
-Presses are the smallest Jibbin idea that adds a real choice on every rail without new geometry. They can sit on top of the rail model we already have. This is a design review, not an implementation.
+Presses are the smallest Jibbin idea that adds a real choice on every rail without new geometry. They can sit on top of the rail model we already have.
+
+Implemented as proposed below (`stepPress`, `mainPress` and `railTrickName` in `sim/freestyle.ts`, the press blend in `render/rider/skierView.ts`, Nose press and Tail press poses in `rider.html`, tests in `tests/presses.test.ts`). The numbers are still provisional.
 
 **What we have now** (`sim/freestyle.ts`, `sim/skier.ts`):
 
 - Capture is automatic (`tryCaptureRail`): reach, height window, rise limit and 35° travel alignment. The style is fixed at entry from the ski heading: `5050` when the skis point along the rail, `slide` when they are across it.
 - `stepRail` keeps momentum along the tangent with Coulomb friction (0.06 rail, 0.04 box) and air drag. Balance is one lateral unstable pendulum, `b'' = λ²·w·b − c·b' + K·steer + noise`, with λ 1.9, c 1.0, K 8 and w 0.55 on boxes. The skier falls past |b| > 1 and leaves at the end, below 0.3 m/s or on a pop.
-- On the rail only `steer` and `jump` are read. `pitch` and `grab` are ignored. The first-rail tip in `main.ts` ("Hold grab for a slide style bonus") therefore promises something the sim does not do. Fix the wording when presses land.
+- On the rail only `steer` and `jump` are read. `pitch` and `grab` are ignored. The first-rail tip in `main.ts` ("Hold grab for a slide style bonus") therefore promises something the sim does not do. The tip now explains presses and slides.
 - Points are 150 + 60 per metre + 100 for a slide, named "50-50 Rail", "Slide Box" and so on. `app/tricks.ts` halves repeats by name, so a new name is a new trick for combos.
 
 **Proposal:**
@@ -404,9 +406,9 @@ Presses are the smallest Jibbin idea that adds a real choice on every rail witho
 3. **Balance.** Keep the single lateral pendulum. A press narrows the support, so scale the unstable term by a new `FREESTYLE.pressInstability` (start at 1.3 on rails, 1.15 on boxes) and leave friction alone. Do not add a fore-and-aft pendulum in the first cut. Pitch is already the input that holds the press, and a second balance axis on a touch stick is a lot to ask before anyone has played it. Revisit after a playtest.
 4. **Exit.** Popping out of a press with pitch still held would start a flip in `stepAir`. Suppress pitch for flips until it is released after the pop.
 5. **Scoring and names.** Name from the press held longest: "Nose Press 50-50 Rail", "Tail Press Slide Box". Add about 40 points per pressed metre, counting only presses held at least 0.3 s, and keep the 0.3 fell factor. All of these numbers are provisional.
-6. **Rider.** Add a `pressBlend` beside `railBlend` in `render/rider/skierView.ts`: skis pitched like the nose and tail grab poses (about 0.4 rad), hips shifted over the pressed end and the other knee bent through the existing IK. Add a press toggle to `rider.html` for review.
+6. **Rider.** Add a `pressBlend` beside `railBlend` in `render/rider/skierView.ts`: skis pitched like the nose and tail grab poses (about 0.4 rad), hips shifted over the pressed end and the other knee bent through the existing IK. `rider.html` has Nose press and Tail press poses for review.
 
-**Tests before tuning** (fixed dt, in `tests/freestyle.test.ts`):
+**Tests before tuning** (fixed dt, in `tests/presses.test.ts`, plus a box run-in braking into the press):
 
 - Pitch held from before capture does not press until it is released and held again.
 - A scripted counter-steer holds a nose press across a 6 m rail, and the trick is named "Nose Press".

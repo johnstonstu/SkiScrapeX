@@ -499,6 +499,8 @@ export function createSkierView(): {
   let entryTurn = 0
   let lastHeading = 0
   let railLook = 0
+  /** +1 nose press, -1 tail press, eased. */
+  let pressBlend = 0
   const ease = (rate: number, dt: number) => 1 - Math.exp(-rate * dt)
 
   /**
@@ -733,6 +735,8 @@ export function createSkierView(): {
       // On a slide the skis are across the rail: look down it, the way you are going.
       const wantLook = rail && rail.style === 'slide' ? -Math.sign(rail.vs || 1) * Math.sign(Math.sin(rail.headingOffset) || 1) * 1.1 : 0
       railLook += (wantLook - railLook) * ease(8, dt)
+      const wantPress = rail && rail.press === 'nose' ? 1 : rail && rail.press === 'tail' ? -1 : 0
+      pressBlend += (wantPress - pressBlend) * ease(10, dt)
 
       // Counter-rotation: the upper body keeps facing down the fall line.
       let wantCounter = 0
@@ -762,6 +766,15 @@ export function createSkierView(): {
       skis[1].position.set(-halfStance + shift - Math.max(0, -pumping) * 0.05, 0.03, 0.04 + lead)
       const edgeVisual = pose === 'ski' && !air ? edge * 0.9 : 0
       for (const ski of skis) ski.rotation.z = edgeVisual
+      if (pressBlend !== 0 && !air) {
+        // Press: tip the skis onto the pressed end and slide them back under the body,
+        // lifted so the pressed half stays on the rail.
+        for (const ski of skis) {
+          ski.rotation.x = pressBlend * 0.32
+          ski.position.y += Math.abs(pressBlend) * 0.09
+          ski.position.z -= pressBlend * 0.14
+        }
+      }
       if (air) {
         // Legs come up under the body; grabs pull them further.
         const lift = 0.18 + grabBlend * 0.22
@@ -802,7 +815,7 @@ export function createSkierView(): {
         // Same lean as a skier, but onto the board's toe or heel edge.
         const lift = air ? 0.18 + grabBlend * 0.2 : 0
         const grabTilt = air && grabBlend > 0 ? (lastGrab === 'nose' ? -0.35 : lastGrab === 'tail' ? 0.3 : 0) * grabBlend : 0
-        placeBoard(shift * 0.6, 0.02 + lift, 0, edgeVisual, 0, grabTilt)
+        placeBoard(shift * 0.6, 0.02 + lift + Math.abs(pressBlend) * 0.07, -pressBlend * 0.1, edgeVisual, 0, grabTilt + (air ? 0 : pressBlend * 0.28))
       }
 
       // ---- Body ----
@@ -810,11 +823,11 @@ export function createSkierView(): {
       body.rotation.z = incline + (rail ? rail.balance * 0.32 : 0)
       const kneeFold = 0.15 + crouch * 1.25
       const hipHeight = 0.97 - (thighLength + shinLength) * (1 - Math.cos(kneeFold * 0.55)) * 1.05 - crouch * 0.06
-      hips.position.set(0, Math.max(0.42, hipHeight), -0.05 - crouch * 0.1)
+      hips.position.set(0, Math.max(0.42, hipHeight), -0.05 - crouch * 0.1 + pressBlend * 0.05)
       hips.rotation.set(0, boarding ? -Math.PI / 2 + 0.25 : counter * 0.35, 0)
       // Torso folds over the knees; angulation brings the shoulders back toward level.
       torso.rotation.order = 'YXZ'
-      torso.rotation.x = 0.12 + crouch * 0.72 + tuckBlend * 0.25
+      torso.rotation.x = 0.12 + crouch * 0.72 + tuckBlend * 0.25 + pressBlend * 0.18
       torso.rotation.z = -incline * 0.55
       torso.rotation.y = boarding ? 0.45 + spinLead * 0.5 : counter * 0.65 + spinLead * 0.5 + switchLook * 0.25 + railLook * 0.55
       // Head stays level and looks where the skier is going.

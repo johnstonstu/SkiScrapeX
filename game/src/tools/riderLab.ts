@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { createSkiState, type SkiInput, type SkiState } from '../sim'
+import { createSkiState, newPressState, type RailPress, type SkiInput, type SkiState } from '../sim'
 import { createSkierView } from '../render/rider/skierView'
 import { addSceneLights, createLighting } from '../render/lighting'
 import { DEFAULT_OUTFIT, readOutfit } from '../ui/riderPanel'
@@ -65,10 +65,19 @@ const POSES: Pose[] = [
     setup: (s, t) => {
       s.speed = 5
       const rail = { kind: 'rail', points: [[0, 0, 0], [0, 0, 5]] } as unknown as import('../sim').Rail
-      s.rail = { rail, s: 1, vs: 5, balance: Math.sin(t * 1.7) * 0.6, balanceRate: 0, style: 'slide', headingOffset: Math.PI / 2, entrySpeed: 5, metres: 1 }
+      s.rail = { rail, s: 1, vs: 5, balance: Math.sin(t * 1.7) * 0.6, balanceRate: 0, style: 'slide', headingOffset: Math.PI / 2, entrySpeed: 5, metres: 1, ...newPressState(true) }
       return idle
     },
   },
+  ...(['nose', 'tail'] as RailPress[]).map((press) => ({
+    label: press === 'nose' ? 'Nose press' : 'Tail press',
+    setup: (s: SkiState, t: number) => {
+      s.speed = 5
+      const rail = { kind: 'rail', points: [[0, 0, 0], [0, 0, 5]] } as unknown as import('../sim').Rail
+      s.rail = { rail, s: 1, vs: 5, balance: Math.sin(t * 1.7) * 0.4, balanceRate: 0, style: '5050', headingOffset: 0, entrySpeed: 5, metres: 1, ...newPressState(true), press, pressTime: 1 }
+      return idle
+    },
+  })),
 ]
 
 const params = new URLSearchParams(location.search)

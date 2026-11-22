@@ -434,7 +434,12 @@ function coachTips() {
   else if (kind === 'ice') coach.tip('ice', 'Icy patch', 'Edges hold much less on ice. Keep turns gentle until you are back on good snow.')
   else if (skier.grounded && Math.abs(pitchDeg) > 28 && skier.speed > 7)
     coach.tip('steep', 'Steep pitch', 'Finish each turn across the hill to control your speed. A skidded turn brakes; a carved one keeps your speed.')
-  else if (skier.rail) coach.tip('rail', 'On a rail', 'Steer gently to stay on. Hold grab for a slide style bonus.')
+  else if (skier.rail)
+    coach.tip(
+      'rail',
+      'On a rail',
+      `Steer gently to stay on. ${mobile || controls.gamepad ? 'Push the stick up or down' : 'Hold <kbd>W</kbd> or <kbd>S</kbd>'} for a nose or tail press: more points, harder to balance. Come onto it sideways for a slide.`,
+    )
   else if (stage.features().length && skier.grounded) {
     const travel = Math.hypot(skier.vx, skier.vz)
     const next = travel > 2 ? featureAhead(stage.features(), skier.x, skier.z, skier.vx / travel, skier.vz / travel, 35) : null

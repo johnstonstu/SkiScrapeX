@@ -44,6 +44,15 @@ export const FREESTYLE = {
   balanceLambda: 1.9,
   balanceDamping: 1.0,
   balanceGain: 8,
+  /** Rail presses: pitch past this for `pressDelay` s starts one. */
+  pressThreshold: 0.5,
+  pressDelay: 0.15,
+  /** A press narrows the support: the unstable balance term is scaled by this. */
+  pressInstability: 1.3,
+  boxPressInstability: 1.15,
+  /** Points per metre pressed, counting only presses held this long. */
+  pressPointsPerMetre: 40,
+  pressMinTime: 0.3,
   /** Curvature takeoff: leave the snow when moving away from the next surface faster than this, m/s. */
   takeoffNormalSpeed: 1.5,
   crashTime: 1.6,
@@ -99,6 +108,25 @@ export interface RailState {
   headingOffset: number
   entrySpeed: number
   metres: number
+  /** Nose or tail press, from pitch held on the rail (rider-relative, so it holds when switch). */
+  press: RailPress
+  /** Seconds the current press has been held. */
+  pressTime: number
+  /** Seconds the pitch has been past the threshold toward a new press. */
+  pressCharge: number
+  /** False while pitch held from before the rail is still down (Down is also the brake). */
+  pressArmed: boolean
+  /** Total seconds and metres spent in each press, for the trick name and points. */
+  noseTime: number
+  tailTime: number
+  pressMetres: number
+}
+
+export type RailPress = 'none' | 'nose' | 'tail'
+
+/** Fresh press fields for a new rail. `armed` is false when pitch is already held. */
+export function newPressState(armed: boolean): Pick<RailState, 'press' | 'pressTime' | 'pressCharge' | 'pressArmed' | 'noseTime' | 'tailTime' | 'pressMetres'> {
+  return { press: 'none', pressTime: 0, pressCharge: 0, pressArmed: armed, noseTime: 0, tailTime: 0, pressMetres: 0 }
 }
 
 export function newAir(windup: number): AirState {
@@ -317,13 +345,53 @@ export function tryCaptureRail(
     headingOffset,
     entrySpeed: Math.abs(vAlong),
     metres: 0,
+    ...newPressState(true),
   }
 }
 
 export type RailOutcome = 'riding' | 'end' | 'fell'
 
+/** Start, hold or end a nose or tail press from the pitch input (positive is forward, the nose). */
+function stepPress(rail: RailState, pitch: number, dt: number): void {
+  const { pressThreshold, pressDelay } = FREESTYLE
+  const want: RailPress = pitch > pressThreshold ? 'nose' : pitch < -pressThreshold ? 'tail' : 'none'
+  if (!rail.pressArmed) {
+    if (want !== 'none') return
+    rail.pressArmed = true
+  }
+  if (want === 'none') {
+    rail.press = 'none'
+    rail.pressTime = 0
+    rail.pressCharge = 0
+    return
+  }
+  if (rail.press !== want) {
+    // Switching straight from one press to the other has to build up again.
+    if (rail.press !== 'none') {
+      rail.press = 'none'
+      rail.pressTime = 0
+      rail.pressCharge = 0
+    }
+    rail.pressCharge += dt
+    if (rail.pressCharge < pressDelay) return
+    rail.press = want
+    rail.pressTime = 0
+  }
+  rail.pressTime += dt
+  if (want === 'nose') rail.noseTime += dt
+  else rail.tailTime += dt
+}
+
+/** The press held longest on this rail, if it lasted long enough to count. */
+export function mainPress(rail: RailState): RailPress {
+  const best = Math.max(rail.noseTime, rail.tailTime)
+  if (best < FREESTYLE.pressMinTime) return 'none'
+  return rail.noseTime >= rail.tailTime ? 'nose' : 'tail'
+}
+
 /** Slide along the rail: gravity along the tangent, friction, drag and the balance pendulum. */
-export function stepRail(rail: RailState, steer: number, dt: number, noise: number): RailOutcome {
+export function stepRail(rail: RailState, steer: number, dt: number, noise: number, pitch = 0): RailOutcome {
+  stepPress(rail, pitch, dt)
   const { tangent } = railAt(rail.rail, rail.s)
   const mu = rail.rail.kind === 'box' ? FREESTYLE.boxFriction : FREESTYLE.railFriction
   const normalShare = Math.sqrt(Math.max(0, 1 - tangent.y * tangent.y))
@@ -334,11 +402,14 @@ export function stepRail(rail: RailState, steer: number, dt: number, noise: numb
   const ds = rail.vs * dt
   rail.s += ds
   rail.metres += Math.abs(ds)
+  if (rail.press !== 'none' && rail.pressTime >= FREESTYLE.pressMinTime) rail.pressMetres += Math.abs(ds)
 
   const { balanceLambda: l, balanceDamping: c, balanceGain: k } = FREESTYLE
   // Boxes are wider and more forgiving.
-  const width = rail.rail.kind === 'box' ? 0.55 : 1
-  const accel = (l * l * width) * rail.balance - c * rail.balanceRate + k * steer + noise
+  const box = rail.rail.kind === 'box'
+  const width = box ? 0.55 : 1
+  const pressing = rail.press === 'none' ? 1 : box ? FREESTYLE.boxPressInstability : FREESTYLE.pressInstability
+  const accel = (l * l * width * pressing) * rail.balance - c * rail.balanceRate + k * steer + noise
   rail.balanceRate += accel * dt
   rail.balance += rail.balanceRate * dt
   if (Math.abs(rail.balance) > 1) return 'fell'
@@ -347,7 +418,14 @@ export function stepRail(rail: RailState, steer: number, dt: number, noise: numb
 }
 
 export function railPoints(rail: RailState): number {
-  return Math.round(150 + 60 * rail.metres + (rail.style === 'slide' ? 100 : 0))
+  return Math.round(150 + 60 * rail.metres + (rail.style === 'slide' ? 100 : 0) + FREESTYLE.pressPointsPerMetre * rail.pressMetres)
+}
+
+/** "Nose Press 50-50 Rail", "Slide Box" and so on. */
+export function railTrickName(rail: RailState): string {
+  const press = mainPress(rail)
+  const prefix = press === 'nose' ? 'Nose Press ' : press === 'tail' ? 'Tail Press ' : ''
+  return `${prefix}${rail.style === 'slide' ? 'Slide' : '50-50'} ${rail.rail.kind === 'box' ? 'Box' : 'Rail'}`
 }
 
 function approach(value: number, target: number, step: number): number {

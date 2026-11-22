@@ -10,6 +10,7 @@ import {
   newAir,
   predictLanding,
   railPoints,
+  railTrickName,
   stepRail,
   stepRotation,
   trickName,
@@ -72,7 +73,7 @@ export interface SkiInput {
   grab?: boolean
   /** Which grab to start, chosen by the controls. */
   grabKind?: GrabKind
-  /** -1..1 in the air: positive front flip, negative back flip. */
+  /** -1..1 in the air: positive front flip, negative back flip. On a rail: positive nose press, negative tail press. */
   pitch?: number
 }
 
@@ -135,6 +136,8 @@ export interface SkiState {
   crashed: number
   /** Seconds before the rail just left can catch the skier again. */
   railCooldown: number
+  /** Pitch held off a rail does not flip until it is let go. */
+  flipLock: boolean
   /** Last trick or rail scored; `seq` increases with each one. */
   trick: TrickEvent | null
   time: number
@@ -181,6 +184,7 @@ export function createSkiState(pose?: { x?: number; y?: number; z?: number; head
     rail: null,
     crashed: 0,
     railCooldown: 0,
+    flipLock: false,
     trick: null,
     time: 0,
   }
@@ -545,6 +549,8 @@ function stepAir(
   env: SkiEnv,
 ): void {
   const air = state.air ?? (state.air = newAir(0))
+  const pitchIn = clamp(input.pitch ?? 0, -1, 1)
+  if (state.flipLock && Math.abs(pitchIn) < 0.2) state.flipLock = false
   // Re-predict the landing a few times a second for the snap assist.
   if (air.time - air.predictedFrom > 0.05 || air.time === 0) {
     air.timeToLand = predictLanding(state, { x: state.vx, y: state.vy, z: state.vz }, sampleTerrain)
@@ -552,7 +558,7 @@ function stepAir(
   }
   const dSpin = stepRotation(
     air,
-    { steer, pitch: clamp(input.pitch ?? 0, -1, 1), grab: Boolean(input.grab), grabKind: input.grabKind },
+    { steer, pitch: state.flipLock ? 0 : pitchIn, grab: Boolean(input.grab), grabKind: input.grabKind },
     dt,
     env.assist ?? true,
   )
@@ -574,6 +580,7 @@ function stepAir(
   if (env.rails?.length && state.railCooldown <= 0) {
     const caught = tryCaptureRail(env.rails, { x: nextX, y: nextY, z: nextZ }, { x: state.vx, y: state.vy, z: state.vz }, state.heading)
     if (caught) {
+      caught.pressArmed = Math.abs(input.pitch ?? 0) <= FREESTYLE.pressThreshold
       finishAir(state, 'clean', false)
       state.rail = caught
       placeOnRail(state)
@@ -610,6 +617,7 @@ function stepAir(
   state.vz = tangent.z * keep
   state.grounded = true
   state.offMap = false
+  state.flipLock = false
   state.sink = Math.min(state.surface.depth, state.sink + Math.min(0.3, landing.efh * 0.2))
   state.ridingSwitch = landing.switchLanding && grade !== 'crash'
   if (grade === 'crash') {
@@ -705,7 +713,8 @@ function stepOnRail(
   const rail = state.rail
   if (!rail) return
   const noise = Math.sin(state.time * 7.3) * 0.9 + Math.sin(state.time * 13.1 + 1.7) * 0.6
-  const outcome = pop ? 'end' : stepRail(rail, steer, dt, noise)
+  const pitch = clamp(input.pitch ?? 0, -1, 1)
+  const outcome = pop ? 'end' : stepRail(rail, steer, dt, noise, pitch)
   placeOnRail(state)
   state.edgeAngle = 0
   state.skid = rail.style === 'slide' ? 1 : 0
@@ -722,7 +731,7 @@ function stepOnRail(
   state.trick = {
     seq: (state.trick?.seq ?? 0) + 1,
     kind: 'rail',
-    name: `${rail.style === 'slide' ? 'Slide' : '50-50'} ${rail.rail.kind === 'box' ? 'Box' : 'Rail'}${outcome === 'fell' ? ' (fell)' : ''}`,
+    name: `${railTrickName(rail)}${outcome === 'fell' ? ' (fell)' : ''}`,
     points: outcome === 'fell' ? Math.round(railPoints(rail) * 0.3) : railPoints(rail),
     grade: outcome === 'fell' ? 'sketchy' : 'clean',
     efh: 0,
@@ -736,6 +745,7 @@ function stepOnRail(
   }
   state.rail = null
   state.railCooldown = 0.5
+  state.flipLock = Math.abs(pitch) > FREESTYLE.pressThreshold
   state.grounded = false
   state.air = newAir(0)
   state.popCharge = 0

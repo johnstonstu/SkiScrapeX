@@ -2,6 +2,14 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## Unreleased
+
+### Added
+- Rail presses: on a rail or box, hold forward (<kbd>W</kbd>, Up, or the stick up) for a nose press or back for a tail press. A press shows in the rider pose, is harder to balance (the balance pendulum's unstable term is 1.3 times stronger on rails, 1.15 on boxes) and scores 40 points per metre pressed. The trick name takes the press held longest, such as "Nose Press 50-50 Rail". Pitch already held when you land on the rail (Down is also the brake) does nothing until you let go, and holding a press off the end does not start a flip. Values are provisional until playtested.
+
+### Changed
+- The first-rail tip explains presses and slides. It used to say grab gives a slide bonus, which the sim never did.
+
 ## 0.8.0 (2026-11-22): Tutorial, tips, snowboarding and a public home
 
 ### Added
