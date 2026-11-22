@@ -2,7 +2,7 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
-## Unreleased
+## 0.8.0 (2026-11-22): Tutorial, tips, snowboarding and a public home
 
 ### Added
 - Tutorial ("Learn to ski" on the title screen the first time, "Tutorial" after): six lessons on Easy Rider by the Magic Carpet. Get moving, turn both ways, stop, carve, jump, grab. Each lesson finishes when you do it. A Next button appears after 20 s, the carve lesson starts from the top, the bottom of the hill sends you back up, and the tutorial can be skipped. Wording follows keyboard, touch or gamepad.
@@ -22,6 +22,7 @@ SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor 
 - Faster load: parking lot search 269 to 52 ms and forest planting 240 to 127 ms with the same output; about 30 percent off the build phase in the browser.
 - The tutorial and tip card lets touches through and sits below the minimap on phones.
 - Ready for a public repository: MIT `LICENSE`, data licences spelled out in the README, `SECURITY.md`, development notes in place of the internal handoff log, and `.gitignore` entries for local secrets.
+- Moved to the public repository johnstonstu/SkiScrapeX; the game is live on GitHub Pages at https://johnstonstu.github.io/SkiScrapeX/.
 - Vitest 3 to 5 (fixes dev-only advisories in tinypool and @vitest/mocker; `npm audit` is clean).
 
 ## 0.7.0 (2026-11-21): Settings, gamepad and a reason to ski

@@ -12,7 +12,7 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
   git fetch origin data && git --work-tree=game/public/data checkout FETCH_HEAD -- . && git reset -q
   ```
 
-- **Test and deploy** runs the tests on every push to `main`. Deploying to GitHub Pages is skipped unless the repository variable `PAGES_ENABLED=true` is set and Pages uses GitHub Actions as its source.
+- **Test and deploy** runs the tests on every push to `main`. It then deploys to GitHub Pages (https://johnstonstu.github.io/SkiScrapeX/). The deploy is gated on the repository variable `PAGES_ENABLED=true`, which is set, with Pages using GitHub Actions as its source.
 
 ## Testing without a GPU
 

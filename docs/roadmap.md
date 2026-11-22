@@ -28,6 +28,8 @@ Shipped in 0.7.0 with the v0.6 settings and gamepad work: title screen, timed ru
 - Local profile: bests, medals, unlocks (ski graphics and outfit pieces as rewards).
 
 ### v0.8: Onboarding and mobile
+Shipped in 0.8.0: tutorial, one-time tips, snowboarding, other skiers, title panorama, faster load and the Apex accuracy pass. Still open: the real-device mobile pass and compressed data.
+
 - First-run tutorial on the bunny hill by the Magic Carpet: steering, stopping, carving, jumping, one grab. Skippable.
 - Context hints (first powder, first park approach, first lift).
 - Real-device mobile pass: frame rate on a mid-range Android phone and an older iPhone, touch layout options (size, opacity, left-handed), tilt steering as an option, battery and thermal checks.
@@ -38,7 +40,7 @@ Shipped in 0.7.0 with the v0.6 settings and gamepad work: title screen, timed ru
 ## Mid term
 
 ### v0.9: Beta
-- Hosting: GitHub Pages on a public repo or another static host (Cloudflare Pages or Netlify work with a private repo). Custom domain if wanted.
+- Hosting: done in 0.8.0 (GitHub Pages on the public repo). Custom domain if wanted.
 - Installable as a PWA with offline play after the first load.
 - Accessibility: remappable keys, colour-blind-safe run colours and hints, reduced motion option (camera shake, chatter), readable text sizes.
 - Crash-free sessions on the test device list; error reporting to the console overlay.
@@ -92,6 +94,5 @@ All of these must be true:
 ## Open questions
 
 - Which runs are W1 to W6 and the L-numbered cuts?
-- Is a public repo acceptable (free Pages hosting), or should we use another static host?
 - Who should we contact at Apex about using the name, and is that worth doing before a public beta?
 - Which phones should be on the test list?
