@@ -44,6 +44,7 @@ const params = new URLSearchParams(location.search)
 const perf = createPerfProbe(params.has('perf'))
 const ui = getUi()
 ui.version.textContent = `v${VERSION}`
+ui.hudVersion.textContent = `v${VERSION}`
 
 const controls = createControls(document.body)
 const mobile = controls.touch

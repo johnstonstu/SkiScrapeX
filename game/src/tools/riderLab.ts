@@ -32,6 +32,8 @@ const POSES: Pose[] = [
     },
   },
   { label: 'Tuck', setup: (s) => ((s.speed = 20), { ...idle, tuck: true }) },
+  { label: 'Snowplough', setup: (s) => ((s.speed = 3), { ...idle, brake: 1 }) },
+  { label: 'Skating', setup: (s) => ((s.speed = 2.5), { ...idle, tuck: true }) },
   { label: 'Hockey stop', setup: (s) => ((s.speed = 8), (s.edgeAngle = 0.7), { ...idle, brake: 1 }) },
   {
     label: 'Mute grab',
@@ -109,19 +111,23 @@ for (const key of ['fit', 'headwear', 'jacket', 'pants', 'helmet', 'skis', 'gait
   const word = ['fit', 'headwear', 'model', 'skiGraphic'].includes(key)
   ;(outfit as unknown as Record<string, string | boolean>)[key] = key === 'backpack' ? value === 'true' : word ? value : `#${value}`
 }
+// `?pose=tuck,carve-left` shows only those poses (label slugs), for close-ups.
+const slug = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+const wanted = params.get('pose')?.split(',').map(slug)
+const shown = wanted ? POSES.filter((p) => wanted.includes(slug(p.label))) : POSES
 const spacing = 2.1
-const riders = POSES.map((pose, i) => {
+const riders = shown.map((pose, i) => {
   const view = createSkierView()
   view.setColours(outfit)
   view.object.traverse((o) => (o.castShadow = true))
   scene.add(view.object)
-  const state = createSkiState({ x: (i - (POSES.length - 1) / 2) * spacing, y: 0, z: 0, heading: (Number(params.get('h') ?? 0) * Math.PI) / 180 })
+  const state = createSkiState({ x: (i - (shown.length - 1) / 2) * spacing, y: 0, z: 0, heading: (Number(params.get('h') ?? 0) * Math.PI) / 180 })
   return { pose, view, state }
 })
-document.querySelector('#labels')!.innerHTML = POSES.map((p) => `<span>${p.label}</span>`).join('')
+document.querySelector('#labels')!.innerHTML = shown.map((p) => `<span>${p.label}</span>`).join('')
 
 const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200)
-camera.position.set(Number(params.get('cx') ?? 0), Number(params.get('cy') ?? 2.4), Number(params.get('cz') ?? 15))
+camera.position.set(Number(params.get('cx') ?? 0), Number(params.get('cy') ?? 2.4), Number(params.get('cz') ?? Math.max(6, shown.length * 1.2)))
 const controls = new OrbitControls(camera, canvas)
 controls.target.set(Number(params.get('tx') ?? 0), Number(params.get('ty') ?? 0.9), 0)
 controls.update()
