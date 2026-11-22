@@ -2,6 +2,20 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.8.6 (2026-11-22): Turns that read right
+
+From Stu's playtest of 0.8.5: turning still felt off, and the rider looked wrong both mid-turn and between turns.
+
+### Fixed
+- Steering from a full traverse: with the skis across the hill (100° off the fall line), steering the other way could do nothing. The sim measured the shortest way round to the opposite traverse, which goes uphill, and refused to turn against the stick. It now works in angles from the fall line, so the skis come back down through it. A regression test covers this.
+
+### Changed
+- The body leans for the turn you are really making: the path's curvature times speed is the sideways acceleration to balance. The carve model's load missed pivoted and skidded turns, so at 34 km/h on a 50° edge the rider stood nearly upright over tilted skis. Lean is capped at 49° and tracks the turn about twice as fast as before, but the edge change still takes about 0.3 s, not a flick.
+- Less counter-tilt at the hips and back (about half), so the upper body leans into the turn instead of staying level over the legs.
+- The ski tilt is the body lean plus a little knee angulation. Skis no longer sit at 45° under an upright body.
+- In a turn the inside hand reaches forward and down toward the next plant, and the outside hand stays wide.
+- Rider lab: `rider.html?sim` runs the real ski sim through linked turns behind the follow camera, with `pitch`, `period`, `cap`, `fov` and `style` options and `window.__step(frames)` for frame-by-frame review.
+
 ## 0.8.5 (2026-11-22): Steady camera, poles and lift unloading
 
 From Stu's playtest of 0.8.4: turns still felt laggy with the camera swinging, the arms and poles and the flat push needed work, and skipping a lift should show you getting off at the top.

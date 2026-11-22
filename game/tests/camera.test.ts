@@ -34,3 +34,17 @@ describe('follow camera', () => {
     expect(steady.camera).toBeLessThan(tight.camera * 0.5)
   })
 })
+
+describe('steering from a traverse', () => {
+  it('turns back through the fall line when the stick goes the other way', () => {
+    const s = createSkiState({ x: 1000, z: 200, heading: 0 })
+    s.y = slope.sampleTerrain(1000, 200)!.height
+    // Build speed, then hold right until the skis sit in a full traverse.
+    for (let t = 0; t < 2; t += FIXED_DT) stepSkier(s, { steer: 0, brake: 0, tuck: false }, slope.sampleTerrain, FIXED_DT)
+    for (let t = 0; t < 2.5; t += FIXED_DT) stepSkier(s, { steer: 1, brake: 0, tuck: false }, slope.sampleTerrain, FIXED_DT)
+    expect(s.heading).toBeGreaterThan(1.5)
+    // Now hold left: the skis must come back across the fall line, not stay put.
+    for (let t = 0; t < 1.5; t += FIXED_DT) stepSkier(s, { steer: -1, brake: 0, tuck: false }, slope.sampleTerrain, FIXED_DT)
+    expect(s.heading).toBeLessThan(0)
+  })
+})

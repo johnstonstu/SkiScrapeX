@@ -799,12 +799,17 @@ function slewHeading(heading: number, steer: number, rate: number, dt: number, f
   // On a slope the held stick slews toward a heading measured from the local
   // fall line, so it settles in a traverse. On the flat (or in the air) it
   // just keeps turning.
-  const target =
-    fallLine === null
-      ? heading + Math.sign(steer) * Math.PI * 0.5
-      : fallLine + steer * ((PHYSICS.maxTraverseDeg * Math.PI) / 180)
-  if (fallLine !== null && Math.sign(wrapAngle(target - heading)) !== Math.sign(steer)) return heading
-  return moveTowardAngle(heading, target, rate * dt)
+  if (fallLine === null) return moveTowardAngle(heading, heading + Math.sign(steer) * Math.PI * 0.5, rate * dt)
+  // Work in angles from the fall line, without wrapping, so going from one
+  // traverse to the other turns down through the fall line, never the short
+  // way round through uphill.
+  const off = wrapAngle(heading - fallLine)
+  const targetOff = steer * ((PHYSICS.maxTraverseDeg * Math.PI) / 180)
+  const delta = targetOff - off
+  // Never turn against the stick (past the traverse it holds instead).
+  if (Math.sign(delta) !== Math.sign(steer)) return heading
+  const step = Math.sign(delta) * Math.min(Math.abs(delta), rate * dt)
+  return wrapAngle(fallLine + off + step)
 }
 
 /**
