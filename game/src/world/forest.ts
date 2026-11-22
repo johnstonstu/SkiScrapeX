@@ -88,17 +88,34 @@ export function plantForest(
   const origin = options.originElevation ?? 1600
   const chunkSize = options.chunkSize ?? 192
   const random = makeRandom(options.seed ?? 48021)
-  const chunks = new Map<string, ForestChunk>()
+  const chunks = new Map<number, ForestChunk>()
   const liftLines = resort.lifts.map((lift) => lift.line)
+  // Coarse 16 m cells near a lift line; only trees in them get the exact clearance test.
+  const LIFT_CELL = 16
+  const liftCols = Math.ceil(grid.width / LIFT_CELL) + 1
+  const nearLift = new Uint8Array(liftCols * (Math.ceil(grid.depth / LIFT_CELL) + 1))
+  const reach = LIFT_CLEARANCE + LIFT_CELL * Math.SQRT2
+  for (const line of liftLines) {
+    for (let k = 1; k < line.length; k++) {
+      const [ax, az] = line[k - 1]
+      const [bx, bz] = line[k]
+      for (let cz = Math.max(0, Math.floor((Math.min(az, bz) - reach) / LIFT_CELL)); cz <= Math.floor((Math.max(az, bz) + reach) / LIFT_CELL); cz++)
+        for (let cx = Math.max(0, Math.floor((Math.min(ax, bx) - reach) / LIFT_CELL)); cx <= Math.floor((Math.max(ax, bx) + reach) / LIFT_CELL); cx++)
+          if (cx < liftCols && nearestOnPolyline((cx + 0.5) * LIFT_CELL, (cz + 0.5) * LIFT_CELL, [line[k - 1], line[k]]).distanceSq < reach * reach)
+            nearLift[cz * liftCols + cx] = 1
+    }
+  }
 
   const plant = (x: number, z: number, height: number) => {
     if (isClear(surface, x, z)) return
     const ground = grid.sampleTerrain(x, z)
     if (!ground || (!canopy && ground.normal.y < MAX_SLOPE_COS)) return
-    for (const line of liftLines) {
-      if (nearestOnPolyline(x, z, line).distanceSq < LIFT_CLEARANCE * LIFT_CLEARANCE) return
+    if (nearLift[Math.floor(z / LIFT_CELL) * liftCols + Math.floor(x / LIFT_CELL)]) {
+      for (const line of liftLines) {
+        if (nearestOnPolyline(x, z, line).distanceSq < LIFT_CLEARANCE * LIFT_CLEARANCE) return
+      }
     }
-    const key = `${Math.floor(x / chunkSize)},${Math.floor(z / chunkSize)}`
+    const key = Math.floor(x / chunkSize) * 65536 + Math.floor(z / chunkSize)
     let chunk = chunks.get(key)
     if (!chunk) {
       chunk = {
@@ -214,7 +231,7 @@ export function plantApronForest(
   const chunkSize = options.chunkSize ?? 384
   const density = options.density ?? 1
   const random = makeRandom(options.seed ?? 9127)
-  const chunks = new Map<string, ForestChunk>()
+  const chunks = new Map<number, ForestChunk>()
   for (let z = -reach; z < bounds.depth + reach; z += cell) {
     for (let x = -reach; x < bounds.width + reach; x += cell) {
       const px = x + cell * random()
@@ -224,7 +241,7 @@ export function plantApronForest(
       const y = apron.heightAt(px, pz)
       if (!Number.isFinite(y)) continue
       if (random() > apron.coverAt(px, pz, y) * 0.8 * density) continue
-      const key = `${Math.floor(px / chunkSize)},${Math.floor(pz / chunkSize)}`
+      const key = Math.floor(px / chunkSize) * 65536 + Math.floor(pz / chunkSize)
       let chunk = chunks.get(key)
       if (!chunk) {
         chunk = { cx: (Math.floor(px / chunkSize) + 0.5) * chunkSize, cz: (Math.floor(pz / chunkSize) + 0.5) * chunkSize, trees: [] }

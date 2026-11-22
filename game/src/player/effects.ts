@@ -32,6 +32,11 @@ export function createSnowEffects(
   let descent = 0
 
   return {
+    /** One wide track for a snowboard, two narrow ones for skis. */
+    setBoard(on: boolean) {
+      tracks.stance = on ? 0 : 0.28
+      tracks.skiWidth = on ? 0.27 : 0.11
+    },
     clear() {
       wasAirborne = false
       descent = 0

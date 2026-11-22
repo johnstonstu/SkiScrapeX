@@ -1,4 +1,5 @@
 import type { TerrainGrid } from './terrainGrid'
+import { BUILDING_WALLS, buildingName } from './corrections'
 import type { Canopy } from './surface'
 import { nearestOnPolyline, pointInRing, type Point2 } from './resort'
 
@@ -19,6 +20,8 @@ export interface Building {
   roof: GableRoof | null
   /** Plain colour index into the wall palette. */
   palette: number
+  /** Known wall colour (hex), overriding the palette. */
+  wall?: string
 }
 
 /** Ridge along the long axis of the footprint's oriented bounding box. */
@@ -91,13 +94,14 @@ export function buildBuildings(
     }
     buildings.push({
       id: feature.id ?? `building/${index}`,
-      name: (feature.name ?? feature.tags?.name)?.replace(/Gunbarell/i, 'Gunbarrel').replace(/The edge bistro/i, 'The Edge Bistro') ?? null,
+      name: buildingName(feature.name ?? feature.tags?.name),
       kind,
       ring,
       base: low - 0.6,
       eaves,
       roof,
       palette: hash(feature.id ?? String(index)) % 6,
+      wall: BUILDING_WALLS[buildingName(feature.name ?? feature.tags?.name) ?? ''],
     })
   })
   return buildings

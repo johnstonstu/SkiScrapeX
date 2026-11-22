@@ -21,6 +21,8 @@ export interface Settings {
   landingRing: boolean
   /** Rotation snap near touchdown. */
   landingAssist: boolean
+  /** Other skiers on the hill. */
+  npcs: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -34,6 +36,7 @@ export const DEFAULT_SETTINGS: Settings = {
   cameraShake: true,
   landingRing: true,
   landingAssist: true,
+  npcs: true,
 }
 
 export function readSettings(): Settings {
@@ -47,6 +50,8 @@ export function writeSettings(settings: Settings): void {
 /** Everything a quality level decides at start-up. */
 export interface QualityProfile {
   level: QualityLevel
+  /** Other skiers on the hill. */
+  npcCount: number
   pixelRatioMax: number
   antialias: boolean
   shadowMapSize: number
@@ -63,6 +68,7 @@ export interface QualityProfile {
 export const QUALITY: Record<QualityLevel, QualityProfile> = {
   low: {
     level: 'low',
+    npcCount: 4,
     pixelRatioMax: 1.5,
     antialias: false,
     shadowMapSize: 1024,
@@ -77,6 +83,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
   },
   medium: {
     level: 'medium',
+    npcCount: 7,
     pixelRatioMax: 1.75,
     antialias: true,
     shadowMapSize: 2048,
@@ -91,6 +98,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
   },
   high: {
     level: 'high',
+    npcCount: 10,
     pixelRatioMax: 2,
     antialias: true,
     shadowMapSize: 2048,
@@ -191,6 +199,7 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
     slider('Camera field of view', 'fov', 48, 75, 1, (v) => `${v}°`)
     chips('Camera shake', 'cameraShake', [[true, 'On'], [false, 'Off']])
     slider('Volume', 'volume', 0, 1, 0.05, percent)
+    chips('Other skiers', 'npcs', [[true, 'On'], [false, 'Off']])
     chips('Landing marker', 'landingRing', [[true, 'On'], [false, 'Off']])
     chips('Landing assist', 'landingAssist', [[true, 'On'], [false, 'Off']], 'lines up rotation near touchdown')
     const reset = document.createElement('button')

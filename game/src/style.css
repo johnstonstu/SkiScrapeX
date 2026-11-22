@@ -236,7 +236,7 @@ html, body {
 /* Title screen */
 #title-screen {
   position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(180deg, rgba(10, 22, 34, 0.35), rgba(10, 22, 34, 0.75));
+  background: radial-gradient(ellipse at center, rgba(10, 22, 34, 0.55) 0%, rgba(10, 22, 34, 0.25) 60%, rgba(10, 22, 34, 0.1) 100%);
 }
 .title-card { text-align: center; padding: 1.5rem; width: min(26rem, calc(100vw - 2rem)); }
 .title-card h1 { margin: 0; font-size: clamp(2.6rem, 9vw, 4rem); font-weight: 850; letter-spacing: -0.02em; text-shadow: 0 3px 14px rgba(0, 0, 0, 0.45); }
@@ -308,4 +308,30 @@ button.challenge .target { grid-column: 3 / 5; font-size: 0.75rem; color: #9eb4c
 .model.locked small { display: block; font-size: 0.7rem; color: #9eb4c6; }
 
 /* The title screen stands alone: no HUD, map, pause button or touch controls behind it. */
-body:has(#title-screen:not([hidden])) :is(#hud, #buttons, #map-panel, #help, #touch, #hint, #run-card) { display: none; }
+body:has(#title-screen:not([hidden])) :is(#hud, #buttons, #map-panel, #help, #touch, #hint, #run-card, #coach) { display: none; }
+
+/* Coaching card: tutorial lessons and one-time tips */
+#coach {
+  position: fixed; z-index: 4; left: 50%; top: max(6.2rem, calc(env(safe-area-inset-top) + 5.6rem)); transform: translateX(-50%);
+  width: min(24rem, calc(100vw - 1.5rem)); padding: 0.65rem 0.9rem 0.7rem; background: rgba(19, 38, 55, 0.9);
+  border-radius: 0.7rem; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3); transition: transform 0.2s, background 0.2s;
+}
+#coach[hidden] { display: none; }
+#coach h3 { margin: 0 0 0.2rem; font-size: 1.05rem; }
+#coach p { margin: 0; font-size: 0.92rem; color: #dbe8f3; }
+#coach .coach-count { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #ffe27a; margin-bottom: 0.15rem; }
+#coach.tip { border-left: 4px solid #ffdc3a; }
+#coach.passed { background: rgba(40, 120, 70, 0.92); transform: translateX(-50%) scale(1.03); }
+.coach-buttons { display: flex; gap: 0.4rem; justify-content: flex-end; margin-top: 0.5rem; }
+.coach-buttons button { border: 0; border-radius: 0.45rem; padding: 0.3rem 0.7rem; font: 600 0.85rem system-ui, sans-serif; cursor: pointer; background: #2a4458; color: #edf6ff; }
+.coach-buttons .next { background: #ffdc3a; color: #132637; }
+.coach-buttons .skip { background: none; color: #9eb4c6; text-decoration: underline; }
+.title-buttons button.link { min-height: 2rem; background: none; color: #cfe0ee; font-size: 0.9rem; font-weight: 500; text-decoration: underline; }
+body:has(#coach:not([hidden])) #help { display: none; }
+/* The card never eats steering touches; only its buttons are tappable. */
+#coach { pointer-events: none; }
+#coach button { pointer-events: auto; }
+/* Phones: below the minimap (which sits under the pause button), smaller text. */
+.touch #coach { top: calc(max(3.9rem, env(safe-area-inset-top) + 3.2rem) + 9.6rem); padding: 0.5rem 0.75rem 0.55rem; }
+.touch #coach h3 { font-size: 0.95rem; }
+.touch #coach p { font-size: 0.85rem; }

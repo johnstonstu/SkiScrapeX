@@ -81,8 +81,44 @@ export function findLots(grid: TerrainGrid, canopy: Canopy, roads: Point2[][], r
   const minZ = Math.min(...centres.map((c) => c[1])) - 250, maxZ = Math.max(...centres.map((c) => c[1])) + 250
   const ok = new Uint8Array(columns * rows)
   const runLines = runs.filter((r) => r.kind === 'line').flatMap((r) => r.parts)
-  for (let row = Math.max(1, Math.floor(minZ / step)); row < Math.min(rows - 1, maxZ / step); row++) {
-    for (let col = Math.max(1, Math.floor(minX / step)); col < Math.min(columns - 1, maxX / step); col++) {
+  const row0 = Math.max(1, Math.floor(minZ / step)), row1 = Math.min(rows - 1, maxZ / step)
+  const col0 = Math.max(1, Math.floor(minX / step)), col1 = Math.min(columns - 1, maxX / step)
+  // Distance masks, stamped once per segment over its own neighbourhood instead of
+  // testing every cell against every road, run and building.
+  const roadDistSq = new Float32Array(columns * rows).fill(Infinity)
+  const blocked = new Uint8Array(columns * rows)
+  const stamp = (line: Point2[], radius: number, visit: (i: number, dSq: number) => void) => {
+    for (let k = 1; k < line.length; k++) {
+      const [ax, az] = line[k - 1]
+      const [bx, bz] = line[k]
+      const dx = bx - ax, dz = bz - az
+      const lengthSq = dx * dx + dz * dz
+      const c0 = Math.max(col0, Math.floor((Math.min(ax, bx) - radius) / step))
+      const c1 = Math.min(col1, Math.ceil((Math.max(ax, bx) + radius) / step))
+      const r0 = Math.max(row0, Math.floor((Math.min(az, bz) - radius) / step))
+      const r1 = Math.min(row1, Math.ceil((Math.max(az, bz) + radius) / step))
+      for (let row = r0; row <= r1; row++) {
+        for (let col = c0; col <= c1; col++) {
+          const x = col * step, z = row * step
+          const t = lengthSq ? Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / lengthSq)) : 0
+          const dSq = (x - ax - t * dx) ** 2 + (z - az - t * dz) ** 2
+          if (dSq < radius * radius) visit(row * columns + col, dSq)
+        }
+      }
+    }
+  }
+  for (const line of roads) stamp(line, 40, (i, dSq) => (roadDistSq[i] = Math.min(roadDistSq[i], dSq)))
+  for (const line of runLines) stamp(line, 22, (i) => (blocked[i] = 1))
+  for (const b of buildings) {
+    stamp([...b.ring, b.ring[0]], 9, (i) => (blocked[i] = 1))
+    // Inside the footprint counts too.
+    const xs = b.ring.map((p) => p[0]), zs = b.ring.map((p) => p[1])
+    for (let row = Math.max(row0, Math.floor(Math.min(...zs) / step)); row <= Math.min(row1, Math.ceil(Math.max(...zs) / step)); row++)
+      for (let col = Math.max(col0, Math.floor(Math.min(...xs) / step)); col <= Math.min(col1, Math.ceil(Math.max(...xs) / step)); col++)
+        if (pointInRing(col * step, row * step, b.ring)) blocked[row * columns + col] = 1
+  }
+  for (let row = row0; row < row1; row++) {
+    for (let col = col0; col < col1; col++) {
       const i = row * columns + col
       const x = col * step, z = row * step
       if (canopy.cover[i] >= 0.1) continue
@@ -90,10 +126,9 @@ export function findLots(grid: TerrainGrid, canopy: Canopy, roads: Point2[][], r
       const dx = (h[i + 1] - h[i - 1]) / (2 * step), dz = (h[i + columns] - h[i - columns]) / (2 * step)
       if (Math.hypot(dx, dz) > Math.tan((5 * Math.PI) / 180)) continue
       if (!centres.some(([cx, cz]) => (cx - x) ** 2 + (cz - z) ** 2 < 250 * 250)) continue
-      const road = Math.min(...roads.map((line) => nearestOnPolyline(x, z, line).distanceSq))
+      const road = roadDistSq[i]
       if (road > 40 * 40 || road < 5 * 5) continue
-      if (runLines.some((line) => nearestOnPolyline(x, z, line).distanceSq < 22 * 22)) continue
-      if (buildings.some((b) => nearRing(x, z, b.ring, 9))) continue
+      if (blocked[i]) continue
       ok[i] = 1
     }
   }

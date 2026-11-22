@@ -149,6 +149,24 @@ export function createGoals(options: {
       return { spawn, startLift: nearestLiftTop(x, z), startRun: challenge.run }
     },
 
+    /** Run lines for other skiers to follow. */
+    routes(): { name: string; line: Point2[]; difficulty: string | null }[] {
+      return runs.filter((run) => lengths.has(run.name)).map((run) => ({ name: run.name, line: lineOf(run), difficulty: run.difficulty }))
+    },
+
+    /** The bunny hill for the tutorial: Easy Rider by the Magic Carpet, or the nearest gentle run. */
+    tutorial(): { course: Course; line: Point2[] } | null {
+      const carpet = resort.lifts.find((lift) => /magic carpet/i.test(lift.name)) ?? null
+      const gentle = runs.filter((run) => ['novice', 'easy'].includes(run.difficulty ?? ''))
+      const byCarpet = (run: Run) => (carpet ? Math.hypot(mainLine(run)[0][0] - carpet.top[0], mainLine(run)[0][1] - carpet.top[1]) : 0)
+      const run = gentle.find((r) => r.name === 'Easy Rider') ?? [...gentle].sort((a, b) => byCarpet(a) - byCarpet(b))[0]
+      if (!run) return null
+      const line = lineOf(run)
+      const [x, z] = line[0]
+      const [ax, az] = pointAlong(line, 12)
+      return { course: { spawn: { x, z, heading: headingFor(ax - x, az - z) }, startLift: carpet, startRun: run }, line }
+    },
+
     /** Show this challenge's gates (or none). */
     activate(challenge: Challenge) {
       if (gatesView) {

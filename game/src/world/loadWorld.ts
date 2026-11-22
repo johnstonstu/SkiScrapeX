@@ -1,5 +1,6 @@
 import { createTerrainGrid, decodeDetailHeights, withDetail, type TerrainGrid } from './terrainGrid'
 import { overlayRuns } from './runOverlay'
+import { applyCorrections } from './corrections'
 import {
   chooseCourse,
   downhill,
@@ -94,6 +95,7 @@ export async function loadWorld(base: string, onProgress?: (message: string) => 
   }
   // Runs OSM lacks, traced from the LiDAR canopy (see runOverlay.ts).
   resort.runs.push(...overlayRuns((part) => downhill(part, grid.heightAt)))
+  applyCorrections(resort)
   // Keep only what lies on the terrain crop.
   resort.lifts = resort.lifts.filter((lift) =>
     lift.line.every(([x, z]) => Number.isFinite(grid.heightAt(x, z))),

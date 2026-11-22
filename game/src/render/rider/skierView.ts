@@ -230,6 +230,7 @@ export function createSkierView(): {
     cuff.position.set(0, 0.24, -0.03)
     cuff.rotation.x = -0.25
     ski.add(blade, binding, heel, toe, sole, shell, cuff)
+    ski.userData.skiOnly = [blade, binding, heel, toe]
     for (const [y, z] of [[0.19, 0.13]]) {
       const clip = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.014, 0.035), mat.buckle)
       clip.position.set(0, y, z)
@@ -240,6 +241,62 @@ export function createSkierView(): {
   }
   const skis = [makeSki(), makeSki()] // 0 left (+X), 1 right
   root.add(...skis)
+
+  // ---- Snowboard --------------------------------------------------------------
+  // One board under both boots. The rider stands sideways on it, left foot forward
+  // (regular), boots turned across the board.
+  const boardGroup = new THREE.Group()
+  {
+    const half = 0.78
+    const outline = new THREE.Shape()
+    const width = (z: number) => 0.125 + 0.012 * (Math.abs(z) / half) ** 2 // waist narrower than the tips (sidecut)
+    outline.moveTo(-width(-0.66), -0.66)
+    for (let z = -0.66; z <= 0.66; z += 0.11) outline.lineTo(-width(z), z)
+    outline.quadraticCurveTo(-0.13, half, 0, half)
+    outline.quadraticCurveTo(0.13, half, width(0.66), 0.66)
+    for (let z = 0.66; z >= -0.66; z -= 0.11) outline.lineTo(width(z), z)
+    outline.quadraticCurveTo(0.13, -half, 0, -half)
+    outline.quadraticCurveTo(-0.13, -half, -width(-0.66), -0.66)
+    const geometry = new THREE.ExtrudeGeometry(outline, { depth: 0.016, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.004, bevelSegments: 1, curveSegments: 8 })
+    // Lay it flat (shape y becomes +Z, extrusion becomes +Y) and map the top sheet along its length.
+    geometry.rotateX(Math.PI / 2)
+    geometry.scale(1, -1, 1)
+    geometry.computeVertexNormals()
+    const position = geometry.attributes.position
+    const uv = geometry.attributes.uv
+    for (let i = 0; i < position.count; i++) uv.setXY(i, (position.getX(i) + 0.14) / 0.28, (position.getZ(i) + half) / (2 * half))
+    const deck = new THREE.Mesh(geometry, mat.skiTop)
+    const base = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 1.4), mat.skiBase)
+    base.rotation.x = Math.PI / 2
+    base.position.y = -0.001
+    boardGroup.add(deck, base)
+    for (const z of [0.26, -0.26]) {
+      const binding = rounded(0.27, 0.05, 0.13, 0.02, mat.trim)
+      binding.position.set(0, 0.035, z)
+      const highback = rounded(0.2, 0.16, 0.025, 0.01, mat.trim)
+      highback.position.set(0, 0.1, z - 0.07)
+      boardGroup.add(binding, highback)
+    }
+    boardGroup.visible = false
+    root.add(boardGroup)
+  }
+  let boarding = false
+  /** Front boot angle +15°, back boot 0° (forward stance), measured from across the board. */
+  const BOARD_STANCE = [0.26, -0.26]
+  const BOARD_ANGLE = [0.26, 0]
+  /** Put the boots on the board, the board under them, and tilt it all onto an edge. */
+  const placeBoard = (x: number, y: number, z: number, edge: number, yaw = 0, pitch = 0) => {
+    boardGroup.position.set(x, y, z)
+    boardGroup.rotation.order = 'YXZ'
+    boardGroup.rotation.set(pitch, yaw, edge)
+    boardGroup.updateMatrix()
+    for (let i = 0; i < 2; i++) {
+      skis[i].position.set(0, 0.025, BOARD_STANCE[i]).applyMatrix4(boardGroup.matrix)
+      skis[i].quaternion.copy(boardGroup.quaternion)
+      // Boots point across the board, toes toward the rider's front (-X).
+      skis[i].rotateY(-Math.PI / 2 + BOARD_ANGLE[i])
+    }
+  }
 
   // ---- Body -----------------------------------------------------------------
   const body = new THREE.Group()
@@ -554,6 +611,10 @@ export function createSkierView(): {
       beanie.visible = !firstPerson && beanie.userData.on
       helmet.visible = !firstPerson && !beanie.userData.on
       // Beanie riders still wear goggles; the strap sits on the knit.
+      boarding = look.model === 'snowboard'
+      boardGroup.visible = boarding
+      for (const ski of skis) for (const part of ski.userData.skiOnly as THREE.Object3D[]) part.visible = !boarding
+      for (const arm of arms) arm.pole.visible = !boarding
       for (const blade of blades) {
         const width = look.model === 'powder' ? 1.26 : look.model === 'park' ? 1.06 : 1
         blade.scale.set(width, 1, look.model === 'park' ? 0.94 : 1)
@@ -609,6 +670,8 @@ export function createSkierView(): {
         skis[1].position.set(-0.14, -0.16, 0.44 - swing)
         skis[0].rotation.x = -0.07 - swing
         skis[1].rotation.x = -0.07 + swing
+        // On the chair the board hangs across the front, both boots strapped in.
+        if (boarding) placeBoard(0, -0.2, 0.46, 0, Math.PI / 2, swing)
         fitLegs()
         placeArm(0, v1.set(0.2, 0.05, 0.32).clone(), new THREE.Vector3(0.3, 0.2, 1.2))
         placeArm(1, v1.set(-0.2, 0.05, 0.32).clone(), new THREE.Vector3(-0.3, 0.2, 1.2))
@@ -622,6 +685,7 @@ export function createSkierView(): {
         skis[1].position.set(0.48, 0.04, -0.13)
         skis[0].rotation.set(0, 0.4, 0.85)
         skis[1].rotation.set(0, -0.3, 0.55)
+        if (boarding) placeBoard(0.5, 0.12, 0, 0.9, 0.2)
         fitLegs()
         placeArm(0, new THREE.Vector3(0.45, 0.25, 0.1), new THREE.Vector3(0.9, 0, 0.6))
         placeArm(1, new THREE.Vector3(-0.35, 0.35, 0.3), new THREE.Vector3(-0.2, 0, 1.2))
@@ -672,7 +736,7 @@ export function createSkierView(): {
 
       // Counter-rotation: the upper body keeps facing down the fall line.
       let wantCounter = 0
-      if (skiing && ground && speed > 1.5) {
+      if (skiing && ground && speed > 1.5 && !boarding) {
         const fall = fallLineHeading(ground.normal)
         if (fall !== null) {
           const off = Math.atan2(Math.sin(state.heading - fall), Math.cos(state.heading - fall))
@@ -734,23 +798,32 @@ export function createSkierView(): {
         }
       }
 
+      if (boarding) {
+        // Same lean as a skier, but onto the board's toe or heel edge.
+        const lift = air ? 0.18 + grabBlend * 0.2 : 0
+        const grabTilt = air && grabBlend > 0 ? (lastGrab === 'nose' ? -0.35 : lastGrab === 'tail' ? 0.3 : 0) * grabBlend : 0
+        placeBoard(shift * 0.6, 0.02 + lift, 0, edgeVisual, 0, grabTilt)
+      }
+
       // ---- Body ----
       // On a rail the body sways with the sim's balance.
       body.rotation.z = incline + (rail ? rail.balance * 0.32 : 0)
       const kneeFold = 0.15 + crouch * 1.25
       const hipHeight = 0.97 - (thighLength + shinLength) * (1 - Math.cos(kneeFold * 0.55)) * 1.05 - crouch * 0.06
       hips.position.set(0, Math.max(0.42, hipHeight), -0.05 - crouch * 0.1)
-      hips.rotation.set(0, counter * 0.35, 0)
+      hips.rotation.set(0, boarding ? -Math.PI / 2 + 0.25 : counter * 0.35, 0)
       // Torso folds over the knees; angulation brings the shoulders back toward level.
       torso.rotation.order = 'YXZ'
       torso.rotation.x = 0.12 + crouch * 0.72 + tuckBlend * 0.25
       torso.rotation.z = -incline * 0.55
-      torso.rotation.y = counter * 0.65 + spinLead * 0.5 + switchLook * 0.25 + railLook * 0.55
+      torso.rotation.y = boarding ? 0.45 + spinLead * 0.5 : counter * 0.65 + spinLead * 0.5 + switchLook * 0.25 + railLook * 0.55
       // Head stays level and looks where the skier is going.
       head.rotation.order = 'YXZ'
       head.rotation.x = -torso.rotation.x * 0.75
       head.rotation.z = -(incline + torso.rotation.z) * 0.6
-      head.rotation.y = -counter * 0.3 + spinLead * 0.4 + switchLook * stance * 1.15 * (state.heading > 0 ? 1 : -1) + railLook * 0.4
+      head.rotation.y = boarding
+        ? 0.75 + spinLead * 0.4
+        : -counter * 0.3 + spinLead * 0.4 + switchLook * stance * 1.15 * (state.heading > 0 ? 1 : -1) + railLook * 0.4
 
       fitLegs()
 
@@ -774,6 +847,13 @@ export function createSkierView(): {
           // Raise the hands into the first-person view.
           hand.y += 0.36 * (1 - tuckBlend)
           hand.z += 0.16
+        }
+        if (boarding) {
+          // Front hand out over the nose, back hand low over the tail; no poles.
+          const front = side === 1
+          hand.set(front ? 0.42 : -0.32, front ? 0.22 : 0.08, 0.28 + Math.abs(incline) * 0.1)
+          hand.lerp(v2.set(side * 0.55, 0.4, 0.1), airBlend * (1 - grabBlend))
+          if (firstPerson) hand.y += 0.3
         }
         const handLocal = hand.clone()
         // Pole tip: trailing behind, planted on a plant, tucked under the arm in a tuck.

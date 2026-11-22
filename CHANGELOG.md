@@ -4,7 +4,23 @@ SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor 
 
 ## Unreleased
 
+### Added
+- Tutorial ("Learn to ski" on the title screen the first time, "Tutorial" after): six lessons on Easy Rider by the Magic Carpet. Get moving, turn both ways, stop, carve, jump, grab. Each lesson finishes when you do it. A Next button appears after 20 s, the carve lesson starts from the top, the bottom of the hill sends you back up, and the tutorial can be skipped. Wording follows keyboard, touch or gamepad.
+- One-time tips the first time you crash, hit deep snow, ski the trees, find ice, ride a steep pitch, approach a park jump, get on a rail or ride a lift.
+- Snowboarding: pick Snowboard under "Skis or board" in the Rider panel. 8 m sidecut, more float in powder, sideways stance, one board and one wide track, no poles. Board on the chairlift, toe and heel lean in turns.
+- Other skiers on the hill (4, 7 or 10 by graphics quality; Settings to switch off). They ski named runs in S-turns at their own pace, about a quarter ride boards, they respawn near you, and they pass through you. They keep skiing behind the title screen.
+- Title screen backdrop: a slow pan around the view from the top of Quickdraw.
+- `docs/run-names.md`: the official Apex runs OpenStreetMap is missing and the candidates for each traced run.
+
 ### Changed
+- Apex accuracy pass from the 2023 and 2026/27 trail maps, the grooming report, Wikipedia and an aerial photo (`docs/apex-sources.md`):
+  - Traced runs named: Highway 97C (blue), Mini-Colorado (double black), Crusher. Upper Wishbone is blue.
+  - Apex Mountain (2247 m) labelled on the horizon; the summit label uses the LiDAR height.
+  - Building names cleaned up; village wall colours from the photo, with the Apex Mountain Inn yellow.
+  - T-Bar and Magic Carpet run at their real speeds.
+  - All fixes live in `world/corrections.ts`.
+- Faster load: parking lot search 269 to 52 ms and forest planting 240 to 127 ms with the same output; about 30 percent off the build phase in the browser.
+- The tutorial and tip card lets touches through and sits below the minimap on phones.
 - Ready for a public repository: MIT `LICENSE`, data licences spelled out in the README, `SECURITY.md`, development notes in place of the internal handoff log, and `.gitignore` entries for local secrets.
 - Vitest 3 to 5 (fixes dev-only advisories in tinypool and @vitest/mocker; `npm audit` is clean).
 

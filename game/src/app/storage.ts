@@ -23,5 +23,6 @@ export const KEYS = {
   settings: 'skiscrapex.settings',
   progress: 'skiscrapex.progress',
   targets: 'skiscrapex.targets',
+  coach: 'skiscrapex.coach',
   muted: 'apex.soundMuted',
 } as const

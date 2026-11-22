@@ -2,7 +2,8 @@ import * as THREE from 'three'
 import type { Building } from '../../world/buildings'
 import { pointInRing } from '../../world/resort'
 
-const WALLS = ['#8a6243', '#a7714a', '#7a8088', '#93503f', '#c2a684', '#58748a'].map((c) => new THREE.Color(c))
+// Village tones from the aerial photo: timber browns, barn red, grey board, tan stucco.
+const WALLS = ['#8a6243', '#6b4a33', '#7a8088', '#8c3b2b', '#c2a684', '#5f4636'].map((c) => new THREE.Color(c))
 const SNOW = new THREE.Color('#eef3f7')
 const TRIM = new THREE.Color('#3b2e26')
 const OVERHANG = 0.7
@@ -33,7 +34,7 @@ export function createBuildingView(buildings: Building[]) {
   const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
 
   for (const building of buildings) {
-    const wall = WALLS[building.palette].clone().multiplyScalar(0.9 + (building.palette % 3) * 0.05)
+    const wall = building.wall ? new THREE.Color(building.wall) : WALLS[building.palette].clone().multiplyScalar(0.9 + (building.palette % 3) * 0.05)
     const { ring, base, eaves } = building
     const windows = building.kind === 'service' ? 0 : 1
     let u = 0

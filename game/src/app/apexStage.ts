@@ -54,21 +54,28 @@ export function buildApexStage(
   const savedLayouts = readJson<Record<string, string>>(KEYS.parkLayouts, {})
   for (const site of parkSites) if (savedLayouts[site.name]) site.layout = savedLayouts[site.name]
   const surface = buildSurface(grid, resort, 2.5, parkSites.map((site) => ({ name: site.name, line: site.line, halfWidth: 16 })))
+  options.phase?.('apex: surface')
   const terrain = createTerrainView(grid, surface, canopy, lighting, quality.terrain)
+  options.phase?.('apex: terrain view')
   const moguls = buildMoguls(grid, resort.runs, surface)
   scene.add(terrain.mesh, createMogulView(moguls, terrain.material))
+  options.phase?.('apex: moguls')
   const apron = buildApron(grid, world.horizon)
   scene.add(createApronView(apron, lighting).mesh)
 
+  options.phase?.('apex: apron')
   const forest = plantForest(grid, resort, surface, canopy, { density: quality.forestDensity, originElevation: world.manifest.originElevation })
+  options.phase?.('apex: forest')
   const apronForest = plantApronForest(apron, grid, { density: quality.apronForestDensity, reach: quality.apronForestReach })
   forest.chunks.push(...apronForest.chunks)
   forest.count += apronForest.count
   // The detail object is live: the view distance setting rewrites it in place.
+  options.phase?.('apex: apron forest')
   const forestDetail = scaledForest(quality.forest, options.viewDistance)
   const forestView = createForestView(forest, forestDetail)
   scene.add(forestView.object)
 
+  options.phase?.('apex: forest view')
   const lifts = createLiftView(resort.lifts, grid.heightAt)
   lifts.object.traverse((child) => (child.castShadow = true))
   mergeStatic(lifts.object)
@@ -79,6 +86,7 @@ export function buildApexStage(
 
   const village = buildVillage(grid, canopy, resort.roads, resort.runs, buildings, resort.lifts)
   scene.add(createVillageView(village, grid.heightAt).object)
+  options.phase?.('apex: village')
   const solid: Building[] = [...buildings]
   if (village.hut) {
     const { x, z, heading } = village.hut
@@ -101,9 +109,10 @@ export function buildApexStage(
   // OSM's Beaconsfield node carries Apex Mountain's 2247 m; label peaks from the LiDAR instead.
   const peaks = resort.peaks.map((peak) => {
     const ground = grid.heightAt(peak.x, peak.z)
-    return { ...peak, ele: Number.isFinite(ground) ? ground + world.manifest.originElevation : null }
+    return { ...peak, ele: Number.isFinite(ground) ? ground + world.manifest.originElevation : peak.ele }
   })
-  const signs = createSignView(resort.runs, peaks, grid.heightAt, places)
+  options.phase?.('apex: solids')
+  const signs = createSignView(resort.runs, peaks, anyHeight, places)
   scene.add(signs.object)
 
   // Park features sit on top of the LiDAR ground; rebuilt when a layout changes.
@@ -125,7 +134,9 @@ export function buildApexStage(
     scene.add(parkView.object)
     if (stage) stage.env.rails = overlay.rails
   }
+  options.phase?.('apex: signs')
   rebuildParks()
+  options.phase?.('apex: parks')
   const sampleSurface = createSurfaceSampler(grid, surface, canopy, { inPark: (x, z) => overlay.inside(x, z) })
 
   const slope: Slope = {

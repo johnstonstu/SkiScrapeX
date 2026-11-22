@@ -123,7 +123,9 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       legs.push(path)
     }
     if (!aerial) {
-      rides.set(lift.id, ridePath(lift.line.map(([x, z]) => new THREE.Vector3(x, ground(x, z), z)), false, 2))
+      // T-Bar: 668 m in 4.6 min per the OSM/Apex lift data (2.4 m/s). Carpets crawl at about 0.8 m/s.
+      const surfaceSpeed = lift.type === 'magic_carpet' ? 0.8 : 2.4
+      rides.set(lift.id, ridePath(lift.line.map(([x, z]) => new THREE.Vector3(x, ground(x, z), z)), false, surfaceSpeed))
       continue
     }
     const triple = lift.seats === 3

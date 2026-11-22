@@ -2,7 +2,7 @@ import { SKI_GRAPHICS, type SkiGraphic } from '../render/rider/skierView'
 import { KEYS, readJson, writeJson } from '../app/storage'
 
 /** Rider customization: colours, kit and ski model. */
-export type SkiModel = 'allMountain' | 'park' | 'powder'
+export type SkiModel = 'allMountain' | 'park' | 'powder' | 'snowboard'
 
 export interface Outfit {
   jacket: string
@@ -24,6 +24,7 @@ export const SKI_MODELS: Record<SkiModel, { label: string; note: string; sidecut
   allMountain: { label: 'All-mountain', note: '14 m sidecut, quick to carve', sidecutRadius: 14, floatScale: 1 },
   park: { label: 'Park twin', note: '18 m sidecut, loose and playful', sidecutRadius: 18, floatScale: 1.05 },
   powder: { label: 'Powder', note: '22 m sidecut, floats in deep snow', sidecutRadius: 22, floatScale: 1.45 },
+  snowboard: { label: 'Snowboard', note: '8 m sidecut, quick edge to edge, surfs powder', sidecutRadius: 8, floatScale: 1.35 },
 }
 
 export type SkiModelSpec = (typeof SKI_MODELS)[SkiModel]
@@ -100,7 +101,7 @@ export function createStylePanel(
     }
     const models = document.createElement('div')
     models.className = 'style-row models'
-    models.innerHTML = '<span>Ski model</span>'
+    models.innerHTML = '<span>Skis or board</span>'
     for (const [id, model] of Object.entries(SKI_MODELS) as [SkiModel, (typeof SKI_MODELS)[SkiModel]][]) {
       const button = document.createElement('button')
       button.type = 'button'

@@ -34,7 +34,10 @@ import { createSettingsPanel, readSettings, resolveQuality, writeSettings, type 
 import { createSession, type Challenge, type SessionEvent } from './app/session'
 import { createGoals, type Goals } from './app/goals'
 import { renderChallenges, renderResults, renderTitle, setTitleStatus } from './ui/goalsPanels'
-import { GATE_PENALTY } from './world/challenges'
+import { GATE_PENALTY, progressAlong } from './world/challenges'
+import { createCoach } from './app/tutorial'
+import { createNpcs, type Npcs } from './app/npcs'
+import type { Point2 } from './world/resort'
 
 const params = new URLSearchParams(location.search)
 const perf = createPerfProbe(params.has('perf'))
@@ -59,7 +62,7 @@ const lighting = createLighting()
 const scene = new THREE.Scene()
 if (params.has('perf')) Object.assign(window, { __scene: scene })
 // `?test`: handles for the headless smoke test.
-if (params.has('test')) Object.assign(window, { __game: { scene, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals } } })
+if (params.has('test')) Object.assign(window, { __game: { scene, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals }, get npcs() { return npcs } } })
 const sun = addSceneLights(scene, lighting)
 sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize)
 const sky = createSky(lighting)
@@ -75,11 +78,13 @@ const sunFocus = new THREE.Vector3()
 const outfit = readOutfit()
 skierView.setColours(outfit)
 let goals: Goals | null = null
+let npcs: Npcs | null = null
 const stylePanel = createStylePanel(
   ui.style,
   outfit,
   (next) => {
     skierView.setColours(next)
+    effects.setBoard(next.model === 'snowboard')
     writeOutfit(next)
     if (stage) stage.env.ski = SKI_MODELS[next.model]
   },
@@ -94,7 +99,11 @@ const hideOverlays = () => {
 }
 const sound = createSkiAudio($<HTMLButtonElement>('#btn-sound'))
 const effects = createSnowEffects(scene, lighting, pixelRatio, quality)
+effects.setBoard(outfit.model === 'snowboard')
 const tricks = createTrickFeed(ui.trick)
+const coach = createCoach(ui.coach, () => (controls.gamepad ? 'pad' : mobile ? 'touch' : 'keys'), { onExit: () => (tutorialLine = null), toTop: (message) => transition(message, 1.1, spawn) })
+/** The bunny-hill line while the tutorial runs: reaching its end puts you back at the top. */
+let tutorialLine: Point2[] | null = null
 let setViewDistance: ((scale: number) => void) | null = null
 /** Apply one setting (or all of them) without a reload. */
 function applySetting(key?: keyof Settings) {
@@ -105,6 +114,7 @@ function applySetting(key?: keyof Settings) {
   if (all || key === 'cameraShake') rig.setShake(settings.cameraShake ? 1 : 0)
   if (all || key === 'viewDistance') setViewDistance?.(settings.viewDistance)
   if (all || key === 'landingAssist') if (stageReady) stage.env.assist = settings.landingAssist
+  if (key === 'npcs') npcs?.setVisible(settings.npcs)
   if (key === 'shadows') {
     renderer.shadowMap.enabled = settings.shadows
     // Materials compile with or without shadow code; recompile them.
@@ -151,6 +161,8 @@ let ride: Ride | null = null
 const bests = readJson<Record<string, number>>(KEYS.bests, {})
 let elapsed = 0
 let menuWasOpen = false
+let titleSpin = 2.4
+let titleWasShown = false
 let minimap: ReturnType<typeof createMinimap> | null = null
 let devView: ReturnType<typeof createSlopeView> | null = null
 const ridePoint = new THREE.Vector3()
@@ -181,6 +193,7 @@ boot()
 function titleActions() {
   return {
     play: () => (ui.titleScreen.hidden = true),
+    learn: () => startTutorial(),
     challenges: () => openChallenges(),
     rider: () => openPanel(ui.style),
     settings: () => openPanel(ui.settings),
@@ -189,7 +202,7 @@ function titleActions() {
 
 function showTitle() {
   hideOverlays()
-  renderTitle(ui.titleScreen, goals?.summary() ?? null, Boolean(goals), titleActions())
+  renderTitle(ui.titleScreen, goals?.summary() ?? null, Boolean(goals), titleActions(), !coach.done)
   ui.titleScreen.hidden = false
 }
 
@@ -197,7 +210,7 @@ async function boot() {
   // Review links (`?park`, `?ride`, `?at`) and test slopes go straight in.
   const skipTitle = ['dev', 'park', 'ride', 'at', 'perf'].some((key) => params.has(key))
   if (skipTitle) ui.titleScreen.hidden = true
-  else renderTitle(ui.titleScreen, null, false, titleActions())
+  else renderTitle(ui.titleScreen, null, false, titleActions(), !coach.done)
   if (params.has('dev')) {
     startDev('pitch')
   } else {
@@ -237,7 +250,12 @@ function startApex(world: World) {
   stage.env.assist = settings.landingAssist
   stageReady = true
   setViewDistance = apex.setViewDistance
+  perf.phase('stage')
   goals = createGoals({ world, stage, scene, parkSites: apex.parkSites, runNameAt: apex.surface.runNameAt, version: VERSION })
+  perf.phase('goals')
+  npcs = createNpcs(scene, goals.routes(), stage.slope.sampleTerrain, { sampleSurface: stage.env.sampleSurface }, quality.npcCount, world.course.spawn)
+  npcs.setVisible(settings.npcs)
+  perf.phase('npcs')
   stylePanel.refresh()
   course = spawnOverride(world.course)
   ui.credits.innerHTML =
@@ -246,6 +264,7 @@ function startApex(world: World) {
     `Runs, lifts and buildings © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.`
   ui.mapPanel.hidden = false
   const { grid, resort } = world
+  perf.phase('credits')
   minimap = createMinimap(ui.map, ui.mapLocation, apex.surface.runNameAt, { width: grid.width, depth: grid.depth, resort, hillshade: world.hillshade })
   buildRunMenu(ui.runList, pickableRuns(resort), (run) => {
     setFreeSki()
@@ -256,9 +275,11 @@ function startApex(world: World) {
   const parkParam = params.get('park')?.toLowerCase()
   const parkStart = parkParam ? apex.parkSites.find((site) => site.name.toLowerCase().startsWith(parkParam)) : null
   if (parkStart) queueMicrotask(() => startPark(parkStart))
+  perf.phase('menus')
   ui.slopes.hidden = true
   ui.status.textContent = ''
   spawn()
+  perf.phase('spawn')
   // `?ride=<lift name>` starts on that lift, for review.
   const rideName = params.get('ride')?.toLowerCase()
   const rideLift = rideName ? resort.lifts.find((lift) => lift.name.toLowerCase().startsWith(rideName)) : null
@@ -342,8 +363,23 @@ function spawn() {
   }
 }
 
+function startTutorial() {
+  const bunny = goals?.tutorial()
+  if (!bunny) return
+  setFreeSki()
+  course = bunny.course
+  tutorialLine = bunny.line
+  hideOverlays()
+  pause = null
+  ui.fade.classList.remove('on')
+  spawn()
+  coach.start()
+}
+
 /** Start (or retry) a challenge from its start line. */
 function startChallenge(next: Challenge) {
+  coach.stop()
+  tutorialLine = null
   challenge = next
   goals?.activate(next)
   const start = goals?.courseFor(next)
@@ -384,6 +420,27 @@ function onSessionEvent(event: SessionEvent) {
     }
   } else if (event.type === 'finish') endChallenge(null)
   else endChallenge('Left the course')
+}
+
+/** One-time tips the first time something happens. Each shows once ever. */
+function coachTips() {
+  if (!stage.world || coach.active) return
+  const kind = skier.surface.kind
+  const pitchDeg = (skier.pitch * 180) / Math.PI
+  if (skier.mode === 'crashed') coach.tip('crash', 'Wipeout', `You get back up by yourself. ${mobile ? 'Pause' : '<kbd>R</kbd>'} restarts the run.`)
+  else if (kind === 'powder' && skier.sink > 0.12)
+    coach.tip('powder', 'Deep snow', 'Powder is slower and turns take longer. Keep some speed and make round turns. Powder skis (Rider) float better.')
+  else if (kind === 'forest') coach.tip('trees', 'Tree skiing', 'Snow in the trees is softer and the trunks are solid. Hitting one at speed is a crash.')
+  else if (kind === 'ice') coach.tip('ice', 'Icy patch', 'Edges hold much less on ice. Keep turns gentle until you are back on good snow.')
+  else if (skier.grounded && Math.abs(pitchDeg) > 28 && skier.speed > 7)
+    coach.tip('steep', 'Steep pitch', 'Finish each turn across the hill to control your speed. A skidded turn brakes; a carved one keeps your speed.')
+  else if (skier.rail) coach.tip('rail', 'On a rail', 'Steer gently to stay on. Hold grab for a slide style bonus.')
+  else if (stage.features().length && skier.grounded) {
+    const travel = Math.hypot(skier.vx, skier.vz)
+    const next = travel > 2 ? featureAhead(stage.features(), skier.x, skier.z, skier.vx / travel, skier.vz / travel, 35) : null
+    if (next?.spec.speed)
+      coach.tip('park', 'Terrain park', `The speed window for the next jump shows on screen. Hold ${mobile ? 'Jump' : controls.gamepad ? '<kbd>A</kbd>' : '<kbd>Space</kbd>'} on the run-in and let go at the lip.`)
+  }
 }
 
 let resultsNext: (() => void) | null = null
@@ -438,6 +495,11 @@ function transition(message: string, seconds: number, then: () => void) {
 
 function startRide(lift: Lift) {
   setFreeSki()
+  coach.tip(
+    'lift',
+    'Lift ride',
+    mobile ? 'Hold Tuck to speed the ride up, or tap Skip to go straight to the top.' : controls.gamepad ? 'Hold the stick up to speed up, or press <kbd>B</kbd> to skip to the top.' : 'Hold <kbd>W</kbd> to speed the ride up, or press <kbd>B</kbd> or Skip to go straight to the top.',
+  )
   const path = stage.ride?.(lift) ?? null
   if (!path) {
     finishRide(lift)
@@ -528,9 +590,28 @@ function tick(dt: number, frameMs: number) {
     if (!menuOpen) ui.canvas.focus()
   }
   if (menuOpen) {
-    rig.update(skier, stage.slope.sampleTerrain, 0, ride ? undefined : cameraBlocked, skierView.eye, skierView.object)
+    if (!ui.titleScreen.hidden && stage.world) {
+      // Title backdrop: a slow pan around the view from where the skier stands.
+      titleSpin += dt * 0.035
+      camera.position.set(skier.x, skier.y + 16, skier.z)
+      camera.lookAt(skier.x + Math.sin(titleSpin) * 500, skier.y - 70, skier.z + Math.cos(titleSpin) * 500)
+      sky.position.copy(camera.position)
+      stage.update(camera.position)
+      if (settings.npcs) npcs?.update(dt, camera.position, skier)
+      titleWasShown = true
+    } else {
+      if (titleWasShown) {
+        titleWasShown = false
+        rig.snap()
+      }
+      rig.update(skier, stage.slope.sampleTerrain, 0, ride ? undefined : cameraBlocked, skierView.eye, skierView.object)
+    }
     renderer.render(scene, camera)
     return
+  }
+  if (titleWasShown) {
+    titleWasShown = false
+    rig.snap()
   }
   elapsed += dt
   const input = controls.read()
@@ -563,8 +644,11 @@ function tick(dt: number, frameMs: number) {
     }
     if (skier.mode !== 'crashed') crashShown = false
     for (const event of session.step(skier, dt)) onSessionEvent(event)
+    coach.update(skier, input, dt)
+    coachTips()
     checkEvents()
   }
+  if (settings.npcs && !pause) npcs?.update(dt, camera.position, skier)
   if (goals && !pause) {
     const found = goals.frame(skier, dt, Boolean(ride), camera.position)
     if (found) {
@@ -646,6 +730,16 @@ function checkEvents() {
   }
   if (stage.buildings && skier.speed > 1.5 && stage.buildings.hit(skier.x, skier.z)) {
     crash('Ran into a building')
+    return
+  }
+  // Tutorial: the bottom of the bunny hill sends you back to the top.
+  if (tutorialLine && coach.active) {
+    const { off } = progressAlong(skier.x, skier.z, tutorialLine)
+    const end = tutorialLine[tutorialLine.length - 1]
+    if (Math.hypot(end[0] - skier.x, end[1] - skier.z) < 18 || off > 70) {
+      transition('Back to the top', 0.9, spawn)
+      return
+    }
     return
   }
   if (challenge.kind === 'free' && session.stats.time > 10) {

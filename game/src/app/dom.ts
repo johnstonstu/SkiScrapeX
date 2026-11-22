@@ -25,6 +25,7 @@ export function getUi() {
     results: $('#results'),
     titleScreen: $('#title-screen'),
     runCard: $('#run-card'),
+    coach: $('#coach'),
     runs: $('#runs'),
     runList: $('#run-list'),
     ride: $('#ride'),

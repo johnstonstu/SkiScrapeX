@@ -39,18 +39,22 @@ export function renderTitle(
   panel: HTMLElement,
   summary: Summary | null,
   ready: boolean,
-  actions: { play: () => void; challenges: () => void; rider: () => void; settings: () => void },
+  actions: { play: () => void; learn: () => void; challenges: () => void; rider: () => void; settings: () => void },
+  learnFirst = false,
 ): void {
   panel.innerHTML =
     '<div class="title-card"><h1>SkiScrapex</h1><p class="sub">Apex Mountain Resort, Penticton BC</p>' +
     `<p class="title-status">${ready ? '' : 'Loading the mountain…'}</p><div class="title-buttons"></div>` +
     `<p class="title-summary">${summary ? summaryHtml(summary) : ''}</p></div>`
   const buttons = panel.querySelector('.title-buttons')!
-  const play = button(summary && summary.progress.totals.runs > 0 ? 'Continue' : 'Free ski', actions.play, 'primary')
+  // First visit: the tutorial leads. Afterwards it is a small link under the buttons.
+  const play = button(summary && summary.progress.totals.runs > 0 ? 'Continue' : 'Free ski', actions.play, learnFirst ? '' : 'primary')
+  const learn = button(learnFirst ? 'Learn to ski' : 'Tutorial', actions.learn, learnFirst ? 'primary' : 'link')
   const challenges = button('Challenges', actions.challenges)
-  play.disabled = challenges.disabled = !ready
-  buttons.append(play, challenges, button('Rider', actions.rider), button('Settings', actions.settings))
-  if (ready) play.focus()
+  play.disabled = challenges.disabled = learn.disabled = !ready
+  if (learnFirst) buttons.append(learn, play, challenges, button('Rider', actions.rider), button('Settings', actions.settings))
+  else buttons.append(play, challenges, button('Rider', actions.rider), button('Settings', actions.settings), learn)
+  if (ready) (learnFirst ? learn : play).focus()
 }
 
 export function setTitleStatus(panel: HTMLElement, text: string): void {

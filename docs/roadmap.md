@@ -20,7 +20,7 @@ Missing for a release: a front door (title screen, settings, onboarding), goals 
 - Fix whatever the first proper playtests find.
 
 ### v0.7: A reason to ski
-In progress on `v0.7-goals`: title screen, timed runs, slalom, park score attack, results, run checklist, nuggets and rewards are in. Still to come: a reward for more of the outfit, and tuning medal targets from playtests.
+Shipped in 0.7.0 with the v0.6 settings and gamepad work: title screen, timed runs, slalom, park score attack, results, run checklist, nuggets and rewards. Still open: tuning medal and park targets from playtests, and naming the traced runs.
 
 - Title screen with Continue, Free ski, Challenges and Rider.
 - Challenges: timed runs on named runs with medal times, a slalom gate course on a groomer, park score attacks per layout, a "ski every run" checklist, hidden collectibles (gold nuggets, to fit the theme) across the mountain.
@@ -32,6 +32,8 @@ In progress on `v0.7-goals`: title screen, timed runs, slalom, park score attack
 - Context hints (first powder, first park approach, first lift).
 - Real-device mobile pass: frame rate on a mid-range Android phone and an older iPhone, touch layout options (size, opacity, left-handed), tilt steering as an option, battery and thermal checks.
 - Progressive loading: show the mountain while the forest and village build; compress the data (Brotli) and keep first load under about 10 MB.
+  - Measured 2026-11-22: the height grids barely compress as stored (2 m grid 4.2 MB raw, 3.9 MB gzipped). Storing each height as its difference from a plane through its left, upper and upper-left neighbours brings that to 1.4 MB gzipped, and the 5 m grid from 1.1 MB to 0.36 MB. A few cells overflow 16 bits, so the format needs an escape code. Do this with hosting (v0.9), because it changes `scripts/build-terrain.py`, the loader and the data branch.
+  - 0.8 load work so far: lot finding 269 to 52 ms and forest planting 240 to 127 ms (same output), village phase in the browser 720 to 120 ms.
 
 ## Mid term
 
