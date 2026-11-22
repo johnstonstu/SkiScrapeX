@@ -1,6 +1,6 @@
 # `features.json` version 1
 
-The exporter writes this document to `tools/osm/generated/features.json`. That file is generated and gitignored. `sample/features.sample.json` is a short example of the same shape, not a live extract.
+The exporter writes this document to `tools/osm/generated/features.json`. That file is generated and gitignored. `sample/features.sample.json` is a short example of the same shape, not a live extract. `tools/osm/fallback/features.json` is a committed snapshot of a real extract, kept so the game still has runs, lifts and buildings when a fresh download fails. It is derived from OpenStreetMap and stays under ODbL. Do not edit it by hand.
 
 Positions are metres in the game frame:
 

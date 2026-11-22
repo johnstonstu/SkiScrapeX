@@ -48,15 +48,18 @@ jobs:
         run: /usr/bin/python3 scripts/build-horizon.py
 
       - name: Export OpenStreetMap features
-        # Overpass can be busy. The game falls back to references.json.
-        continue-on-error: true
-        run: /usr/bin/python3 tools/osm/export.py --manifest terrain/generated/terrain.json
+        # Tries several Overpass mirrors, then api.openstreetmap.org/api/0.6/map
+        # for the terrain bbox. If that still fails, export.py writes the
+        # committed ODbL snapshot. The check below refuses a data branch
+        # with no buildings or a lift count other than 4.
+        run: /usr/bin/python3 tools/osm/export.py --manifest terrain/generated/terrain.json --fallback tools/osm/fallback/features.json
 
       - name: Assemble data branch
         run: |
           mkdir -p out
           cp terrain/generated/* out/
-          if [ -f tools/osm/generated/features.json ]; then cp tools/osm/generated/features.json out/; fi
+          /usr/bin/python3 tools/osm/check_features.py tools/osm/generated/features.json
+          cp tools/osm/generated/features.json out/
           cat > out/README.md <<EOF
           # SkiScrapex generated data
 

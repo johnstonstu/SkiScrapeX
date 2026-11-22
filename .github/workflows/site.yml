@@ -31,9 +31,13 @@ jobs:
           cache-dependency-path: game/package-lock.json
       - name: Fetch generated data for the Apex test
         run: |
+          mkdir -p game/public/data
           if git fetch --depth 1 origin data; then
-            mkdir -p game/public/data
             git --work-tree=game/public/data checkout FETCH_HEAD -- .
+          fi
+          if [ ! -f game/public/data/features.json ]; then
+            echo "::warning title=Missing features.json::The data branch has no features.json. Using the committed ODbL fallback."
+            cp tools/osm/fallback/features.json game/public/data/features.json
           fi
       - name: Game tests and build
         working-directory: game
@@ -49,6 +53,8 @@ jobs:
         run: |
           python3 -m pip install -r requirements.txt
           python3 -m unittest discover -s tests
+      - name: Smoke check built features.json
+        run: python3 tools/osm/check_features.py game/dist/data/features.json
 
   deploy:
     # Skipped until GitHub Pages is enabled. Set the repo variable PAGES_ENABLED=true to turn it on.
@@ -69,18 +75,24 @@ jobs:
           cache-dependency-path: game/package-lock.json
       - name: Fetch generated data
         run: |
+          mkdir -p game/public/data
           if git fetch --depth 1 origin data; then
-            mkdir -p game/public/data
             git --work-tree=game/public/data checkout FETCH_HEAD -- .
             ls -la game/public/data
           else
             echo "::warning::No data branch yet. Run the Build Apex data workflow."
+          fi
+          if [ ! -f game/public/data/features.json ]; then
+            echo "::warning title=Missing features.json::The data branch has no features.json. Using the committed ODbL fallback."
+            cp tools/osm/fallback/features.json game/public/data/features.json
           fi
       - name: Build
         working-directory: game
         run: |
           npm ci
           npm run build
+      - name: Smoke check features.json
+        run: python3 tools/osm/check_features.py game/dist/data/features.json
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

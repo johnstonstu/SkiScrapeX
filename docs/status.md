@@ -4,7 +4,7 @@ Updated 2026-11-21 for v0.5.0. Release history is in `CHANGELOG.md`, the plan in
 
 ## How the pieces fit
 
-1. `.github/workflows/data.yml` (runs when `scripts/` or `tools/osm/` change, or by hand) installs GDAL, runs `scripts/build-terrain.py` and `tools/osm/export.py`, and force-pushes the outputs to the orphan `data` branch (builds dispatched from another branch go to `data-<branch>` instead): `terrain.json`, `heights.f32`, `heights-2m.u16`, `canopy-cover.u8`, `canopy-height.u8`, `hillshade.png`, `references.json`, `features.json`.
+1. `.github/workflows/data.yml` (runs when `scripts/` or `tools/osm/` change, or by hand) installs GDAL, runs `scripts/build-terrain.py` and `tools/osm/export.py`, and force-pushes the outputs to the orphan `data` branch (builds dispatched from another branch go to `data-<branch>` instead): `terrain.json`, `heights.f32`, `heights-2m.u16`, `canopy-cover.u8`, `canopy-height.u8`, `hillshade.png`, `references.json`, `features.json`. The OSM export retries public Overpass mirrors, then the main OSM map API, then the committed ODbL snapshot `tools/osm/fallback/features.json`. The job does not push a data branch whose `features.json` lacks buildings or does not have four lifts. The Pages workflow copies that snapshot if the fetched data has no `features.json`, and it fails the deploy unless the built `data/features.json` passes the same check.
 2. `.github/workflows/site.yml` runs the game and OSM tests on every push to `main`, copies the `data` branch into `game/public/data` and builds. The Pages deploy only runs when the repository variable `PAGES_ENABLED` is `true`.
 3. The game loads those files at start (`game/src/world/loadWorld.ts`). If they are missing it shows the synthetic test slopes.
 

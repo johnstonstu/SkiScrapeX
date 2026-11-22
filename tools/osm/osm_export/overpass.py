@@ -1,4 +1,9 @@
-"""Fetch and cache raw Overpass responses for the Apex resort."""
+"""Fetch and cache raw OpenStreetMap data for the Apex resort.
+
+Overpass is tried across several mirrors. If every mirror fails, the main OSM
+map API (`/api/0.6/map`) is used for the terrain bbox. That second path is a
+normal option of this module, not a patch applied by the caller.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +11,7 @@ import hashlib
 import json
 import sys
 import time
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -13,6 +19,8 @@ import requests
 
 from .constants import (
     BOUNDARY_WAY_ID,
+    MAP_ENDPOINT,
+    MAP_MAX_SQUARE_DEGREES,
     OVERPASS_ENDPOINTS,
     PEAK_EAST,
     PEAK_NORTH,
@@ -31,7 +39,7 @@ def overpass_queries() -> list[tuple[str, str]]:
     bbox = f"{SEARCH_SOUTH},{SEARCH_WEST},{SEARCH_NORTH},{SEARCH_EAST}"
     peaks = f"{PEAK_SOUTH},{PEAK_WEST},{PEAK_NORTH},{PEAK_EAST}"
     resort = f"""
-[out:json][timeout:120];
+[out:json][timeout:60];
 (
   way({BOUNDARY_WAY_ID});
   way["landuse"="winter_sports"]["name"~"Apex",i]({bbox});
@@ -49,7 +57,7 @@ out body;
 out skel qt;
 """.strip()
     buildings = f"""
-[out:json][timeout:120];
+[out:json][timeout:60];
 (
   way["building"]({bbox});
   relation["building"]({bbox});
@@ -59,7 +67,7 @@ out body;
 out skel qt;
 """.strip()
     highways = f"""
-[out:json][timeout:120];
+[out:json][timeout:60];
 (
   way["highway"]({bbox});
 );
@@ -86,6 +94,8 @@ def _download_query(
     refresh: bool,
     endpoints: tuple[str, ...],
     timeout: float,
+    attempts: int = 2,
+    backoff: float = 3,
 ) -> tuple[dict, dict]:
     body_path, meta_path = cache_paths(cache_dir, query)
     if body_path.exists() and not refresh:
@@ -97,9 +107,10 @@ def _download_query(
 
     headers = {"User-Agent": USER_AGENT}
     errors: list[str] = []
+    tries = max(1, attempts)
     for endpoint in endpoints:
         response = None
-        for attempt in range(4):
+        for attempt in range(tries):
             print(f"Fetching {name} from {endpoint} (attempt {attempt + 1})", file=sys.stderr)
             try:
                 response = requests.post(
@@ -111,13 +122,14 @@ def _download_query(
             except requests.RequestException as exc:
                 errors.append(f"{name} {endpoint}: {exc}")
                 response = None
-                if attempt < 3:
-                    time.sleep(15 * (attempt + 1))
+                if attempt + 1 < tries and backoff:
+                    time.sleep(backoff * (attempt + 1))
                     continue
                 break
-            if response.status_code in (429, 502, 503, 504) and attempt < 3:
+            if response.status_code in (429, 502, 503, 504) and attempt + 1 < tries:
                 errors.append(f"{name} {endpoint}: HTTP {response.status_code}")
-                time.sleep(15 * (attempt + 1))
+                if backoff:
+                    time.sleep(backoff * (attempt + 1))
                 continue
             break
         if response is None or response.status_code != 200 or response.content.lstrip().startswith(b"<"):
@@ -147,7 +159,9 @@ def fetch_overpass(
     cache_dir: Path,
     refresh: bool = False,
     endpoints: tuple[str, ...] = OVERPASS_ENDPOINTS,
-    timeout: float = 120,
+    timeout: float = 70,
+    attempts: int = 2,
+    backoff: float = 3,
 ) -> tuple[dict, dict]:
     """Return one combined Overpass document and a small fetch record.
 
@@ -160,7 +174,9 @@ def fetch_overpass(
     timestamps = []
     copyright_text = None
     for name, query in overpass_queries():
-        payload, meta = _download_query(name, query, cache_dir, refresh, endpoints, timeout)
+        payload, meta = _download_query(
+            name, query, cache_dir, refresh, endpoints, timeout, attempts, backoff,
+        )
         elements.extend(payload.get("elements", []))
         stamp = (payload.get("osm3s") or {}).get("timestamp_osm_base")
         if stamp:
@@ -179,6 +195,7 @@ def fetch_overpass(
         "".join(query for _, query in overpass_queries()).encode("utf-8")
     ).hexdigest()
     fetch = {
+        "api": "Overpass API",
         "endpoint": records[-1].get("endpoint") if records else None,
         "retrievedAt": max((record.get("retrievedAt") or "" for record in records), default=None) or None,
         "querySha256": digest,
@@ -186,6 +203,188 @@ def fetch_overpass(
         "queries": records,
     }
     return combined, fetch
+
+
+def _local_tag(element: ET.Element) -> str:
+    return element.tag.split("}")[-1]
+
+
+def parse_osm_map(content: bytes) -> dict:
+    """Turn an OSM API 0.6 `/map` document into the element list Overpass uses."""
+    try:
+        root = ET.fromstring(content)
+    except ET.ParseError as exc:
+        raise ValueError(f"OSM map response was not XML ({exc})") from exc
+    if _local_tag(root) == "error":
+        message = " ".join(root.itertext()).strip()
+        raise ValueError(message[:300] or "OSM API error")
+    error = next((child for child in root if _local_tag(child) == "error"), None)
+    if error is not None:
+        message = " ".join(error.itertext()).strip()
+        raise ValueError(message[:300] or "OSM API error")
+    if _local_tag(root) != "osm":
+        raise ValueError(f"OSM map response root was {root.tag!r}")
+
+    elements = []
+    timestamps = []
+    for child in list(root):
+        kind = _local_tag(child)
+        if kind not in ("node", "way", "relation"):
+            continue
+        element: dict = {"type": kind, "id": int(child.attrib["id"])}
+        if "version" in child.attrib:
+            element["version"] = int(child.attrib["version"])
+        if child.attrib.get("timestamp"):
+            element["timestamp"] = child.attrib["timestamp"]
+            timestamps.append(child.attrib["timestamp"])
+        if kind == "node":
+            element["lat"] = float(child.attrib["lat"])
+            element["lon"] = float(child.attrib["lon"])
+        elif kind == "way":
+            element["nodes"] = [int(node.attrib["ref"]) for node in child if _local_tag(node) == "nd"]
+        else:
+            element["members"] = [
+                {
+                    "type": member.attrib.get("type"),
+                    "ref": int(member.attrib["ref"]),
+                    "role": member.attrib.get("role") or "",
+                }
+                for member in child
+                if _local_tag(member) == "member"
+            ]
+        tags = {
+            tag.attrib["k"]: tag.attrib["v"]
+            for tag in child
+            if _local_tag(tag) == "tag"
+        }
+        if tags:
+            element["tags"] = tags
+        elements.append(element)
+    if not elements:
+        raise ValueError("OSM map response contained no elements")
+
+    copyright_text = root.attrib.get("copyright") or "© OpenStreetMap contributors"
+    license_url = root.attrib.get("license") or ""
+    if license_url and "odbl" not in copyright_text.lower():
+        copyright_text = f"{copyright_text} (ODbL {license_url})"
+    return {
+        "elements": elements,
+        "osm3s": {
+            "timestamp_osm_base": min(timestamps) if timestamps else None,
+            "copyright": copyright_text,
+        },
+    }
+
+
+def fetch_osm_map(
+    bbox: tuple[float, float, float, float],
+    endpoint: str = MAP_ENDPOINT,
+    timeout: float = 90,
+    attempts: int = 2,
+    backoff: float = 3,
+) -> tuple[dict, dict]:
+    """Download one bbox from the main OSM map API.
+
+    `bbox` is `(west lon, south lat, east lon, north lat)`. The API allows at
+    most 0.25 square degrees and asks callers to send a User-Agent.
+    """
+    west, south, east, north = bbox
+    if west >= east or south >= north:
+        raise RuntimeError(f"OSM map bbox is empty: {bbox}")
+    area = (east - west) * (north - south)
+    if area > MAP_MAX_SQUARE_DEGREES:
+        raise RuntimeError(
+            f"OSM map bbox covers {area:.4f} square degrees, "
+            f"above the {MAP_MAX_SQUARE_DEGREES} limit."
+        )
+    box = f"{west:.6f},{south:.6f},{east:.6f},{north:.6f}"
+    headers = {"User-Agent": USER_AGENT}
+    errors: list[str] = []
+    tries = max(1, attempts)
+    for attempt in range(tries):
+        print(f"Fetching map from {endpoint} bbox {box} (attempt {attempt + 1})", file=sys.stderr)
+        try:
+            response = requests.get(endpoint, params={"bbox": box}, headers=headers, timeout=timeout)
+        except requests.RequestException as exc:
+            errors.append(f"{endpoint}: {exc}")
+            if attempt + 1 < tries and backoff:
+                time.sleep(backoff * (attempt + 1))
+            continue
+        if response.status_code != 200:
+            errors.append(f"{endpoint}: HTTP {response.status_code} {response.text[:160]}")
+            if response.status_code in (429, 502, 503, 504) and attempt + 1 < tries and backoff:
+                time.sleep(backoff * (attempt + 1))
+                continue
+            break
+        try:
+            payload = parse_osm_map(response.content)
+        except ValueError as exc:
+            errors.append(f"{endpoint}: {exc}")
+            if attempt + 1 < tries and backoff:
+                time.sleep(backoff * (attempt + 1))
+            continue
+        retrieved = _now()
+        digest = hashlib.sha256(box.encode("utf-8")).hexdigest()
+        record = {
+            "api": "OSM API 0.6 map",
+            "name": "map",
+            "endpoint": endpoint,
+            "retrievedAt": retrieved,
+            "querySha256": digest,
+            "fromCache": False,
+            "bbox": [west, south, east, north],
+            "bytes": len(response.content),
+        }
+        fetch = {
+            "api": "OSM API 0.6 map",
+            "endpoint": endpoint,
+            "retrievedAt": retrieved,
+            "querySha256": digest,
+            "fromCache": False,
+            "bbox": [west, south, east, north],
+            "queries": [record],
+        }
+        return payload, fetch
+    raise RuntimeError("OSM map request failed. " + " | ".join(errors))
+
+
+def fetch_resort(
+    cache_dir: Path,
+    refresh: bool = False,
+    endpoints: tuple[str, ...] = OVERPASS_ENDPOINTS,
+    timeout: float = 70,
+    attempts: int = 2,
+    backoff: float = 3,
+    map_fallback: bool = True,
+    map_bbox: tuple[float, float, float, float] | None = None,
+    map_endpoint: str = MAP_ENDPOINT,
+) -> tuple[dict, dict]:
+    """Overpass across mirrors, then the OSM map API for `map_bbox`."""
+    try:
+        return fetch_overpass(
+            cache_dir,
+            refresh=refresh,
+            endpoints=endpoints,
+            timeout=timeout,
+            attempts=attempts,
+            backoff=backoff,
+        )
+    except RuntimeError as exc:
+        if not map_fallback:
+            raise
+        if map_bbox is None:
+            raise RuntimeError(f"{exc} Map fallback needs a bbox.") from exc
+        print(f"Overpass failed; trying the OSM map API ({exc})", file=sys.stderr)
+        try:
+            return fetch_osm_map(
+                map_bbox,
+                endpoint=map_endpoint,
+                timeout=max(timeout, 90),
+                attempts=attempts,
+                backoff=backoff,
+            )
+        except RuntimeError as map_error:
+            raise RuntimeError(f"{map_error} | {exc}") from map_error
 
 
 def normalize_elements(payload: dict) -> dict:

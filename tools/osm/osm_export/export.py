@@ -8,10 +8,11 @@ import sys
 from pathlib import Path
 
 from .assemble import build_features, summarize, validate_document
-from .constants import DEFAULT_BUFFER_METRES, OVERPASS_ENDPOINTS
+from .checks import feature_problems
+from .constants import DEFAULT_BUFFER_METRES, MAP_ENDPOINT, OVERPASS_ENDPOINTS
 from .heights import load_height_grid
-from .overpass import fetch_overpass, normalize_elements
-from .transform import Origin, documented_origin, origin_from_manifest
+from .overpass import fetch_resort, normalize_elements
+from .transform import Origin, bbox_from_manifest, documented_crop_bbox, documented_origin, origin_from_manifest
 
 
 def repo_root() -> Path:
@@ -20,6 +21,10 @@ def repo_root() -> Path:
 
 def tool_root() -> Path:
     return Path(__file__).resolve().parents[1]
+
+
+def default_fallback() -> Path:
+    return tool_root() / "fallback" / "features.json"
 
 
 def display_path(path: Path) -> str:
@@ -118,8 +123,34 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--endpoint",
         action="append",
         dest="endpoints",
-        help="Overpass interpreter URL; may be repeated. Defaults to the public servers.",
+        help="Overpass interpreter URL; may be repeated. Defaults to the public mirrors.",
     )
+    parser.add_argument(
+        "--no-map-fallback",
+        action="store_true",
+        help="do not call api.openstreetmap.org/api/0.6/map when every Overpass mirror fails",
+    )
+    parser.add_argument(
+        "--map-endpoint",
+        default=MAP_ENDPOINT,
+        help="OSM map API URL used after Overpass fails (default: the main api.openstreetmap.org map call)",
+    )
+    parser.add_argument(
+        "--fallback",
+        type=Path,
+        default=None,
+        help=(
+            "features.json to write when the download fails. "
+            "Defaults to tools/osm/fallback/features.json when that file is present."
+        ),
+    )
+    parser.add_argument(
+        "--no-fallback",
+        action="store_true",
+        help="fail the export when the download fails, instead of writing the committed cache",
+    )
+    parser.add_argument("--retry-attempts", type=int, default=2, help="tries per Overpass mirror and for the map API")
+    parser.add_argument("--retry-backoff", type=float, default=3, help="seconds times the attempt number between retries")
     parser.add_argument(
         "--manifest",
         type=Path,
@@ -144,19 +175,87 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def resolve_map_bbox(args) -> tuple[float, float, float, float]:
+    """Bbox for the OSM map API: the terrain manifest, or the documented crop."""
+    manifest = args.manifest
+    if manifest is None and not args.documented_origin:
+        default = repo_root() / "terrain" / "generated" / "terrain.json"
+        if default.exists():
+            manifest = default
+    if manifest is not None and manifest.exists() and not args.documented_origin:
+        return bbox_from_manifest(manifest, args.buffer_metres)
+    return documented_crop_bbox(args.buffer_metres)
+
+
+def chosen_fallback(args) -> Path | None:
+    if args.no_fallback:
+        return None
+    path = args.fallback if args.fallback is not None else default_fallback()
+    return path if path.exists() else None
+
+
+def publish_fallback(path: Path, output: Path) -> int:
+    """Copy a committed features.json after it passes the same checks as a fresh export."""
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Cached features could not be read: {exc}", file=sys.stderr)
+        return 1
+    errors = validate_document(document) + feature_problems(document)
+    if errors:
+        print("Cached features failed validation:", file=sys.stderr)
+        for error in errors:
+            print(f"  {error}", file=sys.stderr)
+        return 1
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_bytes(path.read_bytes())
+    counts = document["counts"]
+    print(
+        "::warning::Fresh OpenStreetMap export was not usable. "
+        f"Wrote the committed ODbL fallback {path} "
+        f"({counts['buildings']} buildings, {counts['lifts']} lifts).",
+        file=sys.stderr,
+    )
+    print(summarize(document))
+    print(f"Wrote {output}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     if args.buffer_metres < 0:
         print("Buffer must be zero or positive.", file=sys.stderr)
         return 1
+    if args.retry_attempts < 1:
+        print("Retry attempts must be at least 1.", file=sys.stderr)
+        return 1
     origin = resolve_origin(args)
     sampler, heights_meta = height_source(args, origin)
     endpoints = tuple(args.endpoints) if args.endpoints else OVERPASS_ENDPOINTS
+    fallback = chosen_fallback(args)
     try:
-        payload, fetch = fetch_overpass(args.cache_dir, refresh=args.refresh, endpoints=endpoints)
+        bbox = None if args.no_map_fallback else resolve_map_bbox(args)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"Could not build an OSM map bbox: {exc}", file=sys.stderr)
+        if fallback is None:
+            return 1
+        return publish_fallback(fallback, args.output)
+    try:
+        payload, fetch = fetch_resort(
+            args.cache_dir,
+            refresh=args.refresh,
+            endpoints=endpoints,
+            attempts=args.retry_attempts,
+            backoff=args.retry_backoff,
+            map_fallback=not args.no_map_fallback,
+            map_bbox=bbox,
+            map_endpoint=args.map_endpoint,
+        )
     except RuntimeError as exc:
         print(exc, file=sys.stderr)
-        return 1
+        if fallback is None:
+            return 1
+        return publish_fallback(fallback, args.output)
     data = normalize_elements(payload)
     try:
         document = build_features(
@@ -169,13 +268,17 @@ def main(argv: list[str] | None = None) -> int:
         )
     except ValueError as exc:
         print(exc, file=sys.stderr)
-        return 1
+        if fallback is None:
+            return 1
+        return publish_fallback(fallback, args.output)
     errors = validate_document(document)
     if errors:
         print("Export failed validation:", file=sys.stderr)
         for error in errors:
             print(f"  {error}", file=sys.stderr)
-        return 1
+        if fallback is None:
+            return 1
+        return publish_fallback(fallback, args.output)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(document, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
