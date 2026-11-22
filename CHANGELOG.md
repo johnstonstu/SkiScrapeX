@@ -2,6 +2,22 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.8.5 (2026-11-22): Steady camera, poles and lift unloading
+
+From Stu's playtest of 0.8.4: turns still felt laggy with the camera swinging, the arms and poles and the flat push needed work, and skipping a lift should show you getting off at the top.
+
+### Added
+- Camera follow setting (Settings → Camera follow). **Steady** is the new default: it looks down the hill and lets the skier swing across the view, like a follow-cam filmer, and only turns quickly when you traverse well away from the fall line. **Tight** is the previous camera, which turns with the skis. In simulated linked turns on a 15° slope the steady view swings 24° while your path swings 77° (the tight camera swings the full 77°).
+- Getting off the lift: at the top you stand up off the chair (or let go of the T-bar) and glide down the unload ramp, then you have control at a standstill, facing on from the lift, with the HUD reading "Top of Quickdraw". Skip now jumps to about two seconds before the top so you see the arrival; press it again to step straight off.
+- Double-pole push: below about 8 km/h with forward held, the rider reaches both poles forward, plants them, drives the hands down past the hips with a crunch of the back, and swings through. Skating takes over as speed builds.
+
+### Changed
+- Pole plants: the tip reaches ahead of the boots at the edge change, stays where it struck the snow while you ski past it, and lets go once it is behind you.
+- Arms carry a little higher and wider, and the pole tips ride just off the snow behind the boots instead of up in the air.
+- Poles shorten slightly when planted close in, so the tips no longer push through the snow.
+- Chairlift terminals are a slim column with the bull-wheel housing above the rope, so arriving riders and the camera pass underneath instead of into a low roof.
+- Skipping keeps you on a chair: the jump is a whole number of chair spacings.
+
 ## 0.8.4 (2026-11-22): Rider model and animation pass
 
 ### Added

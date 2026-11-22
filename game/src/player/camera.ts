@@ -1,8 +1,13 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import type { SampleTerrain, SkiState } from '../sim'
+import { fallLineHeading, type SampleTerrain, type SkiState } from '../sim'
 
 export type CameraMode = 'follow' | 'first' | 'orbit'
+/**
+ * `steady` holds the view down the hill and lets the skier swing across it,
+ * like a follow-cam filmer; `tight` turns with the skis.
+ */
+export type CameraStyle = 'steady' | 'tight'
 
 /**
  * Third-person follow camera that leans toward the travel direction, plus a
@@ -21,6 +26,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
   let heading = 0
   let snap = true
   let mode: CameraMode = 'follow'
+  let style: CameraStyle = 'steady'
   const eyeQuat = new THREE.Quaternion()
   const lookDown = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.25)
   // Three.js cameras look down -Z; the skier faces +Z, so turn the camera around.
@@ -41,6 +47,9 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
         camera.fov = fov
         camera.updateProjectionMatrix()
       }
+    },
+    setStyle(next: CameraStyle) {
+      style = next
     },
     /** 0 turns chatter shake off. */
     setShake(amount: number) {
@@ -98,14 +107,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
         snap = false
         return
       }
-      const moving = state.speed > 3
-      const travel = moving ? Math.atan2(-state.vx, state.vz) : state.heading
-      // In the air or on a rail the skis rotate; follow the line of travel instead.
-      const spinning = state.ridingSwitch || !state.grounded || Boolean(state.rail) || state.crashed > 0
-      // Mostly the ski heading, so the view turns when you steer rather than
-      // when the path has caught up; travel keeps it steady through skids.
-      const targetHeading = spinning && moving ? travel : blendAngle(state.heading, travel, moving ? 0.3 : 0)
-      heading = snap ? targetHeading : blendAngle(heading, targetHeading, 1 - Math.exp(-7 * dt))
+      heading = followHeading(style, state, sampleTerrain, heading, snap ? Infinity : dt)
       // Pull back and up a little with speed.
       let back = 7.2 + Math.min(4, state.speed * 0.08)
       const height = 2.6 + Math.min(1.5, state.speed * 0.03)
@@ -135,6 +137,49 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
       orbit.dispose()
     },
   }
+}
+
+/**
+ * One step of the follow camera's heading. `dt = Infinity` snaps to the target.
+ */
+export function followHeading(style: CameraStyle, state: SkiState, sampleTerrain: SampleTerrain, heading: number, dt: number): number {
+  const moving = state.speed > 3
+  const travel = moving ? Math.atan2(-state.vx, state.vz) : state.heading
+  // In the air or on a rail the skis rotate; follow the line of travel instead.
+  const spinning = state.ridingSwitch || !state.grounded || Boolean(state.rail) || state.crashed > 0
+  let targetHeading: number
+  let rate: number
+  if (style === 'steady') {
+    const steady = steadyHeading(state, sampleTerrain, moving ? travel : state.heading, moving)
+    targetHeading = spinning && moving ? travel : steady
+    // Slow to swing, so linked turns move the skier across a still view;
+    // quicker when the skier is heading well off the view (a long traverse).
+    const off = Math.abs(Math.atan2(Math.sin(targetHeading - heading), Math.cos(targetHeading - heading)))
+    rate = (spinning ? 3 : 1.3) + 5 * THREE.MathUtils.clamp((off - 0.9) / 0.9, 0, 1)
+  } else {
+    // Mostly the ski heading, so the view turns when you steer rather than
+    // when the path has caught up; travel keeps it steady through skids.
+    targetHeading = spinning && moving ? travel : blendAngle(state.heading, travel, moving ? 0.3 : 0)
+    rate = 7
+  }
+  return blendAngle(heading, targetHeading, 1 - Math.exp(-rate * dt))
+}
+
+/**
+ * Where the steady camera points: the travel direction pulled toward the
+ * fall line on a real slope, less so the further the skier is traversing
+ * away from it, so the view looks down the hill through linked turns.
+ */
+export function steadyHeading(state: SkiState, sampleTerrain: SampleTerrain, aim: number, moving: boolean): number {
+  if (!moving) return aim
+  const ground = sampleTerrain(state.x, state.z)
+  if (!ground) return aim
+  const fall = fallLineHeading(ground.normal)
+  if (fall === null) return aim
+  const steep = THREE.MathUtils.clamp(Math.hypot(ground.normal.x, ground.normal.z) / 0.2, 0, 1)
+  const off = Math.abs(Math.atan2(Math.sin(fall - aim), Math.cos(fall - aim)))
+  const pull = 0.8 * steep * Math.max(0, 1 - off / (Math.PI * 0.6))
+  return blendAngle(aim, fall, pull)
 }
 
 function blendAngle(current: number, goal: number, amount: number): number {

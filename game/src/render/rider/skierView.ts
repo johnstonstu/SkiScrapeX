@@ -27,6 +27,47 @@ export class Spring {
   }
 }
 
+/** Grip to tip, metres. */
+const POLE_REACH = 1.1
+const smooth = (t: number) => t * t * (3 - 2 * t)
+/** Turn pole plant: where the tip strikes (metres ahead of the boots) and how long the reach takes. */
+const PLANT_AHEAD = 0.75
+const PLANT_REACH = 0.12
+/** Seconds per double-pole push. */
+const DOUBLE_POLE_CYCLE = 1.05
+
+/**
+ * Double-pole push at phase 0..1: reach forward and plant (0 to 0.35), drive
+ * the hands down past the hips while the back crunches (to 0.75), then swing
+ * the arms forward again. Hands in chest space, pole tips in root space.
+ */
+export function doublePolePose(phase: number, speed: number) {
+  const reachEnd = 0.35
+  const pushEnd = 0.75
+  const forward = { handX: 0.27, handY: 0.12, handZ: 0.5 }
+  const back = { handX: 0.33, handY: -0.32, handZ: -0.2 }
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+  if (phase < reachEnd) {
+    const t = smooth(phase / reachEnd)
+    return {
+      handX: lerp(back.handX, forward.handX, t), handY: lerp(back.handY, forward.handY, t), handZ: lerp(back.handZ, forward.handZ, t),
+      tipY: lerp(0.35, 0.0, t), tipZ: lerp(-0.7, 0.4, t), crunch: 0,
+    }
+  }
+  if (phase < pushEnd) {
+    const t = (phase - reachEnd) / (pushEnd - reachEnd)
+    const k = smooth(t)
+    return {
+      handX: lerp(forward.handX, back.handX, k), handY: lerp(forward.handY, back.handY, k), handZ: lerp(forward.handZ, back.handZ, k),
+      // The tip stays put on the snow while the skier slides past it.
+      tipY: -0.02, tipZ: 0.4 - speed * t * (pushEnd - reachEnd) * DOUBLE_POLE_CYCLE - k * 0.5,
+      crunch: 0.75 * Math.sin(t * Math.PI),
+    }
+  }
+  const t = smooth((phase - pushEnd) / (1 - pushEnd))
+  return { handX: back.handX, handY: lerp(back.handY, back.handY + 0.1, t), handZ: back.handZ, tipY: lerp(0, 0.35, t), tipZ: -0.7, crunch: 0 }
+}
+
 /** Discrete poses that crossfade into each other instead of snapping. */
 type Mode = 'ski' | 'rail' | 'crash' | 'sit' | 'stand'
 /** Seconds to blend into each mode. Falling is quick, getting up is slow. */
@@ -87,8 +128,11 @@ export function createSkierView(): {
   let lastGrab: string | null = null
   let wasAir = false
   let lastVy = 0
-  let plant = 0
+  /** Turn pole plant: seconds since the tip reached for the snow, and when it let go. */
+  let plantAge = 10
+  let plantRelease = 0
   let plantSide = 1
+  let dpPhase = 0
   let lastEdgeSign = 0
   let ridePhase = 0
   let skatePhase = 0
@@ -193,6 +237,9 @@ export function createSkierView(): {
     root.localToWorld(tip.copy(poleTip))
     tip.sub(handWorld)
     if (tip.lengthSq() < 1e-6) tip.set(0, -1, 0)
+    // A planted tip nearer than the pole is long would push through the snow:
+    // shorten the pole to reach it instead (it reads as the pole angling in).
+    arm.pole.scale.y = THREE.MathUtils.clamp(tip.length() / POLE_REACH, 0.72, 1)
     arm.hand.getWorldQuaternion(qInv).invert()
     arm.pole.quaternion.setFromUnitVectors(down, tip.applyQuaternion(qInv).normalize())
   }
@@ -335,12 +382,18 @@ export function createSkierView(): {
       // release the old edges before flexing into the new turn.
       const edgeSign = Math.abs(edge) > 0.12 ? Math.sign(edge) : 0
       if (skiing && edgeSign !== 0 && lastEdgeSign !== 0 && edgeSign !== lastEdgeSign && speed > 3) {
-        plant = 1
+        plantAge = 0
+        plantRelease = 10
         plantSide = edgeSign > 0 ? -1 : 1 // right turn: right hand (index 1, side -1)
         crouch.v -= 1.1 * Math.min(1, speed / 10)
       }
       if (edgeSign !== 0) lastEdgeSign = edgeSign
-      plant = Math.max(0, plant - dt / 0.42)
+      plantAge = Math.min(10, plantAge + dt)
+      // The tip stays where it struck the snow while the skier passes it; let go once it is behind the boots.
+      const plantTipZ = PLANT_AHEAD - speed * Math.max(0, plantAge - PLANT_REACH)
+      if (plantRelease === 10 && plantAge < 5 && (plantTipZ < -0.45 || plantAge > 0.6)) plantRelease = plantAge
+      const plantWeight =
+        plantAge < PLANT_REACH ? smooth(plantAge / PLANT_REACH) : plantAge < plantRelease ? 1 : 1 - smooth(Math.min(1, (plantAge - plantRelease) / 0.22))
 
       // Takeoff extends; landing kicks the crouch spring down and it rebounds.
       if (air && !wasAir) crouch.v -= 2.2
@@ -377,9 +430,13 @@ export function createSkierView(): {
       }
       counter.step(wantCounter, dt, 1.7, 0.9)
 
-      // Skating stride: alternate pushes off the inside edge, faster as speed builds.
-      if (skate.x > 0.01) skatePhase += dt * (4 + speed * 0.9)
-      const stride = Math.sin(skatePhase) * skate.x
+      // Pushing on the flat: double-pole when nearly stopped, skate as speed builds.
+      const doublePole = skate.x * Math.max(0, Math.min(1, (2.4 - speed) / 1.2))
+      const skateAmount = skate.x - doublePole
+      if (skateAmount > 0.01) skatePhase += dt * (4 + speed * 0.9)
+      const stride = Math.sin(skatePhase) * skateAmount
+      if (doublePole > 0.01) dpPhase = (dpPhase + dt / DOUBLE_POLE_CYCLE) % 1
+      const dp = doublePolePose(dpPhase, speed)
 
       // Athletic base flex, plus terrain absorption, edging, tuck, braking and pop.
       let wantCrouch = pose === 'stand' ? 0.12 : still ? 0.22 : 0.32
@@ -414,13 +471,13 @@ export function createSkierView(): {
         skis[0].rotation.z += 0.22 * plow.x
         skis[1].rotation.z -= 0.22 * plow.x
       }
-      if (skate.x > 0.01) {
+      if (skateAmount > 0.01) {
         // Skis in a V; the pushing ski angles out, slides out and back, then lifts to recover.
         for (let i = 0; i < 2; i++) {
           const s = legs[i].side
           const push = Math.max(0, s * stride)
-          const recover = Math.max(0, -s * Math.cos(skatePhase)) * skate.x
-          skis[i].rotation.y += s * (0.16 + 0.14 * push) * skate.x
+          const recover = Math.max(0, -s * Math.cos(skatePhase)) * skateAmount
+          skis[i].rotation.y += s * (0.16 + 0.14 * push) * skateAmount
           skis[i].rotation.z += s * 0.22 * push
           skis[i].position.x += s * 0.1 * push
           skis[i].position.z -= 0.14 * push
@@ -494,7 +551,7 @@ export function createSkierView(): {
       hips.rotation.y = boarding ? -Math.PI / 2 + 0.25 : counter.x * 0.3
       hips.rotation.z = -incline.x * 0.24
       // The back bends in two parts, so a deep crouch or a tuck rounds it.
-      const bend = 0.12 + flex * 0.72 + tuck.x * 0.6 + press.x * 0.18 + skate.x * 0.18 + plow.x * 0.05
+      const bend = 0.12 + flex * 0.72 + tuck.x * 0.6 + press.x * 0.18 + skateAmount * 0.18 + plow.x * 0.05 + doublePole * dp.crunch
       spine.rotation.x = bend * 0.55
       chest.rotation.x = bend * 0.45 - tuck.x * 0.08
       spine.rotation.z = -incline.x * 0.34
@@ -522,11 +579,14 @@ export function createSkierView(): {
       for (let i = 0; i < 2; i++) {
         const side = arms[i].side
         const inside = Math.sign(incline.x) === -side ? 1 : 0 // left hand (side 1) is inside on a left turn (incline < 0)
-        const planting = plantSide === side ? plant : 0
-        // Hands forward, a little wide and low, in front of the hips.
-        const hand = v1.set(side * 0.29, -0.05 + breathe + inside * Math.abs(incline.x) * 0.1, 0.42 + inside * 0.06)
-        hand.z += Math.sin(planting * Math.PI) * 0.12
-        hand.x += side * Math.sin(planting * Math.PI) * 0.06
+        const planting = plantSide === side && skiing ? plantWeight : 0
+        // Hands forward and a little wide, about belt height, as if holding a tray.
+        const hand = v1.set(side * 0.31, 0.0 + breathe + inside * Math.abs(incline.x) * 0.08, 0.42 + inside * 0.05)
+        // Plant: a forward reach and wrist flick, then the hand rides past the planted pole.
+        const reachIn = plantSide === side && skiing && plantAge < PLANT_REACH ? smooth(plantAge / PLANT_REACH) : 0
+        hand.z += planting * (0.06 + reachIn * 0.06)
+        hand.y += planting * 0.04
+        hand.x -= side * planting * 0.03
         // Skating: the arm opposite the pushing leg swings forward.
         hand.z -= side * stride * 0.2
         hand.y += Math.abs(stride) * 0.04
@@ -534,6 +594,8 @@ export function createSkierView(): {
         hand.lerp(v2.set(side * 0.085, 0.2, 0.36), Math.max(0, Math.min(1, tuck.x)))
         hand.lerp(v2.set(side * 0.38, 0.0, 0.3), brake.x * 0.7)
         hand.lerp(v2.set(side * 0.34, -0.02, 0.44), plow.x * 0.6)
+        // Double pole: both arms reach, drive down past the hips, swing back through.
+        hand.lerp(v2.set(side * dp.handX, dp.handY, dp.handZ), doublePole)
         hand.lerp(v2.set(side * 0.55, 0.12, 0.15), handsBack)
         // Arms out for balance on a rail; the low side reaches further.
         if (rail) hand.lerp(v2.set(side * (0.62 + Math.max(0, side * rail.balance) * 0.12), 0.18 - side * rail.balance * 0.1, 0.12), Math.min(1, railBlend.x))
@@ -550,15 +612,17 @@ export function createSkierView(): {
           if (rig.firstPerson) hand.y += 0.3
         }
         const handLocal = hand.clone()
-        // Pole tip: trailing behind, planted on a plant, under the arms in a tuck.
-        const tipTarget = v3.set(side * 0.42, 0.18, -0.6)
+        // Pole tip: carried just off the snow behind the boots, planted on a plant,
+        // under the arms in a tuck.
+        const tipTarget = v3.set(side * 0.44, 0.05, -0.42)
         if (still) tipTarget.set(side * 0.55, 0, 0.15)
-        if (planting > 0) tipTarget.lerp(v2.set(side * 0.5, -0.02, 0.85 - (1 - planting) * 1.1), Math.sin(Math.min(1, planting * 1.6) * Math.PI * 0.5))
-        if (skate.x > 0.01) {
+        if (planting > 0) tipTarget.lerp(v2.set(side * 0.46, -0.02, Math.max(-0.6, PLANT_AHEAD - speed * Math.max(0, plantAge - PLANT_REACH))), planting)
+        if (skateAmount > 0.01) {
           // Each pole plants beside the boots as its arm comes forward, then pushes back.
           const reach = Math.max(0, -side * stride)
-          tipTarget.lerp(v2.set(side * 0.5, 0, 0.3 - (1 - reach) * 0.9), skate.x)
+          tipTarget.lerp(v2.set(side * 0.5, 0, 0.3 - (1 - reach) * 0.9), skateAmount)
         }
+        tipTarget.lerp(v2.set(side * 0.42, dp.tipY, dp.tipZ), doublePole)
         tipTarget.lerp(v2.set(side * 0.22, 0.95, -1.15), Math.max(0, Math.min(1, tuck.x)))
         tipTarget.lerp(v2.set(side * 0.9, 0.3, -0.5), Math.max(0, Math.min(1, Math.max(airBlend.x, railBlend.x))))
         placeArm(i, handLocal, tipTarget.clone())
