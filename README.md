@@ -62,7 +62,7 @@ You start at the top of Quickdraw on Grandfather's Trail. Reaching the bottom of
 | Forest | LidarBC surface minus bare earth: canopy height and cover per 5 m cell | `scripts/build-terrain.py` |
 | Runs, lifts, buildings, roads | OpenStreetMap, plus runs traced from canopy gaps | `tools/osm/`, `scripts/detect-runs.py`, `game/src/world/runOverlay.ts` |
 
-The **Build Apex data** workflow downloads the sources and publishes the outputs to the orphan `data` branch (builds from another branch go to `data-<branch>`). Generated data never goes on `main`.
+The **Build Apex data** workflow downloads the sources and publishes the outputs to the orphan `data` branch (builds from another branch go to `data-<branch>`). Generated terrain never goes on `main`. The OpenStreetMap export retries public Overpass mirrors and then the main OSM map API. If that still fails, the job stops and the `data` branch keeps its last good build. The Pages build will not deploy a site whose `features.json` is missing, has no buildings or has a lift count other than four.
 
 ### Source layout (`game/src`)
 

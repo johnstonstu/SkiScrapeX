@@ -790,7 +790,7 @@ def build_features(
         "generatedAt": _timestamp(),
         "source": {
             "name": "OpenStreetMap",
-            "api": "Overpass API",
+            "api": (fetch or {}).get("api") or "Overpass API",
             "endpoint": (fetch or {}).get("endpoint"),
             "retrievedAt": (fetch or {}).get("retrievedAt"),
             "fromCache": bool((fetch or {}).get("fromCache")),

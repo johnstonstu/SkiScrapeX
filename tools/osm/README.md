@@ -40,6 +40,8 @@ python3 -m osm_export
 
 The raw Overpass response is cached in `tools/osm/cache/`. The game file is written to `tools/osm/generated/features.json`. Both directories are gitignored. Pass `--refresh` to download again.
 
+`--fallback path/to/features.json` copies an earlier export (© OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)) when a fresh export is not usable, after the same checks. No snapshot is committed: generated data stays off `main`, and the data workflow runs with `--no-fallback` so a failed export stops the job. A fallback must match the current crop origin, because its cached `y` values belong to that terrain grid.
+
 Useful options:
 
 ```bash
@@ -48,7 +50,13 @@ python3 tools/osm/export.py --manifest terrain/generated/terrain.json
 python3 tools/osm/export.py --origin-easting 286882.5 --origin-northing 5475437.5 --origin-elevation 1600
 python3 tools/osm/export.py --documented-origin --no-heights
 python3 tools/osm/export.py --buffer-metres 50
+python3 tools/osm/export.py --no-map-fallback --no-fallback
+python3 tools/osm/check_features.py tools/osm/generated/features.json
 ```
+
+The download tries each public Overpass mirror twice, then requests `https://api.openstreetmap.org/api/0.6/map` for one bbox. That bbox comes from the terrain manifest (the outer edge of the grid, expanded by `--buffer-metres`) or, when there is no manifest, from the crop in `docs/terrain.md`. The map API allows at most 0.25 square degrees; this crop is far smaller. The request sends the tool's User-Agent. `--no-map-fallback` skips it. `--endpoint` may be repeated to replace the mirror list.
+
+`check_features.py` exits non-zero unless the file exists, credits OpenStreetMap under ODbL, has `counts.buildings > 0` and `counts.lifts == 4`. The data workflow and the Pages build both run it, so a site cannot ship without the resort features.
 
 `--manifest` reads `originEasting`, `originNorthing` and `originElevation` from a terrain manifest. If `terrain/generated/terrain.json` is already present, the tool uses it as the origin so the features stay aligned when the crop changes. `--documented-origin` keeps the crop origin above instead. Explicit `--origin-*` values replace whichever origin was selected.
 
@@ -65,7 +73,7 @@ cd tools/osm
 python3 -m unittest discover -s tests -v
 ```
 
-The tests cover the local-frame round trip, axis direction (east increases `x`, north decreases `z`, up increases `y`), the terrain-grid diagonal, Grandfather's documented way order, lift stations and towers, and the buffered resort filter.
+The tests cover the local-frame round trip, axis direction (east increases `x`, north decreases `z`, up increases `y`), the terrain-grid diagonal, Grandfather's documented way order, lift stations and towers, the buffered resort filter, the OSM map XML path, the fallback when Overpass fails, and (when the data branch is checked out into `game/public/data`) the published `features.json`.
 
 ## What is requested from OpenStreetMap
 

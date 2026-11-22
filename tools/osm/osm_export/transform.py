@@ -15,7 +15,9 @@ from pyproj import Transformer
 
 from .constants import (
     CELL_METRES,
+    CROP_EAST,
     CROP_NORTH,
+    CROP_SOUTH,
     CROP_WEST,
     VERTICAL_ORIGIN_METRES,
 )
@@ -39,6 +41,57 @@ def documented_origin() -> Origin:
         elevation=VERTICAL_ORIGIN_METRES,
         source="documented-crop",
     )
+
+
+def metres_bbox_to_lonlat(
+    west: float,
+    south: float,
+    east: float,
+    north: float,
+) -> tuple[float, float, float, float]:
+    """EPSG:2955 metre edges to (min lon, min lat, max lon, max lat)."""
+    corners = (
+        unproject(west, south),
+        unproject(west, north),
+        unproject(east, south),
+        unproject(east, north),
+    )
+    lons = [lon for lon, _lat in corners]
+    lats = [lat for _lon, lat in corners]
+    return min(lons), min(lats), max(lons), max(lats)
+
+
+def documented_crop_bbox(buffer_metres: float = 0) -> tuple[float, float, float, float]:
+    """Lon/lat bbox of the crop in docs/terrain.md, expanded by buffer_metres."""
+    return metres_bbox_to_lonlat(
+        CROP_WEST - buffer_metres,
+        CROP_SOUTH - buffer_metres,
+        CROP_EAST + buffer_metres,
+        CROP_NORTH + buffer_metres,
+    )
+
+
+def bbox_from_manifest(path: Path, buffer_metres: float = 0) -> tuple[float, float, float, float]:
+    """Lon/lat bbox of a terrain manifest, expanded by buffer_metres.
+
+    The manifest origin is the northwest cell centre. The box is the outer
+    edge of the grid, which is what the OSM map API expects.
+    """
+    meta = json.loads(path.read_text(encoding="utf-8"))
+    required = ("originEasting", "originNorthing", "columns", "rows", "stepMetres")
+    missing = [key for key in required if key not in meta]
+    if missing:
+        raise ValueError(f"{path} is missing {', '.join(missing)}")
+    origin_easting = float(meta["originEasting"])
+    origin_northing = float(meta["originNorthing"])
+    step = float(meta["stepMetres"])
+    columns = int(meta["columns"])
+    rows = int(meta["rows"])
+    west = origin_easting - step / 2.0 - buffer_metres
+    north = origin_northing + step / 2.0 + buffer_metres
+    east = origin_easting + (columns - 1) * step + step / 2.0 + buffer_metres
+    south = origin_northing - (rows - 1) * step - step / 2.0 - buffer_metres
+    return metres_bbox_to_lonlat(west, south, east, north)
 
 
 def origin_from_manifest(path: Path) -> Origin:

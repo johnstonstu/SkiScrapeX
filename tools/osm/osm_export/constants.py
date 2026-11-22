@@ -45,7 +45,14 @@ ROAD_CLASSES = frozenset({
 
 DEFAULT_BUFFER_METRES = 50.0
 USER_AGENT = "SkiScrapex-osm-export/1.0 (local resort feature export)"
+# Public Overpass interpreters. The export tries each one, then the main OSM map API.
 OVERPASS_ENDPOINTS = (
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 )
+# OSM API 0.6 map call. One small bbox, used only after Overpass fails.
+MAP_ENDPOINT = "https://api.openstreetmap.org/api/0.6/map"
+# The map API rejects a bbox larger than 0.25 square degrees.
+MAP_MAX_SQUARE_DEGREES = 0.25
