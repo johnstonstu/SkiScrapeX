@@ -331,6 +331,8 @@ Acceptance tests to add (deterministic, fixed dt): carve beats skid on the same 
 
 ## Jibbin reference
 
+Status: static analysis only. Nothing below has been checked against the running game. Read each row as a lead to verify in a playtest, not as measured behaviour, and do not copy Jibbin's timings or values into `FREESTYLE` until they have been measured.
+
 Static analysis of the recovered `Jibbin.exe`, its accompanying `Controls.dat`, and 36 models under `Level Data`. Code addresses below are offsets in the extracted Blitz3D module. The executable stores that module in PE resource 1111 (RCDATA). Its symbol and relocation tables identify the relevant functions and calls. [Blitz3D runtime loader](https://github.com/blitz-research/blitz3d/blob/master/bbruntime_dll/bbruntime_dll.cpp#L195)
 
 | Mechanic | What the recovered files show | How it could fit SkiScrapex |
@@ -341,7 +343,7 @@ Static analysis of the recovered `Jibbin.exe`, its accompanying `Controls.dat`, 
 | Air rotation | `InAirTricks` applies separate directional pitch and yaw increments, starting at up to 10° per simulation step after the directional divisors reset on contact. Each divisor increases during the air phase, faster while its direction is released, and caps at 8. The main loop is configured for 30 updates per second. | Test front-loaded rotation as an optional tuning change. Holding direction early should carry more authority than a last-moment correction. Compare it with the existing pre-wind and landing assist on one ramp. |
 | Jump | The jump routine charges a value while the jump key is held and applies lift on release. A level naming marker for normal jumps changes the charge cap and release behavior. The raw lift values describe movement in Blitz3D units per update. | Keep the current metre-based pop model and test per-feature tuning only after comparing repeatable jumps. |
 | Feature types | The loader recognizes named jump, straight-rail, halfpipe and quarterpipe nodes. The executable has separate routines for pipes, hips and several rail orientations. Halfpipe nodes appeared in 19 instances and quarterpipe nodes in 10 across the 36-model sample. These are node counts. | Use feature metadata alongside geometry. For an Apex test park, start with two independent practice lanes and add an original hip or quarterpipe once takeoff and re-entry are testable. |
-| Practice | The manual documents nine saved positions per level. | The local park mode implements Shift + 1 through 9 to save and 1 through 9 to return at rest. |
+| Practice | The manual documents nine saved positions per level. | Not in SkiScrapeX yet. Candidate for the park mode: Shift + 1 through 9 to save a spot and 1 through 9 to return to it at rest. |
 
 ### Recovered keyboard profile
 
@@ -383,3 +385,33 @@ The audit covers the playable `Jibbin.exe` from `jibbin.rar` (SHA-256 `74fae7811
 Across all 170 loose `.b3d` files in the extracted RAR, 119 distinct byte contents remained after deduplication. The scan found 67 distinct valid scenes containing a `Start` node. Of those, 65 contain `jump`, 60 contain `straight rail`, 18 contain `halfpipe`, 14 contain `quarterpipe`, 10 contain `hip`, 11 contain `wall`, and 19 contain `warp out`. These counts describe scene markers. They can include collision helpers and should not be used as counts of skiable features. One legacy grab file is zero bytes in both loose and nested form. The five nested RAR listings contained asset packs. The separate ZIP likewise contains gear and grab packs.
 
 No network call targets appeared in the game module's relocation tables. That check covers the loader-linked application calls found in this build. A running Windows reference is still needed for the feel of each state transition, consistent unit calibration, input timing under different settings, and replay behavior across sessions. The separate Inno Setup copy has not been unpacked and compared with the RAR build.
+
+### First candidate: nose and tail rail presses
+
+Presses are the smallest Jibbin idea that adds a real choice on every rail without new geometry. They can sit on top of the rail model we already have. This is a design review, not an implementation.
+
+**What we have now** (`sim/freestyle.ts`, `sim/skier.ts`):
+
+- Capture is automatic (`tryCaptureRail`): reach, height window, rise limit and 35° travel alignment. The style is fixed at entry from the ski heading: `5050` when the skis point along the rail, `slide` when they are across it.
+- `stepRail` keeps momentum along the tangent with Coulomb friction (0.06 rail, 0.04 box) and air drag. Balance is one lateral unstable pendulum, `b'' = λ²·w·b − c·b' + K·steer + noise`, with λ 1.9, c 1.0, K 8 and w 0.55 on boxes. The skier falls past |b| > 1 and leaves at the end, below 0.3 m/s or on a pop.
+- On the rail only `steer` and `jump` are read. `pitch` and `grab` are ignored. The first-rail tip in `main.ts` ("Hold grab for a slide style bonus") therefore promises something the sim does not do. Fix the wording when presses land.
+- Points are 150 + 60 per metre + 100 for a slide, named "50-50 Rail", "Slide Box" and so on. `app/tricks.ts` halves repeats by name, so a new name is a new trick for combos.
+
+**Proposal:**
+
+1. **Input.** Use the existing pitch axis (W or Up, S or Down, touch stick vertical, left stick Y): forward for nose, back for tail. Jibbin uses separate keys that also assert a grind button, but we have no grind button and auto-capture works. Pitch is relative to the rider, so it stays correct when riding switch (`headingOffset` π).
+2. **State.** Add `press: 'none' | 'nose' | 'tail'` and `pressTime` to `RailState`. A press starts after the pitch has been held past 0.5 for 0.15 s and ends when it is released. Pitch that was already held at capture is ignored until it is released once, because Down is also the brake and skiers often brake into a box.
+3. **Balance.** Keep the single lateral pendulum. A press narrows the support, so scale the unstable term by a new `FREESTYLE.pressInstability` (start at 1.3 on rails, 1.15 on boxes) and leave friction alone. Do not add a fore-and-aft pendulum in the first cut. Pitch is already the input that holds the press, and a second balance axis on a touch stick is a lot to ask before anyone has played it. Revisit after a playtest.
+4. **Exit.** Popping out of a press with pitch still held would start a flip in `stepAir`. Suppress pitch for flips until it is released after the pop.
+5. **Scoring and names.** Name from the press held longest: "Nose Press 50-50 Rail", "Tail Press Slide Box". Add about 40 points per pressed metre, counting only presses held at least 0.3 s, and keep the 0.3 fell factor. All of these numbers are provisional.
+6. **Rider.** Add a `pressBlend` beside `railBlend` in `render/rider/skierView.ts`: skis pitched like the nose and tail grab poses (about 0.4 rad), hips shifted over the pressed end and the other knee bent through the existing IK. Add a press toggle to `rider.html` for review.
+
+**Tests before tuning** (fixed dt, in `tests/freestyle.test.ts`):
+
+- Pitch held from before capture does not press until it is released and held again.
+- A scripted counter-steer holds a nose press across a 6 m rail, and the trick is named "Nose Press".
+- With idle steer and the same noise, a press falls sooner than a 50-50 on the same rail, and a box press lasts longer than a rail press.
+- Popping out of a press with pitch held lands with no flip.
+- Riding switch, forward pitch still gives a nose press.
+
+**Open until playtested:** the instability factor and point values, and whether presses should also scrub speed. Also whether a fore-and-aft balance makes presses more fun or only harder. Jibbin's frame ranges and per-step awards are evidence about feel, not values to copy.
