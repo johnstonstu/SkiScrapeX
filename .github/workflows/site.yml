@@ -36,8 +36,7 @@ jobs:
             git --work-tree=game/public/data checkout FETCH_HEAD -- .
           fi
           if [ ! -f game/public/data/features.json ]; then
-            echo "::warning title=Missing features.json::The data branch has no features.json. Using the committed ODbL fallback."
-            cp tools/osm/fallback/features.json game/public/data/features.json
+            echo "::error title=Missing features.json::The data branch has no features.json. Run the Build Apex data workflow."
           fi
       - name: Game tests and build
         working-directory: game
@@ -83,8 +82,7 @@ jobs:
             echo "::warning::No data branch yet. Run the Build Apex data workflow."
           fi
           if [ ! -f game/public/data/features.json ]; then
-            echo "::warning title=Missing features.json::The data branch has no features.json. Using the committed ODbL fallback."
-            cp tools/osm/fallback/features.json game/public/data/features.json
+            echo "::error title=Missing features.json::The data branch has no features.json. Run the Build Apex data workflow."
           fi
       - name: Build
         working-directory: game

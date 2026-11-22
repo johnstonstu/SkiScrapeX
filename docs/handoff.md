@@ -6,7 +6,7 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 
 - Feature work happens on branches. `main` only moves at milestones the maintainer has played; each merge bumps `game/package.json`, adds a `CHANGELOG.md` entry and gets a `vX.Y.Z` tag.
 - Run `npm test` and `npm run build` in `game/` before pushing.
-- Generated terrain is never on `main`. The **Build Apex data** workflow builds LidarBC terrain and canopy, the NRCan MRDEM horizon and the OSM export, and force-pushes them to the orphan `data` branch. The OSM step retries public Overpass mirrors, then the main OSM map API. If that export is not usable it publishes the committed ODbL snapshot `tools/osm/fallback/features.json` (the one exception to "no generated map data on `main`"). The Pages build copies that snapshot when the data branch has no `features.json`, and it will not deploy unless the built file has buildings and four lifts. Fetch the data branch for local work:
+- Generated terrain is never on `main`. The **Build Apex data** workflow builds LidarBC terrain and canopy, the NRCan MRDEM horizon and the OSM export, and force-pushes them to the orphan `data` branch. The OSM step retries public Overpass mirrors, then the main OSM map API. If that export is not usable the job fails and the data branch keeps its last good build. The Pages build will not deploy unless the built `features.json` has buildings and four lifts. Fetch the data branch for local work:
 
   ```
   git fetch origin data && git --work-tree=game/public/data checkout FETCH_HEAD -- . && git reset -q
@@ -40,4 +40,4 @@ Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
 - Freestyle: `FREESTYLE` in `src/sim/freestyle.ts`, kicker and rail specs in `src/world/park.ts`.
 - Medal targets: the pace bot in `src/world/challenges.ts` (times) and `parkTargets` (park scores).
 - Apex facts the OSM data gets wrong: `src/world/corrections.ts`; traced runs: `src/world/runOverlay.ts`. Sources are in `docs/apex-sources.md` and `docs/run-names.md`.
-- Visual gaps from comparing v0.8.0 with real Apex footage are listed in [docs/review/apex-visual-improvements.md](review/apex-visual-improvements.md), with the captures beside it. That list is a proposal for triage. It is not a scheduled milestone, and the items are not implemented, apart from the missing `features.json` fallback described above.
+- Visual gaps from comparing v0.8.0 with real Apex footage are listed in [docs/review/apex-visual-improvements.md](review/apex-visual-improvements.md), with the captures beside it. That list is a proposal for triage. It is not a scheduled milestone, and the items are not implemented, apart from the `features.json` pipeline fix described above.

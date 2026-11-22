@@ -40,7 +40,7 @@ python3 -m osm_export
 
 The raw Overpass response is cached in `tools/osm/cache/`. The game file is written to `tools/osm/generated/features.json`. Both directories are gitignored. Pass `--refresh` to download again.
 
-`tools/osm/fallback/features.json` is a committed snapshot (© OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)), not a hand edit. It was exported on 2026-11-22 from `api.openstreetmap.org/api/0.6/map` with the terrain height grid attached. The tool writes that file when a fresh export is not usable, unless `--no-fallback` is set. Regenerate it when the crop origin changes, because the cached `y` values belong to easting `286882.5`, northing `5475437.5`, elevation `1600`.
+`--fallback path/to/features.json` copies an earlier export (© OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)) when a fresh export is not usable, after the same checks. No snapshot is committed: generated data stays off `main`, and the data workflow runs with `--no-fallback` so a failed export stops the job. A fallback must match the current crop origin, because its cached `y` values belong to that terrain grid.
 
 Useful options:
 
@@ -73,7 +73,7 @@ cd tools/osm
 python3 -m unittest discover -s tests -v
 ```
 
-The tests cover the local-frame round trip, axis direction (east increases `x`, north decreases `z`, up increases `y`), the terrain-grid diagonal, Grandfather's documented way order, lift stations and towers, the buffered resort filter, the OSM map XML path, the fallback when Overpass fails, and the committed `fallback/features.json` snapshot.
+The tests cover the local-frame round trip, axis direction (east increases `x`, north decreases `z`, up increases `y`), the terrain-grid diagonal, Grandfather's documented way order, lift stations and towers, the buffered resort filter, the OSM map XML path, the fallback when Overpass fails, and (when the data branch is checked out into `game/public/data`) the published `features.json`.
 
 ## What is requested from OpenStreetMap
 
