@@ -19,8 +19,9 @@ import { createSnowEffects } from './player/effects'
 import { createMinimap } from './ui/minimap'
 import { SKI_MODELS, createStylePanel, readOutfit, writeOutfit } from './ui/riderPanel'
 import { loadWorld, type World } from './world/loadWorld'
-import { chooseCourse, courseForRun, headingFor, liftAtBottom, pickableRuns, pointAlong, type Course as RunCourse, type Lift } from './world/resort'
+import { chooseCourse, courseForRun, headingFor, liftAtBottom, pickableRuns, pointAlong, type Course as RunCourse, type Lift, type Run } from './world/resort'
 import { featureAhead, type ParkSite } from './world/park'
+import { pushOutOfRing } from './world/buildings'
 import { createPerfProbe } from './app/perf'
 import { $, getUi } from './app/dom'
 import { escapeHtml, formatTime } from './app/format'
@@ -257,7 +258,7 @@ function startApex(world: World) {
   npcs.setVisible(settings.npcs)
   perf.phase('npcs')
   stylePanel.refresh()
-  course = spawnOverride(world.course)
+  course = spawnOverride(world.course, world.resort.runs, apex.surface.runNameAt)
   ui.credits.innerHTML =
     'Elevation and canopy: LidarBC, <a href="https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc">OGL-BC</a>' +
     (world.horizon ? '; horizon: NRCan MRDEM, <a href="https://open.canada.ca/en/open-government-licence-canada">OGL-Canada</a>. ' : '. ') +
@@ -511,6 +512,8 @@ function startRide(lift: Lift) {
     return
   }
   ride = { lift, path, s: path.boardingDistance }
+  ui.title.textContent = `Riding ${lift.name}`
+  ui.best.textContent = '–'
   ui.ride.hidden = false
   effects.clear()
   sound.reset()
@@ -733,9 +736,24 @@ function checkEvents() {
     crash('Tree!')
     return
   }
-  if (stage.buildings && skier.speed > 1.5 && stage.buildings.hit(skier.x, skier.z)) {
-    crash('Ran into a building')
-    return
+  const building = stage.buildings?.hit(skier.x, skier.z)
+  if (building) {
+    // Step back outside the wall so getting up (or a slow nudge) is not another hit.
+    const out = pushOutOfRing(skier.x, skier.z, building.ring)
+    const into = skier.vx * -out.nx + skier.vz * -out.nz
+    skier.x = out.x
+    skier.z = out.z
+    const ground = stage.slope.sampleTerrain(skier.x, skier.z)
+    if (ground && skier.grounded) skier.y = ground.height
+    if (into * 3.6 > 15) {
+      crash('Ran into a building')
+      return
+    }
+    // Slow: lose the speed into the wall and slide along it.
+    if (into > 0) {
+      skier.vx += out.nx * into
+      skier.vz += out.nz * into
+    }
   }
   // Tutorial: the bottom of the bunny hill sends you back to the top.
   if (tutorialLine && coach.active) {
@@ -792,10 +810,14 @@ function updateHud(frameMs: number, steps: number) {
 }
 
 /** `?at=x,z[,headingDeg]` starts somewhere else on the crop, for review and screenshots. */
-function spawnOverride(start: RunCourse): RunCourse {
+/** `?at=x,z[,heading°]` spawns there, titled with the run underfoot. */
+function spawnOverride(start: RunCourse, runs: readonly Run[], runNameAt: (x: number, z: number) => string): RunCourse {
   const at = params.get('at')?.split(',').map(Number)
   if (!at || at.length < 2 || at.some((v) => !Number.isFinite(v))) return start
-  return { ...start, spawn: { x: at[0], z: at[1], heading: ((at[2] ?? 0) * Math.PI) / 180 } }
+  const name = runNameAt(at[0], at[1])
+  const run = runs.find((r) => r.name === name) ?? null
+  if (!run) ui.title.textContent = name
+  return { spawn: { x: at[0], z: at[1], heading: ((at[2] ?? 0) * Math.PI) / 180 }, startLift: null, startRun: run }
 }
 
 function resize() {

@@ -207,6 +207,34 @@ export function indexBuildings(buildings: Building[], cell = 32) {
   }
 }
 
+/**
+ * The nearest point just outside a building's wall, and the wall's outward
+ * normal there, for a point inside the footprint.
+ */
+export function pushOutOfRing(x: number, z: number, ring: Point2[], margin = 0.3): { x: number; z: number; nx: number; nz: number } {
+  let best = { x, z, nx: 0, nz: 0 }
+  let bestD = Infinity
+  for (let i = 0; i < ring.length; i++) {
+    const [ax, az] = ring[i]
+    const [bx, bz] = ring[(i + 1) % ring.length]
+    const ex = bx - ax, ez = bz - az
+    const len2 = ex * ex + ez * ez
+    if (len2 < 1e-9) continue
+    const t = Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / len2))
+    const px = ax + ex * t, pz = az + ez * t
+    const d = Math.hypot(x - px, z - pz)
+    if (d < bestD) {
+      bestD = d
+      // Outward is from the inside point towards the wall.
+      const len = Math.hypot(px - x, pz - z)
+      const nx = len > 1e-6 ? (px - x) / len : -ez / Math.sqrt(len2)
+      const nz = len > 1e-6 ? (pz - z) / len : ex / Math.sqrt(len2)
+      best = { x: px + nx * margin, z: pz + nz * margin, nx, nz }
+    }
+  }
+  return best
+}
+
 function samePoint(a: Point2, b: Point2): boolean {
   return Math.abs(a[0] - b[0]) < 1e-6 && Math.abs(a[1] - b[1]) < 1e-6
 }

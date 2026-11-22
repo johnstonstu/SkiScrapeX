@@ -2,6 +2,18 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.8.3 (2026-11-22): Fixes from the 0.8.2 playtest
+
+From the headless playtest in PR #3 (`docs/review/playtest-0.8.2.md`).
+
+### Fixed
+- Braking over moguls no longer backflips you. Leaving the snow without a pop (a mogul, a lip, a drop) with pitch already held, usually Down as the brake, does nothing in the air until you let go and press it again. This is the same rule as rails. Popping with pitch held still flips as before (B1).
+- Combo farming: only a trick that is new to the combo and scores at least 100 points raises the multiplier. A string of small ollies or the same trick again adds its points but no extra multiplier. The playtest's ×5 for flat ollies is now ×1 (B2).
+- `?at=` spawns title the HUD with the run underfoot instead of "Grandfather's Trail · from Quickdraw" (B3).
+- T-bar: the base terminal is now a post with the bull wheel and a small hut to one side, so the follow camera no longer starts inside a box and under a roof. Moving hangers pull the rider, who stands under the up rope beside a hanger. Towers are 7 m (were 11 m, like the chairs). While riding, the HUD reads "Riding T-Bar" (B4, B5).
+- Running into a building moves you back outside the wall, so getting up is no longer another crash. Below 15 km/h into the wall you slide along it instead of crashing (B6).
+- A rail you come off early reads "(slipped off)" instead of "(fell)", since you are still on your feet (B8).
+
 ## 0.8.2 (2026-11-22): Smaller jumps, quicker turns
 
 From Stu's first playtest of 0.8.1: jumps launched far too big and turning felt laggy. Measured with `tuning/feel.test.ts` (now part of `npm run tune`) before changing anything.
