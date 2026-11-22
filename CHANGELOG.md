@@ -2,6 +2,16 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.8.2 (2026-11-22): Smaller jumps, quicker turns
+
+From Stu's first playtest of 0.8.1: jumps launched far too big and turning felt laggy. Measured with `tuning/feel.test.ts` (now part of `npm run tune`) before changing anything.
+
+### Changed
+- Pop: 1.0 to 2.4 m/s (was 1.2 to 3.0), and popping while a kicker is already lifting you adds less (scaled by 1 − rise / 5 m/s, at least 0.35). A timed pop on the medium kicker at its sign speed used to quadruple the height above the lip (0.35 to 1.39 m); with the new lips it now peaks at about 0.55 m. A full pop on the flat is about a 0.3 m ollie.
+- Kickers: lips 6° lower (small 10°, medium 16°, large 20°, XL 23°) and landings 2° gentler. With a pop at the sign speeds, flights peak 0.4 to 1.1 m above the lip (were 1.4 to 2.1 m), and the speeds you can land cleanly are wider. The signs now read small 20 to 30, medium 20 to 35, large 20 to 40 and XL 25 to 50 km/h. Coming in well above those still overshoots the landing.
+- Follow camera turns with the skis instead of the path: it aims 30 percent toward the travel direction (was 60) and catches up about twice as fast. In a held turn it now trails the skis by 0.13 to 0.19 s at 30° (was 0.27 to 0.39 s).
+- Keyboard steering ramps to full edge in 0.09 s (was 0.125 s).
+
 ## 0.8.1 (2026-11-22): Rail presses and the missing resort on the live page
 
 ### Added

@@ -45,10 +45,10 @@ export interface PlacedFeature {
 
 /** Size presets for kickers, from small (about 4 m gap) to the Claim Jumper's big line. */
 export const KICKERS: Record<'S' | 'M' | 'L' | 'XL', FeatureSpec> = {
-  S: { kind: 'kicker', label: 'Small tabletop · 25-50 km/h', speed: [25, 50], height: 1.1, lipDeg: 16, deck: 3, landingDeg: 28, width: 5 },
-  M: { kind: 'kicker', label: 'Medium tabletop · 25-32 km/h', speed: [25, 32], height: 1.7, lipDeg: 22, deck: 6, landingDeg: 31, width: 6 },
-  L: { kind: 'kicker', label: 'Large tabletop · 25-40 km/h', speed: [25, 40], height: 2.4, lipDeg: 26, deck: 9, landingDeg: 33, width: 7 },
-  XL: { kind: 'kicker', label: 'XL gap jump · 25-48 km/h', speed: [25, 48], height: 3.2, lipDeg: 29, deck: 13, landingDeg: 34, width: 8 },
+  S: { kind: 'kicker', label: 'Small tabletop · 20-30 km/h', speed: [20, 30], height: 1.1, lipDeg: 10, deck: 3, landingDeg: 26, width: 5 },
+  M: { kind: 'kicker', label: 'Medium tabletop · 20-35 km/h', speed: [20, 35], height: 1.7, lipDeg: 16, deck: 6, landingDeg: 29, width: 6 },
+  L: { kind: 'kicker', label: 'Large tabletop · 20-40 km/h', speed: [20, 40], height: 2.4, lipDeg: 20, deck: 9, landingDeg: 31, width: 7 },
+  XL: { kind: 'kicker', label: 'XL gap jump · 25-50 km/h', speed: [25, 50], height: 3.2, lipDeg: 23, deck: 13, landingDeg: 32, width: 8 },
 }
 
 export const FEATURES: Record<string, FeatureSpec> = {

@@ -102,8 +102,10 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
       const travel = moving ? Math.atan2(-state.vx, state.vz) : state.heading
       // In the air or on a rail the skis rotate; follow the line of travel instead.
       const spinning = state.ridingSwitch || !state.grounded || Boolean(state.rail) || state.crashed > 0
-      const targetHeading = spinning && moving ? travel : blendAngle(state.heading, travel, moving ? 0.6 : 0)
-      heading = snap ? targetHeading : blendAngle(heading, targetHeading, 1 - Math.exp(-3.2 * dt))
+      // Mostly the ski heading, so the view turns when you steer rather than
+      // when the path has caught up; travel keeps it steady through skids.
+      const targetHeading = spinning && moving ? travel : blendAngle(state.heading, travel, moving ? 0.3 : 0)
+      heading = snap ? targetHeading : blendAngle(heading, targetHeading, 1 - Math.exp(-7 * dt))
       // Pull back and up a little with speed.
       let back = 7.2 + Math.min(4, state.speed * 0.08)
       const height = 2.6 + Math.min(1.5, state.speed * 0.03)

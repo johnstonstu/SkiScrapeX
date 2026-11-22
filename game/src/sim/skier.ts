@@ -498,7 +498,8 @@ function stepGround(
         state.unweight = 0.25
         state.popCharge = 0
       } else {
-        const v = FREESTYLE.popMin + (FREESTYLE.popMax - FREESTYLE.popMin) * charge
+        const rampScale = clamp(1 - Math.max(0, vy) / FREESTYLE.popRampSpeed, FREESTYLE.popRampMin, 1)
+        const v = (FREESTYLE.popMin + (FREESTYLE.popMax - FREESTYLE.popMin) * charge) * rampScale
         px += n.x * v
         py += n.y * v
         pz += n.z * v

@@ -26,7 +26,7 @@ const STICK_RANGE_PX = 60
 /** Vertical offset past which the stick means tuck (up) or brake (down). */
 const STICK_VERTICAL_PX = 28
 /** Keyboard steering ramps like an analog stick: a tap is a light edge, a hold commits. */
-const KEY_RISE = 8
+const KEY_RISE = 11
 const KEY_RELEASE = 10
 
 /**

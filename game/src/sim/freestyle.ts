@@ -10,9 +10,16 @@ import { clamp, dot, moveTowardZero, projectOnPlane, wrapAngle, type Vec3 } from
  * height from McNeil and Hubbard). No code is copied from those projects.
  */
 export const FREESTYLE = {
-  /** Pop speed along the surface normal at zero and full charge, m/s. */
-  popMin: 1.2,
-  popMax: 3.0,
+  /** Pop speed along the surface normal at zero and full charge, m/s. Full charge on the flat is about a 0.3 m ollie. */
+  popMin: 1.0,
+  popMax: 2.4,
+  /**
+   * Popping while a ramp is already lifting you adds less: the legs cannot
+   * extend much faster than the lip is pushing up. The pop is scaled by
+   * 1 - rise / popRampSpeed, but never below popRampMin.
+   */
+  popRampSpeed: 5,
+  popRampMin: 0.35,
   /** Seconds to reach full crouch charge. */
   chargeTime: 0.4,
   spinRateMax: 7.9,

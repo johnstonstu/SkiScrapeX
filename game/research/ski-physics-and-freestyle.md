@@ -304,7 +304,7 @@ The current stepper stays. This adds a surface-parameter layer, an edge-first ca
 | `τ_sink` | 0.25 | s | |
 | `c_plow`, `ρ_snow` | 0.1, 100 | –, kg/m³ | |
 | `y_turn`, `R_min,powder` | 0.15, 8 | m | |
-| pop range, full charge time | 1.2 to 3.0, 0.4 | m/s, s | 3.0 m/s ≈ 0.46 m ollie. |
+| pop range, full charge time | 1.0 to 2.4, 0.4 | m/s, s | 2.4 m/s ≈ 0.29 m ollie on the flat. On a rising ramp the pop is scaled by 1 − rise/5 m/s (at least 0.35), because height grows with the square of vertical speed and 3.0 m/s on top of a lip doubled or tripled the flight. Changed in 0.8.2 after Stu's playtest. |
 | lip timing window, bonus | 0.12, +25% | s | |
 | `ω_spin,max`, `α_spin` | 7.9 (450°/s), 14 | rad/s, rad/s² | |
 | `ω_flip,max`, `α_flip` | 5.7 (325°/s), 10 | rad/s, rad/s² | |
