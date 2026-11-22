@@ -136,7 +136,7 @@ export interface SkiState {
   crashed: number
   /** Seconds before the rail just left can catch the skier again. */
   railCooldown: number
-  /** Pitch held off a rail does not flip until it is let go. */
+  /** Pitch held off a rail, or off a takeoff without a pop, does not flip until it is let go. */
   flipLock: boolean
   /** Last trick or rail scored; `seq` increases with each one. */
   trick: TrickEvent | null
@@ -267,6 +267,9 @@ export function stepSkier(
     state.windup = Math.abs(steer) > PHYSICS.steerDeadzone ? steer : state.windup * 0.9
   }
   stepGround(state, steer, brake, sampleTerrain, dt, env, released, input.directionalSteering)
+  // Leaving the snow without a pop (a mogul, a lip, a drop): pitch already
+  // held, usually the brake, does not flip until it is let go and pressed again.
+  if (!state.grounded && !released) state.flipLock = Math.abs(input.pitch ?? 0) > FREESTYLE.pressThreshold
   if (!released && !jump) {
     state.popCharge = 0
     state.windup = 0
@@ -732,7 +735,7 @@ function stepOnRail(
   state.trick = {
     seq: (state.trick?.seq ?? 0) + 1,
     kind: 'rail',
-    name: `${railTrickName(rail)}${outcome === 'fell' ? ' (fell)' : ''}`,
+    name: `${railTrickName(rail)}${outcome === 'fell' ? ' (slipped off)' : ''}`,
     points: outcome === 'fell' ? Math.round(railPoints(rail) * 0.3) : railPoints(rail),
     grade: outcome === 'fell' ? 'sketchy' : 'clean',
     efh: 0,

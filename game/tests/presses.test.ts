@@ -145,3 +145,41 @@ describe('rail presses', () => {
     expect(reset.pressed).toBe(true)
   })
 })
+
+describe('pitch held at takeoff', () => {
+  const slope = createSteadySlope(10, { width: 400, depth: 3000 })
+  const heightAt = (x: number, z: number) => slope.sampleTerrain(x, z)?.height ?? Number.NaN
+  const spec = FEATURES.kickerM
+  const placed: PlacedFeature = { spec, x: 200, z: 200, dirX: 0, dirZ: 1, footprint: footprintOf(spec), halfWidth: 6 }
+  const park = buildParkOverlay([placed], slope.sampleTerrain, heightAt)
+  /** Ski off the medium kicker with no pop; `pitch(airTime)` is the stick. */
+  const flight = (pitch: (airTime: number) => number) => {
+    const s = createSkiState({ x: 200, z: 160, heading: 0 })
+    s.y = park.sampleTerrain(200, 160)!.height
+    s.vz = 9
+    let air = 0
+    let maxFlip = 0
+    let flew = false
+    for (let t = 0; t < 8; t += FIXED_DT) {
+      if (!s.grounded) {
+        flew = true
+        air += FIXED_DT
+      } else if (flew) break
+      stepSkier(s, { ...IDLE, pitch: pitch(s.grounded ? -1 : air) }, park.sampleTerrain, FIXED_DT, { rails: park.rails })
+      maxFlip = Math.max(maxFlip, Math.abs(s.air?.flip ?? 0))
+    }
+    return { flew, maxFlip }
+  }
+
+  it('braking (pitch back) off a lip without a pop does not backflip', () => {
+    const held = flight(() => -1)
+    expect(held.flew).toBe(true)
+    expect(held.maxFlip).toBeLessThan(0.05)
+  })
+
+  it('letting go and pulling back in the air still flips', () => {
+    const regrip = flight((air) => (air < 0 ? -1 : air < 0.1 ? 0 : -1))
+    expect(regrip.flew).toBe(true)
+    expect(regrip.maxFlip).toBeGreaterThan(1)
+  })
+})

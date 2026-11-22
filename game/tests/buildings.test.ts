@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildBuildings, indexBuildings, orientedBox } from '../src/world/buildings'
+import { buildBuildings, indexBuildings, orientedBox, pushOutOfRing } from '../src/world/buildings'
 
 describe('buildings', () => {
   const flat = () => 10
@@ -50,5 +50,18 @@ describe('buildings', () => {
     const index = indexBuildings(buildings)
     expect(index.hit(5, 25)).not.toBeNull()
     expect(index.hit(20, 20)).toBeNull()
+  })
+})
+
+describe('pushOutOfRing', () => {
+  it('moves a point inside a footprint just past the nearest wall', () => {
+    const ring: [number, number][] = [[0, 0], [10, 0], [10, 6], [0, 6]]
+    const out = pushOutOfRing(9, 3, ring, 0.3)
+    expect(out.x).toBeCloseTo(10.3)
+    expect(out.z).toBeCloseTo(3)
+    expect(out.nx).toBeCloseTo(1)
+    const bottom = pushOutOfRing(4, 0.5, ring, 0.3)
+    expect(bottom.z).toBeCloseTo(-0.3)
+    expect(bottom.nz).toBeCloseTo(-1)
   })
 })
