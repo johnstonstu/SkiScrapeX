@@ -33,6 +33,7 @@ export function getUi() {
     trick: $('#trick'),
     hint: $('#hint'),
     version: $('#version'),
+    hudVersion: $('#hud-version'),
   }
 }
 

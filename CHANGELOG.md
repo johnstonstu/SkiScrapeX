@@ -2,6 +2,27 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.8.4 (2026-11-22): Rider model and animation pass
+
+### Added
+- The version number shows in the corner of the in-game HUD, so a tester can see which build is live.
+- Skating: below 18 km/h with forward held, the rider skates in a V. The pushing ski angles out on its inside edge and recovers, the weight moves over the gliding ski, and the arms and poles swing in time.
+- Snowplough: braking below about 22 km/h brings the tips together and the tails out on their inside edges. Faster braking is still a hockey stop.
+- Idle: standing still, the rider shifts their weight, breathes and looks around.
+- Rider lab: `rider.html?pose=tuck,carve-left` shows only those poses, for close-ups. Snowplough and Skating poses were added.
+
+### Changed
+- The rider is split into `skierModel.ts` (meshes and rig) and `skierView.ts` (animation), as the roadmap's engineering track asked.
+- Two-part back: the spine and chest bend separately. A deep crouch or a tuck rounds the back, and the racing tuck now has a near-flat back, hips back, fists in front of the chin and poles under the arms.
+- Turns: the hips, spine and chest angle back against the inclination, so the legs lean into the turn while the shoulders stay near level. The head turns toward where you steer. At each edge change the legs extend to release the old edges, then flex into the new turn.
+- Motion uses damped springs instead of plain easing. A landing sinks past the absorb and comes back up, a takeoff extends, and turn transitions swing through and settle.
+- Crashing, getting up, rail entry and getting on or off a lift crossfade from the previous pose instead of snapping. Going down takes 0.16 s and getting up 0.55 s.
+- Model:
+  - Rounded shoulders, elbows and knees, so the joints don't show gaps.
+  - A cinched jacket hem, where it was a flat bell.
+  - A collar, a chest pocket and glove gauntlets.
+  - A pole strap and a second boot buckle.
+
 ## 0.8.3 (2026-11-22): Fixes from the 0.8.2 playtest
 
 From the headless playtest in PR #3 (`docs/review/playtest-0.8.2.md`).

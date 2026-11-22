@@ -87,7 +87,7 @@ All of these must be true:
 - Keep `main` releasable: tests and build pass on every merge, a smoke test (load, ski, park, ride, dev slopes, rider lab) before tagging.
 - Grow the test suite where bugs appear; keep the physics bots (`npm run tune`) as the regression net for feel.
 - Performance budget per release: track draw calls, triangles, load time and memory with `?perf` at the five standard spots, and record them in `docs/status.md`.
-- Split the ~700-line modules (`sim/skier.ts`, `render/rider/skierView.ts`) when they next change substantially.
+- Split the ~700-line modules when they next change substantially. The rider was split in 0.8.4 (`skierModel.ts` and `skierView.ts`); `sim/skier.ts` is still to do.
 - Move world building (forest, village, overlays) into a Web Worker if load time grows.
 - Revisit the data pipeline: one script entry point, cached tiles, and documented steps to add a new resort.
 

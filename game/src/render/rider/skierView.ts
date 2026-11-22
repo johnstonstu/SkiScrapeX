@@ -1,128 +1,45 @@
 import * as THREE from 'three'
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { PHYSICS, fallLineHeading, skiFrame, type SkiInput, type SkiState, type SurfaceSample } from '../../sim'
+import { ANKLE_IN_SKI, FORE_ARM, SHIN_LENGTH, THIGH_LENGTH, UPPER_ARM, buildRider, type RiderLook } from './skierModel'
+
+export { SKI_GRAPHICS, type RiderLook, type SkiGraphic } from './skierModel'
 
 /** `ski` follows the sim; `sit` is on a chair; `stand` is upright on a surface lift. */
 export type SkierPose = 'ski' | 'sit' | 'stand'
 
-export interface RiderLook {
-  jacket: string
-  pants: string
-  helmet: string
-  skis: string
-  model?: string
-  /** Baggy freeride kit or a slimmer race fit. */
-  fit?: 'baggy' | 'slim'
-  headwear?: 'helmet' | 'beanie'
-  /** Neck gaiter / face buff colour. */
-  gaiter?: string
-  /** Jacket yoke and hem colour; a darker jacket shade when unset. */
-  jacketAccent?: string
-  skiGraphic?: SkiGraphic
-  skiAccent?: string
-  backpack?: boolean
-}
-
-export type SkiGraphic = 'solid' | 'stripes' | 'chevron' | 'camo' | 'fade' | 'checker' | 'topo' | 'nugget'
-/** The last two are rewards (see app/progress.ts UNLOCKS). */
-export const SKI_GRAPHICS: SkiGraphic[] = ['solid', 'stripes', 'chevron', 'camo', 'fade', 'checker', 'topo', 'nugget']
-
-/** Top-sheet pattern, painted along the ski (v = tail to tip) on a canvas. */
-function skiGraphicTexture(graphic: SkiGraphic, base: string, accent: string): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas')
-  canvas.width = 64
-  canvas.height = 512
-  const g = canvas.getContext('2d')!
-  g.fillStyle = base
-  g.fillRect(0, 0, 64, 512)
-  g.fillStyle = accent
-  switch (graphic) {
-    case 'stripes':
-      for (let y = 40; y < 512; y += 70) g.fillRect(0, y, 64, 18)
-      g.fillRect(26, 0, 12, 512)
-      break
-    case 'chevron':
-      for (let y = 30; y < 512; y += 60) {
-        g.beginPath()
-        g.moveTo(0, y + 26); g.lineTo(32, y); g.lineTo(64, y + 26); g.lineTo(64, y + 40); g.lineTo(32, y + 14); g.lineTo(0, y + 40)
-        g.fill()
-      }
-      break
-    case 'camo': {
-      let seed = 11
-      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
-      for (let i = 0; i < 46; i++) {
-        g.globalAlpha = 0.55 + rnd() * 0.45
-        g.beginPath()
-        g.ellipse(rnd() * 64, rnd() * 512, 6 + rnd() * 16, 10 + rnd() * 30, rnd() * 3, 0, Math.PI * 2)
-        g.fill()
-      }
-      g.globalAlpha = 1
-      break
+/**
+ * A damped spring toward a moving target. Under-damped channels overshoot a
+ * little, which reads as weight: the body sinks past the landing and comes
+ * back, the hips swing through an edge change. Sub-stepped so a long frame
+ * cannot blow it up.
+ */
+export class Spring {
+  v = 0
+  constructor(public x = 0) {}
+  step(target: number, dt: number, hz: number, zeta: number): number {
+    const w = 2 * Math.PI * hz
+    for (let left = dt; left > 1e-6; left -= 1 / 120) {
+      const h = Math.min(left, 1 / 120)
+      this.v += (w * w * (target - this.x) - 2 * zeta * w * this.v) * h
+      this.x += this.v * h
     }
-    case 'fade': {
-      const grad = g.createLinearGradient(0, 0, 0, 512)
-      grad.addColorStop(0, base)
-      grad.addColorStop(1, accent)
-      g.fillStyle = grad
-      g.fillRect(0, 0, 64, 512)
-      break
-    }
-    case 'checker':
-      for (let y = 0; y < 512; y += 32) for (let x = (y / 32) % 2 ? 0 : 32; x < 64; x += 64) g.fillRect(x, y, 32, 32)
-      break
-    case 'topo': {
-      // Contour lines of a made-up hill.
-      g.strokeStyle = accent
-      g.lineWidth = 2.5
-      for (let r = 14; r < 420; r += 22) {
-        g.beginPath()
-        for (let a = 0; a <= Math.PI * 2 + 0.01; a += 0.1) {
-          const wobble = 1 + 0.18 * Math.sin(a * 3 + r * 0.05) + 0.08 * Math.sin(a * 7 - r * 0.11)
-          const x = 32 + Math.cos(a) * r * 0.35 * wobble
-          const y = 300 + Math.sin(a) * r * wobble
-          if (a === 0) g.moveTo(x, y)
-          else g.lineTo(x, y)
-        }
-        g.stroke()
-      }
-      break
-    }
-    case 'nugget': {
-      // Gold flecks over the base, denser toward the tip.
-      let seed = 1851
-      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
-      for (let i = 0; i < 260; i++) {
-        const cx = rnd() * 64
-        const cy = 512 * Math.sqrt(rnd())
-        const size = 1.5 + rnd() * 3.5
-        g.fillStyle = i % 3 ? '#f0bf3a' : '#ffe58a'
-        g.beginPath()
-        for (let k = 0; k < 5; k++) {
-          const a = (k / 5) * Math.PI * 2
-          const r = size * (0.6 + rnd() * 0.6)
-          if (k === 0) g.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r)
-          else g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r)
-        }
-        g.fill()
-      }
-      break
-    }
+    return this.x
   }
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = 4
-  return texture
 }
+
+/** Discrete poses that crossfade into each other instead of snapping. */
+type Mode = 'ski' | 'rail' | 'crash' | 'sit' | 'stand'
+/** Seconds to blend into each mode. Falling is quick, getting up is slow. */
+const FADE_IN: Record<Mode, number> = { ski: 0.3, rail: 0.12, crash: 0.16, sit: 0.4, stand: 0.4 }
 
 /**
- * Stylised freeskier in metres, built from lathe-turned tapered parts.
+ * Stylised freeskier (or snowboarder) driven by the sim. The mesh and rig are
+ * built in skierModel.ts; this file poses them every frame.
  *
- * Hierarchy: root (on the snow, ski frame: +X left, +Y up, +Z forward) holds
- * the skis and `body`, a pivot at the snow that tilts into the turn by the
- * inclination the carve needs. body → hips → legs (two-bone IK to the boots)
- * and torso (forward bend, angulation, counter-rotation) → head and arms (IK
- * to hand targets). Poles aim from the hand at a tip target.
+ * Continuous moves (edging, crouch, tuck, skating, braking) run through
+ * springs so they ease in with follow-through. Discrete switches (a crash,
+ * getting up, getting on a lift or a rail) crossfade from a snapshot of the
+ * last pose.
  */
 export function createSkierView(): {
   object: THREE.Group
@@ -133,330 +50,8 @@ export function createSkierView(): {
   setFirstPerson: (on: boolean) => void
   setColours: (look: RiderLook) => void
 } {
-  const root = new THREE.Group()
-  const m = (color: number | string, roughness = 0.75, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness })
-  const mat = {
-    skiBase: m(0x1d2a36, 0.35, 0.2),
-    skiTop: m(0xffc21a, 0.4),
-    skiEdge: m(0x9aa3ad, 0.25, 0.9),
-    jacket: m(0xd42a2f, 0.82),
-    jacketPanel: m(0x8f1c20, 0.85),
-    trim: m(0x1b1f24, 0.7),
-    pants: m(0x27313f, 0.9),
-    pantsPatch: m(0x1a212b, 0.9),
-    skin: m(0xe2b08a, 0.7),
-    helmet: m(0xf2f5f8, 0.3, 0.05),
-    lens: new THREE.MeshStandardMaterial({ color: 0xff7a1a, roughness: 0.12, metalness: 0.15, emissive: 0x6a2a00 }),
-    frame: m(0x15181c, 0.6),
-    gaiter: m(0x59606b, 0.95),
-    glove: m(0x15181c, 0.8),
-    boot: m(0xeceff2, 0.35),
-    buckle: m(0x9aa3ad, 0.3, 0.8),
-    pole: m(0xb9c2cb, 0.3, 0.8),
-  }
-
-  /** A limb turned on a lathe, hanging down -Y from its joint: radius r0 at the top to r1 at the bottom. */
-  const limb = (r0: number, r1: number, length: number, material: THREE.Material, bulge = 0, flare = 0) => {
-    const points: THREE.Vector2[] = []
-    const steps = 10
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps
-      let r = r0 + (r1 - r0) * t + bulge * Math.sin(Math.PI * t) + flare * Math.max(0, (t - 0.75) / 0.25) ** 2
-      // Round the ends.
-      if (i === 0 || i === steps) r *= 0.82
-      points.push(new THREE.Vector2(r, -t * length))
-    }
-    points.unshift(new THREE.Vector2(0.001, r0 * 0.4))
-    points.push(new THREE.Vector2(0.001, -length - r1 * 0.35))
-    points.reverse()
-    const mesh = new THREE.Mesh(new THREE.LatheGeometry(points, 14), material)
-    return mesh
-  }
-  const rounded = (w: number, h: number, d: number, r: number, material: THREE.Material) =>
-    new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, r), material)
-  const sphere = (r: number, material: THREE.Material, w = 16, h = 12) => new THREE.Mesh(new THREE.SphereGeometry(r, w, h), material)
-
-  // ---- Skis -----------------------------------------------------------------
-  const blades: THREE.Group[] = []
-  const makeSki = () => {
-    const ski = new THREE.Group()
-    const sections = [
-      [-0.87, 0.032, 0.065], [-0.82, 0.057, 0.035], [-0.66, 0.059, 0.010],
-      [-0.32, 0.052, 0.011], [0.04, 0.046, 0.016], [0.37, 0.052, 0.010],
-      [0.66, 0.064, 0.010], [0.80, 0.067, 0.028], [0.90, 0.056, 0.074], [0.96, 0.025, 0.108],
-    ]
-    const vertices: number[] = []
-    const indices: number[] = []
-    const uvs: number[] = []
-    for (const [z, halfWidth, y] of sections) {
-      vertices.push(-halfWidth, y, z, halfWidth, y, z, -halfWidth, y - 0.018, z, halfWidth, y - 0.018, z)
-      const v = (z + 0.87) / 1.83
-      uvs.push(0, v, 1, v, 0, v, 1, v)
-    }
-    const geometry = new THREE.BufferGeometry()
-    for (let i = 0; i < sections.length - 1; i++) {
-      const a = i * 4, b = a + 4
-      indices.push(a, b, b + 1, a, b + 1, a + 1)
-    }
-    geometry.addGroup(0, 6, 1)
-    geometry.addGroup(6, indices.length - 12, 0)
-    geometry.addGroup(indices.length - 6, 6, 1)
-    const edges = indices.length
-    for (let i = 0; i < sections.length - 1; i++) {
-      const a = i * 4, b = a + 4
-      indices.push(a, a + 2, b, b, a + 2, b + 2, a + 1, b + 1, a + 3, a + 3, b + 1, b + 3, a + 2, a + 3, b + 3, a + 2, b + 3, b + 2)
-    }
-    const end = vertices.length / 3 - 4
-    indices.push(0, 1, 3, 0, 3, 2, end, end + 3, end + 1, end, end + 2, end + 3)
-    geometry.addGroup(edges, indices.length - edges, 2)
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
-    geometry.setIndex(indices)
-    geometry.computeVertexNormals()
-    const blade = new THREE.Group()
-    blade.add(new THREE.Mesh(geometry, [mat.skiTop, mat.skiBase, mat.skiEdge]))
-    const binding = rounded(0.09, 0.04, 0.36, 0.01, mat.trim)
-    binding.position.set(0, 0.03, 0.02)
-    const heel = rounded(0.085, 0.07, 0.07, 0.018, mat.skiBase)
-    heel.position.set(0, 0.06, -0.15)
-    const toe = rounded(0.095, 0.05, 0.08, 0.018, mat.buckle)
-    toe.position.set(0, 0.05, 0.19)
-    // Boot shell: sole, toe box and a cuff that the pants cover.
-    const sole = rounded(0.115, 0.05, 0.32, 0.02, mat.trim)
-    sole.position.set(0, 0.075, 0.02)
-    const shell = rounded(0.118, 0.13, 0.27, 0.045, mat.boot)
-    shell.position.set(0, 0.15, 0.04)
-    const cuff = rounded(0.12, 0.11, 0.14, 0.04, mat.boot)
-    cuff.position.set(0, 0.24, -0.03)
-    cuff.rotation.x = -0.25
-    ski.add(blade, binding, heel, toe, sole, shell, cuff)
-    ski.userData.skiOnly = [blade, binding, heel, toe]
-    for (const [y, z] of [[0.19, 0.13]]) {
-      const clip = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.014, 0.035), mat.buckle)
-      clip.position.set(0, y, z)
-      ski.add(clip)
-    }
-    blades.push(blade)
-    return ski
-  }
-  const skis = [makeSki(), makeSki()] // 0 left (+X), 1 right
-  root.add(...skis)
-
-  // ---- Snowboard --------------------------------------------------------------
-  // One board under both boots. The rider stands sideways on it, left foot forward
-  // (regular), boots turned across the board.
-  const boardGroup = new THREE.Group()
-  {
-    const half = 0.78
-    const outline = new THREE.Shape()
-    const width = (z: number) => 0.125 + 0.012 * (Math.abs(z) / half) ** 2 // waist narrower than the tips (sidecut)
-    outline.moveTo(-width(-0.66), -0.66)
-    for (let z = -0.66; z <= 0.66; z += 0.11) outline.lineTo(-width(z), z)
-    outline.quadraticCurveTo(-0.13, half, 0, half)
-    outline.quadraticCurveTo(0.13, half, width(0.66), 0.66)
-    for (let z = 0.66; z >= -0.66; z -= 0.11) outline.lineTo(width(z), z)
-    outline.quadraticCurveTo(0.13, -half, 0, -half)
-    outline.quadraticCurveTo(-0.13, -half, -width(-0.66), -0.66)
-    const geometry = new THREE.ExtrudeGeometry(outline, { depth: 0.016, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.004, bevelSegments: 1, curveSegments: 8 })
-    // Lay it flat (shape y becomes +Z, extrusion becomes +Y) and map the top sheet along its length.
-    geometry.rotateX(Math.PI / 2)
-    geometry.scale(1, -1, 1)
-    geometry.computeVertexNormals()
-    const position = geometry.attributes.position
-    const uv = geometry.attributes.uv
-    for (let i = 0; i < position.count; i++) uv.setXY(i, (position.getX(i) + 0.14) / 0.28, (position.getZ(i) + half) / (2 * half))
-    const deck = new THREE.Mesh(geometry, mat.skiTop)
-    const base = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 1.4), mat.skiBase)
-    base.rotation.x = Math.PI / 2
-    base.position.y = -0.001
-    boardGroup.add(deck, base)
-    for (const z of [0.26, -0.26]) {
-      const binding = rounded(0.27, 0.05, 0.13, 0.02, mat.trim)
-      binding.position.set(0, 0.035, z)
-      const highback = rounded(0.2, 0.16, 0.025, 0.01, mat.trim)
-      highback.position.set(0, 0.1, z - 0.07)
-      boardGroup.add(binding, highback)
-    }
-    boardGroup.visible = false
-    root.add(boardGroup)
-  }
-  let boarding = false
-  /** Front boot angle +15°, back boot 0° (forward stance), measured from across the board. */
-  const BOARD_STANCE = [0.26, -0.26]
-  const BOARD_ANGLE = [0.26, 0]
-  /** Put the boots on the board, the board under them, and tilt it all onto an edge. */
-  const placeBoard = (x: number, y: number, z: number, edge: number, yaw = 0, pitch = 0) => {
-    boardGroup.position.set(x, y, z)
-    boardGroup.rotation.order = 'YXZ'
-    boardGroup.rotation.set(pitch, yaw, edge)
-    boardGroup.updateMatrix()
-    for (let i = 0; i < 2; i++) {
-      skis[i].position.set(0, 0.025, BOARD_STANCE[i]).applyMatrix4(boardGroup.matrix)
-      skis[i].quaternion.copy(boardGroup.quaternion)
-      // Boots point across the board, toes toward the rider's front (-X).
-      skis[i].rotateY(-Math.PI / 2 + BOARD_ANGLE[i])
-    }
-  }
-
-  // ---- Body -----------------------------------------------------------------
-  const body = new THREE.Group()
-  root.add(body)
-  const hips = new THREE.Group()
-  body.add(hips)
-  const pelvis = rounded(0.36, 0.22, 0.26, 0.09, mat.pants)
-  pelvis.position.y = -0.02
-  hips.add(pelvis)
-
-  const thighLength = 0.43
-  const shinLength = 0.42
-  const ankleInSki = new THREE.Vector3(0, 0.2, -0.01)
-  const legs = skis.map((ski, index) => {
-    const side = index === 0 ? 1 : -1
-    const thigh = new THREE.Group()
-    thigh.position.set(side * 0.11, -0.06, 0)
-    const upper = limb(0.1, 0.088, thighLength, mat.pants, 0.012)
-    const knee = new THREE.Group()
-    knee.position.y = -thighLength
-    const patch = sphere(0.075, mat.pantsPatch, 10, 8)
-    patch.position.set(0, 0.01, 0.04)
-    patch.scale.set(1.05, 1.1, 0.6)
-    // Pants run over the boot cuff and flare at the hem.
-    const shin = limb(0.088, 0.104, shinLength + 0.01, mat.pants, 0.006, 0.026)
-    knee.add(patch, shin)
-    thigh.add(upper, knee)
-    hips.add(thigh)
-    return { ski, thigh, knee, upper, shin, side }
-  })
-
-  const torso = new THREE.Group()
-  torso.position.y = 0.07
-  hips.add(torso)
-  // Long, loose shell: hem below the hips, roomy chest, dropped shoulders.
-  const shellProfile = (baggy: boolean) => {
-    const k = baggy ? 1.06 : 0.94
-    const hem = baggy ? -0.2 : -0.08
-    return [
-      new THREE.Vector2(0.001, hem - 0.01), new THREE.Vector2(0.2 * k, hem), new THREE.Vector2(0.215 * k, hem + 0.06),
-      new THREE.Vector2(0.205 * k, 0.12), new THREE.Vector2(0.21 * k, 0.3), new THREE.Vector2(0.225 * k, 0.42),
-      new THREE.Vector2(0.2 * k, 0.5), new THREE.Vector2(0.12, 0.56), new THREE.Vector2(0.09, 0.6), new THREE.Vector2(0.001, 0.6),
-    ]
-  }
-  const jacketShell = new THREE.Mesh(new THREE.LatheGeometry(shellProfile(true), 18), mat.jacket)
-  jacketShell.scale.z = 0.72
-  const yoke = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.22, 0.14, 18, 1, true), mat.jacketPanel)
-  yoke.scale.z = 0.735
-  yoke.position.y = 0.42
-  const hemBand = new THREE.Mesh(new THREE.CylinderGeometry(0.218, 0.215, 0.05, 18, 1, true), mat.jacketPanel)
-  hemBand.scale.z = 0.735
-  hemBand.position.y = -0.17
-  const zip = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.66, 0.012), mat.trim)
-  zip.position.set(0, 0.2, 0.158)
-  const pocket = rounded(0.12, 0.1, 0.02, 0.01, mat.jacketPanel)
-  pocket.position.set(0.09, 0.3, 0.15)
-  pocket.rotation.y = 0.25
-  const hood = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.055, 8, 16, Math.PI * 1.2), mat.jacket)
-  hood.position.set(0, 0.56, -0.07)
-  hood.rotation.set(Math.PI / 2 + 0.5, 0, Math.PI * 0.4 + Math.PI)
-  torso.add(jacketShell, yoke, hemBand, zip, pocket, hood)
-  // Small freeride pack: body, lid, straps over the shoulders.
-  const backpack = new THREE.Group()
-  const packBody = rounded(0.28, 0.4, 0.14, 0.05, mat.trim)
-  packBody.position.set(0, 0.28, -0.2)
-  const packLid = rounded(0.26, 0.1, 0.15, 0.04, mat.jacketPanel)
-  packLid.position.set(0, 0.48, -0.2)
-  backpack.add(packBody, packLid)
-  for (const sx of [-0.11, 0.11]) {
-    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.4, 0.02), mat.trim)
-    strap.position.set(sx, 0.33, 0.15)
-    backpack.add(strap)
-  }
-  backpack.visible = false
-  torso.add(backpack)
-
-  const head = new THREE.Group()
-  head.position.y = 0.62
-  torso.add(head)
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.09, 0.12, 12), mat.gaiter)
-  neck.position.y = 0.02
-  const skull = sphere(0.105, mat.skin)
-  skull.position.y = 0.13
-  skull.scale.set(0.95, 1.05, 1)
-  const buff = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 10, 0, Math.PI * 2, Math.PI * 0.52, Math.PI * 0.48), mat.gaiter)
-  buff.position.y = 0.135
-  buff.scale.set(1.02, 1.15, 1.06)
-  const helmet = new THREE.Group()
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.138, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.56), mat.helmet)
-  dome.scale.set(1, 0.95, 1.12)
-  const brim = new THREE.Mesh(new THREE.TorusGeometry(0.128, 0.012, 6, 24, Math.PI * 0.9), mat.helmet)
-  brim.rotation.set(Math.PI / 2, 0, Math.PI * 0.05)
-  brim.position.set(0, 0.012, 0.01)
-  brim.scale.set(1, 1.18, 1)
-  const ears = [1, -1].map((s) => {
-    const ear = sphere(0.05, mat.frame, 10, 8)
-    ear.position.set(s * 0.12, -0.03, -0.005)
-    ear.scale.set(0.45, 1, 1)
-    return ear
-  })
-  helmet.add(dome, brim, ...ears)
-  helmet.position.y = 0.155
-  const beanie = new THREE.Group()
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.118, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), mat.helmet)
-  cap.scale.set(1, 1.15, 1.05)
-  const cuffBand = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.122, 0.05, 18, 1, true), mat.helmet)
-  cuffBand.position.y = 0.005
-  const pom = sphere(0.045, mat.jacketPanel, 10, 8)
-  pom.position.y = 0.14
-  beanie.add(cap, cuffBand, pom)
-  beanie.position.y = 0.155
-  beanie.visible = false
-  // Big frameless goggles and strap.
-  const goggles = new THREE.Group()
-  const lens = new THREE.Mesh(new THREE.SphereGeometry(0.15, 20, 8, Math.PI / 2 - 0.95, 1.9, Math.PI * 0.36, Math.PI * 0.26), mat.lens)
-  lens.scale.set(1, 1, 0.92)
-  const gFrame = new THREE.Mesh(new THREE.SphereGeometry(0.146, 20, 8, Math.PI / 2 - 1.0, 2.0, Math.PI * 0.345, Math.PI * 0.31), mat.frame)
-  gFrame.scale.set(1, 1, 0.9)
-  const gStrap = new THREE.Mesh(new THREE.TorusGeometry(0.143, 0.014, 6, 28), mat.frame)
-  gStrap.rotation.x = Math.PI / 2
-  gStrap.scale.set(1, 1.12, 1)
-  goggles.add(gFrame, lens, gStrap)
-  goggles.position.y = 0.17
-  head.add(neck, skull, buff, helmet, beanie, goggles)
-  const eye = new THREE.Object3D()
-  eye.position.set(0, 0.16, 0.14)
-  head.add(eye)
-  const hideInFirstPerson: THREE.Object3D[] = [backpack, jacketShell, yoke, hemBand, zip, pocket, hood, neck, skull, buff, helmet, beanie, goggles]
-
-  const upperArm = 0.29
-  const foreArm = 0.27
-  const arms = [1, -1].map((side) => {
-    const shoulder = new THREE.Group()
-    shoulder.position.set(side * 0.22, 0.47, -0.01)
-    const sleeve = limb(0.078, 0.066, upperArm, mat.jacket, 0.01)
-    const elbow = new THREE.Group()
-    elbow.position.y = -upperArm
-    const fore = limb(0.066, 0.064, foreArm - 0.06, mat.jacket, 0.006, 0.012)
-    const hand = new THREE.Group()
-    hand.position.y = -foreArm
-    const mitt = rounded(0.085, 0.11, 0.095, 0.038, mat.glove)
-    mitt.position.y = -0.03
-    const thumb = limb(0.022, 0.02, 0.045, mat.glove)
-    thumb.position.set(-side * 0.04, -0.005, 0.035)
-    thumb.rotation.z = -side * 0.7
-    const pole = new THREE.Group()
-    pole.position.y = -0.04
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.007, 1.12, 6), mat.pole)
-    shaft.position.y = -0.52
-    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.016, 0.15, 8), mat.trim)
-    grip.position.y = 0.02
-    const basket = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.008, 10), mat.trim)
-    basket.position.y = -1.0
-    pole.add(shaft, grip, basket)
-    hand.add(mitt, thumb, pole)
-    elbow.add(fore, hand)
-    shoulder.add(sleeve, elbow)
-    torso.add(shoulder)
-    return { side, shoulder, elbow, hand, pole }
-  })
+  const rig = buildRider()
+  const { root, skis, boardGroup, body, hips, spine, chest, head, legs, arms } = rig
 
   // ---- Working state --------------------------------------------------------
   const down = new THREE.Vector3(0, -1, 0)
@@ -476,32 +71,68 @@ export function createSkierView(): {
   const offsetA = new THREE.Vector3()
   const offsetB = new THREE.Vector3()
 
-  let firstPerson = false
-  let incline = 0
-  let crouch = 0.3
-  let counter = 0
+  const incline = new Spring()
+  const crouch = new Spring(0.3)
+  const counter = new Spring()
+  const tuck = new Spring()
+  const brake = new Spring()
+  const plow = new Spring()
+  const skate = new Spring()
+  const airBlend = new Spring()
+  const railBlend = new Spring()
+  const press = new Spring()
+  const look = new Spring()
+  const fore = new Spring()
   let grabBlend = 0
   let lastGrab: string | null = null
-  let tuckBlend = 0
-  let brakeBlend = 0
-  let airBlend = 0
   let wasAir = false
-  let land = 0
+  let lastVy = 0
   let plant = 0
   let plantSide = 1
   let lastEdgeSign = 0
   let ridePhase = 0
+  let skatePhase = 0
   let switchLook = 0
   let spinLead = 0
-  let railBlend = 0
   let wasRail = false
   let railEntry = 0
   let entryTurn = 0
   let lastHeading = 0
   let railLook = 0
-  /** +1 nose press, -1 tail press, eased. */
-  let pressBlend = 0
   const ease = (rate: number, dt: number) => 1 - Math.exp(-rate * dt)
+
+  // ---- Crossfade between modes ---------------------------------------------
+  const animated: THREE.Object3D[] = [
+    body, hips, spine, chest, head, boardGroup, ...skis,
+    ...legs.flatMap((leg) => [leg.thigh, leg.knee]),
+    ...arms.flatMap((arm) => [arm.shoulder, arm.elbow, arm.hand, arm.pole]),
+  ]
+  const snapPosition = animated.map(() => new THREE.Vector3())
+  const snapQuaternion = animated.map(() => new THREE.Quaternion())
+  let mode: Mode | null = null
+  let fade = 0
+  let fadeTime = 0.3
+  const startFade = (next: Mode) => {
+    if (mode !== null) {
+      animated.forEach((o, i) => {
+        snapPosition[i].copy(o.position)
+        snapQuaternion[i].copy(o.quaternion)
+      })
+      // Getting up from a crash takes longer than going down.
+      fadeTime = mode === 'crash' ? 0.55 : FADE_IN[next]
+      fade = 1
+    }
+    mode = next
+  }
+  const applyFade = (dt: number) => {
+    if (fade <= 0) return
+    fade = Math.max(0, fade - dt / fadeTime)
+    const w = fade * fade * (3 - 2 * fade)
+    animated.forEach((o, i) => {
+      o.position.lerp(snapPosition[i], w)
+      o.quaternion.slerp(snapQuaternion[i], w)
+    })
+  }
 
   /**
    * Two-bone IK. `target` is in the parent space of `upper`. Bones hang
@@ -534,11 +165,11 @@ export function createSkierView(): {
     root.updateMatrixWorld(true)
     hipsInverse.copy(hips.matrixWorld).invert()
     for (const leg of legs) {
-      ankle.copy(ankleInSki).applyQuaternion(leg.ski.quaternion).add(leg.ski.position)
+      ankle.copy(ANKLE_IN_SKI).applyQuaternion(leg.ski.quaternion).add(leg.ski.position)
       rootToLocal(hips, ankle, ankle)
       // Knees point over the ski tips.
       kneeHint.set(0, 0, 1).applyQuaternion(leg.ski.quaternion).transformDirection(root.matrixWorld).transformDirection(hipsInverse)
-      solve(leg.thigh, leg.knee, ankle, thighLength, shinLength, kneeHint)
+      solve(leg.thigh, leg.knee, ankle, THIGH_LENGTH, SHIN_LENGTH, kneeHint)
     }
   }
 
@@ -546,18 +177,17 @@ export function createSkierView(): {
   const elbowHint = new THREE.Vector3()
   const tip = new THREE.Vector3()
   const handWorld = new THREE.Vector3()
-  /** Hand target in torso space (or root space when `inRoot`), pole tip in root space. */
+  /** Hand target in chest space (or root space when `inRoot`), pole tip in root space. */
   const placeArm = (index: number, hand: THREE.Vector3, poleTip: THREE.Vector3, inRoot = false) => {
     const arm = arms[index]
     if (inRoot) {
       root.updateMatrixWorld(true)
-      rootToLocal(torso, hand, handTarget)
+      rootToLocal(chest, hand, handTarget)
     } else handTarget.copy(hand)
     // Elbows point back and out.
     elbowHint.set(arm.side * 0.6, -0.2, -1)
-    solve(arm.shoulder, arm.elbow, handTarget, upperArm, foreArm, elbowHint)
+    solve(arm.shoulder, arm.elbow, handTarget, UPPER_ARM, FORE_ARM, elbowHint)
     arm.hand.quaternion.identity()
-    // Pole: from the grip toward the tip target.
     root.updateMatrixWorld(true)
     arm.hand.getWorldPosition(handWorld)
     root.localToWorld(tip.copy(poleTip))
@@ -567,62 +197,37 @@ export function createSkierView(): {
     arm.pole.quaternion.setFromUnitVectors(down, tip.applyQuaternion(qInv).normalize())
   }
 
+  /** Board under the boots, tilted onto an edge. Front boot +15°, back 0°. */
+  const BOARD_STANCE = [0.26, -0.26]
+  const BOARD_ANGLE = [0.26, 0]
+  const placeBoard = (x: number, y: number, z: number, edge: number, yaw = 0, pitch = 0) => {
+    boardGroup.position.set(x, y, z)
+    boardGroup.rotation.order = 'YXZ'
+    boardGroup.rotation.set(pitch, yaw, edge)
+    boardGroup.updateMatrix()
+    for (let i = 0; i < 2; i++) {
+      skis[i].position.set(0, 0.025, BOARD_STANCE[i]).applyMatrix4(boardGroup.matrix)
+      skis[i].quaternion.copy(boardGroup.quaternion)
+      skis[i].rotateY(-Math.PI / 2 + BOARD_ANGLE[i])
+    }
+  }
+
+  const resetJoints = () => {
+    for (const ski of skis) ski.rotation.set(0, 0, 0)
+    body.rotation.set(0, 0, 0)
+    for (const part of [hips, spine, chest, head]) {
+      part.rotation.order = 'YXZ'
+      part.rotation.set(0, 0, 0)
+    }
+  }
+
   return {
     object: root,
-    eye,
-    setFirstPerson(on) {
-      firstPerson = on
-      for (const part of hideInFirstPerson) part.visible = !on
-      if (!on) {
-        backpack.visible = Boolean(backpack.userData.on)
-        helmet.visible = !beanie.userData.on
-        beanie.visible = Boolean(beanie.userData.on)
-      }
-    },
-    setColours(look) {
-      mat.jacket.color.set(look.jacket)
-      if (look.jacketAccent) mat.jacketPanel.color.set(look.jacketAccent)
-      else mat.jacketPanel.color.copy(mat.jacket.color).multiplyScalar(0.6)
-      backpack.userData.on = Boolean(look.backpack)
-      backpack.visible = !firstPerson && backpack.userData.on
-      mat.pants.color.set(look.pants)
-      mat.pantsPatch.color.copy(mat.pants.color).multiplyScalar(0.72)
-      mat.helmet.color.set(look.helmet)
-      const graphic = look.skiGraphic ?? 'solid'
-      mat.skiTop.map?.dispose()
-      if (graphic === 'solid') {
-        mat.skiTop.map = null
-        mat.skiTop.color.set(look.skis)
-      } else {
-        mat.skiTop.map = skiGraphicTexture(graphic, look.skis, look.skiAccent ?? '#1b1f24')
-        mat.skiTop.color.set(0xffffff)
-      }
-      mat.skiTop.needsUpdate = true
-      mat.gaiter.color.set(look.gaiter ?? '#59606b')
-      const baggy = (look.fit ?? 'baggy') === 'baggy'
-      jacketShell.geometry.dispose()
-      jacketShell.geometry = new THREE.LatheGeometry(shellProfile(baggy), 18)
-      hemBand.position.y = baggy ? -0.17 : -0.05
-      for (const leg of legs) {
-        const k = baggy ? 1.12 : 0.9
-        leg.upper.scale.set(k, 1, k)
-        leg.shin.scale.set(k, 1, k)
-      }
-      for (const arm of arms) arm.shoulder.children[0].scale.set(baggy ? 1.1 : 0.92, 1, baggy ? 1.1 : 0.92)
-      beanie.userData.on = look.headwear === 'beanie'
-      beanie.visible = !firstPerson && beanie.userData.on
-      helmet.visible = !firstPerson && !beanie.userData.on
-      // Beanie riders still wear goggles; the strap sits on the knit.
-      boarding = look.model === 'snowboard'
-      boardGroup.visible = boarding
-      for (const ski of skis) for (const part of ski.userData.skiOnly as THREE.Object3D[]) part.visible = !boarding
-      for (const arm of arms) arm.pole.visible = !boarding
-      for (const blade of blades) {
-        const width = look.model === 'powder' ? 1.26 : look.model === 'park' ? 1.06 : 1
-        blade.scale.set(width, 1, look.model === 'park' ? 0.94 : 1)
-      }
-    },
+    eye: rig.eye,
+    setFirstPerson: rig.setFirstPerson,
+    setColours: rig.setColours,
     update(state, input, ground, pose = 'ski', dt = 1 / 60) {
+      const boarding = rig.boarding
       const up = ground && pose === 'ski' ? ground.normal : { x: 0, y: 1, z: 0 }
       const frame = skiFrame(state.heading, up)
       basis.makeBasis(
@@ -634,13 +239,18 @@ export function createSkierView(): {
       root.quaternion.copy(qBase)
       root.position.set(state.x, state.y - (pose === 'ski' ? state.sink * 0.85 : 0), state.z)
       const air = pose === 'ski' ? state.air : null
-      // Rail entry: a short pop while the skis swing from the approach line to the rail.
-      const onRail = pose === 'ski' && Boolean(state.rail)
-      if (onRail && !wasRail) {
+      const crashed = pose === 'ski' && state.crashed > 0
+      const rail = pose === 'ski' && !crashed ? state.rail : null
+
+      const nextMode: Mode = pose === 'sit' ? 'sit' : pose === 'stand' ? 'stand' : crashed ? 'crash' : rail ? 'rail' : 'ski'
+      if (nextMode !== mode) startFade(nextMode)
+
+      // Rail entry: a short hop while the skis swing from the approach line to the rail.
+      if (rail && !wasRail) {
         railEntry = 1
         entryTurn = Math.atan2(Math.sin(lastHeading - state.heading), Math.cos(lastHeading - state.heading))
       }
-      wasRail = onRail
+      wasRail = Boolean(rail)
       lastHeading = state.heading
       railEntry = Math.max(0, railEntry - dt / 0.2)
       if (railEntry > 0) {
@@ -657,86 +267,104 @@ export function createSkierView(): {
         offsetB.copy(centre).applyQuaternion(root.quaternion)
         root.position.add(offsetA).sub(offsetB)
       }
-      for (const ski of skis) ski.rotation.set(0, 0, 0)
-      body.rotation.set(0, 0, 0)
-      torso.rotation.set(0, 0, 0)
-      head.rotation.set(0, 0, 0)
+      resetJoints()
 
       if (pose === 'sit') {
         ridePhase += dt * 1.55
         const swing = Math.sin(ridePhase) * 0.045
         hips.position.set(0, 0.5, 0)
-        hips.rotation.set(0, 0, 0)
-        torso.rotation.x = -0.12
+        spine.rotation.x = -0.1
+        chest.rotation.x = -0.04
+        head.rotation.y = Math.sin(ridePhase * 0.23) * 0.5
+        head.rotation.x = 0.1
         skis[0].position.set(0.14, -0.16, 0.44 + swing)
         skis[1].position.set(-0.14, -0.16, 0.44 - swing)
         skis[0].rotation.x = -0.07 - swing
         skis[1].rotation.x = -0.07 + swing
-        // On the chair the board hangs across the front, both boots strapped in.
         if (boarding) placeBoard(0, -0.2, 0.46, 0, Math.PI / 2, swing)
         fitLegs()
-        placeArm(0, v1.set(0.2, 0.05, 0.32).clone(), new THREE.Vector3(0.3, 0.2, 1.2))
-        placeArm(1, v1.set(-0.2, 0.05, 0.32).clone(), new THREE.Vector3(-0.3, 0.2, 1.2))
+        // Hands rest on the bar, poles across the lap.
+        placeArm(0, v1.set(0.2, -0.2, 0.34).clone(), new THREE.Vector3(0.3, 0.2, 1.2))
+        placeArm(1, v1.set(-0.2, -0.2, 0.34).clone(), new THREE.Vector3(-0.3, 0.2, 1.2))
+        applyFade(dt)
         return
       }
-      if (pose === 'ski' && state.crashed > 0) {
+      if (crashed) {
+        // Sprawled on the snow, skis twisted; the crossfade makes the fall and the getting up.
         hips.position.set(0, 0.22, 0)
         hips.rotation.set(0, 0, 1.35)
-        torso.rotation.x = 0.4
+        spine.rotation.x = 0.25
+        chest.rotation.x = 0.18
+        chest.rotation.z = -0.2
+        head.rotation.set(-0.3, 0.3, 0.2)
         skis[0].position.set(0.55, 0.04, 0.18)
         skis[1].position.set(0.48, 0.04, -0.13)
         skis[0].rotation.set(0, 0.4, 0.85)
         skis[1].rotation.set(0, -0.3, 0.55)
         if (boarding) placeBoard(0.5, 0.12, 0, 0.9, 0.2)
         fitLegs()
-        placeArm(0, new THREE.Vector3(0.45, 0.25, 0.1), new THREE.Vector3(0.9, 0, 0.6))
-        placeArm(1, new THREE.Vector3(-0.35, 0.35, 0.3), new THREE.Vector3(-0.2, 0, 1.2))
+        placeArm(0, new THREE.Vector3(0.45, -0.01, 0.1), new THREE.Vector3(0.9, 0, 0.6))
+        placeArm(1, new THREE.Vector3(-0.35, 0.09, 0.3), new THREE.Vector3(-0.2, 0, 1.2))
+        // Settle the springs into a low crouch so getting up rises out of it.
+        crouch.x = 0.9
+        crouch.v = 0
+        applyFade(dt)
         return
       }
 
       // ---- Read the sim ----
-      const skiing = pose === 'ski' && state.grounded && !state.rail && !air
+      const skiing = pose === 'ski' && state.grounded && !rail && !air
       const stance = state.ridingSwitch ? -1 : 1
       const speed = state.speed
+      const still = skiing && speed < 0.5
       const tucked = skiing && input.tuck && speed >= PHYSICS.skateMaxSpeed
       const braking = skiing && input.brake > 0.2 && speed > 1
+      // Slow braking is a snowplough; faster it is a hockey stop (the sim turns the skis across).
+      const plowing = braking && speed < 6 && !boarding
+      const skating = skiing && input.tuck && !braking && speed < PHYSICS.skateMaxSpeed && !boarding
       const charging = skiing && state.popCharge > 0
       const edge = skiing ? state.edgeAngle * stance : 0
       // Inclination the carve needs: tan(lean) = lateral g (ski-coach balance).
       const lateralG = skiing && Number.isFinite(state.carveRadius) ? Math.sqrt(Math.max(0, state.carveLoad ** 2 - 1)) : 0
       // Scaled and capped: full race inclination reads as falling at game camera distances.
       const wantIncline = skiing ? Math.sign(edge) * Math.min(0.72, Math.max(Math.atan(lateralG) * 0.72, Math.abs(edge) * 0.35)) : 0
-      incline += (wantIncline - incline) * ease(8, dt)
+      // Slightly under-damped: the hips swing through the edge change and settle.
+      incline.step(wantIncline, dt, 2.4, 0.72)
 
-      // Pole plant on each edge change: the new turn's inside hand.
+      // Edge change: pole plant on the new inside hand, and the legs extend to
+      // release the old edges before flexing into the new turn.
       const edgeSign = Math.abs(edge) > 0.12 ? Math.sign(edge) : 0
       if (skiing && edgeSign !== 0 && lastEdgeSign !== 0 && edgeSign !== lastEdgeSign && speed > 3) {
         plant = 1
         plantSide = edgeSign > 0 ? -1 : 1 // right turn: right hand (index 1, side -1)
+        crouch.v -= 1.1 * Math.min(1, speed / 10)
       }
       if (edgeSign !== 0) lastEdgeSign = edgeSign
       plant = Math.max(0, plant - dt / 0.42)
 
-      // Landing absorb.
-      if (wasAir && !air && pose === 'ski') land = Math.min(1, 0.45 + Math.abs(state.vy) * 0.06)
+      // Takeoff extends; landing kicks the crouch spring down and it rebounds.
+      if (air && !wasAir) crouch.v -= 2.2
+      if (!air && wasAir) crouch.v += 1.4 + Math.min(10, Math.max(0, -lastVy)) * 0.4
       wasAir = Boolean(air)
-      land = Math.max(0, land - dt / 0.4)
+      lastVy = state.vy
 
       const grabbing = Boolean(air?.grab)
       if (air?.grab) lastGrab = air.grab
       grabBlend += ((grabbing ? 1 : 0) - grabBlend) * ease(14, dt)
-      tuckBlend += ((tucked ? 1 : 0) - tuckBlend) * ease(7, dt)
-      brakeBlend += ((braking ? 1 : 0) - brakeBlend) * ease(9, dt)
-      airBlend += ((air ? 1 : 0) - airBlend) * ease(10, dt)
+      tuck.step(tucked ? 1 : 0, dt, 1.9, 0.9)
+      brake.step(braking && !plowing ? 1 : 0, dt, 2.6, 0.85)
+      plow.step(plowing ? 1 : 0, dt, 2.4, 0.95)
+      skate.step(skating ? 1 : 0, dt, 2, 1)
+      airBlend.step(air ? 1 : 0, dt, 2.6, 0.8)
+      railBlend.step(rail ? 1 : 0, dt, 3, 0.85)
       spinLead += ((air ? Math.max(-1, Math.min(1, air.spinRate / 8)) : 0) - spinLead) * ease(6, dt)
       switchLook += ((state.ridingSwitch && skiing ? 1 : 0) - switchLook) * ease(4, dt)
-      const rail = pose === 'ski' ? state.rail : null
-      railBlend += ((rail ? 1 : 0) - railBlend) * ease(12, dt)
       // On a slide the skis are across the rail: look down it, the way you are going.
       const wantLook = rail && rail.style === 'slide' ? -Math.sign(rail.vs || 1) * Math.sign(Math.sin(rail.headingOffset) || 1) * 1.1 : 0
       railLook += (wantLook - railLook) * ease(8, dt)
-      const wantPress = rail && rail.press === 'nose' ? 1 : rail && rail.press === 'tail' ? -1 : 0
-      pressBlend += (wantPress - pressBlend) * ease(10, dt)
+      press.step(rail && rail.press === 'nose' ? 1 : rail && rail.press === 'tail' ? -1 : 0, dt, 2.6, 0.75)
+      // Eyes lead the turn: the head turns toward where the skier is steering.
+      look.step(skiing && speed > 2 ? -input.steer * 0.32 : 0, dt, 1.8, 0.9)
 
       // Counter-rotation: the upper body keeps facing down the fall line.
       let wantCounter = 0
@@ -747,41 +375,76 @@ export function createSkierView(): {
           wantCounter = Math.max(-1.1, Math.min(1.1, off * (braking ? 0.7 : 0.4)))
         }
       }
-      counter += (wantCounter - counter) * ease(6, dt)
+      counter.step(wantCounter, dt, 1.7, 0.9)
 
-      // Athletic base flex, plus terrain absorption, edging, tuck and pop.
-      const pumping = skiing && input.tuck && !tucked ? Math.sin(state.time * 6.2) : 0
-      let wantCrouch = pose === 'stand' ? 0.12 : speed < 0.5 && skiing ? 0.22 : 0.34
-      wantCrouch += Math.abs(incline) * 0.32 + (skiing ? Math.min(0.2, state.sink * 0.5) : 0)
-      wantCrouch = Math.max(wantCrouch, tuckBlend * 1, brakeBlend * 0.55, charging ? 0.45 + state.popCharge * 0.45 : 0)
-      wantCrouch = Math.max(wantCrouch, airBlend * (0.42 + grabBlend * 0.45), land, railBlend * 0.42)
-      crouch += (Math.min(1.05, wantCrouch) - crouch) * ease(12, dt)
+      // Skating stride: alternate pushes off the inside edge, faster as speed builds.
+      if (skate.x > 0.01) skatePhase += dt * (4 + speed * 0.9)
+      const stride = Math.sin(skatePhase) * skate.x
+
+      // Athletic base flex, plus terrain absorption, edging, tuck, braking and pop.
+      let wantCrouch = pose === 'stand' ? 0.12 : still ? 0.22 : 0.32
+      wantCrouch += Math.abs(incline.x) * 0.3 + (skiing ? Math.min(0.2, state.sink * 0.5) : 0)
+      wantCrouch = Math.max(
+        wantCrouch,
+        tucked ? 1 : 0,
+        braking ? (plowing ? 0.38 : 0.6) : 0,
+        skating ? 0.4 : 0,
+        charging ? 0.45 + state.popCharge * 0.45 : 0,
+        air ? 0.42 + grabBlend * 0.45 : 0,
+        rail ? 0.42 : 0,
+      )
+      crouch.step(Math.min(1.05, wantCrouch), dt, 3, 0.6)
+      const flex = Math.max(0, Math.min(1.1, crouch.x))
+      // Hips back in a tuck and a hockey stop, forward over the skis in a press.
+      fore.step(tuck.x * 0.16 + brake.x * 0.05 - press.x * 0.05 + skate.x * 0.03, dt, 2.5, 0.9)
 
       // ---- Skis ----
-      const halfStance = 0.13 + brakeBlend * 0.03 - railBlend * 0.04
-      const lead = incline * 0.12 + pumping * 0.06
+      const halfStance = 0.13 + brake.x * 0.03 + plow.x * 0.14 + skate.x * 0.03 - railBlend.x * 0.04 - tuck.x * 0.015
+      const lead = incline.x * 0.12
       // Skis drift under the outside of the turn so the body can incline.
-      const shift = -Math.sin(incline) * 0.32
-      skis[0].position.set(halfStance + shift + Math.max(0, pumping) * 0.05, 0.03, 0.04 - lead)
-      skis[1].position.set(-halfStance + shift - Math.max(0, -pumping) * 0.05, 0.03, 0.04 + lead)
+      const shift = -Math.sin(incline.x) * 0.32
+      skis[0].position.set(halfStance + shift, 0.03, 0.04 - lead)
+      skis[1].position.set(-halfStance + shift, 0.03, 0.04 + lead)
       const edgeVisual = pose === 'ski' && !air ? edge * 0.9 : 0
       for (const ski of skis) ski.rotation.z = edgeVisual
-      if (pressBlend !== 0 && !air) {
+      if (plow.x > 0.01) {
+        // Snowplough: tips together, tails out, both skis on their inside edges.
+        skis[0].rotation.y -= 0.26 * plow.x
+        skis[1].rotation.y += 0.26 * plow.x
+        skis[0].rotation.z += 0.22 * plow.x
+        skis[1].rotation.z -= 0.22 * plow.x
+      }
+      if (skate.x > 0.01) {
+        // Skis in a V; the pushing ski angles out, slides out and back, then lifts to recover.
+        for (let i = 0; i < 2; i++) {
+          const s = legs[i].side
+          const push = Math.max(0, s * stride)
+          const recover = Math.max(0, -s * Math.cos(skatePhase)) * skate.x
+          skis[i].rotation.y += s * (0.16 + 0.14 * push) * skate.x
+          skis[i].rotation.z += s * 0.22 * push
+          skis[i].position.x += s * 0.1 * push
+          skis[i].position.z -= 0.14 * push
+          skis[i].position.y += 0.06 * recover * (1 - push)
+        }
+      }
+      if (Math.abs(press.x) > 0.01 && !air) {
         // Press: tip the skis onto the pressed end and slide them back under the body,
         // lifted so the pressed half stays on the rail.
         for (const ski of skis) {
-          ski.rotation.x = pressBlend * 0.32
-          ski.position.y += Math.abs(pressBlend) * 0.09
-          ski.position.z -= pressBlend * 0.14
+          ski.rotation.x = press.x * 0.32
+          ski.position.y += Math.abs(press.x) * 0.09
+          ski.position.z -= press.x * 0.14
+        }
+      }
+      if (airBlend.x > 0.01) {
+        // Legs come up under the body; grabs pull them further.
+        const lift = (0.18 + grabBlend * 0.22) * Math.max(0, Math.min(1, airBlend.x))
+        for (const ski of skis) {
+          ski.position.y += lift
+          ski.position.z += 0.05 * airBlend.x
         }
       }
       if (air) {
-        // Legs come up under the body; grabs pull them further.
-        const lift = 0.18 + grabBlend * 0.22
-        for (const ski of skis) {
-          ski.position.y += lift
-          ski.position.z += 0.05
-        }
         const g = grabBlend
         switch (lastGrab) {
           case 'mute':
@@ -812,70 +475,92 @@ export function createSkierView(): {
       }
 
       if (boarding) {
-        // Same lean as a skier, but onto the board's toe or heel edge.
         const lift = air ? 0.18 + grabBlend * 0.2 : 0
         const grabTilt = air && grabBlend > 0 ? (lastGrab === 'nose' ? -0.35 : lastGrab === 'tail' ? 0.3 : 0) * grabBlend : 0
-        placeBoard(shift * 0.6, 0.02 + lift + Math.abs(pressBlend) * 0.07, -pressBlend * 0.1, edgeVisual, 0, grabTilt + (air ? 0 : pressBlend * 0.28))
+        placeBoard(shift * 0.6, 0.02 + lift + Math.abs(press.x) * 0.07, -press.x * 0.1, edgeVisual, 0, grabTilt + (air ? 0 : press.x * 0.28))
       }
 
       // ---- Body ----
-      // On a rail the body sways with the sim's balance.
-      body.rotation.z = incline + (rail ? rail.balance * 0.32 : 0)
-      const kneeFold = 0.15 + crouch * 1.25
-      const hipHeight = 0.97 - (thighLength + shinLength) * (1 - Math.cos(kneeFold * 0.55)) * 1.05 - crouch * 0.06
-      hips.position.set(0, Math.max(0.42, hipHeight), -0.05 - crouch * 0.1 + pressBlend * 0.05)
-      hips.rotation.set(0, boarding ? -Math.PI / 2 + 0.25 : counter * 0.35, 0)
-      // Torso folds over the knees; angulation brings the shoulders back toward level.
-      torso.rotation.order = 'YXZ'
-      torso.rotation.x = 0.12 + crouch * 0.72 + tuckBlend * 0.25 + pressBlend * 0.18
-      torso.rotation.z = -incline * 0.55
-      torso.rotation.y = boarding ? 0.45 + spinLead * 0.5 : counter * 0.65 + spinLead * 0.5 + switchLook * 0.25 + railLook * 0.55
-      // Head stays level and looks where the skier is going.
-      head.rotation.order = 'YXZ'
-      head.rotation.x = -torso.rotation.x * 0.75
-      head.rotation.z = -(incline + torso.rotation.z) * 0.6
+      // Idle: a slow weight shift and a look around.
+      const idle = still && !boarding ? 1 : 0
+      const sway = idle * Math.sin(state.time * 0.8) * 0.025
+      // Skating moves the weight over the gliding ski; on a rail the body sways with the balance.
+      body.rotation.z = incline.x + (rail ? rail.balance * 0.32 : 0) + stride * 0.12 + sway
+      const kneeFold = 0.15 + flex * 1.25
+      const hipHeight = 0.97 - (THIGH_LENGTH + SHIN_LENGTH) * (1 - Math.cos(kneeFold * 0.55)) * 1.05 - flex * 0.06 - tuck.x * 0.05
+      hips.position.set(0, Math.max(0.4, hipHeight), -0.05 - flex * 0.1 - fore.x)
+      // Angulation: the hips and spine tilt back against the inclination so the
+      // shoulders stay near level and the knees drive into the hill.
+      hips.rotation.y = boarding ? -Math.PI / 2 + 0.25 : counter.x * 0.3
+      hips.rotation.z = -incline.x * 0.24
+      // The back bends in two parts, so a deep crouch or a tuck rounds it.
+      const bend = 0.12 + flex * 0.72 + tuck.x * 0.6 + press.x * 0.18 + skate.x * 0.18 + plow.x * 0.05
+      spine.rotation.x = bend * 0.55
+      chest.rotation.x = bend * 0.45 - tuck.x * 0.08
+      spine.rotation.z = -incline.x * 0.34
+      chest.rotation.z = -incline.x * 0.24
+      const upperTwist = boarding
+        ? 0.45 + spinLead * 0.5
+        : counter.x * 0.7 + spinLead * 0.5 + switchLook * 0.25 + railLook * 0.55 - stride * 0.12
+      spine.rotation.y = upperTwist * 0.55
+      chest.rotation.y = upperTwist * 0.45
+      // Head stays level and looks where the skier is going; up the hill in a tuck.
+      const tiltZ = incline.x + hips.rotation.z + spine.rotation.z + chest.rotation.z
+      head.rotation.x = -bend * 0.8 - tuck.x * 0.22 + idle * Math.sin(state.time * 0.5) * 0.06
+      head.rotation.z = -tiltZ * 0.65
       head.rotation.y = boarding
         ? 0.75 + spinLead * 0.4
-        : -counter * 0.3 + spinLead * 0.4 + switchLook * stance * 1.15 * (state.heading > 0 ? 1 : -1) + railLook * 0.4
+        : -counter.x * 0.3 + look.x + spinLead * 0.4 + switchLook * stance * 1.15 * (state.heading > 0 ? 1 : -1) + railLook * 0.4 +
+          idle * Math.sin(state.time * 0.37) * 0.35
 
       fitLegs()
 
       // ---- Arms ----
-      const breathe = speed < 0.5 && skiing ? Math.sin(state.time * 1.6) * 0.01 : 0
+      // Targets are in chest space: the shoulders sit at (±0.215, 0.21, 0).
+      const breathe = idle * Math.sin(state.time * 1.6) * 0.01
+      const handsBack = Math.max(0, Math.min(1, airBlend.x)) * (1 - grabBlend)
       for (let i = 0; i < 2; i++) {
         const side = arms[i].side
-        const inside = Math.sign(incline) === -side ? 1 : 0 // left hand (side 1) is inside on a left turn (incline < 0)
+        const inside = Math.sign(incline.x) === -side ? 1 : 0 // left hand (side 1) is inside on a left turn (incline < 0)
         const planting = plantSide === side ? plant : 0
-        const stroke = pumping * side
         // Hands forward, a little wide and low, in front of the hips.
-        const hand = v1.set(side * 0.28, 0.2 + breathe + inside * Math.abs(incline) * 0.1, 0.42 + inside * 0.06)
-        hand.z += Math.sin(planting * Math.PI) * 0.12 + stroke * 0.12
+        const hand = v1.set(side * 0.29, -0.05 + breathe + inside * Math.abs(incline.x) * 0.1, 0.42 + inside * 0.06)
+        hand.z += Math.sin(planting * Math.PI) * 0.12
         hand.x += side * Math.sin(planting * Math.PI) * 0.06
-        hand.lerp(v2.set(side * 0.1, 0.3, 0.5), tuckBlend)
-        hand.lerp(v2.set(side * 0.38, 0.22, 0.25), brakeBlend * 0.7)
-        hand.lerp(v2.set(side * 0.55, 0.35, 0.15), airBlend * (1 - grabBlend))
+        // Skating: the arm opposite the pushing leg swings forward.
+        hand.z -= side * stride * 0.2
+        hand.y += Math.abs(stride) * 0.04
+        // Racing tuck: fists together in front of the chin, elbows inside the knees.
+        hand.lerp(v2.set(side * 0.085, 0.2, 0.36), Math.max(0, Math.min(1, tuck.x)))
+        hand.lerp(v2.set(side * 0.38, 0.0, 0.3), brake.x * 0.7)
+        hand.lerp(v2.set(side * 0.34, -0.02, 0.44), plow.x * 0.6)
+        hand.lerp(v2.set(side * 0.55, 0.12, 0.15), handsBack)
         // Arms out for balance on a rail; the low side reaches further.
-        if (rail) hand.lerp(v2.set(side * (0.62 + Math.max(0, side * rail.balance) * 0.12), 0.42 - side * rail.balance * 0.1, 0.12), railBlend)
-        if (firstPerson) {
+        if (rail) hand.lerp(v2.set(side * (0.62 + Math.max(0, side * rail.balance) * 0.12), 0.18 - side * rail.balance * 0.1, 0.12), Math.min(1, railBlend.x))
+        if (rig.firstPerson) {
           // Raise the hands into the first-person view.
-          hand.y += 0.36 * (1 - tuckBlend)
+          hand.y += 0.36 * (1 - tuck.x)
           hand.z += 0.16
         }
         if (boarding) {
           // Front hand out over the nose, back hand low over the tail; no poles.
           const front = side === 1
-          hand.set(front ? 0.42 : -0.32, front ? 0.22 : 0.08, 0.28 + Math.abs(incline) * 0.1)
-          hand.lerp(v2.set(side * 0.55, 0.4, 0.1), airBlend * (1 - grabBlend))
-          if (firstPerson) hand.y += 0.3
+          hand.set(front ? 0.42 : -0.32, front ? -0.02 : -0.16, 0.3 + Math.abs(incline.x) * 0.1)
+          hand.lerp(v2.set(side * 0.55, 0.16, 0.1), handsBack)
+          if (rig.firstPerson) hand.y += 0.3
         }
         const handLocal = hand.clone()
-        // Pole tip: trailing behind, planted on a plant, tucked under the arm in a tuck.
+        // Pole tip: trailing behind, planted on a plant, under the arms in a tuck.
         const tipTarget = v3.set(side * 0.42, 0.18, -0.6)
-        if (speed < 0.5 && skiing) tipTarget.set(side * 0.55, 0, 0.15)
+        if (still) tipTarget.set(side * 0.55, 0, 0.15)
         if (planting > 0) tipTarget.lerp(v2.set(side * 0.5, -0.02, 0.85 - (1 - planting) * 1.1), Math.sin(Math.min(1, planting * 1.6) * Math.PI * 0.5))
-        tipTarget.lerp(v2.set(side * 0.25, 0.9, -1.1), tuckBlend)
-        tipTarget.lerp(v2.set(side * 0.9, 0.3, -0.5), Math.max(airBlend, railBlend))
-        if (pumping !== 0) tipTarget.lerp(v2.set(side * 0.45, 0, -0.2 - stroke * 0.3), 0.8)
+        if (skate.x > 0.01) {
+          // Each pole plants beside the boots as its arm comes forward, then pushes back.
+          const reach = Math.max(0, -side * stride)
+          tipTarget.lerp(v2.set(side * 0.5, 0, 0.3 - (1 - reach) * 0.9), skate.x)
+        }
+        tipTarget.lerp(v2.set(side * 0.22, 0.95, -1.15), Math.max(0, Math.min(1, tuck.x)))
+        tipTarget.lerp(v2.set(side * 0.9, 0.3, -0.5), Math.max(0, Math.min(1, Math.max(airBlend.x, railBlend.x))))
         placeArm(i, handLocal, tipTarget.clone())
       }
       if (grabBlend > 0.02 && air) {
@@ -889,7 +574,6 @@ export function createSkierView(): {
           placeArm(handIndex, target.clone(), v3.set(arms[handIndex].side * 0.9, 0.5, -0.6).clone(), true)
         }
         if (grab === 'truck') {
-          // Truck driver: both hands on both tips, like a steering wheel.
           reachFor(0, 0, 0.42, 0)
           reachFor(1, 1, 0.42, 0)
         } else {
@@ -900,6 +584,7 @@ export function createSkierView(): {
           reachFor(handIndex, skiIndex, along, sideOffset)
         }
       }
+      applyFade(dt)
     },
   }
 }
