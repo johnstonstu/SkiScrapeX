@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { createStaticBatch } from './mergeStatic'
 import type { Peak, Run } from '../../world/resort'
 import { pointAlong } from '../../world/resort'
 
@@ -45,6 +46,10 @@ export function createSignView(
     panel: new THREE.PlaneGeometry(2.2, 0.55),
   }
   disposables.push(timber, boardBack, boardParts.post, boardParts.cap, boardParts.panel)
+  // Posts, caps and board backs of every sign merge into two meshes; only the
+  // painted faces (one texture each) stay separate, and hide when far away.
+  const batch = createStaticBatch()
+  const faces: THREE.Mesh[] = []
 
   for (const run of runs) {
     if (run.kind !== 'line' || !run.name || run.name === 'Unnamed run' || seen.has(run.name)) continue
@@ -59,15 +64,18 @@ export function createSignView(
     const ground = heightAt(x, z)
     if (!Number.isFinite(ground)) continue
     // A timber trail-head board facing skiers coming down from above.
-    const board = trailBoard(run.name, SYMBOL[run.difficulty ?? ''] ?? null, boardParts, disposables)
-    board.position.set(x, ground - 0.15, z)
-    board.rotation.y = Math.atan2(-(x1 - x0), -(z1 - z0))
-    group.add(board)
+    const face = trailBoard(run.name, SYMBOL[run.difficulty ?? ''] ?? null, boardParts, disposables, batch, new THREE.Vector3(x, ground - 0.15, z), Math.atan2(-(x1 - x0), -(z1 - z0)))
+    group.add(face)
+    faces.push(face)
     const sprite = label(run.name, SYMBOL[run.difficulty ?? ''] ?? null, disposables)
     sprite.position.set(x, ground + 3.0, z)
     group.add(sprite)
     labels.push(sprite)
     trailLabels.add(sprite)
+  }
+  for (const mesh of batch.build()) {
+    disposables.push(mesh.geometry)
+    group.add(mesh)
   }
   for (const peak of peaks) {
     const ground = heightAt(peak.x, peak.z)
@@ -95,6 +103,8 @@ export function createSignView(
         // Trail heads: the board is readable up close, so the floating label only helps from afar.
         sprite.visible = d < 260 * 260 && d > (trailLabels.has(sprite) ? 60 * 60 : 7 * 7)
       }
+      // Painted faces only up close: past 250 m they are a few pixels and the label takes over.
+      for (const face of faces) face.visible = face.position.distanceToSquared(camera) < 250 * 250
     },
     dispose() {
       for (const item of disposables) item.dispose()
@@ -102,33 +112,40 @@ export function createSignView(
   }
 }
 
-/** Two timber posts, a cap rail and a painted board with the run's symbol and name; origin on the snow. */
+/**
+ * Two timber posts, a cap rail and a painted board with the run's symbol and
+ * name, standing at `at` facing `yaw`. The timber and the board back go into
+ * the shared batch; the painted face (its own texture) is returned.
+ */
 function trailBoard(
   text: string,
   symbol: { shape: string; color: string } | null,
   parts: { timber: THREE.Material; boardBack: THREE.Material; post: THREE.BufferGeometry; cap: THREE.BufferGeometry; panel: THREE.BufferGeometry },
   disposables: { dispose(): void }[],
-): THREE.Group {
-  const group = new THREE.Group()
+  batch: ReturnType<typeof createStaticBatch>,
+  at: THREE.Vector3,
+  yaw: number,
+): THREE.Mesh {
+  const local = new THREE.Object3D()
   for (const x of [-1.05, 1.05]) {
-    const post = new THREE.Mesh(parts.post, parts.timber)
-    post.position.x = x
-    group.add(post)
+    local.position.set(x, 0, 0)
+    batch.add(parts.post, parts.timber, batch.matrix(at, yaw, local))
   }
-  group.add(new THREE.Mesh(parts.cap, parts.timber))
+  batch.add(parts.cap, parts.timber, batch.matrix(at, yaw))
+  local.position.set(0, 2.25, 0.06)
+  local.rotation.y = Math.PI
+  batch.add(parts.panel, parts.boardBack, batch.matrix(at, yaw, local))
   const texture = new THREE.CanvasTexture(signCanvas(text, symbol))
   texture.colorSpace = THREE.SRGBColorSpace
   texture.anisotropy = 4
   const face = new THREE.MeshLambertMaterial({ map: texture })
   disposables.push(texture, face)
   const front = new THREE.Mesh(parts.panel, face)
-  front.position.set(0, 2.25, 0.07)
-  const back = new THREE.Mesh(parts.panel, parts.boardBack)
-  back.position.set(0, 2.25, 0.06)
-  back.rotation.y = Math.PI
-  group.add(front, back)
-  for (const mesh of group.children) mesh.castShadow = true
-  return group
+  local.position.set(0, 2.25, 0.07)
+  local.rotation.y = 0
+  front.applyMatrix4(batch.matrix(at, yaw, local))
+  front.castShadow = true
+  return front
 }
 
 export function label(

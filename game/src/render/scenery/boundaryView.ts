@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { createStaticBatch } from './mergeStatic'
 import { nearestOnPolyline, type Point2 } from '../../world/resort'
 
 const POLE_SPACING = 5
@@ -94,17 +95,23 @@ export function createBoundaryView(ring: Point2[] | undefined, heightAt: (x: num
   post.translate(0, 1, 0)
   const postMaterial = new THREE.MeshLambertMaterial({ color: 0x6b5138 })
   disposables.push(texture, board, boardMaterial, backMaterial, post, postMaterial)
+  // Every sign's post, face and back merged per material: three draw calls in all.
+  const batch = createStaticBatch()
+  const front = new THREE.Object3D()
+  front.position.set(0, 1.75, 0.05)
+  const back = new THREE.Object3D()
+  back.position.set(0, 1.75, 0.04)
+  back.rotation.y = Math.PI
+  const at = new THREE.Vector3()
   for (const s of signs) {
-    const sign = new THREE.Group()
-    const front = new THREE.Mesh(board, boardMaterial)
-    front.position.set(0, 1.75, 0.05)
-    const back = new THREE.Mesh(board, backMaterial)
-    back.position.set(0, 1.75, 0.04)
-    back.rotation.y = Math.PI
-    sign.add(new THREE.Mesh(post, postMaterial), front, back)
-    sign.position.set(s.x, s.y, s.z)
-    sign.rotation.y = s.yaw
-    group.add(sign)
+    at.set(s.x, s.y, s.z)
+    batch.add(post, postMaterial, batch.matrix(at, s.yaw))
+    batch.add(board, boardMaterial, batch.matrix(at, s.yaw, front))
+    batch.add(board, backMaterial, batch.matrix(at, s.yaw, back))
+  }
+  for (const mesh of batch.build()) {
+    disposables.push(mesh.geometry)
+    group.add(mesh)
   }
   return {
     object: group,
