@@ -81,6 +81,22 @@ Updated 2026-11-22 for v0.8.6; the sections below are dated where they describe 
 - Creator: ski top-sheet graphics (canvas textures on UV'd skis), jacket accent, backpack.
 - Freestyle: pitch during a spin over 3 rad/s tilts the spin axis (`air.cork`); 540+ held 0.25 s is a Cork, 1080+ held 0.7 s a Double Cork (points x1.35 and x1.7); landing corked adds up to 70° of flip error. Rail entry is a 0.2 s visual pop and swing.
 
+## Performance (0.8.8 work, 2026-11-23, headless SwiftShader, 1280 × 720)
+
+Draw calls and triangles (with the shadow pass) at the five standard spots, from `game/scripts/perf-spots.mjs`. Frame times are not meaningful headless; counts are. "0.8.8 wip" is `graphics-auto` after merging the sign meshes; its High and Medium rows and the park spot on Low are still to measure.
+
+| Spot | 0.8.6 Low | 0.8.7 Low | 0.8.8 wip Low | 0.8.6 High | 0.8.7 High |
+|---|---|---|---|---|---|
+| Start | 240 · 760k | 369 · 893k | 264 · 910k | 271 · 1.40M | 401 · 1.53M |
+| Village | 533 · 950k | 799 · 1.09M | 523 · 1.11M | 573 · 1.76M | 840 · 1.90M |
+| Forest | 168 · 856k | 217 · 1.08M | 204 · 985k | 198 · 1.74M | 241 · 1.90M |
+| Summit | 236 · 585k | 327 · 703k | 261 · 734k | 270 · 1.27M | 363 · 1.39M |
+| Park | 185 · 779k | 257 · 921k | | 212 · 1.73M | 282 · 1.85M |
+
+- 0.8.7 added about 90 to 270 draw calls per spot. Most came from the new trail-head boards (four meshes each) and the boundary signs (three each); merging their static parts per material brought Low back near 0.8.6.
+- Load time on High roughly doubled in 0.8.7 (village 10.5 s to 22 s headless); not yet investigated.
+- Still over the Low budget in `docs/workplan.md` (250 calls, 0.9 M triangles): the village (523 calls; buildings, cars and decks) and the triangle count at most spots. Next candidates: other skiers' riders (about 25 meshes each), village props, and the 0.8.7 terrain and tree changes.
+
 ## Performance (v0.5.0, headless Chrome with a software GPU, 1280 × 720)
 
 Measured with `?perf` at five spots (start, village, forest, summit, park). Software rendering makes frame times meaningless; compare counts.
