@@ -4,6 +4,7 @@
  * feed in app/, the ski model in sim/, world data in world/ and drawing in
  * render/.
  */
+import { buildDemoPark } from './app/demoPark'
 import * as THREE from 'three'
 import './style.css'
 import { PHYSICS, PRESETS, advance, createClock, createPreset, createSkier, landingSpot, resetSkier, type SkiState } from './sim'
@@ -224,7 +225,7 @@ function showTitle() {
 
 async function boot() {
   // Review links (`?park`, `?ride`, `?at`) and test slopes go straight in.
-  const skipTitle = ['dev', 'park', 'ride', 'at', 'perf'].some((key) => params.has(key))
+  const skipTitle = ['dev', 'park', 'ride', 'at', 'perf', 'demo'].some((key) => params.has(key))
   if (skipTitle) ui.titleScreen.hidden = true
   else renderTitle(ui.titleScreen, null, false, titleActions(), !coach.done)
   if (params.has('dev')) {
@@ -261,15 +262,16 @@ async function boot() {
 
 function startApex(world: World) {
   ui.status.textContent = 'Building the village…'
-  const apex = buildApexStage(world, scene, lighting, { quality, viewDistance: settings.viewDistance, ski: SKI_MODELS[outfit.model], phase: perf.phase })
+  scene.add(apexRoot)
+  const apex = buildApexStage(world, apexRoot, lighting, { quality, viewDistance: settings.viewDistance, ski: SKI_MODELS[outfit.model], phase: perf.phase })
   stage = apex.stage
   stage.env.assist = settings.landingAssist
   stageReady = true
   setViewDistance = apex.setViewDistance
   perf.phase('stage')
-  goals = createGoals({ world, stage, scene, parkSites: apex.parkSites, runNameAt: apex.surface.runNameAt, version: VERSION })
+  goals = createGoals({ world, stage, scene: apexRoot, parkSites: apex.parkSites, runNameAt: apex.surface.runNameAt, version: VERSION })
   perf.phase('goals')
-  npcs = createNpcs(scene, goals.routes(), stage.slope.sampleTerrain, { sampleSurface: stage.env.sampleSurface }, quality.npcCount, world.course.spawn)
+  npcs = createNpcs(apexRoot, goals.routes(), stage.slope.sampleTerrain, { sampleSurface: stage.env.sampleSurface }, quality.npcCount, world.course.spawn)
   npcs.setVisible(settings.npcs)
   perf.phase('npcs')
   stylePanel.refresh()
@@ -283,11 +285,14 @@ function startApex(world: World) {
   perf.phase('credits')
   minimap = createMinimap(ui.map, ui.mapLocation, apex.surface.runNameAt, { width: grid.width, depth: grid.depth, resort, hillshade: world.hillshade })
   buildRunMenu(ui.runList, pickableRuns(resort), (run) => {
+    leaveDemoPark()
     setFreeSki()
     course = courseForRun(resort, run)
     restartFromMenu()
   })
-  buildParkMenu(ui.runList, apex.parkSites, startPark, apex.setLayout)
+  apexStage = stage
+  buildParkMenu(ui.runList, apex.parkSites, startPark, apex.setLayout, enterDemoPark)
+  if (params.has('demo')) queueMicrotask(enterDemoPark)
   const parkParam = params.get('park')?.toLowerCase()
   const parkStart = parkParam ? apex.parkSites.find((site) => site.name.toLowerCase().startsWith(parkParam)) : null
   if (parkStart) queueMicrotask(() => startPark(parkStart))
@@ -337,7 +342,43 @@ function restartFromMenu() {
   spawn()
 }
 
+/** Apex scenery, goals and other skiers: hidden while in the demo park. */
+const apexRoot = new THREE.Group()
+let apexStage: Stage | null = null
+let demo: ReturnType<typeof buildDemoPark> | null = null
+
+function enterDemoPark() {
+  if (!apexStage) return
+  setFreeSki()
+  if (!demo) {
+    demo = buildDemoPark(lighting, SKI_MODELS[outfit.model], settings.landingAssist)
+    scene.add(demo.root)
+  }
+  demo.stage.env.ski = SKI_MODELS[outfit.model]
+  demo.stage.env.assist = settings.landingAssist
+  apexRoot.visible = false
+  demo.root.visible = true
+  stage = demo.stage
+  ui.mapPanel.hidden = true
+  course = {
+    spawn: { ...demo.spawn },
+    startLift: null,
+    startRun: { id: 'demo-park', name: 'Demo park', difficulty: 'park', groomed: true, kind: 'line', parts: [] },
+  }
+  restartFromMenu()
+}
+
+/** Back to Apex from the demo park (no-op when already there). */
+function leaveDemoPark() {
+  if (!demo?.root.visible || !apexStage) return
+  demo.root.visible = false
+  apexRoot.visible = true
+  stage = apexStage
+  ui.mapPanel.hidden = false
+}
+
 function startPark(site: ParkSite) {
+  leaveDemoPark()
   setFreeSki()
   const [x, z] = pointAlong(site.line, 4)
   const [ax, az] = pointAlong(site.line, 16)
@@ -380,6 +421,7 @@ function spawn() {
 }
 
 function startTutorial() {
+  leaveDemoPark()
   const bunny = goals?.tutorial()
   if (!bunny) return
   setFreeSki()
@@ -394,6 +436,7 @@ function startTutorial() {
 
 /** Start (or retry) a challenge from its start line. */
 function startChallenge(next: Challenge) {
+  leaveDemoPark()
   coach.stop()
   tutorialLine = null
   challenge = next

@@ -47,7 +47,7 @@ const SKILL_CAP: Record<string, [number, number]> = {
 }
 
 export function createNpcs(
-  scene: THREE.Scene,
+  scene: THREE.Object3D,
   routes: Route[],
   terrain: SampleTerrain,
   env: SkiEnv,

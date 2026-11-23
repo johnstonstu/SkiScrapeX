@@ -112,17 +112,29 @@ export function parkSitesFromLines(lines: { name: string | null; line: Point2[];
 /** Lay a lineup along a park line, leaving run-in and run-out between features. */
 export function placeFeatures(site: ParkSite, layoutId: string): PlacedFeature[] {
   const layout = LAYOUTS.find((l) => l.id === layoutId) ?? LAYOUTS[0]
-  const total = polylineLength(site.line)
-  const specs = layout.features.map((id) => FEATURES[id]).filter(Boolean)
+  return placeLineup(site.line, layout.features)
+}
+
+/** The demo park's lineup: a long progression from rollers to XL jumps, with a jib between most kickers. */
+export const DEMO_LINEUP = [
+  'rollerS', 'kickerS', 'box', 'kickerS', 'rail', 'rollerS', 'kickerM', 'flatDownRail', 'kickerM', 'downRail',
+  'rollerL', 'kickerM', 'box', 'stepDown', 'kickerL', 'rail', 'kickerL', 'downRail', 'rollerS', 'kickerL',
+  'flatDownRail', 'kickerXL', 'rollerS', 'kickerXL',
+]
+
+/** Lay feature ids along a line. `gap` fixes the run-out between features; by default it spreads them evenly. */
+export function placeLineup(line: Point2[], featureIds: string[], gap?: number): PlacedFeature[] {
+  const total = polylineLength(line)
+  const specs = featureIds.map((id) => FEATURES[id]).filter(Boolean)
   const footprints = specs.map(footprintOf)
   const used = footprints.reduce((a, b) => a + b, 0)
-  const gap = Math.max(12, (total - 30 - used) / Math.max(1, specs.length))
+  gap ??= Math.max(12, (total - 30 - used) / Math.max(1, specs.length))
   const placed: PlacedFeature[] = []
   let at = 25
   specs.forEach((spec, i) => {
     if (at + footprints[i] > total - 5) return
-    const [x, z] = pointAlong(site.line, at)
-    const [x2, z2] = pointAlong(site.line, at + Math.min(footprints[i], 10))
+    const [x, z] = pointAlong(line, at)
+    const [x2, z2] = pointAlong(line, at + Math.min(footprints[i], 10))
     const length = Math.hypot(x2 - x, z2 - z) || 1
     placed.push({
       spec,

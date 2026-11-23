@@ -44,7 +44,7 @@ export interface ApexStage {
  */
 export function buildApexStage(
   world: World,
-  scene: THREE.Scene,
+  scene: THREE.Object3D,
   lighting: Lighting,
   options: { quality: QualityProfile; viewDistance: number; ski: SkiModelSpec; phase?: (name: string) => void },
 ): ApexStage {

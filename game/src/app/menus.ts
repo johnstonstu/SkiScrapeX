@@ -21,11 +21,20 @@ export function buildParkMenu(
   sites: ParkSite[],
   onPark: (site: ParkSite) => void,
   setLayout: (site: ParkSite, layout: string) => void,
+  onDemo?: () => void,
 ): void {
   const section = document.createElement('div')
   section.className = 'parks'
   const render = () => {
     section.innerHTML = '<h3>Terrain parks</h3>'
+    if (onDemo) {
+      const demo = document.createElement('button')
+      demo.type = 'button'
+      demo.className = 'run park-go'
+      demo.innerHTML = '<span class="symbol park-symbol"></span>Demo park <small>· every feature, 2.6 km, off the map</small>'
+      demo.addEventListener('click', onDemo)
+      section.append(demo)
+    }
     for (const site of sites) {
       const row = document.createElement('div')
       row.className = 'park'
