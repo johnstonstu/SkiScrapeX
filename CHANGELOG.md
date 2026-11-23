@@ -2,6 +2,19 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## Unreleased (0.8.7): Review fixes
+
+From the visual review of 0.8.6 (`docs/review/apex-visual-improvements.md`).
+
+### Fixed
+- Trees no longer ghost in front of the camera. Trees fade only where they block the line from the camera to the skier, so the forest around you stays solid. The last 1.6 m in front of the lens still clears.
+- The landing ring no longer floats in the first-person view.
+- Official run spellings from the Apex trail map: Dude-Ney Trail, Gromit, Dawdler 1 and 2, Highway 97, Peashooter. Saved medals, bests and checklist progress carry over to the new names.
+
+### Changed
+- Shadows are now Auto, On or Off (Settings → Shadows). Auto turns them off on Low graphics, which phones use, because the shadow pass is the largest single cost there. Saved settings move over: On becomes Auto.
+- README, status and roadmap brought up to date for 0.8.6, with the next five phases.
+
 ## 0.8.6 (2026-11-22): Turns that read right
 
 From Stu's playtest of 0.8.5: turning still felt off, and the rider looked wrong both mid-turn and between turns.

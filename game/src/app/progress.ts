@@ -4,6 +4,7 @@
  */
 import { MEDAL_RANK, type Medal } from '../world/challenges'
 import { KEYS, readJson, writeJson } from './storage'
+import { RUN_NAMES } from '../world/corrections'
 
 export interface Progress {
   /** Best medal per challenge id (`time:<run>`, `slalom:<run>`, `park:<site>:<layout>`). */
@@ -25,7 +26,23 @@ export function readProgress(): Progress {
   const stored = readJson<Progress>(KEYS.progress, emptyProgress())
   // Older or partial saves: fill any missing parts.
   const empty = emptyProgress()
-  return { ...empty, ...stored, totals: { ...empty.totals, ...stored.totals } }
+  return renameRuns({ ...empty, ...stored, totals: { ...empty.totals, ...stored.totals } })
+}
+
+/** Carry medals, bests and run coverage across run renames (old OSM spellings). */
+export function renameRuns(progress: Progress): Progress {
+  const rename = (key: string) => {
+    for (const [from, to] of Object.entries(RUN_NAMES)) {
+      if (key === from) return to
+      for (const prefix of ['time:', 'slalom:']) if (key === prefix + from) return prefix + to
+    }
+    return key
+  }
+  const remap = <T>(record: Record<string, T>) => Object.fromEntries(Object.entries(record).map(([k, v]) => [rename(k), v]))
+  progress.medals = remap(progress.medals)
+  progress.bests = remap(progress.bests)
+  progress.covered = remap(progress.covered)
+  return progress
 }
 
 export function writeProgress(progress: Progress): void {

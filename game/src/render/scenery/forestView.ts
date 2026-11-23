@@ -20,6 +20,12 @@ export interface ForestDetail {
  * krummholz, snow ghost), so detail costs six draw calls however many chunks
  * are close.
  */
+/**
+ * Camera and skier positions for the sight-line fade, shared by every forest
+ * material. main.ts writes them once per frame.
+ */
+export const SIGHT_LINE = { from: { value: new THREE.Vector3() }, to: { value: new THREE.Vector3(0, -1e6, 0) } }
+
 export function createForestView(forest: Forest, detail: ForestDetail) {
   const group = new THREE.Group()
   group.name = 'forest'
@@ -28,18 +34,38 @@ export function createForestView(forest: Forest, detail: ForestDetail) {
   // Past `mid`, a single cone (4 triangles instead of 12) is plenty.
   const lowest = distantTree(1)
   const material = new THREE.MeshLambertMaterial({ vertexColors: true })
-  // Trees close to the camera dissolve (screen-door dither) so the follow
-  // camera never sits inside a crown.
+  // Trees dissolve (screen-door dither) only where they would hide the skier:
+  // within a few metres of the camera-to-skier sight line, between the two.
+  // Trees beside the camera stay solid, so orbit and aerial views keep their
+  // forest. Anything closer than about 1.5 m still fades so the camera never
+  // sits inside a crown.
   material.onBeforeCompile = (shader) => {
+    shader.uniforms.uSightFrom = SIGHT_LINE.from
+    shader.uniforms.uSightTo = SIGHT_LINE.to
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying float vCamDist;')
-      .replace('#include <project_vertex>', '#include <project_vertex>\nvCamDist = -mvPosition.z;')
+      .replace('#include <common>', '#include <common>\nvarying float vCamDist;\nvarying vec3 vWorld;')
+      .replace(
+        '#include <project_vertex>',
+        `#include <project_vertex>
+        vCamDist = -mvPosition.z;
+        vec4 worldPoint = vec4(transformed, 1.0);
+        #ifdef USE_INSTANCING
+          worldPoint = instanceMatrix * worldPoint;
+        #endif
+        vWorld = (modelMatrix * worldPoint).xyz;`,
+      )
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vCamDist;')
+      .replace('#include <common>', '#include <common>\nvarying float vCamDist;\nvarying vec3 vWorld;\nuniform vec3 uSightFrom;\nuniform vec3 uSightTo;')
       .replace(
         '#include <clipping_planes_fragment>',
         `#include <clipping_planes_fragment>
-        float keep = smoothstep(3.0, 8.5, vCamDist);
+        vec3 sight = uSightTo - uSightFrom;
+        float along = clamp(dot(vWorld - uSightFrom, sight) / max(dot(sight, sight), 1e-4), 0.0, 1.0);
+        float off = length(vWorld - (uSightFrom + sight * along));
+        // 1 where the fragment is clear of the sight line (or past the skier).
+        float clear = max(smoothstep(1.6, 3.6, off), step(0.96, along));
+        float keep = mix(smoothstep(3.0, 8.5, vCamDist), 1.0, clear);
+        keep = min(keep, smoothstep(0.8, 1.6, vCamDist));
         float dither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
         if (keep < 1.0 && dither > keep) discard;`,
       )

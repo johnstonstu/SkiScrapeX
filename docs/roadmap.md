@@ -1,64 +1,55 @@
 # Roadmap to 1.0
 
-Written 2026-11-21 at v0.5.0. SkiScrapex is a browser skiing game of Apex Mountain Resort built from real LiDAR and map data. The goal for 1.0 is a game a stranger can open on a phone or a laptop, understand in a minute, and want to come back to: Apex that locals recognise, skiing that feels good on groomers, in powder and in the park, and enough to do to fill a few weeks of casual play.
+Written 2026-11-21 at v0.5.0, phases revised 2026-11-22 at v0.8.6. SkiScrapex is a browser skiing game of Apex Mountain Resort built from real LiDAR and map data. The goal for 1.0 is a game a stranger can open on a phone or a laptop, understand in a minute, and want to come back to: Apex that locals recognise, skiing that feels good on groomers, in powder and in the park, and enough to do to fill a few weeks of casual play.
 
 There is no deadline. Milestones are ordered by what unblocks the most, and each one ends with a playtest, a merge to `main` and a version tag (see `CHANGELOG.md`).
 
-## Where we are (v0.5.0)
+## Where we are (v0.8.6)
 
-Working: real terrain at 5 m with 2 m near the skier, canopy forest with six species, OSM plus LiDAR-traced runs, four lifts with rides, village with buildings, lots, decks and the summit hut, three snow types, carving and steep-slope physics tuned against measured skier data, freestyle with grabs, spins, flips, corks, rails and graded landings, five parks with six layouts, a styled rider with a small creator, follow, first-person and orbit cameras, touch controls, procedural audio.
+Live at https://johnstonstu.github.io/SkiScrapeX/ from the public repo, deployed from `main` on every merge.
 
-Missing for a release: a front door (title screen, settings, onboarding), goals to play for, correct names for the traced runs, hosting, a tested mobile experience, and permission and licence checks for using Apex's name and data.
+Working: everything in the 0.5 list (real terrain, canopy forest, OSM and traced runs, lifts, village, physics, freestyle, parks, rider, cameras, touch, audio) plus a title screen, settings, gamepad, timed runs, slalom, park score attacks, the run checklist, gold nuggets, results and unlocks (0.7), a first-run tutorial and tips, snowboarding, other skiers, official run names from the trail map, faster loading, and the turn and camera feel passes from Stu's playtests (0.8.x).
 
-## Short term
+The visual review of 0.8.6 (`docs/review/apex-visual-improvements.md`, 47 items) drives most of the next two phases. Each item is a GitHub issue with a phase label.
 
-### v0.6: Names, feel and settings
-- Rename the 21 traced runs from local knowledge or the trail map (`world/runOverlay.ts`); add gladed areas the canopy test misses.
-- Settings menu: graphics quality (low, medium, high, with the mobile path as low), shadows, view distance, steering sensitivity, invert pitch, sound and music volume, camera options. Saved locally.
-- Playtest pass on carving, steeps and powder, then retune from notes. Add SnowGlider-style carve commitment if clean carving needs more reward.
-- Gamepad support (left stick edge and tuck or brake, buttons for pop and grab, right stick for air tricks).
-- Fix whatever the first proper playtests find.
+## Phase 1: 0.8.x wrap-up
 
-### v0.7: A reason to ski
-Shipped in 0.7.0 with the v0.6 settings and gamepad work: title screen, timed runs, slalom, park score attack, results, run checklist, nuggets and rewards. Still open: tuning medal and park targets from playtests, and naming the traced runs.
+Small, safe fixes that do not need new art or data.
 
-- Title screen with Continue, Free ski, Challenges and Rider.
-- Challenges: timed runs on named runs with medal times, a slalom gate course on a groomer, park score attacks per layout, a "ski every run" checklist, hidden collectibles (gold nuggets, to fit the theme) across the mountain.
-- Results screen after each run: time, top speed, distance, tricks, best comparison.
-- Local profile: bests, medals, unlocks (ski graphics and outfit pieces as rewards).
+- P0 leftovers from the review: trees fading out of the sight line to the skier instead of ghosting near the camera (0.8.7), the landing ring hidden in first person (0.8.7), the "Dude ney Trail" spelling and the other official spellings, with saves carried over (0.8.7).
+- Low graphics that saves real work: shadows Auto, On or Off, with Auto off on Low (0.8.7).
+- Real-device phone pass: frame rate on a mid-range Android phone and an older iPhone, touch layout size and opacity, left-handed layout.
+- Compressed data: store heights as differences from a plane through their neighbours (2 m grid 3.9 MB to about 1.4 MB gzipped, 5 m grid 1.1 to 0.36 MB), with an escape code for cells that overflow 16 bits. Changes `scripts/build-terrain.py`, the loader and the data branch together.
+- Cleanup: delete merged and stale branches, resolve PR #3, name the Wildside cuts W1 to W6.
 
-### v0.8: Onboarding and mobile
-Shipped in 0.8.0: tutorial, one-time tips, snowboarding, other skiers, title panorama, faster load and the Apex accuracy pass. Still open: the real-device mobile pass and compressed data.
+## Phase 2: 0.9 "looks like Apex"
 
-- First-run tutorial on the bunny hill by the Magic Carpet: steering, stopping, carving, jumping, one grab. Skippable.
-- Context hints (first powder, first park approach, first lift).
-- Real-device mobile pass: frame rate on a mid-range Android phone and an older iPhone, touch layout options (size, opacity, left-handed), tilt steering as an option, battery and thermal checks.
-- Progressive loading: show the mountain while the forest and village build; compress the data (Brotli) and keep first load under about 10 MB.
-  - Measured 2026-11-22: the height grids barely compress as stored (2 m grid 4.2 MB raw, 3.9 MB gzipped). Storing each height as its difference from a plane through its left, upper and upper-left neighbours brings that to 1.4 MB gzipped, and the 5 m grid from 1.1 MB to 0.36 MB. A few cells overflow 16 bits, so the format needs an escape code. Do this with hosting (v0.9), because it changes `scripts/build-terrain.py`, the loader and the data branch.
-  - 0.8 load work so far: lot finding 269 to 52 ms and forest planting 240 to 127 ms (same output), village phase in the browser 720 to 120 ms.
+The P1 items of the visual review: the things a local would notice first.
 
-## Mid term
+- Runs: wider groomers where the trail map shows them, cleared lift lines, the summit area, mogul fields on the right runs, real glades with thinned trees.
+- Trees: species mix and density checked against photos, snow load on branches.
+- Lifts: tower and terminal hardware closer to Quickdraw and Stock's, chairs with the right seat count.
+- Village: hero buildings (day lodge, Gunbarrel Saloon, ticket office) modelled from photos, roof shapes and snow, amenities and signage.
+- Light and life: better sky and sun, chimney smoke, people in the village, lift lines.
 
-### v0.9: Beta
-- Hosting: done in 0.8.0 (GitHub Pages on the public repo). Custom domain if wanted.
+## Phase 3: 0.10 beta
+
 - Installable as a PWA with offline play after the first load.
-- Accessibility: remappable keys, colour-blind-safe run colours and hints, reduced motion option (camera shake, chatter), readable text sizes.
-- Crash-free sessions on the test device list; error reporting to the console overlay.
-- Public beta with a feedback link; at least five outside playtesters including Apex regulars.
+- Accessibility: remappable keys, colour-blind-safe run colours and hints, reduced motion, readable text sizes.
+- An in-game feedback link and error capture to a visible console overlay.
+- CONTRIBUTING notes and issue templates for the public repo.
+- At least five outside playtesters, including Apex regulars.
 
-### Content and world
-- Time of day and weather: bluebird, overcast flat light, snowfall days with fresh powder depth, sunset. Snow conditions per day (fresh, packed, icy).
-- Grooming: corduroy only on freshly groomed runs, moguls forming over a session on ungroomed blacks.
-- Village life: lift lines and a few NPC skiers on runs, lights at night, smoke from chimneys.
-- Landmarks checked against photos: Gunbarrel Saloon, day lodge, ticket office, Quickdraw terminals, patrol signage, run signs matching Apex's real boards.
-- Full resort crop if useful (Wildside and the backside edges), and Apex Mountain's antenna peak on the horizon.
+## Phase 4: 0.11 to 0.12, a living mountain
 
-### Skiing depth
-- Rider balance: a visible balance cue (lean too far and you wash out) instead of hidden numbers.
-- Powder: face shots and spray that scale with depth, sluffs on steep faces.
-- Park: halfpipe or quarter pipe if Apex ever had one, more rail shapes, butters and presses, spin direction stats, trick variety bonus.
-- Crashes: ragdoll-style tumbles that depend on speed and angle, yard sales.
-- Replay: a short instant replay after a run or a trick, shareable as a clip later.
+- Weather and time of day: bluebird, flat light, snowfall days with fresh powder, sunset, night skiing under the lights.
+- Riders on the chairs, ski patrol, snowcats grooming in the evening, corduroy only on fresh grooming, moguls forming over a session.
+- Crashes with tumbles and yard sales, and a short instant replay.
+- Skiing depth: visible balance cue, face shots and sluffs in powder, butters, presses and more rail shapes.
+
+## Phase 5: 1.0
+
+The release checklist below, plus Apex's permission (or a rename), complete credits, a trailer or GIF set and the performance targets met on the test devices.
 
 ## Release: v1.0
 
@@ -77,7 +68,6 @@ All of these must be true:
 - Online leaderboards for challenges (needs a small backend and cheat checks, for example replaying the input log through the deterministic sim).
 - Ghost racing against your best run or a friend's.
 - Multiplayer free ski (a few riders sharing a mountain) if there is interest.
-- Snowboarding as a second discipline (the physics already models edges; boards need their own stance and tricks).
 - Other Okanagan or BC hills built the same way (Big White, Mount Baldy, Sun Peaks) once the pipeline is generalised: the data scripts already take a crop and an OSM area.
 - Seasonal events tied to real Apex events (Shoot the Chute race).
 - Desktop build (Tauri or Electron) and app-store builds if the web version does well.

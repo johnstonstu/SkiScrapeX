@@ -11,6 +11,8 @@ import { createSkierView, type SkierPose } from './render/rider/skierView'
 import { createLandingMarker } from './render/rider/landingMarker'
 import { createSlopeView } from './render/terrain/slopeView'
 import { sampleRide, type RidePath } from './render/scenery/liftView'
+import { SIGHT_LINE } from './render/scenery/forestView'
+import { RUN_NAMES } from './world/corrections'
 import { addSceneLights, createLighting, createSky, followSun } from './render/lighting'
 import { createControls } from './player/input'
 import { createCameraRig } from './player/camera'
@@ -31,7 +33,7 @@ import { buildParkMenu, buildRunMenu } from './app/menus'
 import { buildApexStage } from './app/apexStage'
 import type { Stage } from './app/stage'
 import { VERSION } from './app/version'
-import { createSettingsPanel, readSettings, resolveQuality, writeSettings, type Settings } from './app/settings'
+import { createSettingsPanel, readSettings, resolveQuality, shadowsOn, writeSettings, type Settings } from './app/settings'
 import { createSession, type Challenge, type SessionEvent } from './app/session'
 import { createGoals, type Goals } from './app/goals'
 import { renderChallenges, renderResults, renderTitle, setTitleStatus } from './ui/goalsPanels'
@@ -57,7 +59,7 @@ renderer.setPixelRatio(pixelRatio)
 renderer.outputColorSpace = THREE.SRGBColorSpace
 renderer.toneMapping = THREE.ACESFilmicToneMapping
 renderer.toneMappingExposure = 1.0
-renderer.shadowMap.enabled = settings.shadows && !params.has('noshadows')
+renderer.shadowMap.enabled = shadowsOn(settings, quality) && !params.has('noshadows')
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
 const lighting = createLighting()
@@ -119,7 +121,7 @@ function applySetting(key?: keyof Settings) {
   if (all || key === 'landingAssist') if (stageReady) stage.env.assist = settings.landingAssist
   if (key === 'npcs') npcs?.setVisible(settings.npcs)
   if (key === 'shadows') {
-    renderer.shadowMap.enabled = settings.shadows
+    renderer.shadowMap.enabled = shadowsOn(settings, quality)
     // Materials compile with or without shadow code; recompile them.
     scene.traverse((object) => {
       const material = (object as THREE.Mesh).material
@@ -169,7 +171,10 @@ let challenge: Challenge = { kind: 'free' }
 let session = createSession(challenge)
 let pause: { until: number; then: () => void } | null = null
 let ride: Ride | null = null
-const bests = readJson<Record<string, number>>(KEYS.bests, {})
+// Free-ski bests by run name; renamed runs keep their best.
+const bests = Object.fromEntries(
+  Object.entries(readJson<Record<string, number>>(KEYS.bests, {})).map(([name, time]) => [RUN_NAMES[name] ?? name, time]),
+)
 let elapsed = 0
 let menuWasOpen = false
 let titleSpin = 2.4
@@ -659,6 +664,8 @@ function tick(dt: number, frameMs: number) {
       camera.position.set(skier.x, skier.y + 16, skier.z)
       camera.lookAt(skier.x + Math.sin(titleSpin) * 500, skier.y - 70, skier.z + Math.cos(titleSpin) * 500)
       sky.position.copy(camera.position)
+      SIGHT_LINE.from.value.copy(camera.position)
+      SIGHT_LINE.to.value.copy(camera.position)
       stage.update(camera.position)
       if (settings.npcs) npcs?.update(dt, camera.position, skier)
       titleWasShown = true
@@ -731,11 +738,14 @@ function tick(dt: number, frameMs: number) {
   sunFocus.z += skier.z
   followSun(sun, lighting, sunFocus)
   perf.begin()
+  SIGHT_LINE.from.value.copy(camera.position)
+  SIGHT_LINE.to.value.set(skier.x, skier.y + 1.1, skier.z)
   stage.update(camera.position)
   perf.lap('update')
   sound.update(skier, Boolean(ride))
   effects.update(dt, skier, ride ? null : ground, camera, stage.snow)
-  landingMarker.update(settings.landingRing && skier.air && !ride ? landingSpot(skier, skier.air, stage.slope.sampleTerrain, PHYSICS.gravity) : null, skier.air?.time ?? 0, dt)
+  // The landing ring is a third-person aid; in first person it fills the view.
+  landingMarker.update(settings.landingRing && rig.mode !== 'first' && skier.air && !ride ? landingSpot(skier, skier.air, stage.slope.sampleTerrain, PHYSICS.gravity) : null, skier.air?.time ?? 0, dt)
   if (!ui.mapPanel.hidden) minimap?.draw(skier, ride?.lift.name)
   updateHud(frameMs, steps)
   perf.begin()

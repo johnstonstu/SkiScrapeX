@@ -1,6 +1,6 @@
 # Status
 
-Updated 2026-11-21 for v0.5.0. Release history is in `CHANGELOG.md`, the plan in `docs/roadmap.md`.
+Updated 2026-11-22 for v0.8.6; the sections below are dated where they describe an earlier pass. Open work is tracked as GitHub issues with phase labels. Release history is in `CHANGELOG.md`, the plan in `docs/roadmap.md`.
 
 ## How the pieces fit
 
@@ -96,7 +96,7 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 
 ## Open issues
 
-- Not yet playtested by someone who knows Apex. Landmarks are from OSM and the LidarBC terrain only.
+- Playtested by Stu through 0.8.x; still wanted: other Apex regulars. Landmarks are from OSM and the LidarBC terrain only.
 - Run widths are guessed from difficulty (11 to 16 m half-width). OSM run areas are not mapped at Apex, so edges are approximate.
 - The 2 m detail is smoothed for snowpack with one fixed sigma. Real snow fills gullies more than it rounds ridges; a fill pass (raise concave cells) could follow a playtest.
 - Trees, lifts and buildings sit on the 2 m ground; far away the 5 m mesh can be up to about 0.5 m off, which is not visible at that distance.
@@ -105,9 +105,8 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - Tuck top speed is lower than before (about 120 km/h equilibrium at 15°) but still high. Tune after a playtest.
 - Buildings are shells from OSM footprints with guessed heights. Only 10 of 147 have tagged storeys. No interiors, decks or props yet.
 - Roads are stamped as packed snow; there are no cars, parking lots or village props.
-- Mobile performance is untested on real devices. Touch devices get fewer trees, lower pixel ratio, fewer particles and a 1024 shadow map.
+- Mobile performance is untested on real devices. Touch devices get fewer trees, lower pixel ratio, fewer particles and the Low profile, which from 0.8.7 turns shadows off unless Settings → Shadows is On.
 - The horizon is real NRCan MRDEM 30 m terrain and canopy out to about 12 km (`scripts/build-horizon.py`, run by the data workflow). Without it the game falls back to procedural hills.
 - About 20 runs the resort grooms were missing from OSM. 21 cleared corridors are now traced from LiDAR with provisional names; matching them to real names (Wildside: Gauntlet, Glade-iator, Granny's Glades, Gun Slinger, Jackpot, Panhandler, ShootOut, Showdown and others) needs Stu or the trail map. Gladed runs with sparse trees are not detected.
 - OSM tags Beaconsfield Mountain with 2247 m, which is Apex Mountain's height. The game labels peaks from the LiDAR instead (about 2176 m).
-- `npm ci` reports audit warnings in dev dependencies. Not investigated.
-- Branch `mountain/quickdraw-forest` is superseded by the canopy forest and can be deleted.
+- `npm audit` is clean since vitest 5 (0.8.x).
