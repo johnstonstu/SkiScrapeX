@@ -4,7 +4,9 @@ A browser skiing game set at Apex Mountain Resort near Penticton, BC, built from
 
 The aim is an Apex that locals recognise, and skiing that feels good on groomers, in powder and in the terrain park.
 
-Current version: **0.5.0** (see [CHANGELOG.md](CHANGELOG.md)). Plan to 1.0: [docs/roadmap.md](docs/roadmap.md).
+**Play it:** https://johnstonstu.github.io/SkiScrapeX/ (desktop or phone, nothing to install).
+
+Current version: **0.8.6** (see [CHANGELOG.md](CHANGELOG.md)). Plan to 1.0: [docs/roadmap.md](docs/roadmap.md).
 
 ## Play locally
 
@@ -36,7 +38,9 @@ Without `public/data` the game falls back to synthetic test slopes.
 
 **Phone or tablet:** a floating stick on the left (left and right turn, up tuck, down brake; in the air it spins and flips) and **Jump** and **Grab** buttons on the right.
 
-You start at the top of Quickdraw on Grandfather's Trail. Reaching the bottom of any lift records your time, then you ride up and carry on. A green ring shows where you will land when your rotation will line up.
+The title screen offers Free ski, Challenges (timed runs, slalom, park score attacks, the run checklist and gold nuggets), the rider creator and Settings. A first run starts with a short tutorial by the Magic Carpet. Skis or snowboard are chosen in the rider panel (<kbd>O</kbd>).
+
+In free ski you start at the top of Quickdraw on Grandfather's Trail. Reaching the bottom of any lift records your time, then you ride up and carry on. A green ring shows where you will land when your rotation will line up.
 
 ## Developer tools
 

@@ -2,7 +2,8 @@ import * as THREE from 'three'
 import type { Slope } from '../../sim'
 
 /** Snow mesh, fall-line centre stripe and gate poles for one synthetic slope. */
-export function createSlopeView(slope: Slope): { object: THREE.Group; dispose: () => void } {
+export function createSlopeView(slope: Slope, options: { markers?: boolean } = {}): { object: THREE.Group; dispose: () => void } {
+  const markers = options.markers ?? true
   const group = new THREE.Group()
   const disposables: { dispose: () => void }[] = []
   const step = slope.visualStep
@@ -28,7 +29,7 @@ export function createSlopeView(slope: Slope): { object: THREE.Group; dispose: (
       normals[index + 1] = normal.y
       normals[index + 2] = normal.z
       const steep = 1 - Math.min(1, Math.abs(normal.y))
-      const onCentre = Math.abs(x - centerX) < 1.6
+      const onCentre = markers && Math.abs(x - centerX) < 1.6
       colors[index] = onCentre ? 0.62 : 0.86 - steep * 0.22
       colors[index + 1] = onCentre ? 0.78 : 0.9 - steep * 0.1
       colors[index + 2] = onCentre ? 0.9 : 0.95 - steep * 0.04
@@ -75,7 +76,7 @@ export function createSlopeView(slope: Slope): { object: THREE.Group; dispose: (
   const blue = new THREE.MeshStandardMaterial({ color: 0x2c6fce, roughness: 0.55 })
   disposables.push(poleGeometry, red, blue)
   const span = Math.min(24, slope.width * 0.22)
-  for (let z = slope.originZ + 80; z < slope.originZ + slope.depth - 20; z += 50) {
+  for (let z = slope.originZ + 80; markers && z < slope.originZ + slope.depth - 20; z += 50) {
     const gate = Math.round((z - slope.originZ) / 50)
     const materialForGate = gate % 2 === 0 ? red : blue
     for (const side of [-1, 1]) {

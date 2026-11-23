@@ -4,6 +4,7 @@
  * feed in app/, the ski model in sim/, world data in world/ and drawing in
  * render/.
  */
+import { buildDemoPark } from './app/demoPark'
 import * as THREE from 'three'
 import './style.css'
 import { PHYSICS, PRESETS, advance, createClock, createPreset, createSkier, landingSpot, resetSkier, type SkiState } from './sim'
@@ -11,6 +12,8 @@ import { createSkierView, type SkierPose } from './render/rider/skierView'
 import { createLandingMarker } from './render/rider/landingMarker'
 import { createSlopeView } from './render/terrain/slopeView'
 import { sampleRide, type RidePath } from './render/scenery/liftView'
+import { SIGHT_LINE } from './render/scenery/forestView'
+import { RUN_NAMES } from './world/corrections'
 import { addSceneLights, createLighting, createSky, followSun } from './render/lighting'
 import { createControls } from './player/input'
 import { createCameraRig } from './player/camera'
@@ -31,7 +34,7 @@ import { buildParkMenu, buildRunMenu } from './app/menus'
 import { buildApexStage } from './app/apexStage'
 import type { Stage } from './app/stage'
 import { VERSION } from './app/version'
-import { createSettingsPanel, readSettings, resolveQuality, writeSettings, type Settings } from './app/settings'
+import { createSettingsPanel, readSettings, resolveQuality, shadowsOn, writeSettings, type Settings } from './app/settings'
 import { createSession, type Challenge, type SessionEvent } from './app/session'
 import { createGoals, type Goals } from './app/goals'
 import { renderChallenges, renderResults, renderTitle, setTitleStatus } from './ui/goalsPanels'
@@ -57,7 +60,7 @@ renderer.setPixelRatio(pixelRatio)
 renderer.outputColorSpace = THREE.SRGBColorSpace
 renderer.toneMapping = THREE.ACESFilmicToneMapping
 renderer.toneMappingExposure = 1.0
-renderer.shadowMap.enabled = settings.shadows && !params.has('noshadows')
+renderer.shadowMap.enabled = shadowsOn(settings, quality) && !params.has('noshadows')
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
 const lighting = createLighting()
@@ -119,7 +122,7 @@ function applySetting(key?: keyof Settings) {
   if (all || key === 'landingAssist') if (stageReady) stage.env.assist = settings.landingAssist
   if (key === 'npcs') npcs?.setVisible(settings.npcs)
   if (key === 'shadows') {
-    renderer.shadowMap.enabled = settings.shadows
+    renderer.shadowMap.enabled = shadowsOn(settings, quality)
     // Materials compile with or without shadow code; recompile them.
     scene.traverse((object) => {
       const material = (object as THREE.Mesh).material
@@ -169,7 +172,10 @@ let challenge: Challenge = { kind: 'free' }
 let session = createSession(challenge)
 let pause: { until: number; then: () => void } | null = null
 let ride: Ride | null = null
-const bests = readJson<Record<string, number>>(KEYS.bests, {})
+// Free-ski bests by run name; renamed runs keep their best.
+const bests = Object.fromEntries(
+  Object.entries(readJson<Record<string, number>>(KEYS.bests, {})).map(([name, time]) => [RUN_NAMES[name] ?? name, time]),
+)
 let elapsed = 0
 let menuWasOpen = false
 let titleSpin = 2.4
@@ -219,7 +225,7 @@ function showTitle() {
 
 async function boot() {
   // Review links (`?park`, `?ride`, `?at`) and test slopes go straight in.
-  const skipTitle = ['dev', 'park', 'ride', 'at', 'perf'].some((key) => params.has(key))
+  const skipTitle = ['dev', 'park', 'ride', 'at', 'perf', 'demo'].some((key) => params.has(key))
   if (skipTitle) ui.titleScreen.hidden = true
   else renderTitle(ui.titleScreen, null, false, titleActions(), !coach.done)
   if (params.has('dev')) {
@@ -256,15 +262,16 @@ async function boot() {
 
 function startApex(world: World) {
   ui.status.textContent = 'Building the village…'
-  const apex = buildApexStage(world, scene, lighting, { quality, viewDistance: settings.viewDistance, ski: SKI_MODELS[outfit.model], phase: perf.phase })
+  scene.add(apexRoot)
+  const apex = buildApexStage(world, apexRoot, lighting, { quality, viewDistance: settings.viewDistance, ski: SKI_MODELS[outfit.model], phase: perf.phase })
   stage = apex.stage
   stage.env.assist = settings.landingAssist
   stageReady = true
   setViewDistance = apex.setViewDistance
   perf.phase('stage')
-  goals = createGoals({ world, stage, scene, parkSites: apex.parkSites, runNameAt: apex.surface.runNameAt, version: VERSION })
+  goals = createGoals({ world, stage, scene: apexRoot, parkSites: apex.parkSites, runNameAt: apex.surface.runNameAt, version: VERSION })
   perf.phase('goals')
-  npcs = createNpcs(scene, goals.routes(), stage.slope.sampleTerrain, { sampleSurface: stage.env.sampleSurface }, quality.npcCount, world.course.spawn)
+  npcs = createNpcs(apexRoot, goals.routes(), stage.slope.sampleTerrain, { sampleSurface: stage.env.sampleSurface }, quality.npcCount, world.course.spawn)
   npcs.setVisible(settings.npcs)
   perf.phase('npcs')
   stylePanel.refresh()
@@ -278,11 +285,14 @@ function startApex(world: World) {
   perf.phase('credits')
   minimap = createMinimap(ui.map, ui.mapLocation, apex.surface.runNameAt, { width: grid.width, depth: grid.depth, resort, hillshade: world.hillshade })
   buildRunMenu(ui.runList, pickableRuns(resort), (run) => {
+    leaveDemoPark()
     setFreeSki()
     course = courseForRun(resort, run)
     restartFromMenu()
   })
-  buildParkMenu(ui.runList, apex.parkSites, startPark, apex.setLayout)
+  apexStage = stage
+  buildParkMenu(ui.runList, apex.parkSites, startPark, apex.setLayout, enterDemoPark)
+  if (params.has('demo')) queueMicrotask(enterDemoPark)
   const parkParam = params.get('park')?.toLowerCase()
   const parkStart = parkParam ? apex.parkSites.find((site) => site.name.toLowerCase().startsWith(parkParam)) : null
   if (parkStart) queueMicrotask(() => startPark(parkStart))
@@ -332,7 +342,43 @@ function restartFromMenu() {
   spawn()
 }
 
+/** Apex scenery, goals and other skiers: hidden while in the demo park. */
+const apexRoot = new THREE.Group()
+let apexStage: Stage | null = null
+let demo: ReturnType<typeof buildDemoPark> | null = null
+
+function enterDemoPark() {
+  if (!apexStage) return
+  setFreeSki()
+  if (!demo) {
+    demo = buildDemoPark(lighting, SKI_MODELS[outfit.model], settings.landingAssist)
+    scene.add(demo.root)
+  }
+  demo.stage.env.ski = SKI_MODELS[outfit.model]
+  demo.stage.env.assist = settings.landingAssist
+  apexRoot.visible = false
+  demo.root.visible = true
+  stage = demo.stage
+  ui.mapPanel.hidden = true
+  course = {
+    spawn: { ...demo.spawn },
+    startLift: null,
+    startRun: { id: 'demo-park', name: 'Demo park', difficulty: 'park', groomed: true, kind: 'line', parts: [] },
+  }
+  restartFromMenu()
+}
+
+/** Back to Apex from the demo park (no-op when already there). */
+function leaveDemoPark() {
+  if (!demo?.root.visible || !apexStage) return
+  demo.root.visible = false
+  apexRoot.visible = true
+  stage = apexStage
+  ui.mapPanel.hidden = false
+}
+
 function startPark(site: ParkSite) {
+  leaveDemoPark()
   setFreeSki()
   const [x, z] = pointAlong(site.line, 4)
   const [ax, az] = pointAlong(site.line, 16)
@@ -375,6 +421,7 @@ function spawn() {
 }
 
 function startTutorial() {
+  leaveDemoPark()
   const bunny = goals?.tutorial()
   if (!bunny) return
   setFreeSki()
@@ -389,6 +436,7 @@ function startTutorial() {
 
 /** Start (or retry) a challenge from its start line. */
 function startChallenge(next: Challenge) {
+  leaveDemoPark()
   coach.stop()
   tutorialLine = null
   challenge = next
@@ -659,6 +707,8 @@ function tick(dt: number, frameMs: number) {
       camera.position.set(skier.x, skier.y + 16, skier.z)
       camera.lookAt(skier.x + Math.sin(titleSpin) * 500, skier.y - 70, skier.z + Math.cos(titleSpin) * 500)
       sky.position.copy(camera.position)
+      SIGHT_LINE.from.value.copy(camera.position)
+      SIGHT_LINE.to.value.copy(camera.position)
       stage.update(camera.position)
       if (settings.npcs) npcs?.update(dt, camera.position, skier)
       titleWasShown = true
@@ -731,12 +781,18 @@ function tick(dt: number, frameMs: number) {
   sunFocus.z += skier.z
   followSun(sun, lighting, sunFocus)
   perf.begin()
+  SIGHT_LINE.from.value.copy(camera.position)
+  SIGHT_LINE.to.value.set(skier.x, skier.y + 1.1, skier.z)
   stage.update(camera.position)
   perf.lap('update')
   sound.update(skier, Boolean(ride))
   effects.update(dt, skier, ride ? null : ground, camera, stage.snow)
-  landingMarker.update(settings.landingRing && skier.air && !ride ? landingSpot(skier, skier.air, stage.slope.sampleTerrain, PHYSICS.gravity) : null, skier.air?.time ?? 0, dt)
-  if (!ui.mapPanel.hidden) minimap?.draw(skier, ride?.lift.name)
+  // The landing ring is a third-person aid; in first person it fills the view.
+  landingMarker.update(settings.landingRing && rig.mode !== 'first' && skier.air && !ride ? landingSpot(skier, skier.air, stage.slope.sampleTerrain, PHYSICS.gravity) : null, skier.air?.time ?? 0, dt)
+  if (!ui.mapPanel.hidden) {
+    const focus = rig.focus
+    minimap?.draw(skier, ride?.lift.name, focus ? { x: camera.position.x, z: camera.position.z, tx: focus.x, tz: focus.z } : undefined)
+  }
   updateHud(frameMs, steps)
   perf.begin()
   renderer.render(scene, camera)
@@ -893,7 +949,6 @@ function updateHud(frameMs: number, steps: number) {
   }
 }
 
-/** `?at=x,z[,headingDeg]` starts somewhere else on the crop, for review and screenshots. */
 /** `?at=x,z[,heading°]` spawns there, titled with the run underfoot. */
 function spawnOverride(start: RunCourse, runs: readonly Run[], runNameAt: (x: number, z: number) => string): RunCourse {
   const at = params.get('at')?.split(',').map(Number)

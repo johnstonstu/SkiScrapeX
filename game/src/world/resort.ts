@@ -56,6 +56,8 @@ export interface Resort {
   roads: Point2[][]
   buildings: FeatureBuildingRef[]
   peaks: Peak[]
+  /** Ski-area boundary ring (OSM landuse=winter_sports), when mapped. */
+  boundary?: Point2[]
   attribution: string[]
 }
 
@@ -94,6 +96,7 @@ export interface FeaturesDocument {
   roads?: { points: FeaturePoint[]; highway?: string }[]
   buildings?: FeatureBuildingRef[]
   peaks?: { name?: string; x: number; z: number; ele?: number | null }[]
+  boundary?: { points?: FeaturePoint[] }
   source?: { attribution?: string }
 }
 export interface ReferencesDocument {
@@ -154,6 +157,7 @@ export function resortFromFeatures(doc: FeaturesDocument, heightAt: (x: number, 
       .filter((line) => line.length >= 2),
     buildings: doc.buildings ?? [],
     peaks: (doc.peaks ?? []).map((peak) => ({ name: peak.name ?? 'Peak', x: peak.x, z: peak.z, ele: peak.ele ?? null })),
+    boundary: doc.boundary?.points && doc.boundary.points.length >= 3 ? doc.boundary.points.map(pt) : undefined,
     attribution: [doc.source?.attribution ?? '© OpenStreetMap contributors'],
   }
 }
@@ -341,16 +345,19 @@ export function pointInRing(x: number, z: number, ring: Point2[]): boolean {
 
 /** Half-width of a mapped run centreline, metres. Rough Apex defaults by difficulty. */
 export function runHalfWidth(run: Run): number {
+  // From the footage: groomers like Grandfather's and Okanagan are 40 m or more wide,
+  // steeps like Gunbarrel and Chute about 15 to 20 m. Ungroomed runs stay narrow.
+  const groomed = run.groomed !== false
   switch (run.difficulty) {
     case 'novice':
     case 'easy':
-      return 16
+      return groomed ? 20 : 14
     case 'intermediate':
-      return 14
+      return groomed ? 18 : 13
     case 'advanced':
-      return 12
+      return groomed ? 14 : 10.5
     default:
-      return 11
+      return 9.5
   }
 }
 

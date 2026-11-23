@@ -52,7 +52,7 @@ const NUGGET_RADIUS = 2.6
 export function createGoals(options: {
   world: World
   stage: Stage
-  scene: THREE.Scene
+  scene: THREE.Object3D
   parkSites: ParkSite[]
   runNameAt: (x: number, z: number) => string
   version: string

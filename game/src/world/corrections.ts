@@ -14,6 +14,19 @@ export const DIFFICULTY_FIXES: Record<string, string> = {
   'Upper Wishbone': 'intermediate',
 }
 
+/**
+ * Official spellings for OSM run names. Source: the 2026/27 trail map labels,
+ * the grooming report and Wikipedia's run list (visual review item 6).
+ */
+export const RUN_NAMES: Record<string, string> = {
+  'Dude ney Trail': 'Dude-Ney Trail',
+  Grommit: 'Gromit',
+  Dawdler1: 'Dawdler 1',
+  Dawdler2: 'Dawdler 2',
+  '97': 'Highway 97',
+  'Pea Shooter': 'Peashooter',
+}
+
 /** Display names for OSM building names with typos or abbreviations. */
 export const BUILDING_NAMES: [RegExp, string][] = [
   [/^the gunbarell saloon$/i, 'Gunbarrel Saloon'],
@@ -51,6 +64,7 @@ export const EXTRA_PEAKS: Peak[] = [{ name: 'Apex Mountain', x: 1768, z: 3988, e
 /** Apply the fixes in place. */
 export function applyCorrections(resort: Resort): void {
   for (const run of resort.runs) {
+    run.name = RUN_NAMES[run.name] ?? run.name
     const difficulty = DIFFICULTY_FIXES[run.name]
     if (difficulty) run.difficulty = difficulty
   }

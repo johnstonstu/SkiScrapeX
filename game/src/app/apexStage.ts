@@ -1,3 +1,5 @@
+import { createSummitFlags } from '../render/scenery/summitFlags'
+import { createBoundaryView } from '../render/scenery/boundaryView'
 import * as THREE from 'three'
 import type { Slope } from '../sim'
 import type { World } from '../world/loadWorld'
@@ -44,7 +46,7 @@ export interface ApexStage {
  */
 export function buildApexStage(
   world: World,
-  scene: THREE.Scene,
+  scene: THREE.Object3D,
   lighting: Lighting,
   options: { quality: QualityProfile; viewDistance: number; ski: SkiModelSpec; phase?: (name: string) => void },
 ): ApexStage {
@@ -78,7 +80,7 @@ export function buildApexStage(
   options.phase?.('apex: forest view')
   const lifts = createLiftView(resort.lifts, grid.heightAt)
   lifts.object.traverse((child) => (child.castShadow = true))
-  mergeStatic(lifts.object)
+  mergeStatic(lifts.object, (object) => Boolean(object.userData.hood))
   scene.add(lifts.object)
   const buildings = buildBuildings(resort.buildings, grid.heightAt, canopy ? { grid, canopy } : undefined)
   scene.add(createBuildingView(buildings).object)
@@ -114,6 +116,10 @@ export function buildApexStage(
   options.phase?.('apex: solids')
   const signs = createSignView(resort.runs, peaks, anyHeight, places)
   scene.add(signs.object)
+  scene.add(createBoundaryView(resort.boundary, grid.heightAt, resort.roads).object)
+  const summitFlags = createSummitFlags(resort.lifts, grid.heightAt)
+  scene.add(summitFlags.object)
+  let lastFlagTime = performance.now()
 
   // Park features sit on top of the LiDAR ground; rebuilt when a layout changes.
   let overlay!: ParkOverlay
@@ -166,6 +172,10 @@ export function buildApexStage(
       forestView.update(camera)
       signs.update(camera)
       parkView?.update(camera)
+      lifts.clearView(camera)
+      const now = performance.now()
+      summitFlags.update(Math.min(0.1, (now - lastFlagTime) / 1000))
+      lastFlagTime = now
     },
     describe: () =>
       `${forestView.drawn.toLocaleString()} / ${forest.count.toLocaleString()} trees (${forest.source}) · ${buildings.length} buildings · ` +

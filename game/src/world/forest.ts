@@ -60,8 +60,20 @@ export interface Forest {
   source: 'canopy' | 'procedural'
 }
 
-const LIFT_CLEARANCE = 9
+/** Half-width of a lift-line clearing (the Quickdraw cut is 20 to 30 m wide); the edge is ragged by up to 25%. */
+const LIFT_CLEARANCE = 12
+/** Clear ground round each lift terminal: the maze, ramps and the operator hut. */
+const TERMINAL_CLEARANCE = 18
+/** Trees above this are LiDAR artefacts (towers, terminals, hut roofs), and summit trees stay stunted. */
+const MAX_TREE_HEIGHT = 35
+const SUMMIT_ELEVATION = 2060
+const SUMMIT_TREE_HEIGHT = 11
 const MAX_SLOPE_COS = Math.cos((40 * Math.PI) / 180)
+
+/** Smooth 0 to 1 wobble along the ground (about 15 m wavelength), for ragged clearing edges. */
+function edgeWobble(x: number, z: number): number {
+  return 0.5 + 0.25 * Math.sin(x * 0.41 + z * 0.13) + 0.25 * Math.sin(z * 0.37 - x * 0.19 + 1.7)
+}
 
 /** Deterministic LCG so a reload plants the same forest. */
 export function makeRandom(seed: number): () => number {
@@ -94,7 +106,8 @@ export function plantForest(
   const LIFT_CELL = 16
   const liftCols = Math.ceil(grid.width / LIFT_CELL) + 1
   const nearLift = new Uint8Array(liftCols * (Math.ceil(grid.depth / LIFT_CELL) + 1))
-  const reach = LIFT_CLEARANCE + LIFT_CELL * Math.SQRT2
+  const reach = Math.max(LIFT_CLEARANCE * 1.25, TERMINAL_CLEARANCE) + LIFT_CELL * Math.SQRT2
+  const terminals = liftLines.flatMap((line) => [line[0], line[line.length - 1]])
   for (const line of liftLines) {
     for (let k = 1; k < line.length; k++) {
       const [ax, az] = line[k - 1]
@@ -111,10 +124,15 @@ export function plantForest(
     const ground = grid.sampleTerrain(x, z)
     if (!ground || (!canopy && ground.normal.y < MAX_SLOPE_COS)) return
     if (nearLift[Math.floor(z / LIFT_CELL) * liftCols + Math.floor(x / LIFT_CELL)]) {
+      const clearance = LIFT_CLEARANCE * (0.85 + 0.4 * edgeWobble(x, z))
       for (const line of liftLines) {
-        if (nearestOnPolyline(x, z, line).distanceSq < LIFT_CLEARANCE * LIFT_CLEARANCE) return
+        if (nearestOnPolyline(x, z, line).distanceSq < clearance * clearance) return
+      }
+      for (const [tx, tz] of terminals) {
+        if ((x - tx) ** 2 + (z - tz) ** 2 < TERMINAL_CLEARANCE * TERMINAL_CLEARANCE) return
       }
     }
+    height = Math.min(height, MAX_TREE_HEIGHT, ground.height + origin > SUMMIT_ELEVATION ? SUMMIT_TREE_HEIGHT : Infinity)
     const key = Math.floor(x / chunkSize) * 65536 + Math.floor(z / chunkSize)
     let chunk = chunks.get(key)
     if (!chunk) {

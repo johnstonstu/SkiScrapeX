@@ -7,7 +7,8 @@ export type QualityLevel = 'low' | 'medium' | 'high'
 export interface Settings {
   /** `auto` is low on touch devices and high elsewhere. Applies on reload. */
   quality: 'auto' | QualityLevel
-  shadows: boolean
+  /** `auto` is off on the Low profile and on otherwise. */
+  shadows: 'auto' | 'on' | 'off'
   /** 0.6 near to 1.4 far: scales how far trees and detail reach. */
   viewDistance: number
   /** 0.5 to 1.5: how quickly keys and sticks reach full edge. */
@@ -29,7 +30,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   quality: 'auto',
-  shadows: true,
+  shadows: 'auto',
   viewDistance: 1,
   steering: 1,
   invertPitch: false,
@@ -43,7 +44,17 @@ export const DEFAULT_SETTINGS: Settings = {
 }
 
 export function readSettings(): Settings {
-  return readJson<Settings>(KEYS.settings, { ...DEFAULT_SETTINGS })
+  const settings = readJson<Settings>(KEYS.settings, { ...DEFAULT_SETTINGS })
+  // Saves from before 0.8.7 stored shadows as a boolean: on becomes auto.
+  const stored = settings.shadows as unknown
+  if (stored === true) settings.shadows = 'auto'
+  if (stored === false) settings.shadows = 'off'
+  return settings
+}
+
+/** Whether shadows draw, from the setting and the graphics profile. */
+export function shadowsOn(settings: Settings, quality: QualityProfile): boolean {
+  return settings.shadows === 'on' || (settings.shadows === 'auto' && quality.shadows)
 }
 
 export function writeSettings(settings: Settings): void {
@@ -58,6 +69,8 @@ export interface QualityProfile {
   pixelRatioMax: number
   antialias: boolean
   shadowMapSize: number
+  /** Shadows when the setting is Auto. Off on Low: the shadow pass is the biggest single cost on phones. */
+  shadows: boolean
   forest: ForestDetail
   forestDensity: number
   apronForestDensity: number
@@ -75,6 +88,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     pixelRatioMax: 1.5,
     antialias: false,
     shadowMapSize: 1024,
+    shadows: false,
     forest: { near: 150, mid: 600, midShare: 0.45, farShare: 0.1 },
     forestDensity: 0.7,
     apronForestDensity: 0.6,
@@ -90,6 +104,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     pixelRatioMax: 1.75,
     antialias: true,
     shadowMapSize: 2048,
+    shadows: true,
     forest: { near: 200, mid: 750, midShare: 0.55, farShare: 0.15 },
     forestDensity: 0.85,
     apronForestDensity: 0.8,
@@ -105,6 +120,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     pixelRatioMax: 2,
     antialias: true,
     shadowMapSize: 2048,
+    shadows: true,
     forest: { near: 260, mid: 900, midShare: 0.7, farShare: 0.22 },
     forestDensity: 1,
     apronForestDensity: 1,
@@ -195,7 +211,7 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
       reload.addEventListener('click', () => location.reload())
       panel.lastElementChild!.append(reload)
     }
-    chips('Shadows', 'shadows', [[true, 'On'], [false, 'Off']])
+    chips('Shadows', 'shadows', [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], 'Auto is off on Low graphics')
     slider('View distance', 'viewDistance', 0.6, 1.4, 0.05, percent)
     slider('Steering sensitivity', 'steering', 0.5, 1.5, 0.05, percent)
     chips('Flip controls (up and down)', 'invertPitch', [[false, 'Normal'], [true, 'Inverted']])

@@ -2,6 +2,45 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.8.7 (2026-11-23): Review fixes
+
+From the visual review of 0.8.6 (`docs/review/apex-visual-improvements.md`).
+
+### Fixed
+- Trees no longer ghost in front of the camera. Trees fade only where they block the line from the camera to the skier, so the forest around you stays solid. The last 1.6 m in front of the lens still clears.
+- The landing ring no longer floats in the first-person view.
+- Official run spellings from the Apex trail map: Dude-Ney Trail, Gromit, Dawdler 1 and 2, Highway 97, Peashooter. Saved medals, bests and checklist progress carry over to the new names.
+
+- The orbit view's minimap names the place the camera is looking at and draws a sight line from the camera to it (#48).
+
+### Added
+- Demo park: a 2.6 km, 12° practice run off the Apex map with 24 features in a progression line, from rollers and small tabletops through boxes, flat, down and flat-down rails and a step-down to two XL jumps. Open it from the runs menu (T) under Terrain parks, or with `?demo`. Picking any Apex run, park, challenge or the tutorial takes you back.
+
+- Out-of-bounds line: orange bamboo poles and a sagging rope along the OSM ski-area boundary, open where roads cross, with "Area boundary / Closed beyond" signs every 220 m facing into the resort. Like the real rope, it does not stop you (#68).
+
+- Trail-head signs are timber boards on two posts with a cap rail, painted with the run's difficulty symbol and name, facing skiers coming from above. The floating name label now only shows from 60 to 260 m away to help you find runs; up close you read the board (part of #36).
+
+- Snow detail: fine wind-pressed relief within about 70 m of the camera (stronger in powder), run edges warped by noise so the border between groomed and powder wanders, worn patches on groomers where the corduroy fades and faint skier streaks show, needle and twig debris under the trees, and a broad brightness drift so far slopes are not one flat tone (part of #69).
+
+- Summit windsock (red and white, as on the summit webcam) and three flag poles behind the Quickdraw top terminal, swinging in a slow gusting wind (#45).
+
+### Quickdraw
+- Chairlift hardware modelled on Quickdraw, a 1994 Doppelmayr-CTEC detachable quad. Towers are galvanized tapered tubes with a crossarm, a four-wheel sheave train under each rope, a ladder and a railed walkway. Chairs are galvanized quads with a hanger that bends back over the seat, four seat and back pads, and a lowered safety bar with a footrest. Terminals are long detach housings under a rounded light hood, open underneath, with an operator hut by the loading area, each facing down the line. The housing hides while the camera is inside it, so boarding and unloading stay clear (#26, #27). Stock's uses the same towers and chairs as a triple for now.
+
+### Rider
+- Head: an open-faced helmet with vents and a back shell that drops over the ears, cylindrical goggles at eye level wrapping the face, a goggle strap round the back in the jacket accent colour, and the gaiter pulled up to the nose so the nose and cheeks show. Before, the face was a grey cylinder with the goggles floating above it.
+- Boots: a light shell with a toe box, an instep and a forward-leaning cuff, a dark spine and heel, four buckles with levers on the outside, and a power strap.
+- Pants: a flat, shaped knee panel instead of a lump, and cargo pockets on the thighs.
+
+### World
+- Wider groomers: run width now depends on grooming as well as difficulty. Groomed greens are about 40 m across, groomed blues 36 m, and ungroomed runs and the steeps 18 to 22 m (#11).
+- Lift lines are cut 24 m wide with a ragged edge, up from 18 m, and an 18 m circle round each terminal is clear of trees (#13, part of #24).
+- Trees are capped at 35 m (LiDAR picks up towers and roofs as canopy), and trees above 2060 m at 11 m, which should remove the spire behind the summit hut (#25).
+
+### Changed
+- Shadows are now Auto, On or Off (Settings → Shadows). Auto turns them off on Low graphics, which phones use, because the shadow pass is the largest single cost there. Saved settings move over: On becomes Auto.
+- README, status and roadmap brought up to date for 0.8.6, with the next five phases.
+
 ## 0.8.6 (2026-11-22): Turns that read right
 
 From Stu's playtest of 0.8.5: turning still felt off, and the rider looked wrong both mid-turn and between turns.

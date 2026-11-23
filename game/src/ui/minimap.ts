@@ -77,8 +77,9 @@ export function createMinimap(
   drawFeatures()
 
   return {
-    draw(state: SkiState, liftName?: string) {
-      const location = liftName ?? runNameAt(state.x, state.z)
+    /** `view` (orbit camera and its target) names the place being looked at and draws a sight line to it. */
+    draw(state: SkiState, liftName?: string, view?: { x: number; z: number; tx: number; tz: number }) {
+      const location = view ? runNameAt(view.tx, view.tz) : liftName ?? runNameAt(state.x, state.z)
       if (caption.textContent !== location) caption.textContent = location
       context.setTransform(1, 0, 0, 1, 0, 0)
       context.drawImage(background, 0, 0)
@@ -98,6 +99,24 @@ export function createMinimap(
       context.fill()
       context.stroke()
       context.restore()
+      if (view) {
+        // Camera dot, a dashed sight line and a ring on the point being looked at.
+        context.strokeStyle = '#ffffff'
+        context.fillStyle = '#ffffff'
+        context.lineWidth = 1.5 / scale
+        context.setLineDash([4 / scale, 3 / scale])
+        context.beginPath()
+        context.moveTo(view.x, view.z)
+        context.lineTo(view.tx, view.tz)
+        context.stroke()
+        context.setLineDash([])
+        context.beginPath()
+        context.arc(view.tx, view.tz, 6 / scale, 0, Math.PI * 2)
+        context.stroke()
+        context.beginPath()
+        context.arc(view.x, view.z, 3 / scale, 0, Math.PI * 2)
+        context.fill()
+      }
     },
   }
 }
