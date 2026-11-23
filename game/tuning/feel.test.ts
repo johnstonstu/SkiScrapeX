@@ -4,7 +4,7 @@
  * held turn, and how far the follow camera trails the skis. LIP=-2 LAND=1
  * env vars offset every kicker's lip and landing angles for experiments.
  */
-import { it } from 'vitest'
+import { expect, it } from 'vitest'
 import { FIXED_DT, createSkiState, createSteadySlope, stepSkier, type SkiInput } from '../src/sim'
 import { buildParkOverlay, FEATURES, footprintOf, type PlacedFeature } from '../src/world/park'
 
@@ -90,4 +90,73 @@ it('camera lag', () => {
     rows.push(`travel ${w} rate ${rate} @${v} m/s  skis 10/30°: ${marks.s10?.toFixed(2)} ${marks.s30?.toFixed(2)}  camera 10/30°: ${marks.c10?.toFixed(2)} ${marks.c30?.toFixed(2)}`)
   }
   console.log(rows.join('\n'))
+})
+
+it('turn radius vs speed', () => {
+  for (const pitch of [15, 25]) {
+    const slope = createSteadySlope(pitch, { width: 400, depth: 400 })
+    const angle = pitch * Math.PI / 180
+    for (const turnModel of ['classic', 'wide'] as const) {
+      const rows = []
+      for (const kmh of [10, 20, 30, 40, 50, 60]) {
+        const state = createSkiState({ x: 200, z: 100, heading: 0 })
+        state.y = slope.sampleTerrain(state.x, state.z)!.height
+        state.vy = -Math.sin(angle) * kmh / 3.6
+        state.vz = Math.cos(angle) * kmh / 3.6
+        let distance = 0
+        let change = 0
+        let peakG = 0
+        for (let tick = 0; tick < 90; tick++) {
+          const before = Math.atan2(-state.vx, state.vz / Math.cos(angle))
+          const speed = Math.hypot(state.vx, state.vy, state.vz)
+          const scale = kmh / (3.6 * speed)
+          state.vx *= scale
+          state.vy *= scale
+          state.vz *= scale
+          stepSkier(state, { ...IDLE, steer: 1, directionalSteering: true }, slope.sampleTerrain, FIXED_DT, { turnModel })
+          const after = Math.atan2(-state.vx, state.vz / Math.cos(angle))
+          const delta = Math.abs(Math.atan2(Math.sin(after - before), Math.cos(after - before)))
+          peakG = Math.max(peakG, delta * kmh / (3.6 * FIXED_DT * 9.81))
+          if (tick >= 30) {
+            distance += kmh / 3.6 * FIXED_DT
+            change += delta
+          }
+        }
+        const radius = distance / change
+        if (pitch === 15 && kmh === 40 && turnModel === 'wide') {
+          expect(radius).toBeGreaterThanOrEqual(15)
+          expect(peakG).toBeLessThan(1.6)
+        }
+        rows.push({ 'km/h': kmh, 'radius (m)': radius.toFixed(1), 'peak lateral g': peakG.toFixed(2) })
+      }
+      console.log(`${pitch}° ${turnModel}`)
+      console.table(rows)
+    }
+  }
+})
+
+it('turn to stop from 30 km/h', () => {
+  const slope = createSteadySlope(15, { width: 400, depth: 400 })
+  const angle = 15 * Math.PI / 180
+  for (const turnModel of ['classic', 'wide'] as const) for (const maneuver of ['uphill', 'hockey stop']) {
+    const state = createSkiState({ x: 200, z: 100, heading: 0 })
+    state.y = slope.sampleTerrain(state.x, state.z)!.height
+    state.vy = -Math.sin(angle) * 30 / 3.6
+    state.vz = Math.cos(angle) * 30 / 3.6
+    let distance = 0
+    let uphill = false
+    for (let tick = 0; tick < 10 / FIXED_DT; tick++) {
+      const { x, y, z } = state
+      if (state.heading >= Math.PI * 0.8) uphill = true
+      const input = maneuver === 'hockey stop'
+        ? { ...IDLE, steer: 1, brake: 1 }
+        : { ...IDLE, steer: uphill ? 0 : 1, directionalSteering: true }
+      stepSkier(state, input, slope.sampleTerrain, FIXED_DT, { turnModel })
+      distance += Math.hypot(state.x - x, state.y - y, state.z - z)
+      if (state.speed < 0.25) break
+    }
+    console.log(`${turnModel} ${maneuver}: ${distance.toFixed(1)} m, final speed ${(state.speed * 3.6).toFixed(1)} km/h`)
+    expect(state.speed).toBeLessThan(0.25)
+    expect(distance).toBeLessThanOrEqual(maneuver === 'uphill' ? 25.5 : 4)
+  }
 })

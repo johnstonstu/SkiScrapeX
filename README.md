@@ -49,6 +49,7 @@ In free ski you start at the top of Quickdraw on Grandfather's Trail. Reaching t
 | `?at=x,z,heading` | Start anywhere on the crop (metres, heading in degrees) |
 | `?ride=quickdraw`, `?park=claim` | Start on a lift or at the top of a park |
 | `?dev` | Synthetic test slopes |
+| `?turns=wide` | Try wider turns at speed. Open the same route without the parameter for Classic. |
 | `?touch`, `?noshadows` | Force touch controls (and the mobile quality path), turn off shadows |
 | `?perf` | Exposes load timings, frame CPU split and renderer counts as `window.__perf` |
 | `rider.html` | Rider lab: every pose side by side. `?anim` plays them, `?h=90` side view, outfit keys like `?fit=slim&headwear=beanie&jacket=2f7fe0` |
