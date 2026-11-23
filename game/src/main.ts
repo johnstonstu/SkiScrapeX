@@ -61,12 +61,18 @@ const settings = readSettings()
 const hardware = probeHardware(mobile)
 const hardwareTier = hardware ? classifyHardware(hardware) : null
 const autoCap = readAutoCap()
-const quality = resolveQuality(settings, mobile, hardwareTier?.level ?? null, autoCap)
+// `?quality=low|medium|high` tries a level for one load without saving it.
+const qualityParam = params.get('quality')
+const forcedQuality = qualityParam === 'low' || qualityParam === 'medium' || qualityParam === 'high' ? qualityParam : null
+const quality = forcedQuality ? QUALITY[forcedQuality] : resolveQuality(settings, mobile, hardwareTier?.level ?? null, autoCap)
+const qualityReason = forcedQuality
+  ? 'set by ?quality'
+  : settings.quality === 'auto'
+    ? `Auto: ${hardwareTier?.reason ?? 'chip unknown'}${autoCap ? `, limited to ${autoCap} on this machine` : ''}`
+    : 'chosen in Settings'
+perf.graphics({ level: quality.level, reason: qualityReason, renderer: hardware?.renderer ?? '' })
 setSnowDetail(quality.snowDetail)
-console.info(
-  `SkiScrapex graphics: ${quality.level}${settings.quality === 'auto' ? ` (Auto: ${hardwareTier?.reason ?? 'chip unknown'}${autoCap ? `, limited to ${autoCap} on this machine` : ''})` : ' (chosen)'}`,
-  hardware?.renderer ?? '',
-)
+console.info(`SkiScrapex graphics: ${quality.level} (${qualityReason})`, hardware?.renderer ?? '')
 const frameWatch = createFrameWatch()
 const pixelRatio = Math.min(window.devicePixelRatio, quality.pixelRatioMax)
 const renderer = createRenderer()
@@ -969,6 +975,8 @@ function updateHud(frameMs: number, steps: number) {
       `elev ${elevation} · x ${skier.x.toFixed(0)} z ${skier.z.toFixed(0)}`,
       `${frameMs.toFixed(1)} ms · ${steps} steps · ${renderer.info.render.calls} draws · ${(renderer.info.render.triangles / 1000).toFixed(0)}k tris`,
       stage.describe(),
+      `graphics ${quality.level} (${qualityReason}) · shadows ${renderer.shadowMap.enabled ? 'on' : 'off'} · pixel ratio ${renderer.getPixelRatio().toFixed(2)}`,
+      hardware?.renderer ?? 'graphics chip unknown',
       `v${VERSION}`,
     ].join('\n')
   }
@@ -1078,7 +1086,7 @@ function lowerAutoCap(level: QualityLevel) {
  * shadows now, and start a level lighter next time.
  */
 function lightenForSlowFrames() {
-  if (settings.quality !== 'auto') return
+  if (settings.quality !== 'auto' || forcedQuality) return
   renderer.setPixelRatio(Math.max(0.6, renderer.getPixelRatio() * 0.7))
   resize()
   if (renderer.shadowMap.enabled) {

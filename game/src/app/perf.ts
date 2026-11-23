@@ -12,10 +12,22 @@ export function createPerfProbe(enabled: boolean) {
   let last = start
   const frames: Record<string, number[]> = { sim: [], update: [], render: [], frame: [] }
   let t0 = 0
-  const report = { phases, frames: {} as Record<string, number>, renderer: {} as Record<string, number> }
+  const report = {
+    phases,
+    frames: {} as Record<string, number>,
+    renderer: {} as Record<string, number>,
+    graphics: { level: '', reason: '', renderer: '' },
+  }
   if (enabled) (window as unknown as { __perf: typeof report; __perfRaw: typeof frames }).__perf = report
   if (enabled) (window as unknown as { __perfRaw: typeof frames }).__perfRaw = frames
   return {
+    /** The graphics level in use and why, for the report and the info overlay. */
+    graphics(info: { level: string; reason: string; renderer: string }) {
+      report.graphics = info
+    },
+    get graphicsInfo() {
+      return report.graphics
+    },
     /** End of a load phase. */
     phase(name: string) {
       if (!enabled) return
