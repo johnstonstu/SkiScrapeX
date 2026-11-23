@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
 import { createSkiState, type SkiInput } from '../src/sim'
+import { DEFAULT_OUTFIT } from '../src/ui/riderPanel'
 import { Spring, createSkierView } from '../src/render/rider/skierView'
 
 const idle: SkiInput = { steer: 0, brake: 0, tuck: false }
@@ -62,7 +63,7 @@ describe('rider animation', () => {
     run(60, () => idle)
     state.grounded = false
     state.air = { time: 0.3, spin: 1, spinRate: 3, flip: 0.5, flipRate: 1, grab: 'mute', grabTime: 0.4, timeToLand: 1, predictedFrom: 0, cork: 0.2, corkTime: 0 }
-    run(30, () => idle)
+    run(30, () => ({ ...idle, grab: true }))
     state.air = null
     state.grounded = true
     run(30, () => idle)
@@ -70,4 +71,35 @@ describe('rider animation', () => {
     run(30, () => idle, 'stand')
     expect(joints(view.object).every(Number.isFinite)).toBe(true)
   })
+})
+
+it('rolls the snowboard across both edges and lifts its nose at takeoff', () => {
+  const view = createSkierView()
+  view.setColours({ ...DEFAULT_OUTFIT, model: 'snowboard', skiGraphic: 'solid' })
+  const board = view.object.getObjectByName('snowboard')!
+  const state = createSkiState({ x: 0, z: 0, heading: 0 })
+  state.speed = 12
+
+  expect(board.visible).toBe(true)
+  for (const edge of [-0.64, 0, 0.64]) {
+    state.edgeAngle = edge
+    for (let frame = 0; frame < 12; frame++) view.update(state, idle, ground)
+    expect(board.rotation.z).toBeCloseTo(edge)
+    expect(joints(view.object).every(Number.isFinite)).toBe(true)
+  }
+
+  state.grounded = false
+  state.air = {
+    time: 0.05, spin: 0, spinRate: 0, flip: 0, flipRate: 0, grab: null,
+    grabTime: 0, timeToLand: 0.5, predictedFrom: 0, cork: 0, corkTime: 0,
+  }
+  view.update(state, idle, null)
+  expect(board.rotation.x).toBeLessThan(-0.15)
+  state.air.time = 0.3
+  state.air.grab = 'nose'
+  for (let frame = 0; frame < 30; frame++) view.update(state, { ...idle, grab: true }, null)
+  expect(board.rotation.x).toBeLessThan(-0.3)
+  for (let frame = 0; frame < 40; frame++) view.update(state, idle, null)
+  expect(board.rotation.x).toBeCloseTo(0, 2)
+  expect(joints(view.object).every(Number.isFinite)).toBe(true)
 })

@@ -12,6 +12,12 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 
+/** Binding centres and boot yaw in the snowboard's local frame. */
+export const BOARD_BINDINGS = [
+  { z: 0.26, yaw: -Math.PI / 2 + Math.PI / 12 },
+  { z: -0.26, yaw: -Math.PI / 2 },
+] as const
+
 export interface RiderLook {
   jacket: string
   pants: string
@@ -283,6 +289,7 @@ export function buildRider() {
 
   // ---- Snowboard --------------------------------------------------------------
   const boardGroup = new THREE.Group()
+  boardGroup.name = 'snowboard'
   {
     const half = 0.78
     const outline = new THREE.Shape()
@@ -295,9 +302,7 @@ export function buildRider() {
     outline.quadraticCurveTo(0.13, -half, 0, -half)
     outline.quadraticCurveTo(-0.13, -half, -width(-0.66), -0.66)
     const geometry = new THREE.ExtrudeGeometry(outline, { depth: 0.016, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.004, bevelSegments: 1, curveSegments: 8 })
-    geometry.rotateX(Math.PI / 2)
-    geometry.scale(1, -1, 1)
-    geometry.computeVertexNormals()
+    geometry.rotateX(-Math.PI / 2)
     const position = geometry.attributes.position
     const uv = geometry.attributes.uv
     for (let i = 0; i < position.count; i++) uv.setXY(i, (position.getX(i) + 0.14) / 0.28, (position.getZ(i) + half) / (2 * half))
@@ -306,12 +311,16 @@ export function buildRider() {
     base.rotation.x = Math.PI / 2
     base.position.y = -0.001
     boardGroup.add(deck, base)
-    for (const z of [0.26, -0.26]) {
-      const binding = rounded(0.27, 0.05, 0.13, 0.02, mat.trim)
-      binding.position.set(0, 0.035, z)
-      const highback = rounded(0.2, 0.16, 0.025, 0.01, mat.trim)
-      highback.position.set(0, 0.1, z - 0.07)
-      boardGroup.add(binding, highback)
+    for (const { z, yaw } of BOARD_BINDINGS) {
+      const mount = new THREE.Group()
+      mount.position.z = z
+      mount.rotation.y = yaw
+      const binding = rounded(0.13, 0.05, 0.25, 0.02, mat.trim)
+      binding.position.y = 0.035
+      const highback = rounded(0.12, 0.16, 0.025, 0.01, mat.trim)
+      highback.position.set(0, 0.1, -0.1)
+      mount.add(binding, highback)
+      boardGroup.add(mount)
     }
     boardGroup.visible = false
     root.add(boardGroup)

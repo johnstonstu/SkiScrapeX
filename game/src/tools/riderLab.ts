@@ -13,7 +13,7 @@ import { FIXED_DT, createSkiState, createSteadySlope, newPressState, stepSkier, 
 import { createCameraRig } from '../player/camera'
 import { createSkierView } from '../render/rider/skierView'
 import { addSceneLights, createLighting } from '../render/lighting'
-import { DEFAULT_OUTFIT, readOutfit } from '../ui/riderPanel'
+import { DEFAULT_OUTFIT, readOutfit, SKI_MODELS } from '../ui/riderPanel'
 
 interface Pose {
   label: string
@@ -47,7 +47,7 @@ const POSES: Pose[] = [
       s.grounded = false
       s.speed = 10
       s.air = { time: 0.5, spin: 0, spinRate: 0, flip: 0, flipRate: 0, grab: 'mute', grabTime: 0.4, timeToLand: 1, predictedFrom: 0, cork: 0, corkTime: 0 }
-      return idle
+      return { ...idle, grab: true }
     },
   },
   {
@@ -56,7 +56,7 @@ const POSES: Pose[] = [
       s.grounded = false
       s.speed = 10
       s.air = { time: 0.5, spin: 0, spinRate: 0, flip: 0, flipRate: 0, grab: 'japan', grabTime: 0.4, timeToLand: 1, predictedFrom: 0, cork: 0, corkTime: 0 }
-      return idle
+      return { ...idle, grab: true }
     },
   },
   {
@@ -65,7 +65,7 @@ const POSES: Pose[] = [
       s.grounded = false
       s.speed = 10
       s.air = { time: 0.5, spin: 0, spinRate: 0, flip: 0, flipRate: 0, grab: 'truck', grabTime: 0.4, timeToLand: 1, predictedFrom: 0, cork: 0, corkTime: 0 }
-      return idle
+      return { ...idle, grab: true }
     },
   },
   {
@@ -120,7 +120,13 @@ for (const key of ['fit', 'headwear', 'jacket', 'pants', 'helmet', 'skis', 'gait
 // `?pose=tuck,carve-left` shows only those poses (label slugs), for close-ups.
 const slug = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 const wanted = params.get('pose')?.split(',').map(slug)
-const shown = wanted ? POSES.filter((p) => wanted.includes(slug(p.label))) : POSES
+const boarding = outfit.model === 'snowboard'
+const boardLabels: Readonly<Record<string, string>> = { 'Carve left': 'Heel-side', 'Carve right': 'Toe-side', 'Hockey stop': 'Edge stop' }
+const shown = POSES
+  .filter(({ label }) => !boarding || !['Snowplough', 'Pushing', 'Skating'].includes(label))
+  .filter(({ label }) => !wanted || wanted.includes(slug(label)) ||
+    (boarding && boardLabels[label] && wanted.includes(slug(boardLabels[label]))))
+  .map((pose) => boarding && boardLabels[pose.label] ? { ...pose, label: boardLabels[pose.label] } : pose)
 if (params.has('sim')) runSim()
 else runPoses()
 
@@ -183,6 +189,8 @@ function runPoses() {
 function runSim() {
   const pitch = Number(params.get('pitch') ?? 18)
   const period = Number(params.get('period') ?? 2.4)
+  const action = params.get('action')
+  const env = { ski: SKI_MODELS[outfit.model] ?? SKI_MODELS.allMountain }
   const capKmh = Number(params.get('cap') ?? 45)
   const slope = createSteadySlope(pitch, { width: 4000, depth: 8000 })
   const height = (x: number, z: number) => slope.sampleTerrain(x, z)?.height ?? 0
@@ -224,15 +232,26 @@ function runSim() {
   const step = () => {
     time += 1 / 60
     const steer = time < 3 ? 0 : Math.sin(((time - 3) * Math.PI * 2) / period) > 0 ? 1 : -1
-    const input: SkiInput = { steer, brake: state.speed * 3.6 > capKmh ? 0.5 : 0, tuck: false }
-    for (acc += 1 / 60; acc >= FIXED_DT; acc -= FIXED_DT) stepSkier(state, input, slope.sampleTerrain, FIXED_DT)
+    const cycle = time % 5
+    const jump = action === 'ollie' && cycle > 3.2 && cycle < 3.55
+    const grab = action === 'ollie' && cycle >= 3.55 && cycle < 3.84
+    const input: SkiInput = {
+      steer: action === 'ollie' ? 0 : steer,
+      brake: state.speed * 3.6 > capKmh ? 0.5 : 0,
+      tuck: action === 'tuck',
+      jump,
+      grab,
+      grabKind: grab ? 'mute' : undefined,
+    }
+    for (acc += 1 / 60; acc >= FIXED_DT; acc -= FIXED_DT) stepSkier(state, input, slope.sampleTerrain, FIXED_DT, env)
     const ground = slope.sampleTerrain(state.x, state.z)
     view.update(state, input, ground, 'ski', 1 / 60)
     rig.update(state, slope.sampleTerrain, 1 / 60)
     sun.position.set(state.x, state.y, state.z).addScaledVector(lighting.sunDirection, 40)
     sun.target.position.set(state.x, state.y, state.z)
     sun.target.updateMatrixWorld()
-    note.textContent = `t ${time.toFixed(2)} · ${(state.speed * 3.6).toFixed(0)} km/h · steer ${steer > 0 ? 'R' : steer < 0 ? 'L' : '-'} · edge ${((state.edgeAngle * 180) / Math.PI).toFixed(0)}° · skid ${state.skid.toFixed(2)}`
+    const phase = state.air ? (input.grab && state.air.grab ? 'grab' : 'air') : state.popCharge > 0 ? 'loading pop' : input.tuck ? 'tuck' : 'ground'
+    note.textContent = `${phase} · t ${time.toFixed(2)} · ${(state.speed * 3.6).toFixed(0)} km/h · steer ${input.steer > 0 ? 'R' : input.steer < 0 ? 'L' : '-'} · edge ${((state.edgeAngle * 180) / Math.PI).toFixed(0)}° · skid ${state.skid.toFixed(2)}`
   }
   const resizeSim = () => {
     renderer.setSize(innerWidth, innerHeight, false)
