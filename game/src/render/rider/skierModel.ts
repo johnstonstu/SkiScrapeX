@@ -170,7 +170,10 @@ export function buildRider() {
     frame: m(0x15181c, 0.6),
     gaiter: m(0x59606b, 0.95),
     glove: m(0x15181c, 0.8),
-    boot: m(0xeceff2, 0.35),
+    boot: m(0xd3d9e0, 0.32),
+    bootAccent: m(0x2c3138, 0.45),
+    strap: m(0x8f1c20, 0.8),
+    vent: m(0x15181c, 0.5),
     buckle: m(0x9aa3ad, 0.3, 0.8),
     pole: m(0xb9c2cb, 0.3, 0.8),
   }
@@ -196,7 +199,7 @@ export function buildRider() {
 
   // ---- Skis -----------------------------------------------------------------
   const blades: THREE.Group[] = []
-  const makeSki = () => {
+  const makeSki = (side: number) => {
     const ski = new THREE.Group()
     const sections = [
       [-0.87, 0.032, 0.065], [-0.82, 0.057, 0.035], [-0.66, 0.059, 0.010],
@@ -239,25 +242,43 @@ export function buildRider() {
     heel.position.set(0, 0.06, -0.15)
     const toe = rounded(0.095, 0.05, 0.08, 0.018, mat.buckle)
     toe.position.set(0, 0.05, 0.19)
-    // Boot: sole, shell with a toe box, a cuff the pants cover, and buckles on the toe box.
-    const sole = rounded(0.115, 0.05, 0.32, 0.02, mat.trim)
-    sole.position.set(0, 0.075, 0.02)
-    const shell = rounded(0.118, 0.13, 0.27, 0.045, mat.boot)
-    shell.position.set(0, 0.15, 0.04)
-    const cuff = rounded(0.12, 0.11, 0.14, 0.04, mat.boot)
-    cuff.position.set(0, 0.24, -0.02)
-    cuff.rotation.x = -0.25
-    ski.add(blade, binding, heel, toe, sole, shell, cuff)
+    // Boot: sole, lower shell with a toe box and an instep, a forward-leaning cuff (mostly under the
+    // pants), a light spine panel, buckles with levers on the outside, and a power strap.
+    const sole = rounded(0.112, 0.04, 0.315, 0.016, mat.trim)
+    sole.position.set(0, 0.07, 0.02)
+    const shell = rounded(0.112, 0.1, 0.27, 0.042, mat.boot)
+    shell.position.set(0, 0.13, 0.045)
+    const instep = rounded(0.108, 0.09, 0.16, 0.04, mat.boot)
+    instep.position.set(0, 0.19, 0.025)
+    instep.rotation.x = 0.42
+    const cuff = rounded(0.122, 0.18, 0.145, 0.045, mat.boot)
+    cuff.position.set(0, 0.27, -0.035)
+    cuff.rotation.x = -0.26
+    const spine = rounded(0.07, 0.15, 0.03, 0.012, mat.bootAccent)
+    spine.position.set(0, 0.27, -0.105)
+    spine.rotation.x = -0.26
+    const heelCap = rounded(0.1, 0.05, 0.06, 0.02, mat.bootAccent)
+    heelCap.position.set(0, 0.1, -0.1)
+    ski.add(blade, binding, heel, toe, sole, shell, instep, cuff, spine, heelCap)
     ski.userData.skiOnly = [blade, binding, heel, toe]
-    for (const [y, z, w] of [[0.19, 0.13, 0.13], [0.215, 0.07, 0.126]]) {
-      const clip = new THREE.Mesh(new THREE.BoxGeometry(w, 0.014, 0.03), mat.buckle)
-      clip.position.set(0, y, z)
-      ski.add(clip)
+    // Two instep buckles and two cuff buckles: a strap over the top and a lever on the outside.
+    for (const [y, z, tilt, w] of [[0.165, 0.11, 0.55, 0.118], [0.215, 0.055, 0.42, 0.114], [0.29, 0.005, -0.26, 0.13], [0.335, -0.008, -0.26, 0.13]]) {
+      const band = new THREE.Mesh(new THREE.BoxGeometry(w, 0.012, 0.022), mat.buckle)
+      band.position.set(0, y, z)
+      band.rotation.x = tilt
+      const lever = rounded(0.012, 0.022, 0.045, 0.005, mat.buckle)
+      lever.position.set(side * (w / 2 + 0.004), y - 0.004, z - 0.005)
+      lever.rotation.x = tilt
+      ski.add(band, lever)
     }
+    const powerStrap = new THREE.Mesh(new THREE.BoxGeometry(0.128, 0.03, 0.15), mat.trim)
+    powerStrap.position.set(0, 0.37, -0.04)
+    powerStrap.rotation.x = -0.26
+    ski.add(powerStrap)
     blades.push(blade)
     return ski
   }
-  const skis = [makeSki(), makeSki()] // 0 left (+X), 1 right
+  const skis = [makeSki(1), makeSki(-1)] // 0 left (+X), 1 right
   root.add(...skis)
 
   // ---- Snowboard --------------------------------------------------------------
@@ -316,9 +337,13 @@ export function buildRider() {
     const knee = new THREE.Group()
     knee.position.y = -THIGH_LENGTH
     const joint = sphere(0.088, mat.pants, 12, 8)
-    const patch = sphere(0.075, mat.pantsPatch, 10, 8)
-    patch.position.set(0, 0.01, 0.045)
-    patch.scale.set(1.05, 1.1, 0.6)
+    // Articulated knee panel: a flat, shaped patch rather than a lump.
+    const patch = sphere(0.08, mat.pantsPatch, 12, 8)
+    patch.position.set(0, 0.0, 0.035)
+    patch.scale.set(0.95, 1.35, 0.62)
+    const pocket = rounded(0.03, 0.13, 0.11, 0.012, mat.pantsPatch)
+    pocket.position.set(side * 0.095, -0.22, 0.01)
+    upper.add(pocket)
     // Pants run over the boot cuff and flare at the hem.
     const shin = limb(0.088, 0.106, SHIN_LENGTH + 0.01, mat.pants, 0.006, 0.028)
     knee.add(joint, patch, shin)
@@ -400,27 +425,43 @@ export function buildRider() {
   chest.add(head)
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.09, 0.12, 12), mat.gaiter)
   neck.position.y = 0.02
-  const skull = sphere(0.108, mat.skin)
-  skull.position.y = 0.13
-  skull.scale.set(0.95, 1.05, 1)
-  const buff = new THREE.Mesh(new THREE.SphereGeometry(0.113, 16, 10, 0, Math.PI * 2, Math.PI * 0.52, Math.PI * 0.48), mat.gaiter)
-  buff.position.y = 0.135
-  buff.scale.set(1.02, 1.15, 1.06)
+  const skull = sphere(0.105, mat.skin)
+  skull.position.y = 0.135
+  skull.scale.set(0.92, 1.08, 1)
+  // Gaiter pulled up over the nose to just under the goggles, with a nose bump.
+  const buff = new THREE.Group()
+  const buffShell = new THREE.Mesh(new THREE.LatheGeometry(
+    [[0.001, -0.03], [0.08, -0.03], [0.086, 0.03], [0.097, 0.07], [0.1, 0.095], [0.094, 0.108], [0.05, 0.112], [0.001, 0.113]].map(([r, y]) => new THREE.Vector2(r, y)), 18), mat.gaiter)
+  buffShell.scale.set(0.97, 1, 1.07)
+  // Nose and cheeks show between the gaiter and the goggles.
+  const nose = sphere(0.022, mat.skin, 10, 8)
+  nose.position.set(0, 0.112, 0.1)
+  nose.scale.set(0.75, 1.1, 0.9)
+  buff.add(buffShell, nose)
+  // Helmet: an open-faced dome, a back and side shell that drops over the ears, vents and ear pads.
   const helmet = new THREE.Group()
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.14, 22, 12, 0, Math.PI * 2, 0, Math.PI * 0.56), mat.helmet)
-  dome.scale.set(1, 0.95, 1.12)
-  const brim = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.012, 6, 24, Math.PI * 0.9), mat.helmet)
-  brim.rotation.set(Math.PI / 2, 0, Math.PI * 0.05)
-  brim.position.set(0, 0.012, 0.01)
-  brim.scale.set(1, 1.18, 1)
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.13, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.47), mat.helmet)
+  dome.scale.set(1, 0.98, 1.1)
+  const back = new THREE.Mesh(new THREE.SphereGeometry(0.13, 20, 6, Math.PI * 1.5 - 1.65, 3.3, Math.PI * 0.46, Math.PI * 0.27), mat.helmet)
+  back.scale.set(1, 0.98, 1.1)
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.128, 0.008, 5, 28, Math.PI * 1.05), mat.vent)
+  rim.rotation.set(Math.PI / 2, 0, Math.PI * 1.5 - Math.PI * 0.525)
+  rim.position.y = -0.044
+  rim.scale.set(1, 1.1, 1)
   const ears = [1, -1].map((s) => {
-    const ear = sphere(0.05, mat.frame, 10, 8)
-    ear.position.set(s * 0.122, -0.03, -0.005)
-    ear.scale.set(0.45, 1, 1)
+    const ear = sphere(0.045, mat.frame, 10, 8)
+    ear.position.set(s * 0.126, -0.035, -0.012)
+    ear.scale.set(0.35, 1, 0.95)
     return ear
   })
-  helmet.add(dome, brim, ...ears)
-  helmet.position.y = 0.155
+  const vents = [-0.045, 0, 0.045].map((x) => {
+    const vent = rounded(0.022, 0.012, 0.075, 0.005, mat.vent)
+    vent.position.set(x, 0.127 * Math.sqrt(1 - (x / 0.13) ** 2) - 0.004, -0.005)
+    vent.rotation.z = -Math.asin(x / 0.13)
+    return vent
+  })
+  helmet.add(dome, back, rim, ...ears, ...vents)
+  helmet.position.y = 0.165
   const beanie = new THREE.Group()
   const cap = new THREE.Mesh(new THREE.SphereGeometry(0.12, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), mat.helmet)
   cap.scale.set(1, 1.15, 1.05)
@@ -431,16 +472,17 @@ export function buildRider() {
   beanie.add(cap, cuffBand, pom)
   beanie.position.y = 0.155
   beanie.visible = false
+  // Cylindrical goggles wrapping the face at eye level: foam frame, mirrored lens, strap round the back.
   const goggles = new THREE.Group()
-  const lens = new THREE.Mesh(new THREE.SphereGeometry(0.152, 20, 8, Math.PI / 2 - 0.95, 1.9, Math.PI * 0.36, Math.PI * 0.26), mat.lens)
-  lens.scale.set(1, 1, 0.92)
-  const gFrame = new THREE.Mesh(new THREE.SphereGeometry(0.148, 20, 8, Math.PI / 2 - 1.0, 2.0, Math.PI * 0.345, Math.PI * 0.31), mat.frame)
-  gFrame.scale.set(1, 1, 0.9)
-  const gStrap = new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.014, 6, 28), mat.frame)
-  gStrap.rotation.x = Math.PI / 2
-  gStrap.scale.set(1, 1.12, 1)
+  const gFrame = new THREE.Mesh(new THREE.CylinderGeometry(0.121, 0.117, 0.068, 24, 1, true, -1.15, 2.3), mat.frame)
+  gFrame.scale.set(1, 1, 1.08)
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.121, 0.052, 24, 1, true, -1.02, 2.04), mat.lens)
+  lens.scale.set(1, 1, 1.08)
+  const gStrap = new THREE.Mesh(new THREE.CylinderGeometry(0.136, 0.136, 0.036, 24, 1, true, 1.1, Math.PI * 2 - 2.2), mat.strap)
+  gStrap.scale.set(1, 1, 1.1)
   goggles.add(gFrame, lens, gStrap)
-  goggles.position.y = 0.17
+  goggles.position.y = 0.155
+  for (const part of [gFrame, lens, gStrap]) (part.material as THREE.Material).side = THREE.DoubleSide
   head.add(neck, skull, buff, helmet, beanie, goggles)
   const eye = new THREE.Object3D()
   eye.position.set(0, 0.16, 0.14)
@@ -517,6 +559,7 @@ export function buildRider() {
       mat.jacket.color.set(look.jacket)
       if (look.jacketAccent) mat.jacketPanel.color.set(look.jacketAccent)
       else mat.jacketPanel.color.copy(mat.jacket.color).multiplyScalar(0.6)
+      mat.strap.color.copy(mat.jacketPanel.color)
       backpack.userData.on = Boolean(look.backpack)
       backpack.visible = !firstPerson && backpack.userData.on
       mat.pants.color.set(look.pants)

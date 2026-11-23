@@ -341,16 +341,19 @@ export function pointInRing(x: number, z: number, ring: Point2[]): boolean {
 
 /** Half-width of a mapped run centreline, metres. Rough Apex defaults by difficulty. */
 export function runHalfWidth(run: Run): number {
+  // From the footage: groomers like Grandfather's and Okanagan are 40 m or more wide,
+  // steeps like Gunbarrel and Chute about 15 to 20 m. Ungroomed runs stay narrow.
+  const groomed = run.groomed !== false
   switch (run.difficulty) {
     case 'novice':
     case 'easy':
-      return 16
+      return groomed ? 20 : 14
     case 'intermediate':
-      return 14
+      return groomed ? 18 : 13
     case 'advanced':
-      return 12
+      return groomed ? 14 : 10.5
     default:
-      return 11
+      return 9.5
   }
 }
 

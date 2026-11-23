@@ -746,7 +746,10 @@ function tick(dt: number, frameMs: number) {
   effects.update(dt, skier, ride ? null : ground, camera, stage.snow)
   // The landing ring is a third-person aid; in first person it fills the view.
   landingMarker.update(settings.landingRing && rig.mode !== 'first' && skier.air && !ride ? landingSpot(skier, skier.air, stage.slope.sampleTerrain, PHYSICS.gravity) : null, skier.air?.time ?? 0, dt)
-  if (!ui.mapPanel.hidden) minimap?.draw(skier, ride?.lift.name)
+  if (!ui.mapPanel.hidden) {
+    const focus = rig.focus
+    minimap?.draw(skier, ride?.lift.name, focus ? { x: camera.position.x, z: camera.position.z, tx: focus.x, tz: focus.z } : undefined)
+  }
   updateHud(frameMs, steps)
   perf.begin()
   renderer.render(scene, camera)
@@ -903,7 +906,6 @@ function updateHud(frameMs: number, steps: number) {
   }
 }
 
-/** `?at=x,z[,headingDeg]` starts somewhere else on the crop, for review and screenshots. */
 /** `?at=x,z[,heading°]` spawns there, titled with the run underfoot. */
 function spawnOverride(start: RunCourse, runs: readonly Run[], runNameAt: (x: number, z: number) => string): RunCourse {
   const at = params.get('at')?.split(',').map(Number)

@@ -52,6 +52,10 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
       style = next
     },
     /** 0 turns chatter shake off. */
+    /** In orbit view, the point the camera looks at (the orbit target); otherwise null. */
+    get focus(): THREE.Vector3 | null {
+      return mode === 'orbit' ? orbit.target : null
+    },
     setShake(amount: number) {
       shake = amount
     },

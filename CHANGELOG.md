@@ -11,6 +11,18 @@ From the visual review of 0.8.6 (`docs/review/apex-visual-improvements.md`).
 - The landing ring no longer floats in the first-person view.
 - Official run spellings from the Apex trail map: Dude-Ney Trail, Gromit, Dawdler 1 and 2, Highway 97, Peashooter. Saved medals, bests and checklist progress carry over to the new names.
 
+- The orbit view's minimap names the place the camera is looking at and draws a sight line from the camera to it (#48).
+
+### Rider
+- Head: an open-faced helmet with vents and a back shell that drops over the ears, cylindrical goggles at eye level wrapping the face, a goggle strap round the back in the jacket accent colour, and the gaiter pulled up to the nose so the nose and cheeks show. Before, the face was a grey cylinder with the goggles floating above it.
+- Boots: a light shell with a toe box, an instep and a forward-leaning cuff, a dark spine and heel, four buckles with levers on the outside, and a power strap.
+- Pants: a flat, shaped knee panel instead of a lump, and cargo pockets on the thighs.
+
+### World
+- Wider groomers: run width now depends on grooming as well as difficulty. Groomed greens are about 40 m across, groomed blues 36 m, and ungroomed runs and the steeps 18 to 22 m (#11).
+- Lift lines are cut 24 m wide with a ragged edge, up from 18 m, and an 18 m circle round each terminal is clear of trees (#13, part of #24).
+- Trees are capped at 35 m (LiDAR picks up towers and roofs as canopy), and trees above 2060 m at 11 m, which should remove the spire behind the summit hut (#25).
+
 ### Changed
 - Shadows are now Auto, On or Off (Settings → Shadows). Auto turns them off on Low graphics, which phones use, because the shadow pass is the largest single cost there. Saved settings move over: On becomes Auto.
 - README, status and roadmap brought up to date for 0.8.6, with the next five phases.
