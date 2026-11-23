@@ -1,0 +1,47 @@
+name: Pull request checks
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: game/package-lock.json
+      - name: Fetch generated data for the Apex test
+        run: |
+          mkdir -p game/public/data
+          if ! git fetch --depth 1 origin data; then
+            echo "::error title=Apex data fetch failed::Could not fetch the data branch. Check the workflow log or run Build Apex data."
+            exit 1
+          fi
+          git archive FETCH_HEAD | tar -x -C game/public/data
+          if [ ! -s game/public/data/features.json ]; then
+            echo "::error title=Missing features.json::The data branch has no features.json. Run the Build Apex data workflow."
+            exit 1
+          fi
+      - name: Game tests and build
+        working-directory: game
+        run: |
+          npm ci
+          npm test
+          npm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: OSM tool tests
+        working-directory: tools/osm
+        run: |
+          python3 -m pip install -r requirements.txt
+          python3 -m unittest discover -s tests
+      - name: Smoke check built features.json
+        run: python3 tools/osm/check_features.py game/dist/data/features.json

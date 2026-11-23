@@ -14,6 +14,8 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 
 - **Test and deploy** runs the tests on every push to `main`. It then deploys to GitHub Pages (https://johnstonstu.github.io/SkiScrapeX/). The deploy is gated on the repository variable `PAGES_ENABLED=true`, which is set, with Pages using GitHub Actions as its source.
 
+- **Pull request checks** tests and builds pull requests to `main` with Apex data and runs the OSM tests.
+
 ## Testing without a GPU
 
 - Headless Chrome with SwiftShader renders at a few frames per second, so input-timing scripts are imprecise. Rely on the unit tests and `npm run tune` (the tuning bots) for physics, and use screenshots for looks.
