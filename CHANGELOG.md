@@ -2,6 +2,18 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## Unreleased (0.8.8): Graphics that fit the machine
+
+From 0.8.7 failing to draw on Stu's older Intel MacBook: Chrome lost the WebGL context and then switched WebGL off for the browser, leaving menus and sound over a blank screen.
+
+### Added
+- Auto graphics read the graphics chip and start at a level it can run: Low for older Intel graphics, software rendering and phones; Medium for Iris Xe, older dedicated laptop chips and anything unrecognised; High for Apple silicon and current NVIDIA, AMD and Intel Arc cards. Settings shows the reason next to Auto.
+- If Auto still runs under 24 fps while skiing, it lowers the resolution and turns shadows off straight away, and starts a level lighter next time on that machine.
+- A graphics chip reset (WebGL context lost) shows a message and a Reload button and steps Auto down a level. If the browser has switched WebGL off, the game says so and explains that restarting the browser clears it.
+
+### Changed
+- The close-up snow detail added in 0.8.7 (fine relief, worn groomer patches, wandering run edges, forest debris) is off on Low.
+
 ## 0.8.7 (2026-11-23): Review fixes
 
 From the visual review of 0.8.6 (`docs/review/apex-visual-improvements.md`).

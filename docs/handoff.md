@@ -19,6 +19,19 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 - Headless Chrome with SwiftShader renders at a few frames per second, so input-timing scripts are imprecise. Rely on the unit tests and `npm run tune` (the tuning bots) for physics, and use screenshots for looks.
 - `?test` exposes the scene, skier, challenge, goals and other skiers on `window.__game` for scripted smoke tests.
 
+## Graphics levels and old hardware
+
+- Auto picks Low, Medium or High from the graphics chip the browser reports (`src/app/hardware.ts`, unit tested against real renderer strings). The choice and its reason are logged to the console at start-up ("SkiScrapex graphics: ...") and shown in Settings next to Auto.
+- Auto never goes above a per-machine limit in `localStorage` (`skiscrapex.autoCap`). A GPU reset (WebGL context lost) or a median frame rate under 24 fps while skiing lowers it; picking a level by hand clears it.
+- Chrome switches WebGL off for the whole browser after repeated GPU resets. The game then shows "3D graphics are not available"; only quitting and reopening the browser clears it.
+- Expensive shader work belongs behind a quality flag. The close-up snow detail is `SNOW_DETAIL` in `src/fx/snow/SnowMaterial.ts`, off on Low.
+- To see a real GPU (headless Chrome only has SwiftShader), run Claude Code with `claude --chrome` and the Claude extension signed in, then read the console from the maintainer's Chrome.
+
+## Rider lab
+
+- `rider.html?pose=tuck,carve-left` shows only those poses; add `&anim` to play them.
+- `rider.html?sim` runs the real sim through linked turns behind the follow camera (`pitch`, `period`, `cap` km/h, `fov`, `style=tight`); `window.__step(frames)` steps it frame by frame for review screenshots.
+
 ## URL parameters
 
 | Parameter | Effect |
