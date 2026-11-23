@@ -77,8 +77,11 @@ export interface SkiInput {
   pitch?: number
 }
 
-/** World inputs beyond the height sampler. Both are optional. */
+export type TurnModel = 'classic' | 'wide'
+
+/** Optional world and equipment inputs beyond the height sampler. */
 export interface SkiEnv {
+  turnModel?: TurnModel
   sampleSurface?: SampleSurface
   rails?: readonly Rail[]
   /** Snap rotations to landable angles near touchdown. Default on. */
@@ -343,7 +346,7 @@ function stepGround(
     // Neither is limited by grip: if the snow cannot turn the travel
     // direction as fast, the skis skid and the skid scrubs speed. That is how
     // a skier controls speed on a steep pitch.
-    const yawRate = skiYawRate(speed, steerMag, edgeRad, sidecut) * Math.min(1, powderYaw)
+    const yawRate = skiYawRate(speed, steerMag, edgeRad, sidecut, env.turnModel) * Math.min(1, powderYaw)
     // Slow on gentle ground (cat tracks, flats) the stick just turns, so you can
     // face any way; on a real pitch it aims at a traverse even when stopped.
     const gentle = speed < PHYSICS.skateMaxSpeed && Math.hypot(n.x, n.z) < PHYSICS.turnAroundSlopeSin
@@ -812,18 +815,24 @@ function slewHeading(heading: number, steer: number, rate: number, dt: number, f
   return wrapAngle(fallLine + off + step)
 }
 
-/**
- * How fast the skis yaw, rad/s: the faster of the sidecut (v / R, with R =
- * sidecut x cos(edge), capped where the carve would need more than
- * LOAD_MAX g) and a leg pivot that is quick when slow and harder at speed.
- */
-export function skiYawRate(speed: number, steerMag: number, edgeRad: number, sidecut: number): number {
+/** Ski yaw in rad/s, from the sidecut or a leg pivot. */
+export function skiYawRate(speed: number, steerMag: number, edgeRad: number, sidecut: number, model: TurnModel = 'classic'): number {
   const v = Math.max(0, speed)
   const pivot = steerYawRate(v, steerMag)
-  if (steerMag <= PHYSICS.steerDeadzone || edgeRad < 0.02) return pivot
+  if (steerMag <= PHYSICS.steerDeadzone) return pivot
+
   const radius = sidecut * Math.cos(Math.min(edgeRad, 1.4))
-  const carve = Math.min(v / radius, (LOAD_MAX * PHYSICS.gravity) / Math.max(v, 1))
-  return Math.max(pivot, carve)
+  const sidecutRate = edgeRad < 0.02 ? 0 : v / radius
+  const classic = Math.max(pivot, Math.min(sidecutRate, LOAD_MAX * PHYSICS.gravity / Math.max(v, 1)))
+  if (model === 'classic' || v <= 28 / 3.6) return classic
+
+  // Blend out the leg pivot above short-swing speeds. Limit the carve rate
+  // at speed so the requested radius grows with centripetal acceleration.
+  const transition = clamp((v * 3.6 - 28) / 12, 0, 1)
+  const blend = transition * transition * (3 - 2 * transition)
+  const widePivot = pivot / (1 + ((v - 15 / 3.6) / 2.5) ** 2)
+  const wideCarve = Math.min(sidecutRate, 0.75 * PHYSICS.gravity / v) * steerMag
+  return classic + (Math.max(widePivot, wideCarve) - classic) * blend
 }
 
 /** Heading that points straight down the slope, or null on the flat. */

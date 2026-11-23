@@ -47,6 +47,7 @@ import { createNpcs, type Npcs } from './app/npcs'
 import type { Point2 } from './world/resort'
 
 const params = new URLSearchParams(location.search)
+const turnModel = (params.get('turns') ?? params.get('turn')) === 'wide' ? 'wide' : 'classic'
 const perf = createPerfProbe(params.has('perf'))
 const ui = getUi()
 ui.version.textContent = `v${VERSION}`
@@ -422,6 +423,7 @@ function startPark(site: ParkSite) {
 }
 
 function spawn() {
+  stage.env.turnModel = turnModel
   ride = null
   ui.ride.hidden = true
   if (course) stage.slope.spawn = course.spawn
@@ -593,7 +595,7 @@ function startRide(lift: Lift) {
   coach.tip(
     'lift',
     'Lift ride',
-    mobile ? 'Hold Tuck to speed the ride up, or tap Skip to go straight to the top.' : controls.gamepad ? 'Hold the stick up to speed up, or press <kbd>B</kbd> to skip to the top.' : 'Hold <kbd>W</kbd> to speed the ride up, or press <kbd>B</kbd> or Skip to go straight to the top.',
+    mobile ? 'Hold Tuck to speed the ride up, or tap Skip to go straight to the top.' : controls.gamepad ? 'Hold the stick up to speed up, or press <kbd>B</kbd> to skip to the top.' : 'Hold <kbd>W</kbd> to speed up. Press <kbd>Enter</kbd> or select Skip to go to the top.',
   )
   const path = stage.ride?.(lift) ?? null
   if (!path) {

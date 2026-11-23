@@ -14,6 +14,8 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 
 - **Test and deploy** runs the tests on every push to `main`. It then deploys to GitHub Pages (https://johnstonstu.github.io/SkiScrapeX/). The deploy is gated on the repository variable `PAGES_ENABLED=true`, which is set, with Pages using GitHub Actions as its source.
 
+- **Pull request checks** tests and builds pull requests to `main` with Apex data and runs the OSM tests.
+
 ## Testing without a GPU
 
 - Headless Chrome with SwiftShader renders at a few frames per second, so input-timing scripts are imprecise. Rely on the unit tests and `npm run tune` (the tuning bots) for physics, and use screenshots for looks.
@@ -54,3 +56,5 @@ Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
 - Medal targets: the pace bot in `src/world/challenges.ts` (times) and `parkTargets` (park scores).
 - Apex facts the OSM data gets wrong: `src/world/corrections.ts`; traced runs: `src/world/runOverlay.ts`. Sources are in `docs/apex-sources.md` and `docs/run-names.md`.
 - Visual gaps from comparing v0.8.0 with real Apex footage are listed in [docs/review/apex-visual-improvements.md](review/apex-visual-improvements.md), with the captures beside it. That list is a proposal for triage. It is not a scheduled milestone, and the items are not implemented, apart from the `features.json` pipeline fix described above.
+
+For the snowboard animation pass, use `rider.html?sim&model=snowboard` for linked turns. Add `&action=tuck` to review the tuck in motion or `&action=ollie` for a repeating ollie with a grab. For held edge poses, open `rider.html?model=snowboard&pose=heel-side,toe-side`.

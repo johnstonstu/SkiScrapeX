@@ -20,7 +20,7 @@ export {
   skiFrame,
   stepSkier,
 } from './skier'
-export type { SkiEnv, SkiFrame, SkiInput, SkiMode, SkiState } from './skier'
+export type { SkiEnv, SkiFrame, SkiInput, SkiMode, SkiState, TurnModel } from './skier'
 export type { Vec3 } from './vec'
 export { SURFACES, blendSurface, groomedEverywhere } from './surface'
 export type { SampleSurface, SurfaceKind, SurfaceParams } from './surface'

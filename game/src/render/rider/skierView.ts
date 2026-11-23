@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { PHYSICS, fallLineHeading, skiFrame, type SkiInput, type SkiState, type SurfaceSample } from '../../sim'
-import { ANKLE_IN_SKI, FORE_ARM, SHIN_LENGTH, THIGH_LENGTH, UPPER_ARM, buildRider, type RiderLook } from './skierModel'
+import { ANKLE_IN_SKI, BOARD_BINDINGS, FORE_ARM, SHIN_LENGTH, THIGH_LENGTH, UPPER_ARM, buildRider, type RiderLook } from './skierModel'
 
 export { SKI_GRAPHICS, type RiderLook, type SkiGraphic } from './skierModel'
 
@@ -247,18 +247,17 @@ export function createSkierView(): {
     arm.pole.quaternion.setFromUnitVectors(down, tip.applyQuaternion(qInv).normalize())
   }
 
-  /** Board under the boots, tilted onto an edge. Front boot +15°, back 0°. */
-  const BOARD_STANCE = [0.26, -0.26]
-  const BOARD_ANGLE = [0.26, 0]
+  /** Keep both boots attached to the board through the pose. */
   const placeBoard = (x: number, y: number, z: number, edge: number, yaw = 0, pitch = 0) => {
     boardGroup.position.set(x, y, z)
     boardGroup.rotation.order = 'YXZ'
     boardGroup.rotation.set(pitch, yaw, edge)
     boardGroup.updateMatrix()
     for (let i = 0; i < 2; i++) {
-      skis[i].position.set(0, 0.025, BOARD_STANCE[i]).applyMatrix4(boardGroup.matrix)
+      const { z, yaw } = BOARD_BINDINGS[i]
+      skis[i].position.set(0, 0.025, z).applyMatrix4(boardGroup.matrix)
       skis[i].quaternion.copy(boardGroup.quaternion)
-      skis[i].rotateY(-Math.PI / 2 + BOARD_ANGLE[i])
+      skis[i].rotateY(yaw)
     }
   }
 
@@ -397,10 +396,12 @@ export function createSkierView(): {
       // release the old edges before flexing into the new turn.
       const edgeSign = Math.abs(edge) > 0.12 ? Math.sign(edge) : 0
       if (skiing && edgeSign !== 0 && lastEdgeSign !== 0 && edgeSign !== lastEdgeSign && speed > 3) {
-        plantAge = 0
-        plantRelease = 10
-        plantSide = edgeSign > 0 ? -1 : 1 // right turn: right hand (index 1, side -1)
-        crouch.v -= 1.1 * Math.min(1, speed / 10)
+        if (!boarding) {
+          plantAge = 0
+          plantRelease = 10
+          plantSide = edgeSign > 0 ? -1 : 1 // right turn: right hand (index 1, side -1)
+        }
+        crouch.v -= (boarding ? 0.8 : 1.1) * Math.min(1, speed / 10)
       }
       if (edgeSign !== 0) lastEdgeSign = edgeSign
       plantAge = Math.min(10, plantAge + dt)
@@ -411,13 +412,14 @@ export function createSkierView(): {
         plantAge < PLANT_REACH ? smooth(plantAge / PLANT_REACH) : plantAge < plantRelease ? 1 : 1 - smooth(Math.min(1, (plantAge - plantRelease) / 0.22))
 
       // Takeoff extends; landing kicks the crouch spring down and it rebounds.
-      if (air && !wasAir) crouch.v -= 2.2
+      if (air && !wasAir) crouch.v -= boarding ? 1.6 : 2.2
       if (!air && wasAir) crouch.v += 1.4 + Math.min(10, Math.max(0, -lastVy)) * 0.4
       wasAir = Boolean(air)
       lastVy = state.vy
 
-      const grabbing = Boolean(air?.grab)
-      if (air?.grab) lastGrab = air.grab
+      // The sim keeps the grab name for scoring after the button is released.
+      const grabbing = Boolean(air?.grab && input.grab)
+      if (grabbing && air?.grab) lastGrab = air.grab
       grabBlend += ((grabbing ? 1 : 0) - grabBlend) * ease(14, dt)
       tuck.step(tucked ? 1 : 0, dt, 1.9, 0.9)
       brake.step(braking && !plowing ? 1 : 0, dt, 2.6, 0.85)
@@ -458,7 +460,7 @@ export function createSkierView(): {
       wantCrouch += Math.abs(incline.x) * 0.3 + (skiing ? Math.min(0.2, state.sink * 0.5) : 0)
       wantCrouch = Math.max(
         wantCrouch,
-        tucked ? 1 : 0,
+        tucked ? (boarding ? 0.8 : 1) : 0,
         braking ? (plowing ? 0.38 : 0.6) : 0,
         skating ? 0.4 : 0,
         charging ? 0.45 + state.popCharge * 0.45 : 0,
@@ -551,7 +553,13 @@ export function createSkierView(): {
       if (boarding) {
         const lift = air ? 0.18 + grabBlend * 0.2 : 0
         const grabTilt = air && grabBlend > 0 ? (lastGrab === 'nose' ? -0.35 : lastGrab === 'tail' ? 0.3 : 0) * grabBlend : 0
-        placeBoard(shift * 0.6, 0.02 + lift + Math.abs(press.x) * 0.07, -press.x * 0.1, edgeVisual, 0, grabTilt + (air ? 0 : press.x * 0.28))
+        // Roll about the engaged edge and let the nose lead the ollie.
+        const roll = THREE.MathUtils.clamp(edge, -0.72, 0.72)
+        const ollie = air ? -0.24 * Math.max(0, 1 - air.time / 0.27) * stance : 0
+        placeBoard(
+          shift * 0.6, 0.02 + 0.13 * Math.abs(Math.sin(roll)) + lift + Math.abs(press.x) * 0.07,
+          -press.x * 0.1, roll, 0, ollie + grabTilt + (air ? 0 : press.x * 0.28),
+        )
       }
 
       // ---- Body ----
@@ -562,7 +570,12 @@ export function createSkierView(): {
       body.rotation.z = incline.x + (rail ? rail.balance * 0.32 : 0) + stride * 0.12 + sway
       const kneeFold = 0.15 + flex * 1.25
       const hipHeight = 0.97 - (THIGH_LENGTH + SHIN_LENGTH) * (1 - Math.cos(kneeFold * 0.55)) * 1.05 - flex * 0.06 - tuck.x * 0.05
-      hips.position.set(0, Math.max(0.4, hipHeight), -0.05 - flex * 0.1 - fore.x)
+      if (boarding) {
+        const toeSide = THREE.MathUtils.clamp(edge * 0.9, -0.55, 0.55)
+        hips.position.set(-toeSide * 0.14, Math.max(0.4, hipHeight), (1 - 2 * switchLook) * (0.04 + tuck.x * 0.09))
+      } else {
+        hips.position.set(0, Math.max(0.4, hipHeight), -0.05 - flex * 0.1 - fore.x)
+      }
       // Angulation: the hips and spine tilt back against the inclination so the
       // shoulders stay near level and the knees drive into the hill.
       hips.rotation.y = boarding ? -Math.PI / 2 + 0.25 : counter.x * 0.3
@@ -574,7 +587,7 @@ export function createSkierView(): {
       spine.rotation.z = -incline.x * 0.2
       chest.rotation.z = -incline.x * 0.14
       const upperTwist = boarding
-        ? 0.45 + spinLead * 0.5
+        ? 0.45 - switchLook * 0.78 + look.x * 0.28 + spinLead * 0.5
         : counter.x * 0.7 + spinLead * 0.5 + switchLook * 0.25 + railLook * 0.55 - stride * 0.12
       spine.rotation.y = upperTwist * 0.55
       chest.rotation.y = upperTwist * 0.45
@@ -583,7 +596,7 @@ export function createSkierView(): {
       head.rotation.x = -bend * 0.8 - tuck.x * 0.22 + idle * Math.sin(state.time * 0.5) * 0.06
       head.rotation.z = -tiltZ * 0.65
       head.rotation.y = boarding
-        ? 0.75 + spinLead * 0.4
+        ? 0.75 - switchLook * 1.55 + look.x * 0.5 + spinLead * 0.4
         : -counter.x * 0.3 + look.x + spinLead * 0.4 + switchLook * stance * 1.15 * (state.heading > 0 ? 1 : -1) + railLook * 0.4 +
           idle * Math.sin(state.time * 0.37) * 0.35
 
@@ -626,7 +639,8 @@ export function createSkierView(): {
           // Front hand out over the nose, back hand low over the tail; no poles.
           const front = side === 1
           hand.set(front ? 0.42 : -0.32, front ? -0.02 : -0.16, 0.3 + Math.abs(incline.x) * 0.1)
-          hand.lerp(v2.set(side * 0.55, 0.16, 0.1), handsBack)
+          hand.lerp(v2.set(side * 0.25, -0.08, 0.21), THREE.MathUtils.clamp(tuck.x, 0, 1))
+          hand.lerp(v2.set(side * 0.55, 0.16, 0.1), Math.max(handsBack, Math.min(1, railBlend.x)))
           if (rig.firstPerson) hand.y += 0.3
         }
         const handLocal = hand.clone()
@@ -646,16 +660,27 @@ export function createSkierView(): {
         placeArm(i, handLocal, tipTarget.clone())
       }
       if (grabBlend > 0.02 && air) {
-        // Reach a real point on a ski: the hand follows the ski it grabs.
+        // Reach a point on the equipment so the hand moves with it.
         const grab = lastGrab
         const reachFor = (handIndex: number, skiIndex: number, along: number, sideOffset: number) => {
-          const target = v1.set(sideOffset, 0.06, along).applyQuaternion(skis[skiIndex].quaternion).add(skis[skiIndex].position)
+          const target = boarding
+            ? v1.set(sideOffset, 0.035, along).applyMatrix4(boardGroup.matrix)
+            : v1.set(sideOffset, 0.06, along).applyQuaternion(skis[skiIndex].quaternion).add(skis[skiIndex].position)
           root.updateMatrixWorld(true)
           const current = root.worldToLocal(arms[handIndex].hand.getWorldPosition(v2))
           target.lerp(current, 1 - grabBlend)
           placeArm(handIndex, target.clone(), v3.set(arms[handIndex].side * 0.9, 0.5, -0.6).clone(), true)
         }
-        if (grab === 'truck') {
+        if (boarding) {
+          if (grab === 'truck') {
+            reachFor(0, 0, 0.31, -0.12)
+            reachFor(1, 1, -0.31, -0.12)
+          } else {
+            const frontHand = grab === 'nose' || grab === 'mute' || grab === 'japan'
+            const along = grab === 'nose' ? 0.62 : grab === 'tail' ? -0.62 : grab === 'japan' ? -0.22 : 0.06
+            reachFor(frontHand ? 0 : 1, 0, along, grab === 'safety' || grab === 'japan' ? 0.12 : -0.12)
+          }
+        } else if (grab === 'truck') {
           reachFor(0, 0, 0.42, 0)
           reachFor(1, 1, 0.42, 0)
         } else {

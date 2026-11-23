@@ -9,6 +9,8 @@ from urllib.request import Request, urlopen
 import numpy as np
 from osgeo import gdal, osr
 
+from height_packing import pack_heights
+
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / 'data' / 'raw'
 OUTPUT = ROOT / 'terrain' / 'generated'
@@ -209,6 +211,17 @@ def build_detail(paths, metadata):
     return meta, data
 
 
+def write_packed_heights(filename, data, grid, *, coarse):
+    packed = pack_heights(data, grid['columns'], grid['rows'], coarse=coarse)
+    (OUTPUT / filename).write_bytes(packed)
+    grid['packedHeights'] = {
+        'file': filename,
+        'encoding': 'plane-delta16-gzip-v1',
+        'sha256': hashlib.sha256(packed).hexdigest(),
+    }
+    print(f'{filename}: {len(data):,} raw bytes to {len(packed):,} packed bytes')
+
+
 def main():
     gdal.UseExceptions()
     CACHE.mkdir(parents=True, exist_ok=True)
@@ -261,12 +274,15 @@ def main():
         detail, detail_bytes = build_detail(paths, metadata)
         (OUTPUT / detail['file']).write_bytes(detail_bytes)
         metadata['detail'] = detail
+        write_packed_heights('heights-2m.delta.bin', detail_bytes, detail, coarse=False)
         print(f"Detail: {detail['columns']} x {detail['rows']} at {DETAIL_STEP} m")
-    except Exception as error:  # optional; the game uses the 5 m grid alone
-        print(f'warning: detail grid skipped ({error})')
+    except Exception as error:
+        source = 'Packed detail grid' if 'detail' in metadata else 'Detail grid'
+        print(f'warning: {source} skipped ({error})')
 
     (OUTPUT / 'references.json').write_text(json.dumps(references, indent=2) + '\n', encoding='utf-8')
     (OUTPUT / 'heights.f32').write_bytes(height_data)
+    write_packed_heights('heights-5m.delta.bin', height_data, metadata, coarse=True)
     (OUTPUT / 'terrain.json').write_text(json.dumps(metadata, indent=2) + '\n', encoding='utf-8')
     gdal.DEMProcessing(str(OUTPUT / 'hillshade.png'), raster, 'hillshade',
                        format='PNG', computeEdges=True)
