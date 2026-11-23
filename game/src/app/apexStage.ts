@@ -1,3 +1,4 @@
+import { createSummitFlags } from '../render/scenery/summitFlags'
 import { createBoundaryView } from '../render/scenery/boundaryView'
 import * as THREE from 'three'
 import type { Slope } from '../sim'
@@ -116,6 +117,9 @@ export function buildApexStage(
   const signs = createSignView(resort.runs, peaks, anyHeight, places)
   scene.add(signs.object)
   scene.add(createBoundaryView(resort.boundary, grid.heightAt, resort.roads).object)
+  const summitFlags = createSummitFlags(resort.lifts, grid.heightAt)
+  scene.add(summitFlags.object)
+  let lastFlagTime = performance.now()
 
   // Park features sit on top of the LiDAR ground; rebuilt when a layout changes.
   let overlay!: ParkOverlay
@@ -169,6 +173,9 @@ export function buildApexStage(
       signs.update(camera)
       parkView?.update(camera)
       lifts.clearView(camera)
+      const now = performance.now()
+      summitFlags.update(Math.min(0.1, (now - lastFlagTime) / 1000))
+      lastFlagTime = now
     },
     describe: () =>
       `${forestView.drawn.toLocaleString()} / ${forest.count.toLocaleString()} trees (${forest.source}) · ${buildings.length} buildings · ` +

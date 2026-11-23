@@ -22,6 +22,8 @@ From the visual review of 0.8.6 (`docs/review/apex-visual-improvements.md`).
 
 - Snow detail: fine wind-pressed relief within about 70 m of the camera (stronger in powder), run edges warped by noise so the border between groomed and powder wanders, worn patches on groomers where the corduroy fades and faint skier streaks show, needle and twig debris under the trees, and a broad brightness drift so far slopes are not one flat tone (part of #69).
 
+- Summit windsock (red and white, as on the summit webcam) and three flag poles behind the Quickdraw top terminal, swinging in a slow gusting wind (#45).
+
 ### Quickdraw
 - Chairlift hardware modelled on Quickdraw, a 1994 Doppelmayr-CTEC detachable quad. Towers are galvanized tapered tubes with a crossarm, a four-wheel sheave train under each rope, a ladder and a railed walkway. Chairs are galvanized quads with a hanger that bends back over the seat, four seat and back pads, and a lowered safety bar with a footrest. Terminals are long detach housings under a rounded light hood, open underneath, with an operator hut by the loading area, each facing down the line. The housing hides while the camera is inside it, so boarding and unloading stay clear (#26, #27). Stock's uses the same towers and chairs as a triple for now.
 
