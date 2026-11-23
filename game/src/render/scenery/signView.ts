@@ -33,7 +33,18 @@ export function createSignView(
   const postMaterial = new THREE.MeshLambertMaterial({ color: 0x6b5138 })
   const disposables: { dispose(): void }[] = [postGeometry, postMaterial]
   const labels: THREE.Sprite[] = []
+  const trailLabels = new Set<THREE.Sprite>()
   const seen = new Set<string>()
+  const timber = new THREE.MeshLambertMaterial({ color: 0x5d4330 })
+  const boardBack = new THREE.MeshLambertMaterial({ color: 0x7a5a3e })
+  const boardParts = {
+    timber,
+    boardBack,
+    post: new THREE.BoxGeometry(0.12, 2.7, 0.12).translate(0, 1.35, 0),
+    cap: new THREE.BoxGeometry(2.5, 0.1, 0.32).translate(0, 2.72, 0),
+    panel: new THREE.PlaneGeometry(2.2, 0.55),
+  }
+  disposables.push(timber, boardBack, boardParts.post, boardParts.cap, boardParts.panel)
 
   for (const run of runs) {
     if (run.kind !== 'line' || !run.name || run.name === 'Unnamed run' || seen.has(run.name)) continue
@@ -47,13 +58,16 @@ export function createSignView(
     const z = z0 + ((x1 - x0) / length) * 9
     const ground = heightAt(x, z)
     if (!Number.isFinite(ground)) continue
-    const post = new THREE.Mesh(postGeometry, postMaterial)
-    post.position.set(x, ground - 0.2, z)
-    group.add(post)
+    // A timber trail-head board facing skiers coming down from above.
+    const board = trailBoard(run.name, SYMBOL[run.difficulty ?? ''] ?? null, boardParts, disposables)
+    board.position.set(x, ground - 0.15, z)
+    board.rotation.y = Math.atan2(-(x1 - x0), -(z1 - z0))
+    group.add(board)
     const sprite = label(run.name, SYMBOL[run.difficulty ?? ''] ?? null, disposables)
     sprite.position.set(x, ground + 3.0, z)
     group.add(sprite)
     labels.push(sprite)
+    trailLabels.add(sprite)
   }
   for (const peak of peaks) {
     const ground = heightAt(peak.x, peak.z)
@@ -78,7 +92,8 @@ export function createSignView(
     update(camera: THREE.Vector3) {
       for (const sprite of labels) {
         const d = sprite.position.distanceToSquared(camera)
-        sprite.visible = d < 260 * 260 && d > 7 * 7
+        // Trail heads: the board is readable up close, so the floating label only helps from afar.
+        sprite.visible = d < 260 * 260 && d > (trailLabels.has(sprite) ? 60 * 60 : 7 * 7)
       }
     },
     dispose() {
@@ -87,11 +102,52 @@ export function createSignView(
   }
 }
 
+/** Two timber posts, a cap rail and a painted board with the run's symbol and name; origin on the snow. */
+function trailBoard(
+  text: string,
+  symbol: { shape: string; color: string } | null,
+  parts: { timber: THREE.Material; boardBack: THREE.Material; post: THREE.BufferGeometry; cap: THREE.BufferGeometry; panel: THREE.BufferGeometry },
+  disposables: { dispose(): void }[],
+): THREE.Group {
+  const group = new THREE.Group()
+  for (const x of [-1.05, 1.05]) {
+    const post = new THREE.Mesh(parts.post, parts.timber)
+    post.position.x = x
+    group.add(post)
+  }
+  group.add(new THREE.Mesh(parts.cap, parts.timber))
+  const texture = new THREE.CanvasTexture(signCanvas(text, symbol))
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.anisotropy = 4
+  const face = new THREE.MeshLambertMaterial({ map: texture })
+  disposables.push(texture, face)
+  const front = new THREE.Mesh(parts.panel, face)
+  front.position.set(0, 2.25, 0.07)
+  const back = new THREE.Mesh(parts.panel, parts.boardBack)
+  back.position.set(0, 2.25, 0.06)
+  back.rotation.y = Math.PI
+  group.add(front, back)
+  for (const mesh of group.children) mesh.castShadow = true
+  return group
+}
+
 export function label(
   text: string,
   symbol: { shape: string; color: string } | null,
   disposables: { dispose(): void }[],
 ): THREE.Sprite {
+  const texture = new THREE.CanvasTexture(signCanvas(text, symbol))
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.anisotropy = 4
+  const material = new THREE.SpriteMaterial({ map: texture, fog: true })
+  disposables.push(texture, material)
+  const sprite = new THREE.Sprite(material)
+  sprite.scale.set(4, 1, 1)
+  return sprite
+}
+
+/** The painted sign face: a cream board with a dark border, the difficulty symbol and the name. */
+function signCanvas(text: string, symbol: { shape: string; color: string } | null): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
   canvas.width = 512
   canvas.height = 128
@@ -138,12 +194,5 @@ export function label(
   }
   g.textBaseline = 'middle'
   g.fillText(text, left, 66)
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = 4
-  const material = new THREE.SpriteMaterial({ map: texture, fog: true })
-  disposables.push(texture, material)
-  const sprite = new THREE.Sprite(material)
-  sprite.scale.set(4, 1, 1)
-  return sprite
+  return canvas
 }

@@ -18,6 +18,8 @@ From the visual review of 0.8.6 (`docs/review/apex-visual-improvements.md`).
 
 - Out-of-bounds line: orange bamboo poles and a sagging rope along the OSM ski-area boundary, open where roads cross, with "Area boundary / Closed beyond" signs every 220 m facing into the resort. Like the real rope, it does not stop you (#68).
 
+- Trail-head signs are timber boards on two posts with a cap rail, painted with the run's difficulty symbol and name, facing skiers coming from above. The floating name label now only shows from 60 to 260 m away to help you find runs; up close you read the board (part of #36).
+
 ### Quickdraw
 - Chairlift hardware modelled on Quickdraw, a 1994 Doppelmayr-CTEC detachable quad. Towers are galvanized tapered tubes with a crossarm, a four-wheel sheave train under each rope, a ladder and a railed walkway. Chairs are galvanized quads with a hanger that bends back over the seat, four seat and back pads, and a lowered safety bar with a footrest. Terminals are long detach housings under a rounded light hood, open underneath, with an operator hut by the loading area, each facing down the line. The housing hides while the camera is inside it, so boarding and unloading stay clear (#26, #27). Stock's uses the same towers and chairs as a triple for now.
 
