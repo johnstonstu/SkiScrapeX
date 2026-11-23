@@ -1,6 +1,6 @@
 # SkiScrapex
 
-Read [the README](README.md), [docs/status.md](docs/status.md), [docs/roadmap.md](docs/roadmap.md) and [docs/handoff.md](docs/handoff.md) (development notes) first.
+Read [the README](README.md), [docs/status.md](docs/status.md), [docs/roadmap.md](docs/roadmap.md), [docs/workplan.md](docs/workplan.md) (the next milestones and how to work on them) and [docs/handoff.md](docs/handoff.md) (development notes) first.
 
 - One app: `game/`. The ski simulation (`game/src/sim/`) does not import Three.js and only reads `sampleTerrain(x, z)`. World data parsing (`game/src/world/`) is also Three.js free and unit tested.
 - Use metres, +X east, +Y up and +Z south. Keep the terrain manifest's origin and vertical datum when changing the crop.

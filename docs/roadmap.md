@@ -10,7 +10,7 @@ Live at https://johnstonstu.github.io/SkiScrapeX/ from the public repo, deployed
 
 Working: everything in the 0.5 list (real terrain, canopy forest, OSM and traced runs, lifts, village, physics, freestyle, parks, rider, cameras, touch, audio) plus a title screen, settings, gamepad, timed runs, slalom, park score attacks, the run checklist, gold nuggets, results and unlocks (0.7), a first-run tutorial and tips, snowboarding, other skiers, official run names from the trail map, faster loading, and the turn and camera feel passes from Stu's playtests (0.8.x).
 
-The visual review of 0.8.6 (`docs/review/apex-visual-improvements.md`, 47 items) drives most of the next two phases. Each item is a GitHub issue with a phase label.
+The near-term order of work, with checklists, is in `docs/workplan.md`. The visual review of 0.8.6 (`docs/review/apex-visual-improvements.md`, 47 items) drives most of the next two phases. Each item is a GitHub issue with a phase label.
 
 ## Phase 1: 0.8.x wrap-up
 
