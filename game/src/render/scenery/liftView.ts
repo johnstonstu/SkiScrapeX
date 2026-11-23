@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import type { Lift } from '../../world/resort'
 
 const TOWER_HEIGHT = 11
@@ -56,8 +57,14 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
   const towerGeometry = new THREE.CylinderGeometry(0.35, 0.5, TOWER_HEIGHT, 8)
   towerGeometry.translate(0, TOWER_HEIGHT / 2, 0)
   const armGeometry = new THREE.BoxGeometry(HALF_GAUGE * 2 + 1, 0.4, 0.5)
+  // Chairlift hardware after Quickdraw (Doppelmayr-CTEC detachable quad, 1994): galvanized
+  // tubular towers and chairs, Uni terminals under a light hood.
+  const galv = new THREE.MeshStandardMaterial({ color: 0xa4abb2, metalness: 0.55, roughness: 0.42 })
+  const pad = new THREE.MeshStandardMaterial({ color: 0x262b33, roughness: 0.8 })
+  const hood = new THREE.MeshStandardMaterial({ color: 0xdfe3e7, roughness: 0.5, metalness: 0.1 })
+  const aerialTower = chairTower()
 
-  const disposables: { dispose(): void }[] = [steel, paint, roof, ropeMaterial, towerGeometry, armGeometry]
+  const disposables: { dispose(): void }[] = [steel, paint, roof, ropeMaterial, towerGeometry, armGeometry, galv, pad, hood, aerialTower]
   const ropes: {
     liftId: string
     circuit: RidePath
@@ -68,6 +75,7 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
     distance: number
   }[] = []
   const transform = new THREE.Object3D()
+  const housings: THREE.Group[] = []
   const rides = new Map<string, RidePath>()
   const beltMaterial = new THREE.MeshLambertMaterial({ color: 0x2b2f33 })
   disposables.push(beltMaterial)
@@ -104,6 +112,14 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
     }
 
     for (const [x, z] of lift.towers) {
+      if (aerial) {
+        const tower = new THREE.Mesh(aerialTower, galv)
+        tower.position.set(x, ground(x, z), z)
+        tower.rotation.y = yaw
+        tower.castShadow = true
+        group.add(tower)
+        continue
+      }
       const tower = new THREE.Mesh(towerGeometry, steel)
       tower.position.set(x, ground(x, z) - 0.5 - (TOWER_HEIGHT - towerHeight), z)
       const arm = new THREE.Mesh(armGeometry, steel)
@@ -112,10 +128,12 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       group.add(tower, arm)
     }
     for (const [x, z] of [lift.bottom, lift.top]) {
-      const station = aerial ? terminal(paint, roof, disposables) : surfaceTerminal(steel, paint, roof, disposables)
+      const station = aerial ? terminal({ galv, hood, paint, roof }, disposables) : surfaceTerminal(steel, paint, roof, disposables)
       station.position.set(x, ground(x, z), z)
-      station.rotation.y = yaw
+      // Each terminal's detach section faces down the line toward the other end.
+      station.rotation.y = yaw + (aerial && x === lift.top[0] && z === lift.top[1] ? Math.PI : 0)
       group.add(station)
+      if (station.userData.housing) housings.push(station)
     }
 
     // Up rope on one side, down rope on the other, joined at the bull wheels.
@@ -191,16 +209,27 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
     const geometry = chair()
     geometry.scale(triple ? 0.75 : 1, 1, 1)
     disposables.push(geometry)
-    const chairs = new THREE.InstancedMesh(geometry, paint, triple ? 138 : 79)
+    const chairs = new THREE.InstancedMesh(geometry, [galv, pad], triple ? 138 : 79)
+    chairs.castShadow = true
     chairs.frustumCulled = false
     group.add(chairs)
     ropes.push({ liftId: lift.id, circuit, uphill, chairs, distance: 0 })
   }
 
   const point = new THREE.Vector3()
+  const local = new THREE.Vector3()
 
   return {
     object: group,
+    /** Hide a terminal's housing and hood while the camera is inside or right under it (boarding, unloading). */
+    clearView(camera: THREE.Vector3) {
+      for (const station of housings) {
+        const h = station.userData.housing as { parts: THREE.Mesh[]; halfWidth: number; from: number; to: number; top: number }
+        station.worldToLocal(local.copy(camera))
+        const inside = Math.abs(local.x) < h.halfWidth && local.z > h.from && local.z < h.to && local.y < h.top
+        for (const part of h.parts) part.visible = !inside
+      }
+    },
     ride(liftId: string): RidePath | null {
       return rides.get(liftId) ?? null
     },
@@ -245,42 +274,145 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
   }
 }
 
-/** Quad chair hanging 2.4 m below the rope. Origin at the grip. */
-function chair(): THREE.BufferGeometry {
-  const hanger = new THREE.BoxGeometry(0.08, 2.2, 0.08)
-  hanger.translate(0, -1.1, 0)
-  const seat = new THREE.BoxGeometry(2.2, 0.12, 0.6)
-  seat.translate(0, -2.3, 0.15)
-  const back = new THREE.BoxGeometry(2.2, 0.7, 0.08)
-  back.translate(0, -1.95, -0.15)
-  const geometries = [hanger, seat, back].map((g) => g.toNonIndexed())
-  const merged = new THREE.BufferGeometry()
-  const positions = geometries.flatMap((g) => Array.from(g.attributes.position.array as Float32Array))
-  const normals = geometries.flatMap((g) => Array.from(g.attributes.normal.array as Float32Array))
-  merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-  merged.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
-  for (const g of [hanger, seat, back, ...geometries]) g.dispose()
+/** Merge boxes and tubes into one geometry (all indexed, same attributes). */
+function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const merged = mergeGeometries(parts.map((g) => (g.index ? g.toNonIndexed() : g)))!
+  for (const g of parts) g.dispose()
   return merged
 }
 
+const box = (w: number, h: number, d: number, x: number, y: number, z: number, rx = 0) => {
+  const g = new THREE.BoxGeometry(w, h, d)
+  if (rx) g.rotateX(rx)
+  g.translate(x, y, z)
+  return g
+}
+
+const tube = (r: number, from: THREE.Vector3, to: THREE.Vector3, sides = 6) => {
+  const length = from.distanceTo(to)
+  const g = new THREE.CylinderGeometry(r, r, length, sides)
+  g.translate(0, length / 2, 0)
+  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize())
+  g.applyQuaternion(q)
+  g.translate(from.x, from.y, from.z)
+  return g
+}
+
 /**
- * Chairlift terminal: a slim column carrying the bull-wheel housing above
- * the rope, so riders (and the camera behind them) pass underneath it.
+ * Galvanized quad chair (CTEC style) hanging below the grip at the origin:
+ * a hanger that bends back over the seat, four seat and back pads, and a
+ * lowered safety bar with a footrest. Group 0 is the frame, group 1 the pads.
+ */
+function chair(): THREE.BufferGeometry {
+  const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
+  const frame = merge([
+    box(0.16, 0.22, 0.3, 0, -0.08, 0),
+    tube(0.045, v(0, -0.15, 0), v(0, -1.45, 0.05)),
+    tube(0.045, v(0, -1.45, 0.05), v(0, -1.8, -0.32)),
+    tube(0.035, v(-1.12, -1.8, -0.32), v(1.12, -1.8, -0.32)),
+    tube(0.035, v(-1.12, -2.36, 0.25), v(1.12, -2.36, 0.25)),
+    tube(0.035, v(-1.12, -2.36, -0.3), v(1.12, -2.36, -0.3)),
+    ...[-1.12, 1.12].flatMap((x) => [tube(0.035, v(x, -1.8, -0.32), v(x, -2.36, -0.3)), tube(0.035, v(x, -2.36, -0.3), v(x, -2.36, 0.25))]),
+    // Safety bar pivots at the hanger, comes forward over the lap, drops to the footrest.
+    tube(0.03, v(0, -1.5, 0.05), v(0, -1.72, 0.62)),
+    tube(0.03, v(-1.05, -1.72, 0.62), v(1.05, -1.72, 0.62)),
+    ...[-0.6, 0.6].map((x) => tube(0.025, v(x, -1.72, 0.62), v(x, -2.72, 0.66))),
+    tube(0.03, v(-0.95, -2.72, 0.66), v(0.95, -2.72, 0.66)),
+  ])
+  const pads = merge(
+    [-0.83, -0.28, 0.28, 0.83].flatMap((x) => [
+      box(0.5, 0.08, 0.5, x, -2.3, -0.02),
+      box(0.5, 0.42, 0.07, x, -2.07, -0.27, -0.18),
+    ]),
+  )
+  const geometry = mergeGeometries([frame, pads], true)!
+  frame.dispose()
+  pads.dispose()
+  return geometry
+}
+
+/**
+ * Chairlift line tower: a tapered tube, a crossarm, a sheave train under
+ * each rope (rope runs along local Z at TOWER_HEIGHT, HALF_GAUGE either
+ * side), a ladder up the downhill face and a railed walkway on the arm.
+ */
+function chairTower(): THREE.BufferGeometry {
+  const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
+  const top = TOWER_HEIGHT
+  const parts: THREE.BufferGeometry[] = []
+  const column = new THREE.CylinderGeometry(0.3, 0.46, top + 0.4, 10)
+  column.translate(0, (top + 0.4) / 2 - 0.9, 0)
+  parts.push(column)
+  parts.push(box(HALF_GAUGE * 2 + 1.4, 0.45, 0.55, 0, top - 0.75, 0))
+  parts.push(box(0.7, 0.7, 0.7, 0, top - 0.75, 0))
+  for (const sx of [-1, 1]) {
+    const x = sx * HALF_GAUGE
+    parts.push(box(0.14, 0.3, 0.3, x, top - 0.45, 0))
+    parts.push(box(0.12, 0.16, 3, x, top - 0.3, 0))
+    for (let k = 0; k < 4; k++) {
+      const wheel = new THREE.CylinderGeometry(0.17, 0.17, 0.1, 10)
+      wheel.rotateZ(Math.PI / 2)
+      wheel.translate(x, top - 0.13, -1.1 + k * 0.73)
+      parts.push(wheel)
+    }
+  }
+  // Walkway grate on the downhill side of the arm, with a handrail.
+  parts.push(box(HALF_GAUGE * 2 + 1.2, 0.05, 0.6, 0, top - 1.0, -0.6))
+  parts.push(tube(0.025, v(-HALF_GAUGE - 0.6, top - 0.05, -0.88), v(HALF_GAUGE + 0.6, top - 0.05, -0.88), 4))
+  for (const x of [-HALF_GAUGE - 0.6, 0, HALF_GAUGE + 0.6]) parts.push(tube(0.025, v(x, top - 1.0, -0.88), v(x, top - 0.05, -0.88), 4))
+  // Ladder.
+  for (const x of [-0.2, 0.2]) parts.push(tube(0.025, v(x, 1.5, -0.52), v(x, top - 1.0, -0.4), 4))
+  for (let y = 1.8; y < top - 1.1; y += 0.4) parts.push(box(0.4, 0.03, 0.03, 0, y, -0.52 + ((y - 1.5) / (top - 2.5)) * 0.12))
+  return merge(parts)
+}
+
+/**
+ * Detachable (Uni) terminal: the bull wheel and detach section in a long
+ * housing under a rounded hood, carried on a column at the bull wheel and
+ * two legs at the line end, open underneath so riders (and the camera
+ * behind them) pass through. Local +Z points down the line. An operator
+ * hut stands beside the loading area.
  */
 function terminal(
-  paint: THREE.Material,
-  roof: THREE.Material,
+  m: { galv: THREE.Material; hood: THREE.Material; paint: THREE.Material; roof: THREE.Material },
   disposables: { dispose(): void }[],
 ): THREE.Group {
   const group = new THREE.Group()
-  const column = new THREE.BoxGeometry(0.9, STATION_HEIGHT + 0.6, 1.6)
-  column.translate(0, (STATION_HEIGHT + 0.6) / 2, 0)
-  const housing = new THREE.BoxGeometry(HALF_GAUGE * 2 + 1.2, 0.9, 6.5)
-  housing.translate(0, STATION_HEIGHT + 0.85, 0)
-  const cap = new THREE.BoxGeometry(HALF_GAUGE * 2 + 1.5, 0.18, 6.8)
-  cap.translate(0, STATION_HEIGHT + 1.38, 0)
-  disposables.push(column, housing, cap)
-  group.add(new THREE.Mesh(column, paint), new THREE.Mesh(housing, paint), new THREE.Mesh(cap, roof))
+  const width = HALF_GAUGE * 2 + 1.6
+  const length = 13
+  const from = -3
+  const base = STATION_HEIGHT + 0.5
+  const frame = merge([
+    box(1, base, 1.8, 0, base / 2, -0.5),
+    ...[-1, 1].map((sx) => box(0.4, base, 0.4, sx * (width / 2 - 0.3), base / 2, from + length - 1.2)),
+    box(width, 0.9, length, 0, base + 0.45, from + length / 2),
+  ])
+  const shell = new THREE.CylinderGeometry(width / 2 + 0.15, width / 2 + 0.15, length + 0.4, 20, 1, false, Math.PI / 2, Math.PI)
+  shell.rotateX(Math.PI / 2)
+  shell.scale(1, 0.5, 1)
+  shell.translate(0, base + 0.9, from + length / 2)
+  const skirt = box(width + 0.3, 0.35, length + 0.4, 0, base + 0.75, from + length / 2)
+  const hut = box(3.2, 2.6, 3.2, width / 2 + 3, 1.3, 6)
+  const hutRoof = new THREE.ConeGeometry(2.7, 1.2, 4)
+  hutRoof.rotateY(Math.PI / 4)
+  hutRoof.translate(width / 2 + 3, 3.2, 6)
+  const windows = box(3.24, 0.9, 2.4, width / 2 + 3, 1.7, 6)
+  disposables.push(frame, shell, skirt, hut, hutRoof, windows)
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1d2630, roughness: 0.2, metalness: 0.3 })
+  disposables.push(dark)
+  const meshes = [
+    new THREE.Mesh(frame, m.galv),
+    new THREE.Mesh(shell, m.hood),
+    new THREE.Mesh(skirt, m.paint),
+    new THREE.Mesh(hut, m.paint),
+    new THREE.Mesh(windows, dark),
+    new THREE.Mesh(hutRoof, m.roof),
+  ]
+  for (const mesh of meshes) mesh.castShadow = true
+  // The housing and hood stay separate meshes (see mergeStatic's keep) so they can hide around the camera.
+  for (const mesh of meshes.slice(0, 3)) mesh.userData.hood = true
+  group.userData.housing = { parts: meshes.slice(0, 3), halfWidth: width / 2 + 2.5, from: from - 3, to: from + length + 7, top: base + 5 }
+  group.add(...meshes)
   return group
 }
 

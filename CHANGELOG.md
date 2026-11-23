@@ -16,6 +16,11 @@ From the visual review of 0.8.6 (`docs/review/apex-visual-improvements.md`).
 ### Added
 - Demo park: a 2.6 km, 12° practice run off the Apex map with 24 features in a progression line, from rollers and small tabletops through boxes, flat, down and flat-down rails and a step-down to two XL jumps. Open it from the runs menu (T) under Terrain parks, or with `?demo`. Picking any Apex run, park, challenge or the tutorial takes you back.
 
+- Out-of-bounds line: orange bamboo poles and a sagging rope along the OSM ski-area boundary, open where roads cross, with "Area boundary / Closed beyond" signs every 220 m facing into the resort. Like the real rope, it does not stop you (#68).
+
+### Quickdraw
+- Chairlift hardware modelled on Quickdraw, a 1994 Doppelmayr-CTEC detachable quad. Towers are galvanized tapered tubes with a crossarm, a four-wheel sheave train under each rope, a ladder and a railed walkway. Chairs are galvanized quads with a hanger that bends back over the seat, four seat and back pads, and a lowered safety bar with a footrest. Terminals are long detach housings under a rounded light hood, open underneath, with an operator hut by the loading area, each facing down the line. The housing hides while the camera is inside it, so boarding and unloading stay clear (#26, #27). Stock's uses the same towers and chairs as a triple for now.
+
 ### Rider
 - Head: an open-faced helmet with vents and a back shell that drops over the ears, cylindrical goggles at eye level wrapping the face, a goggle strap round the back in the jacket accent colour, and the gaiter pulled up to the nose so the nose and cheeks show. Before, the face was a grey cylinder with the goggles floating above it.
 - Boots: a light shell with a toe box, an instep and a forward-leaning cuff, a dark spine and heel, four buckles with levers on the outside, and a power strap.

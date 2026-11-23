@@ -56,6 +56,8 @@ export interface Resort {
   roads: Point2[][]
   buildings: FeatureBuildingRef[]
   peaks: Peak[]
+  /** Ski-area boundary ring (OSM landuse=winter_sports), when mapped. */
+  boundary?: Point2[]
   attribution: string[]
 }
 
@@ -94,6 +96,7 @@ export interface FeaturesDocument {
   roads?: { points: FeaturePoint[]; highway?: string }[]
   buildings?: FeatureBuildingRef[]
   peaks?: { name?: string; x: number; z: number; ele?: number | null }[]
+  boundary?: { points?: FeaturePoint[] }
   source?: { attribution?: string }
 }
 export interface ReferencesDocument {
@@ -154,6 +157,7 @@ export function resortFromFeatures(doc: FeaturesDocument, heightAt: (x: number, 
       .filter((line) => line.length >= 2),
     buildings: doc.buildings ?? [],
     peaks: (doc.peaks ?? []).map((peak) => ({ name: peak.name ?? 'Peak', x: peak.x, z: peak.z, ele: peak.ele ?? null })),
+    boundary: doc.boundary?.points && doc.boundary.points.length >= 3 ? doc.boundary.points.map(pt) : undefined,
     attribution: [doc.source?.attribution ?? '© OpenStreetMap contributors'],
   }
 }

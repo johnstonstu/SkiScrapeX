@@ -1,3 +1,4 @@
+import { createBoundaryView } from '../render/scenery/boundaryView'
 import * as THREE from 'three'
 import type { Slope } from '../sim'
 import type { World } from '../world/loadWorld'
@@ -78,7 +79,7 @@ export function buildApexStage(
   options.phase?.('apex: forest view')
   const lifts = createLiftView(resort.lifts, grid.heightAt)
   lifts.object.traverse((child) => (child.castShadow = true))
-  mergeStatic(lifts.object)
+  mergeStatic(lifts.object, (object) => Boolean(object.userData.hood))
   scene.add(lifts.object)
   const buildings = buildBuildings(resort.buildings, grid.heightAt, canopy ? { grid, canopy } : undefined)
   scene.add(createBuildingView(buildings).object)
@@ -114,6 +115,7 @@ export function buildApexStage(
   options.phase?.('apex: solids')
   const signs = createSignView(resort.runs, peaks, anyHeight, places)
   scene.add(signs.object)
+  scene.add(createBoundaryView(resort.boundary, grid.heightAt, resort.roads).object)
 
   // Park features sit on top of the LiDAR ground; rebuilt when a layout changes.
   let overlay!: ParkOverlay
@@ -166,6 +168,7 @@ export function buildApexStage(
       forestView.update(camera)
       signs.update(camera)
       parkView?.update(camera)
+      lifts.clearView(camera)
     },
     describe: () =>
       `${forestView.drawn.toLocaleString()} / ${forest.count.toLocaleString()} trees (${forest.source}) · ${buildings.length} buildings · ` +
