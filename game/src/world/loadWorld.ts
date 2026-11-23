@@ -1,4 +1,5 @@
 import { createTerrainGrid, decodeDetailHeights, withDetail, type TerrainGrid } from './terrainGrid'
+import { unpackHeights } from './heightPacking'
 import { overlayRuns } from './runOverlay'
 import { applyCorrections } from './corrections'
 import {
@@ -14,6 +15,11 @@ import {
 import type { Canopy } from './surface'
 import type { Horizon } from './apron'
 
+interface PackedHeights {
+  file: string
+  encoding: string
+}
+
 export interface TerrainManifest {
   version: number
   columns: number
@@ -25,6 +31,7 @@ export interface TerrainManifest {
   minimumElevation: number
   maximumElevation: number
   heightEncoding: string
+  packedHeights?: PackedHeights
   attribution: string
   canopy?: { coverFile: string; heightFile: string; heightScale: number }
   detail?: DetailManifest
@@ -38,6 +45,7 @@ export interface DetailManifest {
   baseElevation: number
   scale: number
   hole: number
+  packedHeights?: PackedHeights
 }
 
 export interface World {
@@ -61,7 +69,7 @@ export async function loadWorld(base: string, onProgress?: (message: string) => 
   if (manifest.version !== 1 || manifest.heightEncoding !== 'float32-le') {
     throw new Error('Unsupported terrain manifest')
   }
-  const buffer = await fetchBuffer(url('heights.f32'))
+  const buffer = await loadHeightBytes(manifest, url, 'heights.f32', true)
   if (buffer.byteLength !== manifest.columns * manifest.rows * 4) throw new Error('Height grid size mismatch')
   const heights = littleEndianFloats(buffer)
   let grid = createTerrainGrid(manifest, heights)
@@ -109,8 +117,29 @@ export async function loadWorld(base: string, onProgress?: (message: string) => 
 
 async function loadDetail(manifest: TerrainManifest, url: (name: string) => string): Promise<TerrainGrid> {
   const info = manifest.detail!
-  const heights = decodeDetailHeights(await fetchBuffer(url(info.file)), info, manifest.originElevation)
+  const heights = decodeDetailHeights(await loadHeightBytes(info, url, info.file, false), info, manifest.originElevation)
   return createTerrainGrid({ columns: info.columns, rows: info.rows, stepMetres: info.stepMetres }, heights)
+}
+
+async function loadHeightBytes(
+  grid: Pick<TerrainManifest, 'columns' | 'rows' | 'packedHeights'>,
+  url: (name: string) => string,
+  rawFile: string,
+  coarse: boolean,
+): Promise<ArrayBuffer> {
+  const packed = grid.packedHeights
+  if (packed?.encoding === 'plane-delta16-gzip-v1' && typeof DecompressionStream === 'function') {
+    try {
+      const response = await fetch(url(packed.file))
+      if (!response.ok || !response.body) throw new Error(`Missing ${packed.file}`)
+      const stream = response.body.pipeThrough(new DecompressionStream('gzip'))
+      const inflated = await new Response(stream).arrayBuffer()
+      return unpackHeights(inflated, grid.columns, grid.rows, coarse)
+    } catch (error) {
+      console.warn(`Packed terrain skipped for ${rawFile}`, error)
+    }
+  }
+  return fetchBuffer(url(rawFile))
 }
 
 async function loadCanopy(manifest: TerrainManifest, url: (name: string) => string): Promise<Canopy | null> {

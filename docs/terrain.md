@@ -29,3 +29,9 @@ Contains information licensed under the [Open Government Licence – British Col
 ## Local review
 
 Follow Grandfather’s from the top of Quickdraw through the westward bend to the T-bar base and compare the line and two recognizable features against local knowledge.
+
+## Packed downloads
+
+Each grid can advertise a `packedHeights` object alongside its existing manifest fields. It contains the file name, encoding (`plane-delta16-gzip-v1`) and SHA-256 of the gzip file. The gzip payloads use a `.bin` extension so static servers serve them as binary files. The browser prefers the packed downloads. It uses the original files when no supported packed format is advertised, gzip decoding is unavailable, or a packed download fails. The original files also serve the OSM tooling and older game builds.
+
+After gzip inflation, each row-major sample is a signed little-endian 16-bit residual from `left + upper - upperLeft`. Missing neighbours contribute zero. A residual of −32768 is an escape followed by the original little-endian sample. The 2 m predictor uses the existing uint16 codes, including the hole code. The 5 m predictor uses units of 1/8192 m. Any Float32 value that cannot be represented exactly as a signed 32-bit count of those units, including negative zero, uses an escape and contributes zero to future predictions. Decoding preserves the original sample bytes, dimensions and origin.
