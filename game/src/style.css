@@ -85,6 +85,16 @@ html, body {
 }
 #status:empty { display: none; }
 
+/* Shown when WebGL is unavailable or the graphics chip resets. */
+.graphics-problem {
+  position: fixed; z-index: 20; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  max-width: min(28rem, calc(100vw - 2rem)); padding: 1rem 1.2rem; border-radius: 0.7rem;
+  background: rgba(19, 38, 55, 0.95); color: #edf6ff; box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.35);
+}
+.graphics-problem strong { display: block; font-size: 1.05rem; margin-bottom: 0.4rem; }
+.graphics-problem p { margin: 0 0 0.8rem; line-height: 1.4; }
+.graphics-problem button { font: inherit; font-weight: 650; padding: 0.45rem 1rem; border-radius: 0.45rem; border: 0; background: #ffd43b; color: #132637; cursor: pointer; }
+
 #help {
   left: max(0.75rem, env(safe-area-inset-left)); bottom: 1.6rem; margin: 0;
   padding: 0.4rem 0.7rem; border-radius: 0.5rem; background: rgba(19, 38, 55, 0.7); font-size: 0.8rem;

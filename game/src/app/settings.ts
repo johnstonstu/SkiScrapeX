@@ -71,6 +71,8 @@ export interface QualityProfile {
   shadowMapSize: number
   /** Shadows when the setting is Auto. Off on Low: the shadow pass is the biggest single cost on phones. */
   shadows: boolean
+  /** Close-up snow detail in the terrain shader (fine relief, worn patches, wandering edges). */
+  snowDetail: boolean
   forest: ForestDetail
   forestDensity: number
   apronForestDensity: number
@@ -89,6 +91,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     antialias: false,
     shadowMapSize: 1024,
     shadows: false,
+    snowDetail: false,
     forest: { near: 150, mid: 600, midShare: 0.45, farShare: 0.1 },
     forestDensity: 0.7,
     apronForestDensity: 0.6,
@@ -105,6 +108,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     antialias: true,
     shadowMapSize: 2048,
     shadows: true,
+    snowDetail: true,
     forest: { near: 200, mid: 750, midShare: 0.55, farShare: 0.15 },
     forestDensity: 0.85,
     apronForestDensity: 0.8,
@@ -121,6 +125,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     antialias: true,
     shadowMapSize: 2048,
     shadows: true,
+    snowDetail: true,
     forest: { near: 260, mid: 900, midShare: 0.7, farShare: 0.22 },
     forestDensity: 1,
     apronForestDensity: 1,
@@ -132,9 +137,24 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
   },
 }
 
-export function resolveQuality(settings: Settings, touch: boolean): QualityProfile {
-  const level = settings.quality === 'auto' ? (touch ? 'low' : 'high') : settings.quality
+/**
+ * The profile for this session. Auto starts from the level the hardware
+ * suggests (see app/hardware.ts; High on desktops and Low on touch when it is
+ * unknown) and never goes above `cap`, a limit learned on this machine after
+ * a GPU reset or slow frames. A level picked by hand is used as it is.
+ */
+export function resolveQuality(settings: Settings, touch: boolean, hardware: QualityLevel | null = null, cap: QualityLevel | null = null): QualityProfile {
+  if (settings.quality !== 'auto') return QUALITY[settings.quality]
+  let level: QualityLevel = hardware ?? (touch ? 'low' : 'high')
+  if (cap && LEVELS.indexOf(cap) < LEVELS.indexOf(level)) level = cap
   return QUALITY[level]
+}
+
+const LEVELS: QualityLevel[] = ['low', 'medium', 'high']
+
+/** One level lighter than `level` (Low stays Low). */
+export function lighterQuality(level: QualityLevel): QualityLevel {
+  return LEVELS[Math.max(0, LEVELS.indexOf(level) - 1)]
 }
 
 /** Forest reach scaled by the view distance setting (the base profile is left untouched). */
@@ -150,7 +170,7 @@ export function scaledForest(base: ForestDetail, viewDistance: number): ForestDe
 type Changed = (settings: Settings, key: keyof Settings) => void
 
 /** Settings panel: chip groups, sliders and toggles; calls `onChange` after every edit. */
-export function createSettingsPanel(panel: HTMLElement, settings: Settings, appliedQuality: QualityLevel, onChange: Changed): void {
+export function createSettingsPanel(panel: HTMLElement, settings: Settings, appliedQuality: QualityLevel, onChange: Changed, autoReason = ''): void {
   const render = () => {
     panel.innerHTML = '<header><h2>Settings</h2><button type="button" class="close" aria-label="Close">✕</button></header>'
     panel.querySelector('.close')!.addEventListener('click', () => (panel.hidden = true))
@@ -202,7 +222,7 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
     }
     const percent = (v: number) => `${Math.round(v * 100)}%`
     const pending = (settings.quality === 'auto' ? null : settings.quality) !== null && settings.quality !== appliedQuality
-    chips('Graphics', 'quality', [['auto', 'Auto'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']], `now ${appliedQuality}`)
+    chips('Graphics', 'quality', [['auto', 'Auto'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']], `now ${appliedQuality}${settings.quality === 'auto' && autoReason ? `, for ${autoReason}` : ''}`)
     if (pending) {
       const reload = document.createElement('button')
       reload.type = 'button'

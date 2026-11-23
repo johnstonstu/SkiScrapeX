@@ -34,7 +34,10 @@ import { buildParkMenu, buildRunMenu } from './app/menus'
 import { buildApexStage } from './app/apexStage'
 import type { Stage } from './app/stage'
 import { VERSION } from './app/version'
-import { createSettingsPanel, readSettings, resolveQuality, shadowsOn, writeSettings, type Settings } from './app/settings'
+import { createFrameWatch } from './app/adaptive'
+import { classifyHardware, probeHardware } from './app/hardware'
+import { setSnowDetail } from './fx'
+import { QUALITY, createSettingsPanel, lighterQuality, readSettings, resolveQuality, shadowsOn, writeSettings, type QualityLevel, type Settings } from './app/settings'
 import { createSession, type Challenge, type SessionEvent } from './app/session'
 import { createGoals, type Goals } from './app/goals'
 import { renderChallenges, renderResults, renderTitle, setTitleStatus } from './ui/goalsPanels'
@@ -53,9 +56,21 @@ const controls = createControls(document.body)
 const mobile = controls.touch
 const settings = readSettings()
 // Quality is fixed for the session (it shapes geometry and buffers); the rest applies live.
-const quality = resolveQuality(settings, mobile)
+// Auto graphics start from what this machine can do, capped by what it has
+// struggled with before (a GPU reset or slow frames).
+const hardware = probeHardware(mobile)
+const hardwareTier = hardware ? classifyHardware(hardware) : null
+const autoCap = readAutoCap()
+const quality = resolveQuality(settings, mobile, hardwareTier?.level ?? null, autoCap)
+setSnowDetail(quality.snowDetail)
+console.info(
+  `SkiScrapex graphics: ${quality.level}${settings.quality === 'auto' ? ` (Auto: ${hardwareTier?.reason ?? 'chip unknown'}${autoCap ? `, limited to ${autoCap} on this machine` : ''})` : ' (chosen)'}`,
+  hardware?.renderer ?? '',
+)
+const frameWatch = createFrameWatch()
 const pixelRatio = Math.min(window.devicePixelRatio, quality.pixelRatioMax)
-const renderer = new THREE.WebGLRenderer({ canvas: ui.canvas, antialias: quality.antialias, powerPreference: 'high-performance' })
+const renderer = createRenderer()
+watchForGpuReset()
 renderer.setPixelRatio(pixelRatio)
 renderer.outputColorSpace = THREE.SRGBColorSpace
 renderer.toneMapping = THREE.ACESFilmicToneMapping
@@ -118,6 +133,14 @@ function applySetting(key?: keyof Settings) {
   if (all || key === 'fov') rig.setFov(settings.fov)
   if (all || key === 'cameraShake') rig.setShake(settings.cameraShake ? 1 : 0)
   if (all || key === 'cameraStyle') rig.setStyle(settings.cameraStyle)
+  // Choosing a graphics level by hand clears the step-down after a GPU reset.
+  if (key === 'quality') {
+    try {
+      localStorage.removeItem(KEYS.autoCap)
+    } catch {
+      /* ignore */
+    }
+  }
   if (all || key === 'viewDistance') setViewDistance?.(settings.viewDistance)
   if (all || key === 'landingAssist') if (stageReady) stage.env.assist = settings.landingAssist
   if (key === 'npcs') npcs?.setVisible(settings.npcs)
@@ -133,7 +156,7 @@ function applySetting(key?: keyof Settings) {
 createSettingsPanel(ui.settings, settings, quality.level, (next, key) => {
   writeSettings(next)
   applySetting(key)
-})
+}, hardwareTier?.reason)
 document.body.classList.toggle('touch', mobile)
 ui.help.innerHTML = mobile
   ? 'Stick: steer · up tuck · down brake · in the air spin and flip. Hold <b>Jump</b> to crouch, release to pop'
@@ -251,9 +274,11 @@ async function boot() {
   let last = performance.now()
   let smoothed = 16.7
   const frame = (now: number) => {
-    const dt = Math.min(PHYSICS.maxFrameDt, Math.max(0, (now - last) / 1000))
+    const rawMs = now - last
+    const dt = Math.min(PHYSICS.maxFrameDt, Math.max(0, rawMs / 1000))
     last = now
     smoothed += (dt * 1000 - smoothed) * 0.05
+    if (frameWatch.sample(rawMs, stageReady && !ride && !pause && ui.titleScreen.hidden && !overlaysOpen())) lightenForSlowFrames()
     tick(dt, smoothed)
     requestAnimationFrame(frame)
   }
@@ -965,4 +990,105 @@ function resize() {
   camera.aspect = width / Math.max(1, height)
   camera.updateProjectionMatrix()
   renderer.setSize(width, height, false)
+}
+
+/**
+ * The WebGL renderer, or a clear message when the browser will not give us
+ * one. Chrome refuses new WebGL contexts for a while after its graphics
+ * process crashes or resets repeatedly; only restarting the browser clears it.
+ */
+function createRenderer(): THREE.WebGLRenderer {
+  try {
+    return new THREE.WebGLRenderer({ canvas: ui.canvas, antialias: quality.antialias, powerPreference: 'high-performance' })
+  } catch (error) {
+    showGraphicsProblem(
+      '3D graphics are not available',
+      'The browser would not start WebGL. If the game worked before, the browser has probably switched 3D off after a graphics crash: quit it completely and reopen it. ' +
+        'Otherwise check that hardware acceleration is turned on in the browser settings.',
+      false,
+    )
+    throw error
+  }
+}
+
+/**
+ * A lost WebGL context (the graphics chip reset, often from running out of
+ * time or memory) leaves menus and sound working over a blank screen. Say so,
+ * remember the level that was running so Auto starts lighter next time, and
+ * offer a reload.
+ */
+function watchForGpuReset() {
+  ui.canvas.addEventListener('webglcontextlost', (event) => {
+    event.preventDefault()
+    lowerAutoCap(lighterQuality(quality.level))
+    const next = lighterQuality(quality.level)
+    const auto = settings.quality === 'auto'
+    if (!auto && next !== quality.level) {
+      settings.quality = next
+      writeSettings(settings)
+    }
+    showGraphicsProblem(
+      'The graphics chip reset',
+      quality.level === 'low'
+        ? 'This happened on Low graphics. Reload to try again; if it keeps happening, quit and reopen the browser.'
+        : `Reload to continue on ${QUALITY[next].level[0].toUpperCase()}${QUALITY[next].level.slice(1)} graphics, which is lighter on this computer. You can change it back in Settings.`,
+      true,
+    )
+  })
+}
+
+function showGraphicsProblem(title: string, detail: string, reload: boolean) {
+  const box = document.createElement('div')
+  box.className = 'graphics-problem'
+  box.setAttribute('role', 'alert')
+  box.innerHTML = `<strong>${escapeHtml(title)}</strong><p>${escapeHtml(detail)}</p>`
+  if (reload) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.textContent = 'Reload'
+    button.addEventListener('click', () => location.reload())
+    box.append(button)
+  }
+  document.body.append(box)
+}
+
+/** Highest level Auto may use here, learned from GPU resets and slow frames. */
+function readAutoCap(): QualityLevel | null {
+  try {
+    const level = localStorage.getItem(KEYS.autoCap)
+    return level === 'low' || level === 'medium' || level === 'high' ? level : null
+  } catch {
+    return null
+  }
+}
+
+function lowerAutoCap(level: QualityLevel) {
+  const order: QualityLevel[] = ['low', 'medium', 'high']
+  const current = readAutoCap()
+  if (current && order.indexOf(current) <= order.indexOf(level)) return
+  try {
+    localStorage.setItem(KEYS.autoCap, level)
+  } catch {
+    /* not persisted */
+  }
+}
+
+/**
+ * Auto graphics found the game too slow to play: render fewer pixels and drop
+ * shadows now, and start a level lighter next time.
+ */
+function lightenForSlowFrames() {
+  if (settings.quality !== 'auto') return
+  renderer.setPixelRatio(Math.max(0.6, renderer.getPixelRatio() * 0.7))
+  resize()
+  if (renderer.shadowMap.enabled) {
+    renderer.shadowMap.enabled = false
+    scene.traverse((object) => {
+      const material = (object as THREE.Mesh).material
+      for (const m of Array.isArray(material) ? material : material ? [material] : []) m.needsUpdate = true
+    })
+  }
+  const next = lighterQuality(quality.level)
+  lowerAutoCap(next)
+  tricks.show('Smoother graphics', next === quality.level ? 'Lower resolution for this computer' : `Lower resolution now, ${next} graphics from next time`, 'bank')
 }

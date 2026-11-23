@@ -25,4 +25,6 @@ export const KEYS = {
   targets: 'skiscrapex.targets',
   coach: 'skiscrapex.coach',
   muted: 'apex.soundMuted',
+  /** Highest graphics level Auto may use on this machine, learned from GPU resets and slow frames. */
+  autoCap: 'skiscrapex.autoCap',
 } as const

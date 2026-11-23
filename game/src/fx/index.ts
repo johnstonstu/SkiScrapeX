@@ -1,4 +1,4 @@
-export { SnowMaterial } from './snow/SnowMaterial';
+export { SnowMaterial, setSnowDetail } from './snow/SnowMaterial';
 export type { SnowMaterialOptions } from './snow/SnowMaterial';
 export { Surface, headingFromDirection, writeMaskTexel } from './snow/mask';
 export type { SurfaceId } from './snow/mask';

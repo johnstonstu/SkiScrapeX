@@ -211,7 +211,11 @@ void main() {
   if (uHasGroomTex > 0.5 && uMaskEnabled > 0.5) {
     // Soft run edges: a linear-filtered groomed share instead of the nearest-texel id.
     // The edge is warped by about 2 m of noise so run borders wander instead of ruling straight lines.
+#ifdef SNOW_DETAIL
     vec2 warp = (vec2(valueNoise(vWorld.xz * 0.09), valueNoise(vWorld.xz * 0.09 + 17.3)) - 0.5) * 4.0 / max(uMaskSize, vec2(1.0));
+#else
+    vec2 warp = vec2(0.0);
+#endif
     float g = smoothstep(0.22, 0.78, texture2D(uGroomTex, clamp(maskUv + warp, 0.0, 1.0)).r);
     float other = 1.0 - groomed - powder;
     groomed = g * (1.0 - other);
@@ -247,7 +251,9 @@ void main() {
   float camDist = length(cameraPosition - vWorld);
   float near = 1.0 - smoothstep(25.0, 70.0, camDist);
   // Broad brightness drift so distant slopes are not one flat tone.
+#ifdef SNOW_DETAIL
   snow *= mix(0.955, 1.03, valueNoise(vWorld.xz * 0.006 + 5.0));
+#endif
   vec3 albedo = snow;
   albedo = mix(albedo, powderCol, powder);
   albedo = mix(albedo, iceCol, ice);
@@ -258,8 +264,10 @@ void main() {
   float canopyShade = uHasCanopy * texture2D(uCanopy, clamp(cuv, 0.0, 1.0)).r * (1.0 - groomed * uHasMask);
   albedo *= mix(vec3(1.0), vec3(0.8, 0.85, 0.9), canopyShade);
   // Needles and twigs dropped on the snow under the trees, close up only.
+#ifdef SNOW_DETAIL
   float debris = step(0.94, hash12(floor(vWorld.xz * 9.0))) * smoothstep(0.35, 0.8, canopyShade) * near * (1.0 - tree);
   albedo = mix(albedo, vec3(0.36, 0.31, 0.26), debris * 0.55);
+#endif
 
   vec2 perp = vec2(-groom.y, groom.x);
   float freq = 6.28318530718 / max(uCordSpacing, 0.05);
@@ -268,9 +276,13 @@ void main() {
   float aa = 1.0 - smoothstep(0.65, 2.4, fwidth(phase));
   float broken = smoothstep(0.02, 0.28, dep);
   // Traffic wears patches of a groomer: the corduroy fades and faint streaks run along the run.
+#ifdef SNOW_DETAIL
   float worn = groomed * smoothstep(0.55, 0.8, valueNoise(vWorld.xz * 0.045 + 3.0));
   float streak = valueNoise(vec2(dot(vWorld.xz, perp) * 2.4, dot(vWorld.xz, groom) * 0.07));
   albedo *= mix(1.0, mix(0.92, 1.0, streak), worn * snowMask);
+#else
+  float worn = 0.0;
+#endif
   float cordMask = groomed * snowMask * step(0.0001, uCordDepth) * aa * (1.0 - broken) * (1.0 - 0.75 * worn);
   float wave = sin(phase) * 0.78 + sin(phase * 0.5 + 1.3) * 0.22;
   vec3 Np = N + vec3(perp.x, 0.0, perp.y) * (cos(phase) * freq * uCordDepth * cordMask);
@@ -288,6 +300,7 @@ void main() {
   vec2 grad = vec2(depX - dep, depZ - dep) / max(metresPerTexel, 0.001);
   Np -= vec3(grad.x, 0.0, grad.y) * 0.45 * snowMask;
   // Fine relief near the camera: wind-pressed bumps on groomers, softer lumps in powder.
+#ifdef SNOW_DETAIL
   if (near > 0.0) {
     vec2 q = vWorld.xz;
     float e = 0.15;
@@ -297,6 +310,7 @@ void main() {
     float amp = (0.03 * groomed + 0.085 * powder + 0.05 * tree) * snowMask * near * (1.0 - 0.5 * broken);
     Np -= vec3(nx - n0, 0.0, nz - n0) / e * amp;
   }
+#endif
   float rockNoise = valueNoise(vWorld.xz * 0.35 + vWorld.y);
   vec3 rockN = normalize(Np + vec3(rockNoise - 0.5, 0.0, hash12(vWorld.xz) - 0.5));
   Np = normalize(mix(Np, rockN, rockMix * 0.55));
@@ -376,6 +390,16 @@ function unitDirection(x: number, z: number, out: Vector2): void {
  * Lighting is in the shader (sun + sky + ground bounce), so the mesh does not
  * need scene lights. Mask and track textures are sampled in world XZ metres.
  */
+/**
+ * Close-up snow detail (wandering run edges, fine relief, worn groomer
+ * patches, forest debris): about a dozen extra noise lookups per pixel, so
+ * low-end graphics leave it out. Set before the materials are built.
+ */
+let snowDetail = true
+export function setSnowDetail(on: boolean): void {
+  snowDetail = on
+}
+
 export class SnowMaterial extends ShaderMaterial {
   private readonly u: SnowUniforms;
   private readonly dummyMask: DataTexture;
@@ -438,6 +462,7 @@ export class SnowMaterial extends ShaderMaterial {
       uniforms: { ...UniformsUtils.clone(UniformsLib.lights), ...(uniforms as unknown as Record<string, IUniform>) },
       vertexShader,
       fragmentShader,
+      defines: snowDetail ? { SNOW_DETAIL: '' } : {},
       side: FrontSide,
       toneMapped: true,
     });
