@@ -92,7 +92,8 @@ function targetText(row: ChallengeRow): string {
 
 export function renderChallenges(panel: HTMLElement, data: ChallengeData, progress: Progress, close: () => void): void {
   panel.innerHTML =
-    '<header><h2>Challenges</h2><button type="button" class="close" aria-label="Close">✕</button></header>' +
+    '<header><div><h2>Challenges</h2><p class="menu-lead">Timed runs, parks, slalom and the mountain checklist.</p></div>' +
+    '<button type="button" class="close" aria-label="Close">✕</button></header>' +
     `<p class="title-summary">${summaryHtml(data.summary)}</p>`
   panel.querySelector('.close')!.addEventListener('click', close)
   const section = (title: string, note: string, rows: ChallengeRow[]) => {

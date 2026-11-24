@@ -2,6 +2,20 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.8.10 (unreleased): Fullscreen menus and park lines
+
+### Added
+
+- Runs, parks, rider, settings and challenges open as fullscreen menus on large screens, with a tighter stacked layout on phones.
+- The Runs & parks screen has an interactive trail map: click a run or park on the map, see it highlighted, and ski it from the detail card.
+- Rider & gear shows a live 3D standee of the current outfit beside the colour and kit controls.
+- Terrain park layouts can place side-by-side feature rows so you choose a lane. Claim Jumper defaults to that lane-choice line.
+
+### Changed
+
+- Claim Jumper's start is shifted left and uphill off Okanagan Run for a cleaner park run-in.
+- Park score targets count every feature in a lane row.
+
 ## 0.8.9 (2026-11-23): Terrain park and mountain polish
 
 ### Added

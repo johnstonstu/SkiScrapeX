@@ -62,20 +62,38 @@ export const FEATURES: Record<string, FeatureSpec> = {
   stepDown: { kind: 'stepDown', label: 'Step-down', height: 1.2, lipDeg: 20, deck: 3, landingDeg: 26, width: 7 },
 }
 
+/** One feature, or a side-by-side row the rider can choose from. */
+export type LayoutSlot = string | string[]
+
 export interface ParkLayout {
   id: string
   label: string
-  features: string[]
+  features: LayoutSlot[]
 }
 
 /** Swappable lineups. Each park picks one; the menu can switch them live. */
 export const LAYOUTS: ParkLayout[] = [
   { id: 'jumps', label: 'Jump line', features: ['kickerS', 'kickerM', 'kickerL'] },
-  { id: 'big', label: 'Big air', features: ['kickerM', 'kickerL', 'kickerXL'] },
+  {
+    id: 'big',
+    label: 'Big air',
+    features: ['rollerS', ['kickerS', 'kickerM'], ['box', 'rail'], ['kickerM', 'kickerL'], ['kickerL', 'kickerXL']],
+  },
   { id: 'jib', label: 'Jib line', features: ['box', 'rail', 'downRail', 'flatDownRail'] },
   { id: 'mixed', label: 'Mixed', features: ['rollerS', 'kickerM', 'box', 'rail', 'kickerL', 'downRail'] },
   { id: 'rollers', label: 'Rollers', features: ['rollerS', 'rollerS', 'rollerL', 'rollerS', 'stepDown'] },
   { id: 'progression', label: 'Progression', features: ['rollerS', 'kickerS', 'box', 'kickerS', 'rail'] },
+  {
+    id: 'lanes',
+    label: 'Lane choice',
+    features: [
+      'rollerS',
+      ['kickerS', 'kickerS', 'kickerM'],
+      ['box', 'rail', 'flatDownRail'],
+      ['kickerM', 'kickerL'],
+      ['kickerL', 'kickerXL', 'downRail'],
+    ],
+  },
 ]
 
 /**
@@ -90,11 +108,23 @@ export interface ParkSite {
 }
 
 export const DEFAULT_LAYOUT: Record<string, string> = {
-  'Claim Jumper': 'big',
+  'Claim Jumper': 'lanes',
   Prospector: 'mixed',
   'Okanagan Park': 'rollers',
   'Little Nuggets': 'progression',
   'Boarder Cross': 'rollers',
+}
+
+/**
+ * Claim Jumper's OSM line sits on Okanagan Run. Nudge the top left (west) and
+ * uphill so the run-in is a clean park start beside the groomer, not on it.
+ */
+export function adjustClaimJumperLine(line: Point2[]): Point2[] {
+  if (line.length < 2) return line
+  return line.map((point, index) => {
+    const t = Math.max(0, 1 - index / Math.max(1, line.length * 0.5))
+    return [point[0] - 52 * t, point[1] - 38 * t]
+  })
 }
 
 export function parkSitesFromLines(lines: { name: string | null; line: Point2[]; osmId: string }[]): ParkSite[] {
@@ -105,7 +135,8 @@ export function parkSitesFromLines(lines: { name: string | null; line: Point2[];
   if (unnamed[1]) guess.set(unnamed[1].osmId, 'Okanagan Park')
   return lines.map((l) => {
     const name = l.name === 'Park' ? 'Little Nuggets' : (l.name ?? guess.get(l.osmId) ?? 'Park')
-    return { id: l.osmId, name, line: l.line, layout: DEFAULT_LAYOUT[name] ?? 'mixed' }
+    const line = name === 'Claim Jumper' ? adjustClaimJumperLine(l.line) : l.line
+    return { id: l.osmId, name, line, layout: DEFAULT_LAYOUT[name] ?? 'mixed' }
   })
 }
 
@@ -116,34 +147,45 @@ export function placeFeatures(site: ParkSite, layoutId: string): PlacedFeature[]
 }
 
 /** The demo park's lineup: a long progression from rollers to XL jumps, with a jib between most kickers. */
-export const DEMO_LINEUP = [
+export const DEMO_LINEUP: LayoutSlot[] = [
   'rollerS', 'kickerS', 'box', 'kickerS', 'rail', 'rollerS', 'kickerM', 'flatDownRail', 'kickerM', 'downRail',
   'rollerL', 'kickerM', 'box', 'stepDown', 'kickerL', 'rail', 'kickerL', 'downRail', 'rollerS', 'kickerL',
   'flatDownRail', 'kickerXL', 'rollerS', 'kickerXL',
 ]
 
-/** Lay feature ids along a line. `gap` fixes the run-out between features; by default it spreads them evenly. */
-export function placeLineup(line: Point2[], featureIds: string[], gap?: number): PlacedFeature[] {
+const laneSpacing = 7.5
+
+/** Lay feature ids along a line. A slot may be a row of side-by-side choices. */
+export function placeLineup(line: Point2[], featureIds: LayoutSlot[], gap?: number): PlacedFeature[] {
   const total = polylineLength(line)
-  const specs = featureIds.map((id) => FEATURES[id]).filter(Boolean)
-  const footprints = specs.map(footprintOf)
+  const rows = featureIds
+    .map((slot) => (Array.isArray(slot) ? slot : [slot]).map((id) => FEATURES[id]).filter(Boolean))
+    .filter((row) => row.length > 0)
+  const footprints = rows.map((row) => Math.max(...row.map((spec) => footprintOf(spec))))
   const used = footprints.reduce((a, b) => a + b, 0)
-  gap ??= Math.max(12, (total - 30 - used) / Math.max(1, specs.length))
+  gap ??= Math.max(14, (total - 40 - used) / Math.max(1, rows.length))
   const placed: PlacedFeature[] = []
-  let at = 25
-  specs.forEach((spec, i) => {
+  let at = 32
+  rows.forEach((row, i) => {
     if (at + footprints[i] > total - 5) return
     const [x, z] = pointAlong(line, at)
     const [x2, z2] = pointAlong(line, at + Math.min(footprints[i], 10))
     const length = Math.hypot(x2 - x, z2 - z) || 1
-    placed.push({
-      spec,
-      x,
-      z,
-      dirX: (x2 - x) / length,
-      dirZ: (z2 - z) / length,
-      footprint: footprints[i],
-      halfWidth: (spec.kind === 'box' || spec.kind.toLowerCase().includes('rail') ? 2.5 : (spec.width ?? 6)) / 2 + 2,
+    const dirX = (x2 - x) / length
+    const dirZ = (z2 - z) / length
+    const sideX = -dirZ
+    const sideZ = dirX
+    row.forEach((spec, lane) => {
+      const lateral = (lane - (row.length - 1) / 2) * laneSpacing
+      placed.push({
+        spec,
+        x: x + sideX * lateral,
+        z: z + sideZ * lateral,
+        dirX,
+        dirZ,
+        footprint: footprints[i],
+        halfWidth: (spec.kind === 'box' || spec.kind.toLowerCase().includes('rail') ? 2.5 : (spec.width ?? 6)) / 2 + 2,
+      })
     })
     at += footprints[i] + gap
   })

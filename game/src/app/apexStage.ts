@@ -55,7 +55,17 @@ export function buildApexStage(
   const parkSites = parkSitesFromLines(resort.parks)
   const savedLayouts = readJson<Record<string, string>>(KEYS.parkLayouts, {})
   for (const site of parkSites) if (savedLayouts[site.name]) site.layout = savedLayouts[site.name]
-  const surface = buildSurface(grid, resort, 2.5, parkSites.map((site) => ({ name: site.name, line: site.line, halfWidth: 16 })))
+  const surface = buildSurface(
+    grid,
+    resort,
+    2.5,
+    parkSites.map((site) => ({
+      name: site.name,
+      line: site.line,
+      // Lane layouts need room for side-by-side features; Claim Jumper is the wide jump line.
+      halfWidth: site.name === 'Claim Jumper' ? 22 : 16,
+    })),
+  )
   options.phase?.('apex: surface')
   const terrain = createTerrainView(grid, surface, canopy, lighting, quality.terrain)
   options.phase?.('apex: terrain view')

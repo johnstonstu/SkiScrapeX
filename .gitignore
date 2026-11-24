@@ -18,3 +18,6 @@ __pycache__/
 
 # Local performance builds and reports (game/scripts/perf-spots.mjs)
 .perf/
+
+# Scratch research downloads and scripts
+_tmp*/

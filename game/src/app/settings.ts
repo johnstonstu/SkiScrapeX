@@ -169,7 +169,9 @@ type Changed = (settings: Settings, key: keyof Settings) => void
 /** Settings panel: chip groups, sliders and toggles; calls `onChange` after every edit. */
 export function createSettingsPanel(panel: HTMLElement, settings: Settings, appliedQuality: QualityLevel, onChange: Changed, autoReason = ''): void {
   const render = () => {
-    panel.innerHTML = '<header><h2>Settings</h2><button type="button" class="close" aria-label="Close">✕</button></header>'
+    panel.innerHTML =
+      '<header><div><h2>Settings</h2><p class="menu-lead">Graphics, camera, sound and assists.</p></div>' +
+      '<button type="button" class="close" aria-label="Close">✕</button></header>'
     panel.querySelector('.close')!.addEventListener('click', () => (panel.hidden = true))
     const row = (title: string, note = '') => {
       const element = document.createElement('div')

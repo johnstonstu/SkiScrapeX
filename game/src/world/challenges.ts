@@ -148,7 +148,8 @@ const FEATURE_PAR: Record<string, number> = {
 
 export function parkTargets(layoutId: string): MedalTargets {
   const layout = LAYOUTS.find((l) => l.id === layoutId) ?? LAYOUTS[0]
-  const par = layout.features.reduce((sum, id) => sum + (FEATURE_PAR[id] ?? 300), 0)
+  const ids = layout.features.flatMap((slot) => (Array.isArray(slot) ? slot : [slot]))
+  const par = ids.reduce((sum, id) => sum + (FEATURE_PAR[id] ?? 300), 0)
   const round = (n: number) => Math.round(n / 50) * 50
   return { gold: round(par * 2.5), silver: round(par * 1.4), bronze: round(par * 0.6) }
 }
