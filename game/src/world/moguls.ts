@@ -31,7 +31,7 @@ export function buildMoguls(grid: TerrainGrid, runs: Run[], surface: SurfaceFiel
     if (!run.moguls || run.kind !== 'line') continue
     for (const line of run.parts) {
       for (let row = 0; ; row++) {
-        const distance = 20 + row * 4.8 + Math.sin(row * 1.64) * 0.62
+        const distance = 20 + row * 5.2 + Math.sin(row * 1.64) * 0.62
         const [x, z] = pointAlong(line, distance)
         const [nx, nz] = pointAlong(line, distance + 1)
         const length = Math.hypot(nx - x, nz - z)
@@ -48,10 +48,11 @@ export function buildMoguls(grid: TerrainGrid, runs: Run[], surface: SurfaceFiel
           if (cells.get(cell(bx, bz))?.some((b) => (b.x - bx) ** 2 + (b.z - bz) ** 2 < 1.5 ** 2)) continue
           const bump = {
             x: bx, z: bz, dirX, dirZ,
-            height: 0.52 + 0.16 * Math.sin(shape * 0.86),
-            width: 1.9 + 0.22 * Math.cos(shape),
-            uphill: 2.6 + 0.23 * Math.sin(shape),
-            downhill: 1.85 + 0.2 * Math.cos(shape * 0.61),
+            // Deeper crests (~0.5–0.94 m) so Gunbarrel-style fields cast readable shade.
+            height: 0.72 + 0.22 * Math.sin(shape * 0.86),
+            width: 2.05 + 0.24 * Math.cos(shape),
+            uphill: 2.75 + 0.25 * Math.sin(shape),
+            downhill: 1.95 + 0.22 * Math.cos(shape * 0.61),
           }
           bumps.push(bump)
           const radius = Math.max(bump.width, bump.uphill, bump.downhill)

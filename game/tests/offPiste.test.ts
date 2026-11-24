@@ -112,6 +112,8 @@ it('builds irregular moguls with asymmetric faces and shallower snow on their cr
   const downhill = pointOnMogul(bump, 0, 0.5)
   expect(field.bumps.length).toBeGreaterThan(12)
   expect(new Set(field.bumps.map((bump) => bump.height)).size).toBeGreaterThan(10)
+  expect(Math.min(...field.bumps.map((b) => b.height))).toBeGreaterThan(0.45)
+  expect(Math.max(...field.bumps.map((b) => b.height))).toBeGreaterThan(0.85)
   expect(bump.z - uphill[1]).toBeGreaterThan(downhill[1] - bump.z)
   expect(field.sampleTerrain(bump.x, bump.z)?.mogulHeight).toBeCloseTo(bump.height)
   const loose = createSurfaceSampler(grid, surface, null)
