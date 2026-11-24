@@ -2,6 +2,13 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.11 (2026-11-24): Ragged run edges and deeper moguls
+
+### Changed
+
+- Run edges use a stronger wobble band and a third noise octave so corridors read less ruled.
+- Mogul fields: taller crests (~0.5–0.94 m), slightly wider spacing, mesh casts shadows (no-op on Low).
+
 ## 0.9.10 (2026-11-24): T-bar, Magic Carpet, and maze hint
 
 ### Changed

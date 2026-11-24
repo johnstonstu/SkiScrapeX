@@ -76,7 +76,7 @@ export function buildSurface(
         eachTexel(minX, minZ, maxX, maxZ, texel, width, height, (index, x, z) => {
           const near = nearestOnPolyline(x, z, segment)
           // Ragged edge so mapped centrelines do not look ruled.
-          const wobble = half * (0.82 + 0.3 * edgeNoise(x, z))
+          const wobble = half * (0.72 + 0.45 * edgeNoise(x, z))
           if (near.distanceSq > wobble * wobble || near.distanceSq >= runDistance[index]) return
           runDistance[index] = near.distanceSq
           if (clearCorridor) clear[index] = 1
@@ -216,7 +216,10 @@ function principalDirection(ring: [number, number][]): [number, number] {
   return best
 }
 
-/** Smooth -1..1 noise along run edges. */
+/** Smooth -1..1 noise along run edges (extra octave for sapling-scale jags). */
 function edgeNoise(x: number, z: number): number {
-  return Math.sin(x * 0.071 + Math.sin(z * 0.043) * 2.1) * 0.6 + Math.sin(z * 0.093 - x * 0.021) * 0.4
+  const a = Math.sin(x * 0.071 + Math.sin(z * 0.043) * 2.1)
+  const b = Math.sin(z * 0.093 - x * 0.021)
+  const c = Math.sin(x * 0.19 + z * 0.17 + 0.7)
+  return a * 0.45 + b * 0.3 + c * 0.25
 }

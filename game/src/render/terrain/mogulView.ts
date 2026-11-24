@@ -26,5 +26,6 @@ export function createMogulView(field: ReturnType<typeof buildMoguls>, material:
   geometry.setIndex(indices)
   const mesh = new THREE.Mesh(geometry, material)
   mesh.receiveShadow = true
+  mesh.castShadow = true
   return mesh
 }
