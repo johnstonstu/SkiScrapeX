@@ -61,9 +61,9 @@ export interface Forest {
 }
 
 /** Half-width of a lift-line clearing (the Quickdraw cut is 20 to 30 m wide); the edge is ragged by up to 25%. */
-const LIFT_CLEARANCE = 12
+const LIFT_CLEARANCE = 14
 /** Clear ground round each lift terminal: the maze, ramps and the operator hut. */
-const TERMINAL_CLEARANCE = 18
+const TERMINAL_CLEARANCE = 20
 /** Trees above this are LiDAR artefacts (towers, terminals, hut roofs), and summit trees stay stunted. */
 const MAX_TREE_HEIGHT = 35
 const SUMMIT_ELEVATION = 2060
