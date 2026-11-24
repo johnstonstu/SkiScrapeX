@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { Building } from '../../world/buildings'
+import { HERO_BUILDINGS } from '../../world/corrections'
 import { pointInRing } from '../../world/resort'
 
 // Village tones from the aerial photo: timber browns, barn red, grey board, tan stucco.
@@ -7,6 +8,7 @@ const WALLS = ['#8a6243', '#6b4a33', '#7a8088', '#8c3b2b', '#c2a684', '#5f4636']
 const SNOW = new THREE.Color('#eef3f7')
 const TRIM = new THREE.Color('#3b2e26')
 const CHIMNEY = new THREE.Color('#4a433c')
+const BOARD = new THREE.Color('#f4efe2')
 /** Eave snow lip past the wall line, metres. */
 export const ROOF_OVERHANG = 0.9
 /** Flat-roof snow slab thickness above the eaves, metres. */
@@ -15,6 +17,10 @@ export const ROOF_SNOW_DEPTH = 0.55
 const GABLE_SNOW_LIFT = 0.2
 /** Show the windowed near mesh inside this distance of the village cluster. */
 const NEAR_LOD = 340
+
+export function isHeroBuilding(name: string | null | undefined): boolean {
+  return Boolean(name && HERO_BUILDINGS.has(name))
+}
 
 /**
  * Buildings as near (windowed) and far (shell) meshes. Collision stays on the
@@ -89,14 +95,21 @@ function buildMesh(buildings: Building[], detail: boolean) {
   const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
 
   for (const building of buildings) {
-    const wall = building.wall ? new THREE.Color(building.wall) : WALLS[building.palette].clone().multiplyScalar(0.9 + (building.palette % 3) * 0.05)
+    const hero = isHeroBuilding(building.name)
+    const wall = building.wall
+      ? new THREE.Color(building.wall)
+      : WALLS[building.palette].clone().multiplyScalar(0.9 + (building.palette % 3) * 0.05)
+    if (hero && building.name === 'Gunbarrel Saloon') wall.multiplyScalar(0.92)
     const { ring, base, eaves } = building
     const windows = detail && building.kind !== 'service' ? 1 : 0
+    const snowLift = GABLE_SNOW_LIFT + (hero ? 0.12 : 0)
     let u = 0
+    let longest = { i: 0, length: 0, ax: 0, az: 0, bx: 0, bz: 0 }
     for (let i = 0; i < ring.length; i++) {
       const [ax, az] = ring[i]
       const [bx, bz] = ring[(i + 1) % ring.length]
       const length = Math.hypot(bx - ax, bz - az)
+      if (length > longest.length) longest = { i, length, ax, az, bx, bz }
       // Wind each wall so its normal points out of the footprint: probe just
       // off the edge along the default normal (dz, -dx) and flip if that is inside.
       const mx = (ax + bx) / 2 + ((bz - az) / Math.max(length, 1e-6)) * 0.05
@@ -121,12 +134,13 @@ function buildMesh(buildings: Building[], detail: boolean) {
     if (building.roof) {
       const { centre, axis, halfLength, halfWidth, rise } = building.roof
       const side: [number, number] = [-axis[1], axis[0]]
-      const L = halfLength + ROOF_OVERHANG
-      const W = halfWidth + ROOF_OVERHANG
-      const drop = ROOF_OVERHANG * (rise / halfWidth)
+      const overhang = ROOF_OVERHANG + (hero ? 0.15 : 0)
+      const L = halfLength + overhang
+      const W = halfWidth + overhang
+      const drop = overhang * (rise / halfWidth)
       const at = (along: number, across: number, y: number) =>
         v3(centre[0] + axis[0] * along + side[0] * across, y, centre[1] + axis[1] * along + side[1] * across)
-      const lift = (p: THREE.Vector3) => v3(p.x, p.y + GABLE_SNOW_LIFT, p.z)
+      const lift = (p: THREE.Vector3) => v3(p.x, p.y + snowLift, p.z)
       const ridgeA = lift(at(-L, 0, eaves + rise))
       const ridgeB = lift(at(L, 0, eaves + rise))
       for (const sign of [1, -1]) {
@@ -179,8 +193,8 @@ function buildMesh(buildings: Building[], detail: boolean) {
         tri(g0, g1, top, wall)
         tri(g1, g0, top, wall)
       }
-      // Near-only chimney on ordinary gable houses (skip tiny / service shells).
-      if (detail && building.kind !== 'service' && halfWidth >= 3) {
+      // Near-only chimney on ordinary gable houses (heroes always get one).
+      if (detail && building.kind !== 'service' && (hero || halfWidth >= 3)) {
         const along = halfLength * (building.palette % 2 === 0 ? 0.35 : -0.35)
         const baseY = eaves + rise + 0.05
         const topY = baseY + 0.95
@@ -204,6 +218,47 @@ function buildMesh(buildings: Building[], detail: boolean) {
         tri(b3, t0, t3, CHIMNEY)
         tri(t0, t1, t2, CHIMNEY)
         tri(t0, t2, t3, CHIMNEY)
+      }
+      // Modest hero porch lip + wall board (detail only) — recognizable massing, not a rebuild.
+      if (detail && hero && longest.length > 4) {
+        const { ax, az, bx, bz, length } = longest
+        const nx = (bz - az) / length
+        const nz = (ax - bx) / length
+        // Outward normal relative to footprint.
+        const midX = (ax + bx) / 2 + nx * 0.05
+        const midZ = (az + bz) / 2 + nz * 0.05
+        const out = pointInRing(midX, midZ, ring) ? -1 : 1
+        const ox = nx * out
+        const oz = nz * out
+        const depth = building.name === 'Gunbarrel Saloon' ? 2.4 : 1.8
+        const y0 = base + 0.15
+        const y1 = y0 + 0.18
+        const p0 = v3(ax + ox * 0.2, y1, az + oz * 0.2)
+        const p1 = v3(bx + ox * 0.2, y1, bz + oz * 0.2)
+        const p2 = v3(bx + ox * depth, y1, bz + oz * depth)
+        const p3 = v3(ax + ox * depth, y1, az + oz * depth)
+        tri(p0, p1, p2, SNOW)
+        tri(p0, p2, p3, SNOW)
+        tri(v3(ax, y0, az), v3(bx, y0, bz), p1, TRIM)
+        tri(v3(ax, y0, az), p1, p0, TRIM)
+        // Cream name board on the long wall.
+        const boardY = base + Math.min(3.2, (eaves - base) * 0.55)
+        const boardW = Math.min(3.2, length * 0.45)
+        const cx = (ax + bx) / 2
+        const cz = (az + bz) / 2
+        const tx = (bx - ax) / length
+        const tz = (bz - az) / length
+        const hw = boardW / 2
+        const hh = 0.45
+        const face = 0.08
+        const bA = v3(cx - tx * hw + ox * face, boardY - hh, cz - tz * hw + oz * face)
+        const bB = v3(cx + tx * hw + ox * face, boardY - hh, cz + tz * hw + oz * face)
+        const bC = v3(cx + tx * hw + ox * face, boardY + hh, cz + tz * hw + oz * face)
+        const bD = v3(cx - tx * hw + ox * face, boardY + hh, cz - tz * hw + oz * face)
+        tri(bA, bB, bC, BOARD)
+        tri(bA, bC, bD, BOARD)
+        tri(bA, bD, v3(bD.x - ox * 0.04, bD.y, bD.z - oz * 0.04), TRIM)
+        tri(bB, bC, v3(bC.x - ox * 0.04, bC.y, bC.z - oz * 0.04), TRIM)
       }
     } else {
       // Flat roof: snow slab on the footprint.
