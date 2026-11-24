@@ -730,7 +730,14 @@ export function createSkierView(): {
         hand.lerp(v2.set(side * dp.handX, dp.handY, dp.handZ), doublePole)
         hand.lerp(v2.set(side * 0.55, 0.12, 0.15), handsBack)
         // Arms out for balance on a rail; the low side reaches further.
-        if (rail) hand.lerp(v2.set(side * (0.62 + Math.max(0, side * rail.balance) * 0.12), 0.18 - side * rail.balance * 0.1, 0.12), Math.min(1, railBlend.x))
+        if (rail) {
+          const pressAmt = press.x
+          // Nose press: arms counterbalance aft; tail press: arms reach forward over the tip.
+          const pressX = side * (0.62 + Math.max(0, side * rail.balance) * 0.12 + Math.abs(pressAmt) * 0.08)
+          const pressY = 0.18 - side * rail.balance * 0.1 + Math.abs(pressAmt) * 0.06
+          const pressZ = 0.12 - pressAmt * 0.22
+          hand.lerp(v2.set(pressX, pressY, pressZ), Math.min(1, railBlend.x))
+        }
         if (rig.firstPerson) {
           // Raise the hands into the first-person view.
           hand.y += 0.36 * (1 - tuck.x)

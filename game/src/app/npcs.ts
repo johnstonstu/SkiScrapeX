@@ -47,6 +47,8 @@ const SKILL_CAP: Record<string, [number, number]> = {
   expert: [11, 18],
 }
 
+export type NpcContact = { kind: 'bump' | 'wipeout' | 'nearMiss'; closing: number }
+
 export function createNpcs(
   scene: THREE.Object3D,
   routes: Route[],
@@ -152,10 +154,14 @@ export function createNpcs(
     npc.travelled += state.speed * FIXED_DT
   }
 
+  let nearMissCooldown = 0
+
   return {
     group,
     /** Advance everyone by `dt`. `camera` decides who is drawn. */
-    update(dt: number, camera: THREE.Vector3, player: SkiState) {
+    update(dt: number, camera: THREE.Vector3, player: SkiState): NpcContact[] {
+      const contacts: NpcContact[] = []
+      nearMissCooldown = Math.max(0, nearMissCooldown - dt)
       for (const npc of npcs) {
         npc.accumulator += Math.min(dt, 0.1)
         while (npc.accumulator >= FIXED_DT) {
@@ -188,13 +194,30 @@ export function createNpcs(
             if (closing > 8.5 && player.speed > 10) {
               beginCrash(player, Math.min(player.speed, closing + 4))
               beginCrash(state, Math.min(state.speed, closing * 0.7))
+              contacts.push({ kind: 'wipeout', closing })
             } else if (closing > 1.5) {
               player.vx -= nx * closing * 0.45
               player.vz -= nz * closing * 0.45
               state.vx += nx * closing * 0.25
               state.vz += nz * closing * 0.25
               // Nudge the NPC off the collision line.
-              npc.input.steer = Math.max(-1, Math.min(1, npc.input.steer + (Math.random() < 0.5 ? -0.6 : 0.6)))
+              npc.input.steer = Math.max(-1, Math.min(1, npc.input.steer + (Math.random() < 0.6 ? -0.6 : 0.6)))
+              contacts.push({ kind: 'bump', closing })
+            }
+          } else if (
+            nearMissCooldown <= 0 &&
+            dist < 3.2 &&
+            dist >= 1.4 &&
+            player.speed > 8 &&
+            state.speed > 4
+          ) {
+            const nx = dx / dist
+            const nz = dz / dist
+            const closing = (player.vx - state.vx) * nx + (player.vz - state.vz) * nz
+            // Passing close with meaningful relative motion — whoosh, not a hit.
+            if (closing > 2.5 && closing <= 8.5) {
+              contacts.push({ kind: 'nearMiss', closing })
+              nearMissCooldown = 0.85
             }
           }
         }
@@ -202,6 +225,7 @@ export function createNpcs(
         npc.view.object.visible = near
         if (near) npc.view.update(state, npc.input, terrain(state.x, state.z), 'ski', dt)
       }
+      return contacts
     },
     setVisible(on: boolean) {
       group.visible = on

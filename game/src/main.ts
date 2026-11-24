@@ -165,6 +165,7 @@ function applySetting(key?: keyof Settings) {
   if (all || key === 'weather') {
     weatherLive = applyWeather(settings.weather, lighting, scene, sun, sky)
     effects.setWeather(weatherLive.snowDensity, weatherLive.windEast, weatherLive.windSouth, lighting)
+    ui.weatherCue.hidden = settings.weather !== 'flat'
     if (stageReady && stage.snow) {
       stage.snow.setSun(lighting.sunDirection, lighting.sunColor)
       stage.snow.setFog(lighting.fogDensity, lighting.fogColor)
@@ -895,7 +896,17 @@ function tick(dt: number, frameMs: number) {
     coachTips()
     checkEvents()
   }
-  if (settings.npcs && !pause) npcs?.update(dt, camera.position, skier)
+  if (settings.npcs && !pause) {
+    for (const contact of npcs?.update(dt, camera.position, skier) ?? []) {
+      if (contact.kind === 'nearMiss') {
+        sound.nearMiss(contact.closing)
+        haptics.nearMiss(contact.closing)
+      } else if (contact.kind === 'bump') {
+        sound.nearMiss(contact.closing * 0.7)
+        haptics.nearMiss(contact.closing * 0.85)
+      }
+    }
+  }
   if (goals && !pause) {
     const found = goals.frame(skier, dt, Boolean(ride), camera.position)
     if (found) {

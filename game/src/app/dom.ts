@@ -36,6 +36,7 @@ export function getUi() {
     hint: $('#hint'),
     version: $('#version'),
     hudVersion: $('#hud-version'),
+    weatherCue: $('#weather-cue'),
   }
 }
 
