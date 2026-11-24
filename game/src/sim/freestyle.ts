@@ -34,17 +34,22 @@ export const FREESTYLE = {
   /** Rotation authority in the air without pre-wind (0..1). */
   airAuthority: 0.6,
   /** In the last this-many seconds before landing, rotation snaps to a landable angle. */
-  assistWindow: 0.45,
+  assistWindow: 0.6,
   /** Equivalent fall height limits, metres: perfect, clean, sketchy. */
-  efhPerfect: 0.8,
-  efhClean: 1.8,
-  efhSketchy: 3.5,
+  efhPerfect: 1.0,
+  efhClean: 2.4,
+  efhSketchy: 5.5,
+  /**
+   * Extra EFH headroom when the skis are nearly upright and pointed with travel.
+   * Big park landings often sit above `efhSketchy` even when the body looks fine.
+   */
+  efhUprightBonus: 1.7,
   /** Rail capture: horizontal reach beyond half width, vertical window around the top. */
-  railReach: 0.6,
-  railBelow: -0.15,
-  railAbove: 0.35,
-  railMaxRise: 0.8,
-  railAlignDeg: 35,
+  railReach: 0.75,
+  railBelow: -0.28,
+  railAbove: 0.55,
+  railMaxRise: 1.05,
+  railAlignDeg: 42,
   railFriction: 0.06,
   boxFriction: 0.04,
   /** Balance is an unstable pendulum: b'' = λ² b − c b' + K·steer + noise. */
@@ -254,15 +259,27 @@ export function gradeLanding(
   const flipErrDeg = (flipErr * 180) / Math.PI
   const speed = Math.hypot(tangent.x, tangent.y, tangent.z)
   const slow = speed < 2
+  // Nearly upright and lined up with travel: allow a much bigger drop before a bail.
+  const upright = flipErrDeg < 18 && spinErrDeg < 28
+  const efhCleanLimit = FREESTYLE.efhClean * (upright ? 1.2 : 1)
+  const efhSketchyLimit = FREESTYLE.efhSketchy * (upright ? FREESTYLE.efhUprightBonus : 1)
 
   let grade: LandingGrade
-  if ((spinErrDeg < 8 || slow) && flipErrDeg < 10 && efh < FREESTYLE.efhPerfect && !grabHeld) grade = 'perfect'
-  else if ((spinErrDeg < 15 || slow) && flipErrDeg < 20 && efh < FREESTYLE.efhClean) grade = 'clean'
-  else if ((spinErrDeg < 45 || slow) && flipErrDeg < 50 && efh < FREESTYLE.efhSketchy && !(grabHeld && flipErrDeg > 30)) grade = 'sketchy'
+  if ((spinErrDeg < 10 || slow) && flipErrDeg < 12 && efh < FREESTYLE.efhPerfect && !grabHeld) grade = 'perfect'
+  else if ((spinErrDeg < 20 || slow) && flipErrDeg < 25 && efh < efhCleanLimit) grade = 'clean'
+  else if ((spinErrDeg < 55 || slow) && flipErrDeg < 60 && efh < efhSketchyLimit && !(grabHeld && flipErrDeg > 35)) grade = 'sketchy'
+  // Stomp: skis look landable but the drop is huge — scrub hard, do not wipe out.
+  else if (upright && !grabHeld && efh < FREESTYLE.efhSketchy * FREESTYLE.efhUprightBonus * 1.15) grade = 'sketchy'
   else grade = 'crash'
 
   const keep =
-    grade === 'perfect' ? 1.03 : grade === 'clean' ? 1 : grade === 'sketchy' ? 1 - (0.15 + 0.2 * Math.min(1, efh / 3)) : 0
+    grade === 'perfect'
+      ? 1.03
+      : grade === 'clean'
+        ? 1
+        : grade === 'sketchy'
+          ? 1 - (0.12 + 0.22 * Math.min(1, efh / 5))
+          : 0
   return { grade, efh, spinErrDeg, flipErrDeg, switchLanding, keep }
 }
 

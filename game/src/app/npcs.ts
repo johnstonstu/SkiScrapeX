@@ -184,10 +184,11 @@ export function createNpcs(
             player.z -= nz * push
             state.x += nx * push * 0.65
             state.z += nz * push * 0.65
-            if (closing > 5.5 && player.speed > 7) {
+            // Only wipe out on a real hit; light brushes just bump both skiers.
+            if (closing > 8.5 && player.speed > 10) {
               beginCrash(player, Math.min(player.speed, closing + 4))
               beginCrash(state, Math.min(state.speed, closing * 0.7))
-            } else if (closing > 1.2) {
+            } else if (closing > 1.5) {
               player.vx -= nx * closing * 0.45
               player.vz -= nz * closing * 0.45
               state.vx += nx * closing * 0.25

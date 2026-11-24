@@ -627,10 +627,15 @@ function stepAir(
   const velocity = { x: state.vx, y: state.vy, z: state.vz }
   const landing = gradeLanding(velocity, n, state.heading, air, Boolean(input.grab))
   const tangent = projectOnPlane(velocity, n)
-  // Short hops (bumps, small pops) are not graded harshly.
-  const hop = air.time < 0.35 && Math.abs(air.flip) < 0.5 && Math.abs(air.spin) < 0.8
+  // Short hops (bumps, small pops, rail approaches) are not graded harshly.
+  const hop = air.time < 0.55 && Math.abs(air.flip) < 0.7 && Math.abs(air.spin) < 1.15
   const grade = hop && landing.grade !== 'crash' ? 'clean' : landing.grade
-  const keep = hop ? clamp(1 - Math.max(0, -dot(velocity, n)) / PHYSICS.landingSoften, 0.6, 1) : landing.keep
+  // Soften the normal hit a little even on graded landings so big drops absorb through the legs.
+  const keep = hop
+    ? clamp(1 - Math.max(0, -dot(velocity, n)) / PHYSICS.landingSoften, 0.6, 1)
+    : landing.keep <= 0
+      ? 0
+      : Math.max(0, landing.keep * (1 - Math.min(0.15, landing.efh * 0.018)))
   state.x = nextX
   state.y = ground.height
   state.z = nextZ
