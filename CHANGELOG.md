@@ -2,6 +2,13 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.5 (2026-11-24): Safer main / rider module split
+
+### Changed
+
+- Pulled Auto graphics cap helpers and graphics-fail UI out of `main.ts`.
+- Rider update: Spring, double-pole, crash yard-sale pose, and chair sit pose live in their own modules (behavior unchanged). Deeper ski-pose split deferred as too risky for a silent refactor.
+
 ## 0.9.4 (2026-11-24): Building LOD and longer High shadows
 
 ### Changed

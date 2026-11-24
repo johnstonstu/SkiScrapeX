@@ -162,7 +162,7 @@ Ongoing, a few items per release:
 - **Effects**: spray sized by speed and edge, powder plumes, tracks that persist for the session, breath in the cold.
 - **UI**: HUD that shows the run you are on (not the course you picked), lift names on lifts, cleaner menus and transitions, a better loading screen, controller-first navigation.
 - **Camera**: speed field-of-view kick, landing camera, a cinematic lift-ride camera option, camera never inside geometry.
-- **Engineering**: split `sim/skier.ts` and eventually `main.ts` / rider update (deferred past 0.9.0), keep the tuning bots as the feel baseline, a smoke test before each tag, performance numbers in `docs/status.md` every release. Low village lite (cars/decks) in 0.9.0.
+- **Engineering**: split `sim/skier.ts`; `main.ts` / rider update partially split in 0.9.5 (autoCap, graphicsFail, crash/sit/Spring modules — deeper ski-pose/tick still deferred). Keep the tuning bots as the feel baseline, a smoke test before each tag, performance numbers in `docs/status.md` every release. Low village lite (cars/decks) in 0.9.0.
 
 ## Open decisions for Stu
 
