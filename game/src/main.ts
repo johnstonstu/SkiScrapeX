@@ -28,7 +28,7 @@ import { createMinimap } from './ui/minimap'
 import { SKI_MODELS, createStylePanel, readOutfit, writeOutfit } from './ui/riderPanel'
 import { loadWorld, type World } from './world/loadWorld'
 import { chooseCourse, courseForRun, headingFor, liftAtBottom, pickableRuns, pointAlong, type Course as RunCourse, type Lift, type Run } from './world/resort'
-import { featureAhead, type ParkSite } from './world/park'
+import { approachAim, featureAhead, type ParkSite } from './world/park'
 import { pushOutOfRing } from './world/buildings'
 import { resolveTreeContact } from './world/treeSkiing'
 import { createPerfProbe } from './app/perf'
@@ -846,7 +846,7 @@ function tick(dt: number, frameMs: number) {
         titleWasShown = false
         rig.snap()
       }
-      rig.update(skier, stage.slope.sampleTerrain, 0, ride ? undefined : cameraBlocked, skierView.eye, skierView.object)
+      rig.update(skier, stage.slope.sampleTerrain, 0, ride ? undefined : cameraBlocked, skierView.eye, skierView.object, null)
     }
     renderer.render(scene, camera)
     return
@@ -903,7 +903,28 @@ function tick(dt: number, frameMs: number) {
 
   const ground = ride ? null : stage.slope.sampleTerrain(skier.x, skier.z)
   skierView.update(skier, input, ground, pose, dt)
-  rig.update(skier, stage.slope.sampleTerrain, dt, ride ? undefined : cameraBlocked, skierView.eye, skierView.object)
+  const travel = Math.hypot(skier.vx, skier.vz)
+  const approach =
+    !ride && !pause && skier.grounded && !skier.rail && skier.crashed <= 0 && travel > 3
+      ? approachAim(
+          stage.features(),
+          stage.env.rails ?? [],
+          skier.x,
+          skier.z,
+          skier.vx / travel,
+          skier.vz / travel,
+          40,
+        )
+      : null
+  rig.update(
+    skier,
+    stage.slope.sampleTerrain,
+    dt,
+    ride ? undefined : cameraBlocked,
+    skierView.eye,
+    skierView.object,
+    approach ? { x: approach.x, z: approach.z, strength: approach.kind === 'rail' ? 0.2 : 0.14 } : null,
+  )
   sky.position.copy(camera.position)
   // Shadow box sits ahead of the skier along the view.
   sunFocus.set(skier.x - camera.position.x, 0, skier.z - camera.position.z).setLength(35)
@@ -1057,7 +1078,7 @@ function checkEvents() {
 
 function updateHud(frameMs: number, steps: number) {
   ui.speed.textContent = `${Math.round(skier.speed * 3.6)}`
-  parkHud.update(skier, stage.features(), !ride && !pause)
+  parkHud.update(skier, stage.features(), !ride && !pause, stage.env.rails ?? [])
   ui.time.textContent = formatTime(session.total)
   if (!ui.debug.hidden) {
     const deg = (rad: number) => `${Math.round((rad * 180) / Math.PI)}°`

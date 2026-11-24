@@ -117,7 +117,7 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - The 2 m detail is smoothed for snowpack with one fixed sigma. Real snow fills gullies more than it rounds ridges; a fill pass (raise concave cells) could follow a playtest.
 - Trees, lifts and buildings sit on the 2 m ground; far away the 5 m mesh can be up to about 0.5 m off, which is not visible at that distance.
 - Park names for the two unnamed OSM park ways (Prospector, Okanagan Park) and "Park" (Little Nuggets) are guesses.
-- Rails: hop-friendlier capture (0.8.13), crouch→extend entry and soft step-off (0.8.15). Approach assist / park spacing still open.
+- Rails: hop-friendlier capture (0.8.13), crouch→extend entry and soft step-off (0.8.15). Approach camera/HUD assist and wider multi-lane spacing in 0.8.16.
 - Map: hover tip + click trip on trail map and HUD minimap (0.8.15).
 - Crashes (0.8.11) tumble and scatter skis by entry speed; washout tip-in removed in 0.8.12 (skid only). Landing EFH leeway raised in 0.8.13. Powder float/plow/bounce in 0.8.14. Still no collect / get-up for lost gear (#61).
 - Tuck drag raised in 0.8.11 (0.42 m²); re-check equilibrium on Gunbarrel / Grandfather's after a playtest.

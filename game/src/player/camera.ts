@@ -99,6 +99,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
     /**
      * `blocked(x, z)` reports a tree or wall at a candidate camera spot; the
      * camera then pulls in toward the skier until it is clear.
+     * `aimHint` softly pulls the look target toward a park feature or rail.
      */
     update(
       state: SkiState,
@@ -107,6 +108,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
       blocked?: (x: number, z: number) => boolean,
       eye?: THREE.Object3D,
       body?: THREE.Object3D,
+      aimHint?: { x: number; z: number; strength?: number } | null,
     ) {
       if (mode === 'orbit') {
         orbit.update()
@@ -155,6 +157,12 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
       const gradeDrop = ahead && current ? THREE.MathUtils.clamp((ahead.height - current.height) * 0.55, -3.2, 2) : 0
       lookHeight = snap ? gradeDrop : THREE.MathUtils.lerp(lookHeight, gradeDrop, 1 - Math.exp(-4 * dt))
       target.y += lookHeight
+      // Soft line hint toward the next park feature or rail (approach assist).
+      if (aimHint && mode === 'follow' && state.grounded && !state.rail && state.crashed <= 0 && shake > 0 && !motion.matches) {
+        const pull = THREE.MathUtils.clamp(aimHint.strength ?? 0.16, 0, 0.35)
+        target.x = THREE.MathUtils.lerp(target.x, aimHint.x, pull)
+        target.z = THREE.MathUtils.lerp(target.z, aimHint.z, pull)
+      }
       // Edge chatter shakes the view a little.
       if (state.chatter > 0.05 && shake > 0) {
         const k = state.chatter * 0.05 * shake

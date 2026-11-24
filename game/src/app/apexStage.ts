@@ -63,7 +63,7 @@ export function buildApexStage(
       name: site.name,
       line: site.line,
       // Multi-lane parks need room for side-by-side features.
-      halfWidth: ['Claim Jumper', 'Okanagan Park', 'Prospector'].includes(site.name) ? 26 : 16,
+      halfWidth: ['Claim Jumper', 'Okanagan Park', 'Prospector'].includes(site.name) ? 28 : 16,
     })),
   )
   options.phase?.('apex: surface')

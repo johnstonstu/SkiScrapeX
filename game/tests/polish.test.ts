@@ -5,7 +5,7 @@ import { emptyProgress, renameRuns } from '../src/app/progress'
 import { DEFAULT_SETTINGS, QUALITY, shadowsOn } from '../src/app/settings'
 import { createTrickFeed } from '../src/app/tricks'
 import type { TrickEvent } from '../src/sim'
-import { KICKERS, featureAhead, type PlacedFeature } from '../src/world/park'
+import { KICKERS, approachAim, featureAhead, type PlacedFeature } from '../src/world/park'
 import type { Resort } from '../src/world/resort'
 
 describe('official run spellings', () => {
@@ -49,6 +49,19 @@ describe('terrain park feedback', () => {
     expect(onRamp.distance).toBeCloseTo(approach.distance - 2)
     expect(featureAhead([jump], 0, 128, 0, 1)).toBeNull()
     expect(featureAhead([jump], 12, 101, 0, 1)).toBeNull()
+    const aim = approachAim([jump], [], 0, 99, 0, 1, 40)
+    expect(aim?.kind).toBe('jump')
+    expect(aim!.distance).toBeGreaterThan(0)
+    const rail: PlacedFeature = {
+      spec: { kind: 'rail', label: 'Flat rail', height: 0.8, length: 7, width: 0.08 },
+      x: 0,
+      z: 120,
+      dirX: 0,
+      dirZ: 1,
+      footprint: 7,
+      halfWidth: 3,
+    }
+    expect(approachAim([rail], [], 0, 100, 0, 1, 40)?.kind).toBe('rail')
   })
 
   it('shows both speed limits as on pace and asks riders to steer against the lean', () => {

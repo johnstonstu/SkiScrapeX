@@ -1,5 +1,5 @@
-import type { SkiState } from '../sim'
-import { featureAhead, type PlacedFeature } from '../world/park'
+import type { Rail, SkiState } from '../sim'
+import { approachAim, featureAhead, type PlacedFeature } from '../world/park'
 
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
 
@@ -35,7 +35,7 @@ export function createParkHud(panel: HTMLElement) {
     setText(range, detail)
   }
   return {
-    update(state: SkiState, features: PlacedFeature[], skiing: boolean) {
+    update(state: SkiState, features: PlacedFeature[], skiing: boolean, rails: readonly Rail[] = []) {
       if (!skiing || state.crashed > 0 || !state.grounded) {
         panel.hidden = true
         return
@@ -49,22 +49,32 @@ export function createParkHud(panel: HTMLElement) {
         return
       }
       const travel = Math.hypot(state.vx, state.vz)
-      const next = travel > 2 && features.length ? featureAhead(features, state.x, state.z, state.vx / travel, state.vz / travel) : null
+      const dirX = travel > 0.2 ? state.vx / travel : -Math.sin(state.heading)
+      const dirZ = travel > 0.2 ? state.vz / travel : Math.cos(state.heading)
+      const next = travel > 2 && features.length ? featureAhead(features, state.x, state.z, dirX, dirZ) : null
       const speedRange = next?.feature.spec.speed
-      if (!next || !speedRange) {
-        panel.hidden = true
+      if (next && speedRange) {
+        const [low, high] = speedRange
+        const speed = state.speed * 3.6
+        const cue = parkSpeedCue(speed, low, high)
+        const distance = Math.ceil(next.distance)
+        const max = high + (high - low)
+        show('jump', cue === 'On pace' ? 'ready' : cue === 'Scrub speed' ? 'danger' : 'caution', `${distance} m to lip`,
+          next.feature.spec.label.split(' · ')[0], cue, `${low}–${high} km/h target`)
+        gauge.style.setProperty('--band-start', `${(low / max * 100).toFixed(1)}%`)
+        gauge.style.setProperty('--band-width', `${((high - low) / max * 100).toFixed(1)}%`)
+        gauge.style.setProperty('--cursor', `${(clamp(speed / max, 0, 1) * 100).toFixed(1)}%`)
         return
       }
-      const [low, high] = speedRange
-      const speed = state.speed * 3.6
-      const cue = parkSpeedCue(speed, low, high)
-      const distance = Math.ceil(next.distance)
-      const max = high + (high - low)
-      show('jump', cue === 'On pace' ? 'ready' : cue === 'Scrub speed' ? 'danger' : 'caution', `${distance} m to lip`,
-        next.feature.spec.label.split(' · ')[0], cue, `${low}–${high} km/h target`)
-      gauge.style.setProperty('--band-start', `${(low / max * 100).toFixed(1)}%`)
-      gauge.style.setProperty('--band-width', `${((high - low) / max * 100).toFixed(1)}%`)
-      gauge.style.setProperty('--cursor', `${(clamp(speed / max, 0, 1) * 100).toFixed(1)}%`)
+      const aim = travel > 2 ? approachAim(features, rails, state.x, state.z, dirX, dirZ, 36) : null
+      if (aim?.kind === 'rail') {
+        show('rail', 'ready', `${Math.ceil(aim.distance)} m ahead`, aim.label, 'Line up', 'Hop on · press for points')
+        gauge.style.setProperty('--band-start', '35%')
+        gauge.style.setProperty('--band-width', '30%')
+        gauge.style.setProperty('--cursor', '50%')
+        return
+      }
+      panel.hidden = true
     },
   }
 }
