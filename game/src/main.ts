@@ -23,6 +23,7 @@ import { createControls } from './player/input'
 import { createCameraRig } from './player/camera'
 import { createSkiAudio } from './player/audio'
 import { createHaptics } from './player/haptics'
+import { createGearDrops } from './player/gearDrops'
 import { createSnowEffects } from './player/effects'
 import { createMinimap } from './ui/minimap'
 import { SKI_MODELS, createStylePanel, readOutfit, writeOutfit } from './ui/riderPanel'
@@ -144,6 +145,7 @@ const hideOverlays = () => {
 }
 const sound = createSkiAudio($<HTMLButtonElement>('#btn-sound'))
 const haptics = createHaptics((weak, strong, ms) => controls.rumble(weak, strong, ms))
+const gearDrops = createGearDrops(scene)
 const effects = createSnowEffects(scene, lighting, pixelRatio, quality)
 effects.setBoard(outfit.model === 'snowboard')
 const tricks = createTrickFeed(ui.trick)
@@ -497,6 +499,9 @@ function spawn() {
   effects.clear()
   sound.reset()
   haptics.reset()
+  gearDrops.clear()
+  skier.missingSkis = false
+  skier.missingPoles = false
   rig.snap()
   if (challenge.kind !== 'free') {
     const best = goals?.progress.bests[challenge.id]
@@ -589,6 +594,9 @@ function coachTips() {
   const kind = skier.surface.kind
   const pitchDeg = (skier.pitch * 180) / Math.PI
   if (skier.mode === 'crashed') coach.tip('crash', 'Wipeout', `You get back up by yourself. ${mobile ? 'Pause' : '<kbd>R</kbd>'} restarts the run.`)
+  else if (skier.missingSkis || skier.missingPoles) {
+    coach.tip('gear', 'Yard sale', 'Ski over your scattered gear to pick it up.')
+  }
   else if (kind === 'powder' && skier.sink > 0.12)
     coach.tip('powder', 'Deep snow', 'Powder is slower and turns take longer. Keep some speed and make round turns. Powder skis (Rider) float better.')
   else if (kind === 'forest') coach.tip('trees', 'Tree skiing', 'Look for the gap between trunks. Glancing hits slide past. A hard hit can still cause a wipeout.')
@@ -917,6 +925,14 @@ function tick(dt: number, frameMs: number) {
 
   const ground = ride ? null : stage.slope.sampleTerrain(skier.x, skier.z)
   skierView.update(skier, input, ground, pose, dt)
+  if (!pause) {
+    gearDrops.update(
+      skier,
+      (x, z) => stage.slope.sampleTerrain(x, z)?.height ?? null,
+      outfit.model === 'snowboard',
+      dt,
+    )
+  }
   const travel = Math.hypot(skier.vx, skier.vz)
   const approach =
     !ride && !pause && skier.grounded && !skier.rail && skier.crashed <= 0 && travel > 3

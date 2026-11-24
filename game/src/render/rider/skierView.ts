@@ -285,6 +285,12 @@ export function createSkierView(): {
     setColours: rig.setColours,
     update(state, input, ground, pose = 'ski', dt = 1 / 60) {
       const boarding = rig.boarding
+      // World pickups hide attached gear until the piece is collected.
+      const showSkis = !state.missingSkis
+      const showPoles = !boarding && !state.missingPoles
+      for (const ski of skis) ski.visible = showSkis && !boarding
+      boardGroup.visible = boarding && showSkis
+      for (const arm of arms) arm.pole.visible = showPoles
       const up = ground && pose === 'ski' ? ground.normal : { x: 0, y: 1, z: 0 }
       const frame = skiFrame(state.heading, up)
       basis.makeBasis(
