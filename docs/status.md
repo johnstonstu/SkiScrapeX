@@ -118,7 +118,7 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - Trees, lifts and buildings sit on the 2 m ground; far away the 5 m mesh can be up to about 0.5 m off, which is not visible at that distance.
 - Park names for the two unnamed OSM park ways (Prospector, Okanagan Park) and "Park" (Little Nuggets) are guesses.
 - Rails are drawn and slid as polylines. The grind pose sways with balance but there is no rail entry animation.
-- Crashes (0.8.11) tumble and scatter skis by entry speed; washout at speed can tip into a crash; still no collect / get-up for lost gear (#61).
+- Crashes (0.8.11) tumble and scatter skis by entry speed; washout tip-in removed in 0.8.12 (skid only). Still no collect / get-up for lost gear (#61).
 - Tuck drag raised in 0.8.11 (0.42 m²); re-check equilibrium on Gunbarrel / Grandfather's after a playtest.
 - Buildings are shells from OSM footprints with guessed heights. Only 10 of 147 have tagged storeys. No interiors, decks or props yet.
 - Roads are stamped as packed snow; there are no cars, parking lots or village props.

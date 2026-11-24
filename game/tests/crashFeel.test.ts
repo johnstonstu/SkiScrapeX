@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FIXED_DT, PHYSICS, beginCrash, createSkiState, createSteadySlope, stepSkier } from '../src/sim'
+import { FIXED_DT, beginCrash, createSkiState, createSteadySlope, stepSkier } from '../src/sim'
 import { applyWeather, weatherPreset } from '../src/render/weather'
 import { createLighting, createSky, addSceneLights } from '../src/render/lighting'
 import * as THREE from 'three'
@@ -47,13 +47,11 @@ describe('crash feel', () => {
     expect(s.mode).toBe('crashed')
   })
 
-  it('clears washout hold when a crash begins', () => {
+  it('starts crash age at zero', () => {
     const s = createSkiState({ x: 400, z: 200 })
-    s.washoutHold = 0.5
     beginCrash(s, 16)
-    expect(s.washoutHold).toBe(0)
     expect(s.crashAge).toBe(0)
-    expect(PHYSICS.washoutCrashSpeed).toBeGreaterThan(10)
+    expect(s.crashSpeed).toBe(16)
   })
 })
 

@@ -70,8 +70,6 @@ export const PHYSICS = {
   washoutRatio: 1.9,
   washoutTime: 0.18,
   washoutGrip: 0.65,
-  /** Sustained washout above this speed (m/s) can tip into a crash. */
-  washoutCrashSpeed: 14,
   /** Powder (Lind and Sanders compaction law, n = 1): k in Pa/m, total ski base area m². */
   powderK: 6800,
   skiArea: 0.385,

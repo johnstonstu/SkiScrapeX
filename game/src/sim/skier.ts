@@ -141,8 +141,6 @@ export interface SkiState {
   crashSpeed: number
   /** Seconds since the crash started, for tumble animation. */
   crashAge: number
-  /** Seconds of continuous over-limit washout, for catch-an-edge crashes. */
-  washoutHold: number
   /** Seconds before the rail just left can catch the skier again. */
   railCooldown: number
   /** Pitch held off a rail, or off a takeoff without a pop, does not flip until it is let go. */
@@ -194,7 +192,6 @@ export function createSkiState(pose?: { x?: number; y?: number; z?: number; head
     crashed: 0,
     crashSpeed: 0,
     crashAge: 0,
-    washoutHold: 0,
     railCooldown: 0,
     flipLock: false,
     trick: null,
@@ -377,17 +374,8 @@ function stepGround(
   const required = edgeDeg >= 1 && Number.isFinite(state.carveRadius) ? (speed * speed) / state.carveRadius : 0
   state.gripRatio = available > 0 ? required / available : 0
   if (state.gripRatio > PHYSICS.washoutRatio && edgeDeg > 35 && speed > 8 && state.washout <= 0) state.washout = PHYSICS.washoutTime
-  // Holding a washout too long at speed tips into a crash (catching an edge).
-  if (state.washout > 0 && state.gripRatio > PHYSICS.washoutRatio && speed > PHYSICS.washoutCrashSpeed) {
-    state.washoutHold += dt
-    if (state.washoutHold > 0.28) {
-      beginCrash(state, speed)
-      finish(state, steer, brake)
-      return
-    }
-  } else {
-    state.washoutHold = Math.max(0, state.washoutHold - dt * 2)
-  }
+  // Washout only softens grip and chatters; it does not tip into a crash on its own.
+  // Hard turns on steeps often sit over the washout ratio for a beat — that should skid, not fall.
   const band = clamp((state.gripRatio - 1) / 1.2, 0, 1)
   state.chatter = speed > 8 && edgeDeg > 30 ? surface.chatter * Math.sin(band * Math.PI) : 0
   let gripScale = 1
@@ -694,7 +682,6 @@ function finishAir(state: SkiState, grade: TrickEvent['grade'], switchLanding: b
 export function beginCrash(state: SkiState, entrySpeed = Math.hypot(state.vx, state.vz)): void {
   state.crashSpeed = Math.max(0, entrySpeed)
   state.crashAge = 0
-  state.washoutHold = 0
   // About 1.2 s at a crawl, up to about 2.8 s past 25 m/s.
   state.crashed = FREESTYLE.crashTime * (0.75 + Math.min(1.25, state.crashSpeed / 18))
   state.grounded = true
