@@ -6,7 +6,22 @@ The aim is an Apex that locals recognise, and skiing that feels good on groomers
 
 **Play it:** https://johnstonstu.github.io/SkiScrapeX/ (desktop or phone, nothing to install).
 
-Current version: **0.8.8** (see [CHANGELOG.md](CHANGELOG.md)). Plan to 1.0: [docs/roadmap.md](docs/roadmap.md).
+Current version: **0.9.13** (see [CHANGELOG.md](CHANGELOG.md)). Plan to 1.0: [docs/roadmap.md](docs/roadmap.md).
+
+![Grandfather's Trail from Quickdraw](docs/media/groomer.webp)
+
+<p>
+  <img src="docs/media/carve.gif" width="480" alt="Carving linked turns on a groomer" />
+  <img src="docs/media/powder.gif" width="420" alt="Skiing powder through the trees" />
+</p>
+
+| Village from Stock's Traverse | Trees off Gunbarrel | Billy Goat Hut on the summit |
+| --- | --- | --- |
+| ![Village](docs/media/village.webp) | ![Forest](docs/media/forest.webp) | ![Summit hut](docs/media/summit.webp) |
+
+![Runs and parks trail map](docs/media/map.webp)
+
+Short MP4 copies of the clips live beside the GIFs (`docs/media/carve.mp4`, `docs/media/powder.mp4`) if you want a sharper download.
 
 ## Play locally
 
@@ -59,6 +74,7 @@ In free ski you start at the top of Quickdraw on Grandfather's Trail. Reaching t
 | `npm run tune` | Physics bots: real runs, powder, every park layout, and a steep-slope probe from 20° to 45° |
 | `npm run build` | Production build into `game/dist` |
 | `python3 scripts/detect-runs.py game/public/data out.json preview.png` | Finds cleared run corridors in the canopy that OSM lacks (needs NumPy, SciPy, scikit-image) |
+| `node scripts/readme-media.mjs` | Capture README stills and short clips from a built `dist` (needs Playwright + ffmpeg) |
 
 ## How it is built
 
