@@ -49,7 +49,12 @@ export const BUILDING_NAMES: [RegExp, string][] = [
  */
 export const BUILDING_WALLS: Record<string, string> = {
   'Apex Mountain Inn': '#d3a948',
+  // Barn-red timber from the aerial; modest hero tint for the Saloon shell.
+  'Gunbarrel Saloon': '#8c3b2b',
 }
+
+/** Named shells that get a modest hero massing pass in buildingView (not a rebuild). */
+export const HERO_BUILDINGS = new Set(['Gunbarrel Saloon', 'Apex Mountain Inn'])
 
 export function buildingName(name: string | null | undefined): string | null {
   if (!name) return null

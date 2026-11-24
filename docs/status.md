@@ -131,7 +131,8 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - Stock's green terminals + seat fallbacks; Quickdraw Uni polish (0.9.8).
 - Thicker village roof snow + near chimneys; timber place boards (0.9.9). Sky presets already shipped earlier — left alone.
 - T-bar drive/return split, portal towers, Magic Carpet rails, Quickdraw maze hint (0.9.10).
-- Ragged run edges + deeper mogul crests with cast shadows (0.9.11). Hero buildings deferred.
+- Ragged run edges + deeper mogul crests with cast shadows (0.9.11).
+- Modest Saloon + Inn hero massing (gable/snow/porch/board) without a photo rebuild (0.9.12).
 - Tuck drag raised in 0.8.11 (0.42 m²); re-check equilibrium on Gunbarrel / Grandfather's after a playtest.
 - Buildings are shells from OSM footprints with guessed heights. Only 10 of 147 have tagged storeys. No interiors, decks or props yet.
 - Roads are stamped as packed snow; there are no cars, parking lots or village props.

@@ -2,6 +2,12 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.12 (2026-11-24): Modest Saloon and lodge hero pass
+
+### Changed
+
+- Gunbarrel Saloon and Apex Mountain Inn get preferred gables, barn-red / yellow walls, thicker eave snow, near porch lips, wall boards, and chimneys (existing shells — not a photo rebuild).
+
 ## 0.9.11 (2026-11-24): Ragged run edges and deeper moguls
 
 ### Changed

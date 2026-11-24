@@ -67,9 +67,12 @@ export function buildBuildings(
     let eaves = high + levels * LEVEL_METRES
     const box = orientedBox(ring)
     const fill = area / (4 * box.halfLength * box.halfWidth)
+    const name = buildingName(feature.name ?? feature.tags?.name)
+    // Heroes prefer a pitched roof so snow and chimneys read; still need a box-like OBB.
+    const hero = name === 'Gunbarrel Saloon' || name === 'Apex Mountain Inn'
     const roof: GableRoof | null =
-      fill > 0.82 && box.halfWidth < 14
-        ? { ...box, rise: box.halfWidth * ROOF_PITCH }
+      (fill > 0.82 && box.halfWidth < 14) || (hero && fill > 0.65 && box.halfWidth < 18)
+        ? { ...box, rise: Math.max(box.halfWidth, 3.5) * ROOF_PITCH }
         : null
     // Inside a footprint the first-return surface measures the roof. Keep cells
     // clear of the eave so nearby trees do not supply the building height.
@@ -94,14 +97,14 @@ export function buildBuildings(
     }
     buildings.push({
       id: feature.id ?? `building/${index}`,
-      name: buildingName(feature.name ?? feature.tags?.name),
+      name,
       kind,
       ring,
       base: low - 0.6,
       eaves,
       roof,
       palette: hash(feature.id ?? String(index)) % 6,
-      wall: BUILDING_WALLS[buildingName(feature.name ?? feature.tags?.name) ?? ''],
+      wall: BUILDING_WALLS[name ?? ''],
     })
   })
   return buildings

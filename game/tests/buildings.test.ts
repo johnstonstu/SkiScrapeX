@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildBuildings, indexBuildings, orientedBox, pushOutOfRing } from '../src/world/buildings'
-import { ROOF_OVERHANG, ROOF_SNOW_DEPTH } from '../src/render/scenery/buildingView'
+import { BUILDING_WALLS, HERO_BUILDINGS, buildingName } from '../src/world/corrections'
+import { ROOF_OVERHANG, ROOF_SNOW_DEPTH, isHeroBuilding } from '../src/render/scenery/buildingView'
 
 describe('buildings', () => {
   const flat = () => 10
@@ -58,6 +59,39 @@ describe('roof snow budgets', () => {
   it('keeps eave overhang and flat snow deep enough to read as a load', () => {
     expect(ROOF_OVERHANG).toBeGreaterThanOrEqual(0.85)
     expect(ROOF_SNOW_DEPTH).toBeGreaterThanOrEqual(0.5)
+  })
+})
+
+describe('hero village shells', () => {
+  it('recognises Gunbarrel Saloon and Apex Mountain Inn as modest heroes', () => {
+    expect(buildingName('The Gunbarell Saloon')).toBe('Gunbarrel Saloon')
+    expect(HERO_BUILDINGS.has('Gunbarrel Saloon')).toBe(true)
+    expect(HERO_BUILDINGS.has('Apex Mountain Inn')).toBe(true)
+    expect(isHeroBuilding('Gunbarrel Saloon')).toBe(true)
+    expect(BUILDING_WALLS['Gunbarrel Saloon']).toMatch(/^#/)
+    expect(BUILDING_WALLS['Apex Mountain Inn']).toMatch(/^#/)
+  })
+
+  it('gives the Saloon a pitched roof for snow massing', () => {
+    const [saloon] = buildBuildings(
+      [
+        {
+          id: 'way/saloon',
+          name: 'The Gunbarell Saloon',
+          building: 'yes',
+          points: [
+            { x: -8, z: -6 },
+            { x: 8, z: -6 },
+            { x: 8, z: 6 },
+            { x: -8, z: 6 },
+          ],
+        },
+      ],
+      () => 10,
+    )
+    expect(saloon.name).toBe('Gunbarrel Saloon')
+    expect(saloon.roof).not.toBeNull()
+    expect(saloon.wall).toBe(BUILDING_WALLS['Gunbarrel Saloon'])
   })
 })
 
