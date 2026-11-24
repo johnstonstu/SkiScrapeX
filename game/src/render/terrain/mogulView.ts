@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { buildMoguls } from '../../world/moguls'
+import { pointOnMogul, type buildMoguls } from '../../world/moguls'
 
 export function createMogulView(field: ReturnType<typeof buildMoguls>, material: THREE.Material) {
   const positions: number[] = [], normals: number[] = [], indices: number[] = []
@@ -8,8 +8,7 @@ export function createMogulView(field: ReturnType<typeof buildMoguls>, material:
     for (let ring = 0; ring <= 4; ring++) {
       for (let j = 0; j < 12; j++) {
         const angle = j * Math.PI / 6
-        const x = bump.x + Math.cos(angle) * field.radius * ring / 4
-        const z = bump.z + Math.sin(angle) * field.radius * ring / 4
+        const [x, z] = pointOnMogul(bump, Math.cos(angle) * ring / 4, Math.sin(angle) * ring / 4)
         const ground = field.sampleTerrain(x, z)
         positions.push(x, ground?.height ?? 0, z)
         normals.push(ground?.normal.x ?? 0, ground?.normal.y ?? 1, ground?.normal.z ?? 0)

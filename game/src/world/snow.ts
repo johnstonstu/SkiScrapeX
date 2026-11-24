@@ -1,6 +1,39 @@
-import { SURFACES, type SampleSurface, type SurfaceParams } from '../sim'
+import { SURFACES, blendSurface, type SampleSurface } from '../sim'
 import type { TerrainGrid } from './terrainGrid'
-import { nearestSample, surfaceAt, SurfaceId, type Canopy, type SurfaceField } from './surface'
+import { surfaceAt, SurfaceId, type Canopy, type SurfaceField } from './surface'
+
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x))
+const mix = (a: number, b: number, t: number) => a + (b - a) * t
+export const MAX_LOOSE_SNOW_DEPTH = 0.65
+
+const shelterFromCover = (cover: number) => clamp01((cover - 0.12) / 0.64)
+
+/** Broad wind-loaded pockets with smaller drifts crossing them. */
+function driftAt(x: number, z: number) {
+  return clamp01(0.5
+    + 0.26 * Math.sin(x / 39 + Math.cos(z / 68) * 0.8)
+    + 0.16 * Math.cos(z / 27 - x / 53)
+    + 0.08 * Math.sin(x / 11 + z / 15))
+}
+
+function depthFromDrift(drift: number, shelter: number) {
+  return mix(0.1 + (MAX_LOOSE_SNOW_DEPTH - 0.1) * drift ** 1.35, 0.08 + 0.23 * drift, shelter)
+}
+
+/** Undisturbed powder depth for the snow material at each canopy sample. */
+export function looseSnowDepth(x: number, z: number, cover: number) {
+  return depthFromDrift(driftAt(x, z), shelterFromCover(cover))
+}
+
+function canopyCover(grid: TerrainGrid, canopy: Canopy, x: number, z: number): number {
+  const gx = Math.max(0, Math.min(grid.columns - 1, x / grid.step))
+  const gz = Math.max(0, Math.min(grid.rows - 1, z / grid.step))
+  const col = Math.min(grid.columns - 2, Math.floor(gx))
+  const row = Math.min(grid.rows - 2, Math.floor(gz))
+  const i = row * grid.columns + col
+  const cover = canopy.cover
+  return mix(mix(cover[i], cover[i + 1], gx - col), mix(cover[i + grid.columns], cover[i + grid.columns + 1], gx - col), gz - row)
+}
 
 /**
  * What the skis are on, for the sim: groomed runs, terrain parks, open
@@ -11,12 +44,9 @@ export function createSurfaceSampler(
   grid: TerrainGrid,
   field: SurfaceField,
   canopy: Canopy | null,
-  options: { freshSnow?: number; inPark?: (x: number, z: number) => boolean } = {},
+  options: { freshSnow?: number; inPark?: (x: number, z: number) => boolean; onMogul?: (x: number, z: number) => boolean } = {},
 ): SampleSurface {
-  const fresh = options.freshSnow ?? 1
-  const scaled = (p: SurfaceParams): SurfaceParams => (fresh === 1 ? p : { ...p, depth: p.depth * fresh })
-  const powder = scaled(SURFACES.powder)
-  const forest = scaled(SURFACES.forest)
+  const fresh = Math.max(0, options.freshSnow ?? 1)
   return (x, z) => {
     if (options.inPark?.(x, z)) return SURFACES.park
     switch (surfaceAt(field, x, z)) {
@@ -27,9 +57,17 @@ export function createSurfaceSampler(
       case SurfaceId.ice:
         return SURFACES.ice
       default: {
-        if (canopy && canopy.cover[nearestSample(grid, x, z)] > 0.4) return forest
-        const drift = Math.max(0, (Math.sin(x / 40 + 0.4 * Math.sin(z / 61)) + Math.cos(z / 32) - 0.25) / 1.75)
-        return { ...powder, depth: powder.depth * (1 + drift), vPlane: 7 + 2 * drift }
+        const shelter = canopy ? shelterFromCover(canopyCover(grid, canopy, x, z)) : 0
+        const drift = driftAt(x, z)
+        const base = blendSurface(SURFACES.powder, SURFACES.forest, shelter)
+        const depth = depthFromDrift(drift, shelter)
+        const packedBump = options.onMogul?.(x, z)
+        return {
+          ...base,
+          kind: shelter >= 0.5 ? 'forest' : 'powder',
+          depth: depth * fresh * (packedBump ? 0.48 : 1),
+          vPlane: mix(6.2 + 2.2 * drift, 6.1, shelter),
+        }
       }
     }
   }

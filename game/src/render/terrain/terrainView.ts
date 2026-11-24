@@ -3,6 +3,7 @@ import { SnowMaterial } from '../../fx'
 import { createTerrainGrid, type TerrainGrid } from '../../world/terrainGrid'
 import { buildDetailChunk, chunksNear, detailLayout } from '../../world/detailChunks'
 import type { Canopy, SurfaceField } from '../../world/surface'
+import { looseSnowDepth, MAX_LOOSE_SNOW_DEPTH } from '../../world/snow'
 import type { Lighting } from '../lighting'
 
 export interface DetailOptions {
@@ -95,18 +96,21 @@ export function createTerrainView(
   groomTexture.needsUpdate = true
   material.setGroomTexture(groomTexture)
 
-  let canopyTexture: THREE.DataTexture | null = null
-  if (canopy) {
-    const bytes = new Uint8Array(canopy.cover.length)
-    for (let i = 0; i < bytes.length; i++) bytes[i] = Math.round(Math.min(1, canopy.cover[i] * 1.2) * 255)
-    canopyTexture = new THREE.DataTexture(bytes, grid.columns, grid.rows, THREE.RedFormat, THREE.UnsignedByteType)
-    canopyTexture.colorSpace = THREE.NoColorSpace
-    canopyTexture.magFilter = THREE.LinearFilter
-    canopyTexture.minFilter = THREE.LinearFilter
-    canopyTexture.needsUpdate = true
-    // Samples are cell centres, so the texture spans half a cell past each edge.
-    material.setCanopy(canopyTexture, -grid.step / 2, -grid.step / 2, grid.columns * grid.step, grid.rows * grid.step)
+  // Store shade and depth together so the shader can read both with its existing lookup.
+  const pack = new Uint8Array(grid.columns * grid.rows * 2)
+  for (let i = 0; i < pack.length / 2; i++) {
+    const cover = canopy?.cover[i] ?? 0
+    const depth = looseSnowDepth((i % grid.columns) * grid.step, Math.floor(i / grid.columns) * grid.step, cover)
+    pack[i * 2] = Math.round(Math.min(1, cover * 1.2) * 255)
+    pack[i * 2 + 1] = Math.round(depth / MAX_LOOSE_SNOW_DEPTH * 255)
   }
+  const canopyTexture = new THREE.DataTexture(pack, grid.columns, grid.rows, THREE.RGFormat, THREE.UnsignedByteType)
+  canopyTexture.colorSpace = THREE.NoColorSpace
+  canopyTexture.magFilter = THREE.LinearFilter
+  canopyTexture.minFilter = THREE.LinearFilter
+  canopyTexture.needsUpdate = true
+  // Samples are cell centres, so the texture spans half a cell past each edge.
+  material.setCanopy(canopyTexture, -grid.step / 2, -grid.step / 2, grid.columns * grid.step, grid.rows * grid.step)
   const mesh = new THREE.Mesh(geometry, material)
   mesh.name = 'terrain'
   mesh.receiveShadow = true
@@ -158,7 +162,7 @@ export function createTerrainView(
       geometry.dispose()
       material.dispose()
       mask.dispose()
-      canopyTexture?.dispose()
+      canopyTexture.dispose()
       groomTexture.dispose()
       skirtGeometry.dispose()
       skirtMaterial.dispose()

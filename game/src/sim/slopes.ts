@@ -9,6 +9,8 @@ import { length } from './vec'
 export interface SurfaceSample {
   height: number
   normal: Vec3
+  /** Height of a shaped snow bump above the underlying terrain, metres. */
+  mogulHeight?: number
 }
 
 export type SampleTerrain = (x: number, z: number) => SurfaceSample | null

@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { PHYSICS, fallLineHeading, skiFrame, type SkiInput, type SkiState, type SurfaceSample } from '../../sim'
-import { ANKLE_IN_SKI, BOARD_BINDINGS, FORE_ARM, SHIN_LENGTH, THIGH_LENGTH, UPPER_ARM, buildRider, type RiderLook } from './skierModel'
+import { ANKLE_IN_SKI, BOARD_BINDINGS, BOARD_BOOT_HEIGHT, FORE_ARM, SHIN_LENGTH, THIGH_LENGTH, UPPER_ARM, buildRider, type RiderLook } from './skierModel'
 
 export { SKI_GRAPHICS, type RiderLook, type SkiGraphic } from './skierModel'
 
@@ -124,6 +124,8 @@ export function createSkierView(): {
   const press = new Spring()
   const look = new Spring()
   const fore = new Spring()
+  const clothSide = new Spring()
+  const clothBack = new Spring()
   let grabBlend = 0
   let lastGrab: string | null = null
   let wasAir = false
@@ -255,7 +257,7 @@ export function createSkierView(): {
     boardGroup.updateMatrix()
     for (let i = 0; i < 2; i++) {
       const { z, yaw } = BOARD_BINDINGS[i]
-      skis[i].position.set(0, 0.025, z).applyMatrix4(boardGroup.matrix)
+      skis[i].position.set(0, BOARD_BOOT_HEIGHT, z).applyMatrix4(boardGroup.matrix)
       skis[i].quaternion.copy(boardGroup.quaternion)
       skis[i].rotateY(yaw)
     }
@@ -290,6 +292,12 @@ export function createSkierView(): {
       const air = pose === 'ski' ? state.air : null
       const crashed = pose === 'ski' && state.crashed > 0
       const rail = pose === 'ski' && !crashed ? state.rail : null
+      const wind = pose === 'ski' && !crashed ? THREE.MathUtils.clamp((state.speed - 0.5) / 24, 0, 1) : 0
+      const edgePull = THREE.MathUtils.clamp(state.edgeAngle, -0.8, 0.8)
+      if (wasAir && !air && pose === 'ski' && !crashed) clothBack.v -= THREE.MathUtils.clamp(-lastVy, 0, 9) * 0.04
+      const side = clothSide.step(wind * (-edgePull * 0.038 + Math.sin(state.time * 17) * 0.013), dt, 3.4, 0.66)
+      const back = clothBack.step(-wind * (0.033 + Math.sin(state.time * 22) * 0.012), dt, 4.1, 0.58)
+      rig.poseCloth(side, back)
 
       const nextMode: Mode = pose === 'sit' ? 'sit' : pose === 'stand' ? 'stand' : crashed ? 'crash' : rail ? 'rail' : 'ski'
       if (nextMode !== mode) startFade(nextMode)
@@ -458,6 +466,10 @@ export function createSkierView(): {
       // Athletic base flex, plus terrain absorption, edging, tuck, braking and pop.
       let wantCrouch = pose === 'stand' ? 0.12 : still ? 0.22 : 0.32
       wantCrouch += Math.abs(incline.x) * 0.3 + (skiing ? Math.min(0.2, state.sink * 0.5) : 0)
+      if (skiing && ground?.mogulHeight) {
+        // Fold the legs up on the face and extend into the next trough.
+        wantCrouch += Math.min(0.48, ground.mogulHeight * Math.max(0, speed / 12 + state.vy * 0.14))
+      }
       wantCrouch = Math.max(
         wantCrouch,
         tucked ? (boarding ? 0.8 : 1) : 0,

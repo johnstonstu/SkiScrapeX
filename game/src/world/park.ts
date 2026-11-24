@@ -267,20 +267,17 @@ function slopeAlong(f: PlacedFeature, baseHeight: (x: number, z: number) => numb
   return Number.isFinite(a) && Number.isFinite(b) ? (a - b) / 8 : 0
 }
 
-/** The next jump within `range` metres ahead of a skier moving along (dirX, dirZ). */
-export function featureAhead(features: PlacedFeature[], x: number, z: number, dirX: number, dirZ: number, range = 45): PlacedFeature | null {
-  let best: PlacedFeature | null = null
-  let bestDistance = range
+/** The next takeoff lip within `range` metres in the direction of travel. */
+export function featureAhead(features: PlacedFeature[], x: number, z: number, dirX: number, dirZ: number, range = 45) {
+  let best: { feature: PlacedFeature; distance: number } | null = null
   for (const f of features) {
     if (!f.spec.speed) continue
-    const dx = f.x - x
-    const dz = f.z - z
+    const { ramp } = kickerRamp(f.spec, f.baseDeg)
+    const dx = f.x + f.dirX * ramp - x
+    const dz = f.z + f.dirZ * ramp - z
     const ahead = dx * dirX + dz * dirZ
     const side = Math.abs(-dx * dirZ + dz * dirX)
-    if (ahead > 0 && ahead < bestDistance && side < f.halfWidth + 4) {
-      best = f
-      bestDistance = ahead
-    }
+    if (ahead > 0 && ahead < (best?.distance ?? range) && side < f.halfWidth + 4) best = { feature: f, distance: ahead }
   }
   return best
 }

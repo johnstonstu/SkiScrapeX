@@ -26,13 +26,16 @@ export function advance(
   sampleTerrain: SampleTerrain,
   frameDt: number,
   env?: SkiEnv,
+  afterStep?: (fromX: number, fromZ: number) => void,
 ): number {
   if (!Number.isFinite(frameDt) || frameDt <= 0) return 0
   const capped = Math.min(frameDt, PHYSICS.maxFrameDt)
   clock.accumulator += capped
   let steps = 0
   while (clock.accumulator >= clock.fixedDt - 1e-9 && steps < PHYSICS.maxSubsteps) {
+    const fromX = state.x, fromZ = state.z
     stepSkier(state, input, sampleTerrain, clock.fixedDt, env)
+    afterStep?.(fromX, fromZ)
     clock.accumulator -= clock.fixedDt
     clock.time += clock.fixedDt
     steps += 1

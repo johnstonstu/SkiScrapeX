@@ -261,8 +261,12 @@ void main() {
 
   // Smooth canopy cover: snow in the forest sits in shade and collects debris.
   vec2 cuv = (vWorld.xz - uCanopyOrigin) / max(uCanopySize, vec2(1.0));
-  float canopyShade = uHasCanopy * texture2D(uCanopy, clamp(cuv, 0.0, 1.0)).r * (1.0 - groomed * uHasMask);
+  vec2 snowpack = texture2D(uCanopy, clamp(cuv, 0.0, 1.0)).rg * uHasCanopy;
+  float canopyShade = snowpack.r * (1.0 - groomed * uHasMask);
+  // Apex supplies visual depth in green. An apron or standalone slope has no depth field.
+  float loose = mix(0.5, smoothstep(0.14, 0.86, snowpack.g), step(0.01, snowpack.g));
   albedo *= mix(vec3(1.0), vec3(0.8, 0.85, 0.9), canopyShade);
+  albedo *= mix(vec3(1.0), mix(vec3(0.94, 0.967, 0.985), vec3(1.035, 1.023, 1.012), loose), powder * snowMask);
   // Needles and twigs dropped on the snow under the trees, close up only.
 #ifdef SNOW_DETAIL
   float debris = step(0.94, hash12(floor(vWorld.xz * 9.0))) * smoothstep(0.35, 0.8, canopyShade) * near * (1.0 - tree);
@@ -286,12 +290,12 @@ void main() {
   float cordMask = groomed * snowMask * step(0.0001, uCordDepth) * aa * (1.0 - broken) * (1.0 - 0.75 * worn);
   float wave = sin(phase) * 0.78 + sin(phase * 0.5 + 1.3) * 0.22;
   vec3 Np = N + vec3(perp.x, 0.0, perp.y) * (cos(phase) * freq * uCordDepth * cordMask);
-  albedo *= mix(1.0, mix(0.8, 1.0, wave * 0.5 + 0.5), cordMask);
+  albedo *= mix(1.0, mix(0.88, 1.0, wave * 0.5 + 0.5), cordMask);
 
   // Low wind ripples break up open powder; tracks and shelter flatten them.
   vec2 wind = vec2(0.87, 0.49);
   float driftPhase = dot(vWorld.xz, wind) * 1.75 + puff * 5.0 + field * 9.0;
-  float drift = powder * snowMask * (1.0 - canopyShade) * (1.0 - broken);
+  float drift = powder * snowMask * (1.0 - canopyShade) * (1.0 - broken) * mix(0.55, 1.45, loose);
   drift *= (1.0 - smoothstep(0.6, 2.2, fwidth(driftPhase))) * smoothstep(0.25, 0.75, field);
   Np -= vec3(wind.x, 0.0, wind.y) * (0.095 * cos(driftPhase) * drift);
 
@@ -317,8 +321,8 @@ void main() {
 
   albedo = mix(albedo, rockCol, rockMix);
 
-  float wrap = mix(0.5, 0.12, rockMix);
-  wrap = mix(wrap, 0.72, powder);
+  float wrap = mix(0.34, 0.12, rockMix);
+  wrap = mix(wrap, 0.52, powder);
   wrap = mix(wrap, 0.08, ice);
   // Sun shadow from the scene's directional light, when the renderer has shadows on.
   float sunShadow = 1.0;
@@ -331,7 +335,7 @@ void main() {
   float diff = clamp((ndl + wrap) / (1.0 + wrap), 0.0, 1.0) * mix(0.18, 1.0, sunShadow);
   float hemi = clamp(Np.y * 0.5 + 0.5, 0.0, 1.0);
   vec3 ambient = mix(uGroundColor, uSkyColor, hemi);
-  vec3 shadeTint = mix(vec3(0.72, 0.8, 0.94), vec3(1.0), diff);
+  vec3 shadeTint = mix(vec3(0.68, 0.8, 0.98), vec3(1.0), diff);
   shadeTint = mix(shadeTint, vec3(1.0), rockMix);
 
   float shininess = mix(32.0, 10.0, powder);

@@ -8,11 +8,24 @@ export function treeShapes(): THREE.BufferGeometry[] {
   return [spruce(), fir(), pine(), snag(), krummholz(), ghost()]
 }
 
+/** Close-range trees on Low keep their trunk and species silhouette with fewer branches. */
+export function compactTreeShapes(): THREE.BufferGeometry[] {
+  return [
+    compactConifer(0.2, 0.19, 4, 0.57),
+    compactConifer(0.17, 0.11, 5, 0.76),
+    compactConifer(0.56, 0.11, 3, 0.25),
+    snag(),
+    compactConifer(0.11, 0.27, 3, 0.65),
+    compactConifer(0.13, 0.18, 4, 1),
+  ]
+}
+
 /** One distant stand-in for every species: stacked cones (`tiers` of them, 3 by default). */
-export function distantTree(tiers = 3): THREE.BufferGeometry {
+export function distantTree(tiers = 3, trunk = false): THREE.BufferGeometry {
   const b = new Builder()
-  const needles = new THREE.Color('#294d42')
-  const snow = new THREE.Color('#d4e2ec')
+  const needles = new THREE.Color('#244d43')
+  const snow = new THREE.Color('#96b8bd')
+  if (trunk) b.trunk(0.016, 0.008, 0, 0.26, BARK, 4)
   for (let tier = 0; tier < tiers; tier++) {
     const t = tier / tiers
     const y = tiers === 1 ? 0.12 : 0.18 + t * 0.8
@@ -35,6 +48,19 @@ const SNAG_BARK = new THREE.Color('#9a958c')
 const SNOW = new THREE.Color('#d4e2ec')
 const RIME = new THREE.Color('#eef3f7')
 const FROST = new THREE.Color('#879e9d')
+
+function compactConifer(base: number, width: number, tiers: number, snowiness: number): THREE.BufferGeometry {
+  const b = new Builder()
+  b.trunk(0.016, 0.007, 0, base + 0.15, BARK, 4)
+  for (let tier = 0; tier < tiers; tier++) {
+    const blend = tier / tiers
+    const y = base + blend * (0.93 - base)
+    const radius = width * (1 - blend * 0.88)
+    const top = Math.min(1, y + (1 - base) / tiers + 0.12)
+    b.whorl(y, radius, 3, top, tier * 1.87, snowiness)
+  }
+  return b.build()
+}
 
 class Builder {
   vertices: number[] = []

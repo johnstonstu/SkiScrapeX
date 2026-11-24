@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { fallLineHeading, type SampleTerrain, type SkiState } from '../sim'
+import { fallLineHeading, type SampleTerrain, type SkiState, type TrickEvent } from '../sim'
 
 export type CameraMode = 'follow' | 'first' | 'orbit'
 /**
@@ -35,6 +35,8 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
   const smoothQuat = new THREE.Quaternion()
   let baseFov = camera.fov
   let shake = 1
+  let landing = 0
+  const motion = window.matchMedia('(prefers-reduced-motion: reduce)')
 
   return {
     get mode() {
@@ -59,8 +61,13 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
     setShake(amount: number) {
       shake = amount
     },
+    landingImpulse(trick: TrickEvent) {
+      if (mode !== 'follow' || motion.matches || shake === 0) return
+      landing = Math.max(landing, THREE.MathUtils.clamp(0.035 + trick.efh * 0.062, 0.035, 0.25))
+    },
     snap() {
       snap = true
+      landing = 0
     },
     setMode(next: CameraMode, state: SkiState) {
       mode = next
@@ -114,7 +121,8 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
       heading = followHeading(style, state, sampleTerrain, heading, snap ? Infinity : dt)
       // Pull back and up a little with speed.
       let back = 7.2 + Math.min(4, state.speed * 0.08)
-      const height = 2.6 + Math.min(1.5, state.speed * 0.03)
+      landing *= Math.exp(-9 * dt)
+      const height = 2.6 + Math.min(1.5, state.speed * 0.03) - landing * shake
       while (blocked && back > 2.6 && blocked(state.x + Math.sin(heading) * back, state.z - Math.cos(heading) * back)) back -= 0.8
       desired.set(state.x + Math.sin(heading) * back, state.y + height, state.z - Math.cos(heading) * back)
       const under = sampleTerrain(desired.x, desired.z)

@@ -74,7 +74,6 @@ export interface QualityProfile {
   /** Close-up snow detail in the terrain shader (fine relief, worn patches, wandering edges). */
   snowDetail: boolean
   forest: ForestDetail
-  forestDensity: number
   apronForestDensity: number
   apronForestReach: number
   terrain: Partial<DetailOptions>
@@ -92,8 +91,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     shadowMapSize: 1024,
     shadows: false,
     snowDetail: false,
-    forest: { near: 150, mid: 600, midShare: 0.45, farShare: 0.1 },
-    forestDensity: 0.7,
+    forest: { near: 150, mid: 600, midShare: 0.45, farShare: 0.1, compact: true },
     apronForestDensity: 0.6,
     apronForestReach: 900,
     terrain: { near: 90, far: 150, cache: 24, coarseStride: 2 },
@@ -110,7 +108,6 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     shadows: true,
     snowDetail: true,
     forest: { near: 200, mid: 750, midShare: 0.55, farShare: 0.15 },
-    forestDensity: 0.85,
     apronForestDensity: 0.8,
     apronForestReach: 1300,
     terrain: { near: 110, far: 180, cache: 36, coarseStride: 1 },
@@ -127,7 +124,6 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     shadows: true,
     snowDetail: true,
     forest: { near: 260, mid: 900, midShare: 0.7, farShare: 0.22 },
-    forestDensity: 1,
     apronForestDensity: 1,
     apronForestReach: 1800,
     terrain: {},
@@ -160,6 +156,7 @@ export function lighterQuality(level: QualityLevel): QualityLevel {
 /** Forest reach scaled by the view distance setting (the base profile is left untouched). */
 export function scaledForest(base: ForestDetail, viewDistance: number): ForestDetail {
   return {
+    compact: base.compact,
     near: base.near * Math.min(1.2, viewDistance),
     mid: base.mid * viewDistance,
     midShare: Math.min(1, base.midShare * viewDistance),

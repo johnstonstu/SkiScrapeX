@@ -429,16 +429,18 @@ function stepGround(
   // then pay compaction drag (worse when skidding) and plow drag.
   if (surface.depth > 0.02) {
     const v = Math.hypot(along, across)
-    const softness = 1 + Math.max(0, surface.depth - 0.35) * 1.6
-    const staticSink = softness * (PHYSICS.mass * normalAccel) / (PHYSICS.powderK * PHYSICS.skiArea * (env.ski?.floatScale ?? 1))
+    const softness = 1 + Math.max(0, surface.depth - 0.35) * 1.45
+    const loaded = normalAccel + lateralLoad * 0.14
+    const staticSink = softness * PHYSICS.mass * loaded / (PHYSICS.powderK * PHYSICS.skiArea * (env.ski?.floatScale ?? 1))
     let equilibrium = Math.min(surface.depth, staticSink / (1 + (v / surface.vPlane) ** 2))
     if (state.unweight > 0) equilibrium *= 0.3
     state.sink += (equilibrium - state.sink) * Math.min(1, dt / PHYSICS.sinkTime)
     // Compaction only resists while moving forward through new snow, so a
     // standing skier can still get going on a gentle pitch.
-    const compaction = ((PHYSICS.skiWidthTotal * PHYSICS.powderK * state.sink * state.sink) / 2) * Math.min(1, v / 2.5)
-    const plow = PHYSICS.plowCoefficient * PHYSICS.snowDensity * PHYSICS.skiWidthTotal * state.sink * v * v
-    const decel = (compaction * (1 + 2 * state.skid) + plow) / (PHYSICS.mass * softness ** 2)
+    const compaction = PHYSICS.skiWidthTotal * (PHYSICS.powderK / softness) * state.sink ** 2 * 0.5 * Math.min(1, v / 2.5)
+    const displaced = 1 + Math.max(0, surface.depth - 0.35) * 3.8
+    const plow = PHYSICS.plowCoefficient * PHYSICS.snowDensity * PHYSICS.skiWidthTotal * state.sink * v * v * displaced
+    const decel = (compaction + plow) * (1 + state.skid * 1.4) / PHYSICS.mass
     const cut = decel * dt
     if (v <= cut) {
       along = 0
@@ -446,6 +448,8 @@ function stepGround(
     } else {
       along *= (v - cut) / v
       across *= (v - cut) / v
+      // Broadside skis displace more snow than tips pointing down the fall line.
+      across *= Math.exp(-state.sink * v * dt * 0.75)
     }
   } else {
     state.sink = Math.max(0, state.sink - dt * 2)
@@ -492,7 +496,10 @@ function stepGround(
   const ahead = readSample(sampleTerrain, nextX + vx * look, nextZ + vz * look) ?? next
   const nextUp = facingUp(ahead.normal)
   const awayFromNext = vx * nextUp.x + vy * nextUp.y + vz * nextUp.z
-  const crest = planar2 > 4 && awayFromNext > FREESTYLE.takeoffNormalSpeed
+  // Flex through short mogul crests. Holding crouch absorbs more, while release still pops.
+  const overMogul = Math.max(ground.mogulHeight ?? 0, ahead.mogulHeight ?? 0) > 0.06
+  const absorb = overMogul ? (state.jumpHeld ? 1.5 : 0.45) : 0
+  const crest = planar2 > 4 && awayFromNext > FREESTYLE.takeoffNormalSpeed + absorb
   if (pop || crest || (predictedY > next.height + PHYSICS.snapDistance && planar2 > 2)) {
     let px = vx
     let py = vy

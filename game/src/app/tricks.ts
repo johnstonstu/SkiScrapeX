@@ -37,6 +37,7 @@ export function createTrickFeed(element: HTMLElement) {
   let lastSeq = 0
   let timer = 0
   const combo = { tricks: [] as string[], counted: 0, multiplier: 1, points: 0, groundTime: 0, total: 0 }
+  const stats = { perfect: 0, clean: 0, railMetres: 0, bestName: '', bestPoints: 0 }
   const show = (title: string, detail: string, kind: string) => {
     element.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span>`
     element.className = `on ${kind}`
@@ -51,6 +52,7 @@ export function createTrickFeed(element: HTMLElement) {
   }
   return {
     show,
+    stats,
     /** Points banked since the last `resetTotal`, plus any combo still open. */
     get total() {
       return combo.total + combo.points * combo.multiplier
@@ -58,22 +60,36 @@ export function createTrickFeed(element: HTMLElement) {
     resetTotal() {
       combo.total = 0
       drop()
+      lastSeq = 0
+      Object.assign(stats, { perfect: 0, clean: 0, railMetres: 0, bestName: '', bestPoints: 0 })
+      window.clearTimeout(timer)
+      element.className = ''
     },
     /** Lose the combo without banking it (a crash or a restart). */
     drop,
     onTrick(trick: TrickEvent | null) {
-      if (!trick || trick.seq === lastSeq) return
+      if (!trick || trick.seq === lastSeq) return false
       lastSeq = trick.seq
       navigator.vibrate?.(trick.grade === 'crash' ? 120 : trick.grade === 'perfect' ? [20, 40, 20] : 25)
       if (trick.grade === 'crash') {
         show('Bail!', trick.name, 'crash')
         drop()
-        return
+        return true
       }
       const points = addToCombo(combo, trick.name, trick.points)
       combo.groundTime = 0
-      const grade = trick.grade === 'perfect' ? 'Perfect' : trick.grade === 'sketchy' ? 'Sketchy' : ''
-      show(trick.name, `${grade ? grade + ' · ' : ''}+${points}${combo.multiplier > 1 ? ` · combo ×${combo.multiplier}` : ''}`, trick.grade)
+      if (trick.kind === 'rail') stats.railMetres += trick.railMetres
+      else if (trick.grade === 'perfect') stats.perfect++
+      else if (trick.grade === 'clean') stats.clean++
+      if (points > stats.bestPoints) {
+        stats.bestName = trick.name
+        stats.bestPoints = points
+      }
+      const grade = trick.kind === 'rail'
+        ? (trick.grade === 'sketchy' ? 'Slipped off' : 'Clean exit')
+        : trick.grade === 'perfect' ? 'Perfect landing' : trick.grade === 'sketchy' ? 'Sketchy landing' : 'Clean landing'
+      show(trick.name, `${grade} · +${points}${combo.multiplier > 1 ? ` · combo ×${combo.multiplier}` : ''}`, trick.grade)
+      return true
     },
     /** Call every step with whether the skier is on the snow (not air, not rail). */
     update(dt: number, onSnow: boolean) {

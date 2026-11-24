@@ -2,6 +2,21 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.8.9 (2026-11-23): Terrain park and mountain polish
+
+### Added
+
+- Standard gamepad support for skiing, freestyle and menu navigation. The Escape menu now includes keyboard, controller and touch guides with explanations for jumps, grabs, presses and slides.
+- Terrain parks have signs at entrances and features, a distance-to-lip and speed gauge on approach, and a balance meter on boxes and rails. Score attack results show landing grades, slide distance and best trick. Box contact, rail contact and landings have distinct sounds.
+
+### Changed
+
+- The title screen, HUD, pause menu, side panels and results share a new visual design. The compact HUD keeps readouts clear beside the minimap on narrow phones.
+- Powder varies in depth across the mountain. Deep snow slows and sinks the rider more, throws more spray and leaves deeper tracks. Irregular moguls have distinct uphill and downhill faces and shallower snow on their crests.
+- Trees leave more room between trunks. Glancing hits can slide past, and recovery after a hard hit looks for a clear downhill route. Graphics tiers share the same collision trunks, with simpler nearby trees on Low.
+- Ski and snowboard boots and bindings have separate shapes. The rider's jacket has fabric texture, a reshaped hood and a hem that follows the body through jumps and grabs.
+- Lower-angle sunlight helps define the snow surface, and the rider has a soft ground shadow when the shadow map is off.
+
 ## 0.8.8 (2026-11-23): Graphics that fit the machine
 
 From 0.8.7 failing to draw on Stu's older Intel MacBook: Chrome lost the WebGL context and then switched WebGL off for the browser, leaving menus and sound over a blank screen.

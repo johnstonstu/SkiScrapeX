@@ -166,7 +166,7 @@ export function renderResults(
   }
   panel.innerHTML =
     `<h2>${escapeHtml(result.title)}</h2>` +
-    `<p class="result-main">${result.failed ? '' : medalBadge(result.medal)}<strong>${result.failed ? 'Did not finish' : value(result.value)}</strong></p>` +
+    `<p class="result-main">${!result.failed && result.medal ? medalBadge(result.medal) : ''}<strong>${result.failed ? 'Did not finish' : value(result.value)}</strong></p>` +
     `<p class="result-compare ${result.improved ? 'improved' : ''}">${escapeHtml(compare)}</p>` +
     (next ? `<p class="result-next">${escapeHtml(next)}</p>` : '') +
     `<dl>${result.lines.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join('')}</dl>` +

@@ -1,4 +1,5 @@
 import type { GrabKind, SkiInput } from '../sim'
+import { createGamepadInput, type MenuCommand } from './gamepad'
 
 export interface ControlOptions {
   /** 0.5 to 1.5: how quickly keys and sticks reach full edge. */
@@ -8,8 +9,9 @@ export interface ControlOptions {
 
 export interface Controls {
   read(): SkiInput
+  pollGamepad(inMenu: boolean): MenuCommand[]
   setOptions(options: ControlOptions): void
-  /** A gamepad has sent input since start-up. */
+  /** A gamepad is the most recently used input. */
   readonly gamepad: boolean
   /** Edge-triggered actions, cleared on read. */
   takeActions(): Set<Action>
@@ -56,43 +58,15 @@ export function createControls(root: HTMLElement): Controls {
   let keySteer = 0
   let lastRead = performance.now()
   const options: ControlOptions = { steering: 1, invertPitch: false }
-  // Gamepad (standard mapping): edge-triggered buttons map to the same actions as keys.
-  // Start pause, Back/View runs, LB camera, B skip the lift, D-pad down map, D-pad up rider, D-pad right restart.
-  const padActions: Record<number, Action> = { 9: 'pause', 8: 'runs', 4: 'camera', 1: 'skip', 13: 'map', 12: 'style', 15: 'reset' }
-  const padWasDown = new Set<number>()
-  let padSeen = false
-  const pad = { x: 0, y: 0, jump: false, grab: false, second: false, brake: 0 }
-  const readPad = () => {
-    pad.x = pad.y = pad.brake = 0
-    pad.jump = pad.grab = pad.second = false
-    const gamepad = [...(navigator.getGamepads?.() ?? [])].find((g) => g && g.connected)
-    if (!gamepad) return
-    const axis = (i: number) => {
-      const v = gamepad.axes[i] ?? 0
-      // Radial-ish deadzone, rescaled so small pushes still register.
-      return Math.abs(v) < 0.12 ? 0 : Math.sign(v) * ((Math.abs(v) - 0.12) / 0.88)
-    }
-    const down = (i: number) => Boolean(gamepad.buttons[i]?.pressed)
-    pad.x = axis(0)
-    pad.y = axis(1)
-    pad.jump = down(0)
-    pad.grab = down(2) || down(5) || down(7)
-    // Y is the second grab button, like K.
-    pad.second = down(3)
-    pad.brake = gamepad.buttons[6]?.value ?? 0
-    if (pad.x || pad.y || gamepad.buttons.some((b) => b.pressed)) padSeen = true
-    for (const [index, action] of Object.entries(padActions)) {
-      const i = Number(index)
-      if (down(i) && !padWasDown.has(i)) actions.add(action)
-      if (down(i)) padWasDown.add(i)
-      else padWasDown.delete(i)
-    }
-  }
+  const gamepad = createGamepadInput()
+  const pad = gamepad.state
+  let usingPad = false
   let grabKind: GrabKind = 'mute'
   let grabWasHeld = false
 
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.target instanceof HTMLInputElement) return
+    if (event.target instanceof HTMLInputElement && event.code !== 'Escape') return
+    usingPad = false
     if (event.code === 'Space' && event.target instanceof HTMLButtonElement) return
     if (event.code === 'Enter' && event.target instanceof HTMLButtonElement) return
     keys.add(event.code)
@@ -103,6 +77,7 @@ export function createControls(root: HTMLElement): Controls {
     if (/^Digit[1-9]$/.test(event.code)) actions.add(`slope${Number(event.code.slice(5))}`)
   }
   const onKeyUp = (event: KeyboardEvent) => keys.delete(event.code)
+  const onPointer = () => { usingPad = false }
   const onBlur = () => {
     keys.clear()
     keySteer = 0
@@ -117,6 +92,7 @@ export function createControls(root: HTMLElement): Controls {
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
   window.addEventListener('blur', onBlur)
+  window.addEventListener('pointerdown', onPointer)
 
   // Touch layer: floating stick + two action buttons.
   const stick = { pointer: null as number | null, ox: 0, oy: 0, x: 0, y: 0 }
@@ -185,11 +161,15 @@ export function createControls(root: HTMLElement): Controls {
 
   return {
     touch,
+    pollGamepad(inMenu) {
+      const { commands, used } = gamepad.poll(performance.now(), inMenu, actions)
+      if (used) usingPad = true
+      return commands
+    },
     read() {
       const now = performance.now()
       const dt = Math.min(0.1, (now - lastRead) / 1000)
       lastRead = now
-      readPad()
       const rise = KEY_RISE * options.steering
       let want = 0
       if (keys.has('ArrowLeft') || keys.has('KeyA')) want -= 1
@@ -232,7 +212,7 @@ export function createControls(root: HTMLElement): Controls {
       Object.assign(options, next)
     },
     get gamepad() {
-      return padSeen
+      return usingPad
     },
     push(action) {
       actions.add(action)
@@ -247,6 +227,7 @@ export function createControls(root: HTMLElement): Controls {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
       window.removeEventListener('blur', onBlur)
+      window.removeEventListener('pointerdown', onPointer)
       layer.remove()
     },
   }

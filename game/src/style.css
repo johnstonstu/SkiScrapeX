@@ -43,24 +43,11 @@ html, body {
   right: max(0.75rem, env(safe-area-inset-right));
   display: flex; gap: 0.4rem;
 }
-#buttons button, #pause-menu button {
+#buttons button {
   min-height: 2.4rem; padding: 0.35rem 0.8rem; border: 0; border-radius: 0.6rem;
   background: #233e53; color: #edf6ff; font: 600 0.95rem system-ui, sans-serif; cursor: pointer;
 }
-#pause-menu {
-  position: fixed; z-index: 6; top: max(3.8rem, calc(env(safe-area-inset-top) + 3.2rem)); right: max(0.75rem, env(safe-area-inset-right));
-  width: min(20rem, calc(100vw - 1.5rem)); max-height: calc(100dvh - 4.5rem); overflow-y: auto;
-  display: grid; gap: 0.35rem; padding: 0.75rem; background: #132637; border-radius: 0.7rem;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
-}
 #pause-menu[hidden], body:has(#runs:not([hidden]), #style:not([hidden]), #settings:not([hidden]), #challenges:not([hidden]), #results:not([hidden]), #title-screen:not([hidden])) #pause-menu { display: none; }
-#pause-menu h2 { margin: 0 0 0.3rem; font-size: 1.1rem; }
-#pause-menu button { display: flex; align-items: center; justify-content: space-between; text-align: left; }
-#pause-menu button[hidden] { display: none; }
-#pause-menu #btn-resume { background: #ffdc3a; color: #132637; }
-#pause-menu button[aria-pressed="true"] { background: #d8ecff; color: #132637; }
-#pause-menu p { margin: 0.35rem 0 0; font-size: 0.82rem; line-height: 1.45; }
-#pause-menu kbd { font-size: 0.8em; }
 .paused #touch { visibility: hidden; }
 
 #debug {
@@ -187,6 +174,9 @@ html, body {
 /* Park menu */
 .parks h3 { margin: 0.4rem 0.5rem 0.2rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: #9eb4c6; }
 .parks .park { margin-bottom: 0.4rem; }
+.park-intro, .layout-description { color: #b4cbd6; font-size: 0.76rem; line-height: 1.4; }
+.park-intro { margin: 0.35rem 0.5rem 0.65rem; }
+.layout-description { margin: 0 0.5rem 0.5rem 2rem; }
 .parks .layouts { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0 0.5rem 0.3rem 2rem; }
 .parks .layouts button { border: 0; border-radius: 999px; padding: 0.2rem 0.55rem; background: #2a4458; color: #edf6ff; font: inherit; font-size: 0.72rem; cursor: pointer; }
 .parks .layouts button[aria-pressed="true"] { background: #ffdc3a; color: #132637; }
@@ -211,24 +201,6 @@ html, body {
 .models .model[aria-pressed="true"] { background: #ffdc3a; color: #132637; }
 .models .model[aria-pressed="true"] small { color: #3a4a57; }
 
-/* Jump approach hint */
-#hint {
-  position: fixed; z-index: 3; left: 50%; top: max(0.75rem, env(safe-area-inset-top)); transform: translateX(-50%);
-  padding: 0.35rem 0.8rem; border-radius: 999px; font-weight: 650; font-size: 0.85rem; opacity: 0; transition: opacity 0.2s;
-  background: rgba(19, 38, 55, 0.85); pointer-events: none;
-}
-#hint.on { opacity: 1; }
-#hint.good { box-shadow: inset 0 0 0 2px #6ee08a; }
-#hint.slow { box-shadow: inset 0 0 0 2px #7fb6ff; }
-#hint.fast { box-shadow: inset 0 0 0 2px #ff7a6a; }
-
-#pause-menu .version {
-  margin: 0.5rem 0 0;
-  font-size: 0.75rem;
-  opacity: 0.6;
-  text-align: center;
-}
-
 .settings-row > span em { font-style: normal; text-transform: none; letter-spacing: 0; color: #7f97aa; margin-left: 0.3rem; }
 .chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 .chips button, #settings .reset, #settings .reload { padding: 0.35rem 0.65rem; border: 0; border-radius: 0.4rem; background: #2a4458; color: #edf6ff; font: inherit; font-size: 0.85rem; cursor: pointer; }
@@ -251,7 +223,12 @@ html, body {
   position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
   background: radial-gradient(ellipse at center, rgba(10, 22, 34, 0.55) 0%, rgba(10, 22, 34, 0.25) 60%, rgba(10, 22, 34, 0.1) 100%);
 }
-.title-card { text-align: center; padding: 1.5rem; width: min(26rem, calc(100vw - 2rem)); }
+.title-card {
+  text-align: center; padding: clamp(1rem, 3.8vh, 2rem); width: min(29rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem); overflow: auto;
+  background: linear-gradient(145deg, #214252e8, #102838f2 68%); border: 1px solid #82a6b2;
+  border-radius: 1rem; box-shadow: 0 1rem 4rem #091f34a6;
+}
 .title-card h1 { margin: 0; font-size: clamp(2.6rem, 9vw, 4rem); font-weight: 850; letter-spacing: -0.02em; text-shadow: 0 3px 14px rgba(0, 0, 0, 0.45); }
 .title-card .sub { margin: 0.2rem 0 1.2rem; color: #cfe0ee; }
 .title-status { min-height: 1.3em; color: #ffe27a; font-size: 0.9rem; }
@@ -261,11 +238,13 @@ html, body {
   font: 650 1.05rem system-ui, sans-serif; cursor: pointer;
 }
 .title-buttons button.primary, #results button.primary { background: #ffdc3a; color: #132637; }
+.title-buttons button:hover:not(:disabled), #results button:hover:not(:disabled) { filter: brightness(1.12); }
 .title-buttons button:disabled { opacity: 0.45; cursor: default; }
 .title-summary { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem 1rem; font-size: 0.85rem; color: #cfe0ee; margin: 0.4rem 0; }
 
 /* Challenge list */
 #challenges { width: min(27rem, calc(100vw - 1.5rem)); max-height: calc(100dvh - 5rem); z-index: 7; }
+#runs, #style, #settings, #challenges, #results { border: 1px solid #648596; scrollbar-color: #5c8497 #132637; }
 #challenges .title-summary { justify-content: flex-start; }
 .challenge-group h3 { margin: 0.9rem 0 0.1rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #9eb4c6; }
 .challenge-group h3 small { color: #ffe27a; text-transform: none; letter-spacing: 0; font-size: 0.85rem; margin-left: 0.3rem; }

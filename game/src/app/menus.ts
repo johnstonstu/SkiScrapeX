@@ -25,8 +25,16 @@ export function buildParkMenu(
 ): void {
   const section = document.createElement('div')
   section.className = 'parks'
+  const layoutInfo: Record<string, string> = {
+    jumps: 'Small to large jumps',
+    big: 'Bigger jumps with longer landings',
+    jib: 'Boxes and rails for slides and presses',
+    mixed: 'Rollers, jumps, boxes, and rails',
+    rollers: 'Rollers and a step-down',
+    progression: 'Small jumps and a wide box before a rail',
+  }
   const render = () => {
-    section.innerHTML = '<h3>Terrain parks</h3>'
+    section.innerHTML = '<h3>Terrain parks</h3><p class="park-intro">Pick a park to ski it, or choose a layout to change its features. Open Pause for the terrain park controls.</p>'
     if (onDemo) {
       const demo = document.createElement('button')
       demo.type = 'button'
@@ -45,18 +53,24 @@ export function buildParkMenu(
       go.addEventListener('click', () => onPark(site))
       const layouts = document.createElement('div')
       layouts.className = 'layouts'
+      const description = document.createElement('p')
+      description.className = 'layout-description'
+      description.textContent = layoutInfo[site.layout] ?? ''
       for (const layout of LAYOUTS) {
         const chip = document.createElement('button')
         chip.type = 'button'
         chip.textContent = layout.label
+        chip.title = layoutInfo[layout.id] ?? ''
         chip.setAttribute('aria-pressed', String(site.layout === layout.id))
         chip.addEventListener('click', () => {
+          if (site.layout === layout.id) return
           setLayout(site, layout.id)
-          render()
+          for (const button of layouts.querySelectorAll('button')) button.setAttribute('aria-pressed', String(button === chip))
+          description.textContent = layoutInfo[layout.id] ?? ''
         })
         layouts.append(chip)
       }
-      row.append(go, layouts)
+      row.append(go, layouts, description)
       section.append(row)
     }
   }

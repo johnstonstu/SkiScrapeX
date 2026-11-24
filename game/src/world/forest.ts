@@ -69,6 +69,7 @@ const MAX_TREE_HEIGHT = 35
 const SUMMIT_ELEVATION = 2060
 const SUMMIT_TREE_HEIGHT = 11
 const MAX_SLOPE_COS = Math.cos((40 * Math.PI) / 180)
+const TRUNK_SPACING = 2.7
 
 /** Smooth 0 to 1 wobble along the ground (about 15 m wavelength), for ragged clearing edges. */
 function edgeWobble(x: number, z: number): number {
@@ -101,6 +102,8 @@ export function plantForest(
   const chunkSize = options.chunkSize ?? 192
   const random = makeRandom(options.seed ?? 48021)
   const chunks = new Map<number, ForestChunk>()
+  const spacing = new Map<number, Tree[]>()
+  const spacingKey = (x: number, z: number) => x * 65536 + z
   const liftLines = resort.lifts.map((lift) => lift.line)
   // Coarse 16 m cells near a lift line; only trees in them get the exact clearance test.
   const LIFT_CELL = 16
@@ -133,6 +136,25 @@ export function plantForest(
       }
     }
     height = Math.min(height, MAX_TREE_HEIGHT, ground.height + origin > SUMMIT_ELEVATION ? SUMMIT_TREE_HEIGHT : Infinity)
+    const tree = {
+      x,
+      y: ground.height,
+      z,
+      height,
+      rotation: random() * Math.PI * 2,
+      tone: 0.75 + 0.25 * random(),
+      species: pickSpecies(ground.height + origin, height, random()),
+    }
+    const ix = Math.floor(x / TRUNK_SPACING), iz = Math.floor(z / TRUNK_SPACING)
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const neighbours = spacing.get(spacingKey(ix + dx, iz + dz))
+        if (neighbours?.some((neighbour) => (neighbour.x - x) ** 2 + (neighbour.z - z) ** 2 < TRUNK_SPACING ** 2)) return
+      }
+    }
+    const local = spacing.get(spacingKey(ix, iz))
+    if (local) local.push(tree)
+    else spacing.set(spacingKey(ix, iz), [tree])
     const key = Math.floor(x / chunkSize) * 65536 + Math.floor(z / chunkSize)
     let chunk = chunks.get(key)
     if (!chunk) {
@@ -143,15 +165,7 @@ export function plantForest(
       }
       chunks.set(key, chunk)
     }
-    chunk.trees.push({
-      x,
-      y: ground.height,
-      z,
-      height,
-      rotation: random() * Math.PI * 2,
-      tone: 0.75 + 0.25 * random(),
-      species: pickSpecies(ground.height + origin, height, random()),
-    })
+    chunk.trees.push(tree)
   }
 
   if (canopy) {
@@ -206,7 +220,17 @@ function shuffle<T>(items: T[], random: () => number): void {
 /** Trunk lookup for collisions. Buckets are `cell` metres square. */
 export interface TrunkIndex {
   hit: (x: number, z: number, radius: number) => Tree | null
+  sweep: (fromX: number, fromZ: number, x: number, z: number, radius: number) => TrunkContact | null
 }
+
+export interface TrunkContact {
+  x: number
+  z: number
+  nx: number
+  nz: number
+}
+
+const trunkRadius = (tree: Tree) => 0.18 + tree.height * 0.012
 
 export function indexTrunks(forest: Forest, cell = 8): TrunkIndex {
   const buckets = new Map<number, Tree[]>()
@@ -228,12 +252,48 @@ export function indexTrunks(forest: Forest, cell = 8): TrunkIndex {
         for (let dx = -1; dx <= 1; dx++) {
           for (const tree of buckets.get(key(cx + dx, cz + dz)) ?? []) {
             // Trunk radius grows a little with height.
-            const reach = radius + 0.18 + tree.height * 0.012
+            const reach = radius + trunkRadius(tree)
             if ((tree.x - x) ** 2 + (tree.z - z) ** 2 < reach * reach) return tree
           }
         }
       }
       return null
+    },
+    sweep(fromX, fromZ, x, z, radius) {
+      const dx = x - fromX, dz = z - fromZ
+      const lengthSq = dx * dx + dz * dz
+      const padding = radius + 0.18 + MAX_TREE_HEIGHT * 0.012
+      const minX = Math.floor((Math.min(fromX, x) - padding) / cell)
+      const maxX = Math.floor((Math.max(fromX, x) + padding) / cell)
+      const minZ = Math.floor((Math.min(fromZ, z) - padding) / cell)
+      const maxZ = Math.floor((Math.max(fromZ, z) + padding) / cell)
+      let first = Infinity
+      let result: TrunkContact | null = null
+      for (let iz = minZ; iz <= maxZ; iz++) {
+        for (let ix = minX; ix <= maxX; ix++) {
+          const bucket = buckets.get(key(ix, iz))
+          if (!bucket) continue
+          for (const tree of bucket) {
+            const reach = radius + trunkRadius(tree)
+            const px = fromX - tree.x, pz = fromZ - tree.z
+            const offset = px * px + pz * pz - reach * reach
+            const approach = px * dx + pz * dz
+            const discriminant = approach * approach - lengthSq * offset
+            if (offset >= 0 && (approach >= 0 || discriminant < 0)) continue
+            if (offset < 0 && approach >= 0 && (x - tree.x) ** 2 + (z - tree.z) ** 2 >= reach * reach) continue
+            const t = offset < 0 ? 0 : (-approach - Math.sqrt(discriminant)) / lengthSq
+            if (t > 1 || t >= first) continue
+            const nx = px + t * dx, nz = pz + t * dz
+            const length = Math.hypot(nx, nz)
+            const motion = Math.sqrt(lengthSq)
+            const normalX = length > 1e-6 ? nx / length : motion ? -dx / motion : 0
+            const normalZ = length > 1e-6 ? nz / length : motion ? -dz / motion : -1
+            result = { x: tree.x + normalX * reach, z: tree.z + normalZ * reach, nx: normalX, nz: normalZ }
+            first = t
+          }
+        }
+      }
+      return result
     },
   }
 }

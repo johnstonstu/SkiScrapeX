@@ -66,7 +66,9 @@ export function buildApexStage(
   scene.add(createApronView(apron, lighting).mesh)
 
   options.phase?.('apex: apron')
-  const forest = plantForest(grid, resort, surface, canopy, { density: quality.forestDensity, originElevation: world.manifest.originElevation })
+  // Trunk positions are terrain, not a graphics setting.
+  const forest = plantForest(grid, resort, surface, canopy, { density: 0.85, originElevation: world.manifest.originElevation })
+  const trunks = indexTrunks(forest)
   options.phase?.('apex: forest')
   const apronForest = plantApronForest(apron, grid, { density: quality.apronForestDensity, reach: quality.apronForestReach })
   forest.chunks.push(...apronForest.chunks)
@@ -134,16 +136,21 @@ export function buildApexStage(
     }
     const parkSigns = parkSites.map((site) => {
       const [x, z] = pointAlong(site.line, 8)
-      return { name: site.name, layout: LAYOUTS.find((l) => l.id === site.layout)?.label ?? site.layout, x, z }
+      const [ax, az] = pointAlong(site.line, 14)
+      const yaw = Math.atan2(x - ax, z - az)
+      return {
+        name: site.name, layout: LAYOUTS.find((l) => l.id === site.layout)?.label ?? site.layout,
+        x: x + Math.cos(yaw) * 5, z: z - Math.sin(yaw) * 5, yaw,
+      }
     })
-    parkView = createParkView(overlay, grid.heightAt, lighting, parkSigns)
+    parkView = createParkView(overlay, grid.heightAt, lighting, parkSigns, quality.level === 'low' ? 0.55 : 0.4)
     scene.add(parkView.object)
     if (stage) stage.env.rails = overlay.rails
   }
   options.phase?.('apex: signs')
   rebuildParks()
   options.phase?.('apex: parks')
-  const sampleSurface = createSurfaceSampler(grid, surface, canopy, { inPark: (x, z) => overlay.inside(x, z) })
+  const sampleSurface = createSurfaceSampler(grid, surface, canopy, { inPark: (x, z) => overlay.inside(x, z), onMogul: moguls.onMogul })
 
   const slope: Slope = {
     id: 'apex',
@@ -160,7 +167,7 @@ export function buildApexStage(
   stage = {
     slope,
     world,
-    trunks: indexTrunks(forest),
+    trunks,
     buildings: indexBuildings(solid),
     snow: terrain.material,
     advanceLifts: lifts.update,

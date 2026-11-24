@@ -30,13 +30,15 @@ Without `public/data` the game falls back to synthetic test slopes.
 | <kbd>A</kbd> <kbd>D</kbd> or <kbd>←</kbd> <kbd>→</kbd> | Turn. Tap for a light carve, hold to commit; at speed a full turn skids and scrubs speed |
 | <kbd>W</kbd> or <kbd>↑</kbd> | Push or skate when slow, tuck at speed, fast-forward lift rides |
 | <kbd>S</kbd> or <kbd>↓</kbd> | Brake (hockey stop) |
-| <kbd>Space</kbd> | Hold to crouch, release to jump. In powder a tap is a bounce |
+| <kbd>Space</kbd> | Hold to crouch and absorb mogul crests, release to jump. In deep powder a tap unweights the skis |
 | <kbd>J</kbd> or <kbd>Shift</kbd> | Grab: alone a mute, with <kbd>W</kbd> a japan, <kbd>S</kbd> a tail grab, a direction a safety |
 | <kbd>K</kbd> | Second grab button: alone a critical, with <kbd>W</kbd> a nose grab, with <kbd>S</kbd> a truck driver |
 | In the air | <kbd>A</kbd> <kbd>D</kbd> spin, <kbd>W</kbd> <kbd>S</kbd> flip; during a spin <kbd>W</kbd> <kbd>S</kbd> corks it (let go before landing). Hold a direction while crouched to pre-wind a spin |
 | <kbd>T</kbd> runs and parks · <kbd>O</kbd> rider and skis · <kbd>C</kbd> camera · <kbd>M</kbd> map · <kbd>R</kbd> restart · <kbd>I</kbd> info · <kbd>Esc</kbd> pause · <kbd>Enter</kbd> skip lift ride | |
 
 **Phone or tablet:** a floating stick on the left (left and right turn, up tuck, down brake; in the air it spins and flips) and **Jump** and **Grab** buttons on the right.
+
+**Controller:** Left stick steers, tucks, spins, and flips. LT / L2 brakes. A / × jumps. X / □ or RB / R1 grabs, and Y / △ selects the second grab. Open Pause with Start / Options. Use the D-pad or left stick to navigate, A / × to select, and B / ○ to go back. The pause menu shows bindings and terrain park instructions for all three input types.
 
 The title screen offers Free ski, Challenges (timed runs, slalom, park score attacks, the run checklist and gold nuggets), the rider creator and Settings. A first run starts with a short tutorial by the Magic Carpet. Skis or snowboard are chosen in the rider panel (<kbd>O</kbd>).
 

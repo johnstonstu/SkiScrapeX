@@ -22,6 +22,8 @@ export interface TrackInput {
   skid: number;
   /** 0 is straight, 1 is a carved edge. Narrows the track. */
   carving: number;
+  /** Loose snow displaced by the skis, 0..1. */
+  powder?: number;
   grounded?: boolean;
 }
 
@@ -57,6 +59,7 @@ interface Sample {
   age: number;
   skid: number;
   carving: number;
+  powder: number;
   gap: number;
 }
 
@@ -191,7 +194,7 @@ export class SkiTracks {
 
     this.samples = Array.from({ length: this.max }, () => ({
       x: 0, y: 0, z: 0, nx: 0, ny: 1, nz: 0, lx: 1, ly: 0, lz: 0,
-      age: 0, skid: 0, carving: 0, gap: 0,
+      age: 0, skid: 0, carving: 0, powder: 0, gap: 0,
     }));
 
     const vertCapacity = Math.max(0, this.max - 1) * 2 * 6;
@@ -298,13 +301,14 @@ export class SkiTracks {
     const frame = this.frame(input.direction, input.normal);
     const skid = clamp01(input.skid);
     const carving = clamp01(input.carving);
+    const powder = clamp01(input.powder ?? 0);
     const jumped = this.hasPaint && Math.hypot(x - this.paintX, z - this.paintZ) > 4;
 
     if (!this.placed || jumped) this.placeWindow(x, z);
     else this.recenter(x, z);
 
     if (this.stampEnabled && this.hasPaint && !jumped) {
-      const radius = 0.55 + skid * 0.9;
+      const radius = 0.55 + skid * 0.9 + powder * 0.36;
       this.paintSegment(this.paintX, this.paintZ, x, z, radius, 0.55 + carving * 0.45);
     }
     this.paintX = x;
@@ -327,6 +331,7 @@ export class SkiTracks {
     sample.age = 0;
     sample.skid = skid;
     sample.carving = carving;
+    sample.powder = powder;
     sample.gap = !this.ribbonReady || jumped ? 1 : 0;
     this.ribbonX = x;
     this.ribbonZ = z;
@@ -509,7 +514,7 @@ export class SkiTracks {
     this.laterals[o + 2] = sample.lz;
     this.profiles[o] = side;
     this.profiles[o + 1] = fade;
-    this.profiles[o + 2] = sample.skid;
+    this.profiles[o + 2] = Math.max(sample.skid, sample.powder * 0.7);
   }
 
   private fade(sample: Sample, index: number): number {
@@ -521,7 +526,7 @@ export class SkiTracks {
   }
 
   private halfWidth(sample: Sample): number {
-    return (this.skiWidth * 0.5) * (1 + sample.skid * 2.5) * (1 - sample.carving * 0.2);
+    return (this.skiWidth * 0.5) * (1 + sample.skid * 2.5) * (1 - sample.carving * 0.2) + sample.powder * 0.09;
   }
 
   private push(): Sample {

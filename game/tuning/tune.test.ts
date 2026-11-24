@@ -23,7 +23,8 @@ const canopy: Canopy = { cover: Float32Array.from(cover, (b) => b / 255), height
 const resort = resortFromFeatures(JSON.parse(readFileSync(`${DATA}features.json`, 'utf8')), grid.heightAt)
 const sites = parkSitesFromLines(resort.parks)
 const surface = buildSurface(grid, resort, 2.5, sites.map((s) => ({ line: s.line, halfWidth: 16 })))
-const { sampleTerrain } = buildMoguls(grid, resort.runs, surface)
+const { sampleTerrain, onMogul } = buildMoguls(grid, resort.runs, surface)
+const sampleSurface = createSurfaceSampler(grid, surface, canopy, { onMogul })
 
 const turnModel = process.env.TURN_MODEL === 'wide' ? 'wide' : 'classic'
 
@@ -76,7 +77,7 @@ const fmt = (st: Stats) =>
   `${st.reached ? 'done' : st.offMap ? 'OFF' : 'stuck'} ${st.time.toFixed(0)}s max ${st.maxKmh.toFixed(0)} avg ${st.avgKmh.toFixed(0)} km/h chatter ${st.chatter.toFixed(1)}s washouts ${st.washouts} crashes ${st.crashes} sink ${st.sink.toFixed(2)} grades ${JSON.stringify(st.grades)}`
 
 it('runs', () => {
-  const env: SkiEnv = { turnModel, sampleSurface: createSurfaceSampler(grid, surface, canopy) }
+  const env: SkiEnv = { turnModel, sampleSurface }
   for (const run of pickableRuns(resort).filter((r) => ['Grandfather\'s Trail', 'Okanagan Run', 'Ridge Run', 'Gunbarrel', 'The Great Wall', 'Kristi\'s', 'Make My Day', 'Juniper'].includes(r.name))) {
     const line = run.parts.reduce((a, b) => (polylineLength(b) > polylineLength(a) ? b : a))
     for (const cap of [12, 18]) console.log(run.name.padEnd(22), run.difficulty?.padEnd(13), `cap ${cap}`, fmt(follow(line, sampleTerrain, env, cap)))
@@ -84,7 +85,7 @@ it('runs', () => {
 }, 120000)
 
 it('powder', () => {
-  const env: SkiEnv = { turnModel, sampleSurface: createSurfaceSampler(grid, surface, canopy) }
+  const env: SkiEnv = { turnModel, sampleSurface }
   // Straight down the fall line from open off-piste spots at several pitches.
   for (const [x, z] of [[600, 1700], [1000, 1300], [2700, 1500], [2200, 1200]] as Point2[]) {
     const s = createSkiState({ x, z, heading: 0 })
@@ -105,13 +106,13 @@ it('parks', () => {
   const site = sites.find((s) => s.name === 'Claim Jumper')!
   for (const layout of LAYOUTS) {
     const overlay = buildParkOverlay(placeFeatures(site, layout.id), sampleTerrain, grid.heightAt)
-    const env: SkiEnv = { turnModel, sampleSurface: createSurfaceSampler(grid, surface, canopy, { inPark: overlay.inside }), rails: overlay.rails }
+    const env: SkiEnv = { turnModel, sampleSurface: createSurfaceSampler(grid, surface, canopy, { inPark: overlay.inside, onMogul }), rails: overlay.rails }
     for (const cap of [7, 9, 11]) console.log(`Claim Jumper ${layout.label.padEnd(12)} cap ${cap * 3.6} km/h`, fmt(follow(site.line, overlay.sampleTerrain, env, cap, 200)))
   }
 }, 120000)
 
 it.runIf(process.env.MEDALS)('medal calibration', () => {
-  const env: SkiEnv = { turnModel, sampleSurface: createSurfaceSampler(grid, surface, canopy) }
+  const env: SkiEnv = { turnModel, sampleSurface }
   const rows: string[] = []
   for (const run of pickableRuns(resort)) {
     const line = run.parts.reduce((a, b) => (polylineLength(b) > polylineLength(a) ? b : a))

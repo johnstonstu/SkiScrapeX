@@ -19,7 +19,7 @@ const WIDTH = 600
 const DEPTH = 2600
 const PITCH = 12
 
-export function buildDemoPark(lighting: Lighting, ski: SkiEnv['ski'], assist: boolean) {
+export function buildDemoPark(lighting: Lighting, ski: SkiEnv['ski'], assist: boolean, meshStep = 0.4) {
   const base = createSteadySlope(PITCH, { width: WIDTH, depth: DEPTH, originX: ORIGIN_X, originZ: 0, visualStep: 6 })
   const centre = ORIGIN_X + WIDTH / 2
   const line: Point2[] = [[centre, 40], [centre, DEPTH - 40]]
@@ -37,7 +37,7 @@ export function buildDemoPark(lighting: Lighting, ski: SkiEnv['ski'], assist: bo
   const ground = createSlopeView(base, { markers: false })
   // Two belts of conifers frame the run, for depth and speed cues; open snow beyond.
   const trees = forestBelts(base, centre)
-  const parkView = createParkView(overlay, baseHeight, lighting, [{ name: 'Demo park', layout: `${overlay.features.length} features`, x: centre + 14, z: 26 }])
+  const parkView = createParkView(overlay, baseHeight, lighting, [{ name: 'Demo park', layout: `${overlay.features.length} features`, x: centre + 14, z: 26, yaw: Math.PI }], meshStep)
   root.add(ground.object, parkView.object, trees)
   const sampleSurface = (x: number, z: number) => (overlay.inside(x, z) ? SURFACES.park : SURFACES.groomed)
   const stage: Stage = {

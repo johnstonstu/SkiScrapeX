@@ -75,8 +75,20 @@ describe('rider animation', () => {
 
 it('rolls the snowboard across both edges and lifts its nose at takeoff', () => {
   const view = createSkierView()
-  view.setColours({ ...DEFAULT_OUTFIT, model: 'snowboard', skiGraphic: 'solid' })
+  const outfit = { ...DEFAULT_OUTFIT, skiGraphic: 'solid' } as const
+  const visibleBoots = () => {
+    const names: string[] = []
+    view.object.traverseVisible((object) => {
+      if (object.name.endsWith('-boot')) names.push(object.name)
+    })
+    return names
+  }
+  view.setColours({ ...outfit, model: 'allMountain' })
+  expect(visibleBoots()).toEqual(['ski-boot', 'ski-boot'])
+  view.setColours({ ...outfit, model: 'snowboard' })
+  expect(visibleBoots()).toEqual(['snowboard-boot', 'snowboard-boot'])
   const board = view.object.getObjectByName('snowboard')!
+  expect(board.children.filter((object) => object.name === 'snowboard-boot')).toHaveLength(2)
   const state = createSkiState({ x: 0, z: 0, heading: 0 })
   state.speed = 12
 
@@ -102,4 +114,26 @@ it('rolls the snowboard across both edges and lifts its nose at takeoff', () => 
   for (let frame = 0; frame < 40; frame++) view.update(state, idle, null)
   expect(board.rotation.x).toBeCloseTo(0, 2)
   expect(joints(view.object).every(Number.isFinite)).toBe(true)
+  view.setColours({ ...outfit, model: 'allMountain' })
+  expect(visibleBoots()).toEqual(['ski-boot', 'ski-boot'])
+})
+
+it('pulls the jacket hem back at speed and lets it settle when stopped', () => {
+  const view = createSkierView()
+  const state = createSkiState({ x: 0, z: 0, heading: 0 })
+  const hem = view.object.getObjectByName('jacket-hem') as THREE.SkinnedMesh
+  expect(hem.isSkinnedMesh).toBe(true)
+  const weights = hem.geometry.getAttribute('skinWeight')
+  expect(Array.from({ length: weights.count }, (_, i) => weights.getY(i)).some((weight) => weight > 0.1 && weight < 0.9)).toBe(true)
+  const update = (speed: number) => {
+    state.speed = speed
+    for (let frame = 0; frame < 60; frame++) {
+      state.time += 1 / 60
+      view.update(state, idle, ground)
+    }
+  }
+  update(24)
+  expect(hem.morphTargetInfluences?.[1]).toBeLessThan(-0.2)
+  update(0)
+  expect(hem.morphTargetInfluences?.[1]).toBeCloseTo(0, 3)
 })

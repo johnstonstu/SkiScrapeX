@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { SPECIES_COUNT, Species, type Forest, type Tree } from '../../world/forest'
-import { distantTree, treeShapes } from './treeShapes'
+import { compactTreeShapes, distantTree, treeShapes } from './treeShapes'
 
 export interface ForestDetail {
   /** Full conifer inside this radius, metres. */
@@ -10,6 +10,7 @@ export interface ForestDetail {
   midShare: number
   /** Share of trees drawn past `mid`. */
   farShare: number
+  compact?: boolean
 }
 
 
@@ -29,8 +30,8 @@ export const SIGHT_LINE = { from: { value: new THREE.Vector3() }, to: { value: n
 export function createForestView(forest: Forest, detail: ForestDetail) {
   const group = new THREE.Group()
   group.name = 'forest'
-  const shapes = treeShapes()
-  const simple = distantTree()
+  const shapes = detail.compact ? compactTreeShapes() : treeShapes()
+  const simple = distantTree(3, true)
   // Past `mid`, a single cone (4 triangles instead of 12) is plenty.
   const lowest = distantTree(1)
   const material = new THREE.MeshLambertMaterial({ vertexColors: true })
@@ -170,16 +171,22 @@ export function createForestView(forest: Forest, detail: ForestDetail) {
           batch.near = near
           changed = true
         }
+        const skier = SIGHT_LINE.to.value
+        const playerGap = Math.hypot(Math.max(0, Math.abs(batch.cx - skier.x) - forest.chunkSize / 2),
+          Math.max(0, Math.abs(batch.cz - skier.z) - forest.chunkSize / 2))
+        const closeToSkier = playerGap < 40
         if (near) {
           batch.far.count = 0
           drawn += batch.n
+        } else if (closeToSkier) {
+          batch.far.count = batch.n
         } else if (d < detail.mid) {
           const t = (d - detail.near) / (detail.mid - detail.near)
           batch.far.count = Math.ceil(batch.n * (1 - t * (1 - detail.midShare)))
         } else {
           batch.far.count = Math.ceil(batch.n * detail.farShare)
         }
-        const geometry = near || d < detail.mid ? simple : lowest
+        const geometry = near || closeToSkier || d < detail.mid ? simple : lowest
         if (batch.far.geometry !== geometry) batch.far.geometry = geometry
         batch.far.visible = batch.far.count > 0
         drawn += batch.far.count

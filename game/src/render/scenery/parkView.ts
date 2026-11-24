@@ -1,7 +1,7 @@
 import * as THREE from 'three'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import type { Rail } from '../../sim'
 import type { ParkOverlay, PlacedFeature } from '../../world/park'
-import { label } from './signView'
 import { SnowMaterial } from '../../fx'
 import type { Lighting } from '../lighting'
 
@@ -14,12 +14,48 @@ export function createParkView(
   overlay: ParkOverlay,
   baseHeight: (x: number, z: number) => number,
   lighting: Lighting,
-  siteSigns: { name: string; layout: string; x: number; z: number }[],
+  siteSigns: { name: string; layout: string; x: number; z: number; yaw: number }[],
+  meshStep = 0.4,
 ) {
   const group = new THREE.Group()
   group.name = 'park'
   const disposables: { dispose(): void }[] = []
-  const sprites: THREE.Sprite[] = []
+  const boards: THREE.Group[] = []
+  const face = new THREE.PlaneGeometry(1, 1)
+  const signPost = new THREE.BoxGeometry(0.057, 1, 0.11)
+  const left = signPost.clone().translate(-0.37, 0, 0)
+  const right = signPost.translate(0.37, 0, 0)
+  const frame = mergeGeometries([left, right])!
+  left.dispose()
+  right.dispose()
+  const backing = new THREE.BoxGeometry(1, 1, 0.08)
+  const timber = new THREE.MeshLambertMaterial({ color: 0x47372d })
+  disposables.push(face, frame, backing, timber)
+  const addSign = (name: string, detail: string, tone: string, x: number, z: number, yaw: number, entrance = false) => {
+    const ground = baseHeight(x, z)
+    if (!Number.isFinite(ground)) return
+    const texture = parkSignTexture(name, detail, tone)
+    const paint = new THREE.MeshBasicMaterial({ map: texture })
+    const width = entrance ? 4.2 : 2.15
+    const height = entrance ? 1 : 0.55
+    const rise = entrance ? 2.15 : 1.2
+    const board = new THREE.Group()
+    board.position.set(x, ground, z)
+    board.rotation.y = yaw
+    const posts = new THREE.Mesh(frame, timber)
+    posts.position.y = rise / 2
+    posts.scale.set(width, rise, 1)
+    const back = new THREE.Mesh(backing, timber)
+    back.position.y = rise
+    back.scale.set(width + 0.04, height + 0.04, 1)
+    const panel = new THREE.Mesh(face, paint)
+    panel.position.set(0, rise, 0.06)
+    panel.scale.set(width, height, 1)
+    board.add(posts, back, panel)
+    group.add(board)
+    boards.push(board)
+    disposables.push(texture, paint)
+  }
   // Shaped park snow: groomed look, and no rock on the steep side walls.
   const snow = new SnowMaterial({
     sunDirection: lighting.sunDirection,
@@ -34,7 +70,7 @@ export function createParkView(
   disposables.push(snow)
 
   for (const feature of overlay.features) {
-    const geometry = featureGeometry(feature, overlay, baseHeight)
+    const geometry = featureGeometry(feature, overlay, baseHeight, meshStep)
     if (geometry) {
       disposables.push(geometry)
       const mesh = new THREE.Mesh(geometry, snow)
@@ -44,14 +80,10 @@ export function createParkView(
     }
     const signX = feature.x - feature.dirZ * (feature.halfWidth + 3)
     const signZ = feature.z + feature.dirX * (feature.halfWidth + 3)
-    const ground = baseHeight(signX, signZ)
-    if (Number.isFinite(ground)) {
-      const sprite = label(feature.spec.label, null, disposables)
-      sprite.scale.multiplyScalar(0.7)
-      sprites.push(sprite)
-      sprite.position.set(signX, ground + 2.4, signZ)
-      group.add(sprite)
-    }
+    const [name, speed] = feature.spec.label.split(' · ')
+    const slide = feature.spec.kind === 'box' || feature.spec.kind.toLowerCase().includes('rail')
+    addSign(name, speed ?? (slide ? 'Pop on · balance · pop off' : 'Absorb the crest'), slide ? '#96dfd7' : '#ffdc69',
+      signX, signZ, Math.atan2(-feature.dirX, -feature.dirZ))
   }
 
   const metal = new THREE.MeshStandardMaterial({ color: 0xb8c2cc, metalness: 0.85, roughness: 0.3 })
@@ -62,19 +94,14 @@ export function createParkView(
   for (const rail of overlay.rails) group.add(rail.kind === 'box' ? boxMesh(rail, baseHeight, boxTop, boxSide, disposables) : railMesh(rail, baseHeight, metal, post, disposables))
 
   for (const site of siteSigns) {
-    const ground = baseHeight(site.x, site.z)
-    if (!Number.isFinite(ground)) continue
-    const sprite = label(`${site.name} · ${site.layout}`, null, disposables)
-    sprite.scale.multiplyScalar(1.6)
-    sprite.position.set(site.x, ground + 4.5, site.z)
-    group.add(sprite)
+    addSign(site.name, site.layout, '#ffdc69', site.x, site.z, site.yaw, true)
   }
 
   return {
     object: group,
-    /** Hide signs the camera is about to pass through. */
+    /** Near-course signage stays in the scene without drawing the whole run at once. */
     update(camera: THREE.Vector3) {
-      for (const sprite of sprites) sprite.visible = sprite.position.distanceToSquared(camera) > 7 * 7
+      for (const board of boards) board.visible = board.position.distanceToSquared(camera) < 105 ** 2
     },
     dispose() {
       for (const item of disposables) item.dispose()
@@ -82,16 +109,37 @@ export function createParkView(
   }
 }
 
-function featureGeometry(f: PlacedFeature, overlay: ParkOverlay, baseHeight: (x: number, z: number) => number) {
-  const step = 0.4
+function parkSignTexture(name: string, detail: string, tone: string) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 512
+  canvas.height = 128
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#0e2c3c'
+  ctx.fillRect(0, 0, 512, 128)
+  ctx.fillStyle = tone
+  ctx.fillRect(0, 0, 13, 128)
+  ctx.strokeStyle = '#7da2ae'
+  ctx.strokeRect(19, 6, 487, 116)
+  ctx.fillStyle = '#eff9fb'
+  ctx.font = '750 40px system-ui'
+  ctx.fillText(name, 31, 55, 457)
+  ctx.fillStyle = tone
+  ctx.font = '650 24px system-ui'
+  ctx.fillText(detail, 32, 99, 455)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
+function featureGeometry(f: PlacedFeature, overlay: ParkOverlay, baseHeight: (x: number, z: number) => number, step: number) {
   const us = Math.ceil((f.footprint + 2) / step)
   const vs = Math.ceil((f.halfWidth * 2) / step)
   const positions: number[] = []
   const heights: number[] = []
   for (let i = 0; i <= us; i++) {
     for (let j = 0; j <= vs; j++) {
-      const u = -1 + i * step
-      const v = -f.halfWidth + j * step
+      const u = -1 + i * (f.footprint + 2) / us
+      const v = -f.halfWidth + j * f.halfWidth * 2 / vs
       const x = f.x + f.dirX * u - f.dirZ * v
       const z = f.z + f.dirZ * u + f.dirX * v
       const o = overlay.heightAt(x, z)

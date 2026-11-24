@@ -14,15 +14,15 @@ export interface Lighting {
 
 export function createLighting(): Lighting {
   return {
-    // Low southern sun: toward +Z (south), a bit east, ~28° up.
-    sunDirection: new THREE.Vector3(0.35, 0.5, 0.79).normalize(),
-    sunColor: new THREE.Color('#fff1dc'),
-    skyColor: new THREE.Color('#b9d0e6'),
+    // Low southeast light picks out the sides of rollers and groomed banks.
+    sunDirection: new THREE.Vector3(0.67, 0.43, 0.60).normalize(),
+    sunColor: new THREE.Color('#fff0d7'),
+    skyColor: new THREE.Color('#b5d1ee'),
     groundColor: new THREE.Color('#aeb4b6'),
     fogColor: new THREE.Color('#cfdde9'),
     fogDensity: 0.00008,
-    horizon: new THREE.Color('#d3e2ee'),
-    zenith: new THREE.Color('#3c78bd'),
+    horizon: new THREE.Color('#cddfed'),
+    zenith: new THREE.Color('#3472b8'),
   }
 }
 
