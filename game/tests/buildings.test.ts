@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildBuildings, indexBuildings, orientedBox, pushOutOfRing } from '../src/world/buildings'
+import { ROOF_OVERHANG, ROOF_SNOW_DEPTH } from '../src/render/scenery/buildingView'
 
 describe('buildings', () => {
   const flat = () => 10
@@ -50,6 +51,13 @@ describe('buildings', () => {
     const index = indexBuildings(buildings)
     expect(index.hit(5, 25)).not.toBeNull()
     expect(index.hit(20, 20)).toBeNull()
+  })
+})
+
+describe('roof snow budgets', () => {
+  it('keeps eave overhang and flat snow deep enough to read as a load', () => {
+    expect(ROOF_OVERHANG).toBeGreaterThanOrEqual(0.85)
+    expect(ROOF_SNOW_DEPTH).toBeGreaterThanOrEqual(0.5)
   })
 })
 

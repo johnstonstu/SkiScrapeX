@@ -6,7 +6,13 @@ import { pointInRing } from '../../world/resort'
 const WALLS = ['#8a6243', '#6b4a33', '#7a8088', '#8c3b2b', '#c2a684', '#5f4636'].map((c) => new THREE.Color(c))
 const SNOW = new THREE.Color('#eef3f7')
 const TRIM = new THREE.Color('#3b2e26')
-const OVERHANG = 0.7
+const CHIMNEY = new THREE.Color('#4a433c')
+/** Eave snow lip past the wall line, metres. */
+export const ROOF_OVERHANG = 0.9
+/** Flat-roof snow slab thickness above the eaves, metres. */
+export const ROOF_SNOW_DEPTH = 0.55
+/** Extra height on gable snow planes so the load reads thicker. */
+const GABLE_SNOW_LIFT = 0.2
 /** Show the windowed near mesh inside this distance of the village cluster. */
 const NEAR_LOD = 340
 
@@ -115,16 +121,17 @@ function buildMesh(buildings: Building[], detail: boolean) {
     if (building.roof) {
       const { centre, axis, halfLength, halfWidth, rise } = building.roof
       const side: [number, number] = [-axis[1], axis[0]]
-      const L = halfLength + OVERHANG
-      const W = halfWidth + OVERHANG
-      const drop = OVERHANG * (rise / halfWidth)
+      const L = halfLength + ROOF_OVERHANG
+      const W = halfWidth + ROOF_OVERHANG
+      const drop = ROOF_OVERHANG * (rise / halfWidth)
       const at = (along: number, across: number, y: number) =>
         v3(centre[0] + axis[0] * along + side[0] * across, y, centre[1] + axis[1] * along + side[1] * across)
-      const ridgeA = at(-L, 0, eaves + rise)
-      const ridgeB = at(L, 0, eaves + rise)
+      const lift = (p: THREE.Vector3) => v3(p.x, p.y + GABLE_SNOW_LIFT, p.z)
+      const ridgeA = lift(at(-L, 0, eaves + rise))
+      const ridgeB = lift(at(L, 0, eaves + rise))
       for (const sign of [1, -1]) {
-        const eA = at(-L, sign * W, eaves - drop)
-        const eB = at(L, sign * W, eaves - drop)
+        const eA = lift(at(-L, sign * W, eaves - drop))
+        const eB = lift(at(L, sign * W, eaves - drop))
         // Upward-facing slopes; pick the winding that makes the normal point up.
         const n = new THREE.Vector3().subVectors(eB, eA).cross(new THREE.Vector3().subVectors(ridgeA, eA))
         if (n.y >= 0) {
@@ -135,13 +142,33 @@ function buildMesh(buildings: Building[], detail: boolean) {
           tri(ridgeA, ridgeB, eB, SNOW)
         }
         if (detail) {
-          // Thin fascia under the eave.
-          const fA = at(-L, sign * W, eaves - drop - 0.25)
-          const fB = at(L, sign * W, eaves - drop - 0.25)
-          tri(fA, eA, fB, TRIM)
-          tri(fB, eA, eB, TRIM)
-          tri(fA, fB, eA, TRIM)
-          tri(fB, eB, eA, TRIM)
+          // Soft second snow cap (slightly inset) so the load reads rounded.
+          const cap = (p: THREE.Vector3, alongScale: number, acrossScale: number) => {
+            const along = (p.x - centre[0]) * axis[0] + (p.z - centre[1]) * axis[1]
+            const across = (p.x - centre[0]) * side[0] + (p.z - centre[1]) * side[1]
+            return at(along * alongScale, across * acrossScale, p.y + 0.12)
+          }
+          const cEA = cap(eA, 0.92, 0.9)
+          const cEB = cap(eB, 0.92, 0.9)
+          const cRA = cap(ridgeA, 0.92, 0.9)
+          const cRB = cap(ridgeB, 0.92, 0.9)
+          const cn = new THREE.Vector3().subVectors(cEB, cEA).cross(new THREE.Vector3().subVectors(cRA, cEA))
+          if (cn.y >= 0) {
+            tri(cEA, cEB, cRA, SNOW)
+            tri(cRA, cEB, cRB, SNOW)
+          } else {
+            tri(cEA, cRA, cEB, SNOW)
+            tri(cRA, cRB, cEB, SNOW)
+          }
+          // Fascia under the thicker eave snow.
+          const fA = at(-L, sign * W, eaves - drop - 0.35)
+          const fB = at(L, sign * W, eaves - drop - 0.35)
+          const eA0 = at(-L, sign * W, eaves - drop)
+          const eB0 = at(L, sign * W, eaves - drop)
+          tri(fA, eA0, fB, TRIM)
+          tri(fB, eA0, eB0, TRIM)
+          tri(fA, fB, eA0, TRIM)
+          tri(fB, eB0, eA0, TRIM)
         }
       }
       // Gable triangles at both ends, in the wall colour.
@@ -152,11 +179,37 @@ function buildMesh(buildings: Building[], detail: boolean) {
         tri(g0, g1, top, wall)
         tri(g1, g0, top, wall)
       }
+      // Near-only chimney on ordinary gable houses (skip tiny / service shells).
+      if (detail && building.kind !== 'service' && halfWidth >= 3) {
+        const along = halfLength * (building.palette % 2 === 0 ? 0.35 : -0.35)
+        const baseY = eaves + rise + 0.05
+        const topY = baseY + 0.95
+        const hx = 0.22
+        const corners = (y: number) =>
+          [
+            at(along - hx, -hx, y),
+            at(along + hx, -hx, y),
+            at(along + hx, hx, y),
+            at(along - hx, hx, y),
+          ] as const
+        const [b0, b1, b2, b3] = corners(baseY)
+        const [t0, t1, t2, t3] = corners(topY)
+        tri(b0, b1, t1, CHIMNEY)
+        tri(b0, t1, t0, CHIMNEY)
+        tri(b1, b2, t2, CHIMNEY)
+        tri(b1, t2, t1, CHIMNEY)
+        tri(b2, b3, t3, CHIMNEY)
+        tri(b2, t3, t2, CHIMNEY)
+        tri(b3, b0, t0, CHIMNEY)
+        tri(b3, t0, t3, CHIMNEY)
+        tri(t0, t1, t2, CHIMNEY)
+        tri(t0, t2, t3, CHIMNEY)
+      }
     } else {
       // Flat roof: snow slab on the footprint.
       const contour = ring.map(([x, z]) => new THREE.Vector2(x, z))
       const faces = THREE.ShapeUtils.triangulateShape(contour, [])
-      const y = eaves + 0.35
+      const y = eaves + ROOF_SNOW_DEPTH
       for (const [i, j, k] of faces) {
         const a = v3(ring[i][0], y, ring[i][1])
         const b = v3(ring[j][0], y, ring[j][1])
