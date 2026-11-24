@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PARK_WAY_NAMES, parkSitesFromLines, placeLineup } from '../src/world/park'
-import { hitTrail } from '../src/ui/trailMap'
+import { hitTrail, trailLabel } from '../src/ui/trailMap'
 import type { Run } from '../src/world/resort'
 import type { ParkSite } from '../src/world/park'
 
@@ -28,6 +28,14 @@ describe('trail map picking', () => {
     const blue = run('Okanagan Run', [[[0, 0], [0, 120]]])
     const park: ParkSite = { id: '1', name: 'Claim Jumper', line: [[18, 0], [18, 120]], layout: 'claimJumper' }
     expect(hitTrail(17, 40, [blue], [park], 12)).toMatchObject({ kind: 'park', site: { name: 'Claim Jumper' } })
+  })
+
+  it('labels runs and parks for the hover tip', () => {
+    const blue = run('Okanagan Run', [[[0, 0], [0, 100]]])
+    const park: ParkSite = { id: '1', name: 'Claim Jumper', line: [[18, 0], [18, 120]], layout: 'claimJumper' }
+    expect(trailLabel({ kind: 'run', run: blue })).toBe('Okanagan Run')
+    expect(trailLabel({ kind: 'park', site: park })).toBe('Claim Jumper')
+    expect(trailLabel(null)).toBe('')
   })
 })
 

@@ -316,18 +316,22 @@ export function createSkierView(): {
       const nextMode: Mode = pose === 'sit' ? 'sit' : pose === 'stand' ? 'stand' : crashed ? 'crash' : rail ? 'rail' : 'ski'
       if (nextMode !== mode) startFade(nextMode)
 
-      // Rail entry: a short hop while the skis swing from the approach line to the rail.
+      // Rail entry: crouch → hop-extend while the skis swing onto the feature.
       if (rail && !wasRail) {
         railEntry = 1
         entryTurn = Math.atan2(Math.sin(lastHeading - state.heading), Math.cos(lastHeading - state.heading))
+        crouch.v -= 1.6
+        crouch.x = Math.min(crouch.x, 0.35)
       }
       wasRail = Boolean(rail)
       lastHeading = state.heading
-      railEntry = Math.max(0, railEntry - dt / 0.2)
+      railEntry = Math.max(0, railEntry - dt / 0.28)
       if (railEntry > 0) {
+        const hop = Math.sin(railEntry * Math.PI)
         qFlip.setFromAxisAngle(ay.set(0, 1, 0), entryTurn * railEntry * railEntry)
         root.quaternion.multiply(qFlip)
-        root.position.y += Math.sin(railEntry * Math.PI) * 0.28
+        root.position.y += hop * 0.34
+        crouch.x += hop * 0.22
       }
       // A cork tilts the spin axis: pitch the body as it spins and it corkscrews.
       const tilt = air ? air.flip + air.cork * 1.05 : 0

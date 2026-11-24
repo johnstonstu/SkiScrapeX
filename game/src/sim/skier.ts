@@ -786,9 +786,10 @@ function stepOnRail(
   state.edgeAngle = 0
   state.skid = rail.style === 'slide' ? 1 : 0
   if (outcome === 'riding') return
-  // Leave the rail: carry the tangent velocity, plus a pop or a sideways fall.
+  // Leave the rail: carry the tangent velocity, plus a pop or a soft step-off.
   const { tangent } = railAt(rail.rail, rail.s)
   if (pop) state.vy += FREESTYLE.popMin + (FREESTYLE.popMax - FREESTYLE.popMin) * Math.max(0.5, state.popCharge)
+  else state.vy += 0.55
   if (outcome === 'fell') {
     const side = { x: -tangent.z, z: tangent.x }
     state.vx += side.x * Math.sign(rail.balance) * 1.5
@@ -811,9 +812,10 @@ function stepOnRail(
     railMetres: rail.metres,
   }
   state.rail = null
-  state.railCooldown = 0.5
+  state.railCooldown = 0.35
   state.flipLock = Math.abs(pitch) > FREESTYLE.pressThreshold
   state.grounded = false
+  // Short dismount air is graded as a hop so step-offs do not false-bail.
   state.air = newAir(0)
   state.popCharge = 0
   const ground = readSample(sampleTerrain, state.x, state.z)
