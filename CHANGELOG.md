@@ -2,7 +2,7 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
-## Unreleased — 0.8.11: Sense of speed and crash feel
+## 0.8.11 (2026-11-23): Sense of speed and crash feel
 
 ### Added
 
