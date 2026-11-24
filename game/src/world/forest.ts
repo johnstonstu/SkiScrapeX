@@ -33,8 +33,9 @@ export function pickSpecies(elevation: number, height: number, roll: number): Sp
   if (roll < 0.06) return Species.Snag
   const r = (roll - 0.06) / 0.94
   if (elevation > 2080) {
-    if (height < 7) return r < 0.55 ? Species.Krummholz : r < 0.85 ? Species.Ghost : Species.Fir
-    return r < 0.4 ? Species.Ghost : r < 0.85 ? Species.Fir : Species.Spruce
+    // Summit reads as rime pillars in the footage: push short trees toward ghosts.
+    if (height < 7) return r < 0.4 ? Species.Krummholz : r < 0.9 ? Species.Ghost : Species.Fir
+    return r < 0.6 ? Species.Ghost : r < 0.9 ? Species.Fir : Species.Spruce
   }
   if (elevation > 1900) {
     if (height < 4.5 && r < 0.3) return Species.Krummholz

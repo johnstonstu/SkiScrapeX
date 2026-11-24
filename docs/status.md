@@ -127,6 +127,7 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - Building LOD + cheaper findLots + High shadow reach 160 m (0.9.4); 0.9.1 village/forest budgets unchanged.
 - Structure (0.9.5): autoCap / graphicsFail modules; rider Spring, double-pole, crash and sit poses extracted. Full ski-pose / tick split still deferred.
 - Wider groomers + lift clearings (0.9.6): easy/mid/adv half-widths 22/20/15; lift cut 14 m half, terminals 20 m.
+- Tree snow / summit ghosts (0.9.7): heavier branch snow + far frost tint; more rime pillars above 2080 m.
 - Tuck drag raised in 0.8.11 (0.42 m²); re-check equilibrium on Gunbarrel / Grandfather's after a playtest.
 - Buildings are shells from OSM footprints with guessed heights. Only 10 of 147 have tagged storeys. No interiors, decks or props yet.
 - Roads are stamped as packed snow; there are no cars, parking lots or village props.

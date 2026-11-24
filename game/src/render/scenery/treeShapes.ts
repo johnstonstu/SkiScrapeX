@@ -11,11 +11,11 @@ export function treeShapes(): THREE.BufferGeometry[] {
 /** Close-range trees on Low keep their trunk and species silhouette with fewer branches. */
 export function compactTreeShapes(): THREE.BufferGeometry[] {
   return [
-    compactConifer(0.2, 0.19, 4, 0.57),
-    compactConifer(0.17, 0.11, 5, 0.76),
-    compactConifer(0.56, 0.11, 3, 0.25),
+    compactConifer(0.2, 0.19, 4, 0.7),
+    compactConifer(0.17, 0.11, 5, 0.88),
+    compactConifer(0.56, 0.11, 3, 0.35),
     snag(),
-    compactConifer(0.11, 0.27, 3, 0.65),
+    compactConifer(0.11, 0.27, 3, 0.78),
     compactConifer(0.13, 0.18, 4, 1),
   ]
 }
@@ -23,8 +23,9 @@ export function compactTreeShapes(): THREE.BufferGeometry[] {
 /** One distant stand-in for every species: stacked cones (`tiers` of them, 3 by default). */
 export function distantTree(tiers = 3, trunk = false): THREE.BufferGeometry {
   const b = new Builder()
-  const needles = new THREE.Color('#244d43')
-  const snow = new THREE.Color('#96b8bd')
+  // Greyer-green needles + brighter snow so aerial forest reads frosted, not dark.
+  const needles = new THREE.Color('#3d6a5c')
+  const snow = new THREE.Color('#c5d8de')
   if (trunk) b.trunk(0.016, 0.008, 0, 0.26, BARK, 4)
   for (let tier = 0; tier < tiers; tier++) {
     const t = tier / tiers
@@ -139,7 +140,7 @@ function spruce() {
   for (let tier = 0; tier < tiers; tier++) {
     const t = tier / tiers
     const y = 0.18 + t * 0.8
-    b.whorl(y, 0.18 * (1 - t * 0.94), 7, Math.min(1, y + 0.8 / tiers + 0.13), tier * 2.4, 0.5)
+    b.whorl(y, 0.18 * (1 - t * 0.94), 7, Math.min(1, y + 0.8 / tiers + 0.13), tier * 2.4, 0.68)
   }
   return b.build()
 }
@@ -152,7 +153,7 @@ function fir() {
   for (let tier = 0; tier < tiers; tier++) {
     const t = tier / tiers
     const y = 0.1 + t * 0.86
-    b.whorl(y, 0.105 * (1 - t * 0.9), 6, Math.min(1, y + 0.86 / tiers + 0.08), tier * 1.9, 0.8)
+    b.whorl(y, 0.105 * (1 - t * 0.9), 6, Math.min(1, y + 0.86 / tiers + 0.08), tier * 1.9, 0.92)
   }
   return b.build()
 }
@@ -203,7 +204,7 @@ function krummholz() {
     const t = tier / tiers
     const y = 0.15 + t * 0.7
     const leeward = tier >= 2 ? (a: number) => Math.cos(a) > -0.2 : undefined
-    b.whorl(y, 0.34 * (1 - t * 0.6), 8, Math.min(1, y + 0.3), tier * 2.1, 0.7, leeward)
+    b.whorl(y, 0.34 * (1 - t * 0.6), 8, Math.min(1, y + 0.3), tier * 2.1, 0.82, leeward)
   }
   return b.build()
 }
