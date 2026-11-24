@@ -1,5 +1,5 @@
 import type { TerrainGrid } from './terrainGrid'
-import { nearestOnPolyline, type Resort } from './resort'
+import { nearestOnPolyline, pointAlong, polylineLength, runHalfWidth, type Resort } from './resort'
 import { isClear, type Canopy, type SurfaceField } from './surface'
 
 export interface Tree {
@@ -123,8 +123,8 @@ export function plantForest(
     }
   }
 
-  const plant = (x: number, z: number, height: number) => {
-    if (isClear(surface, x, z)) return
+  const plant = (x: number, z: number, height: number, edgeSapling = false) => {
+    if (isClear(surface, x, z) && !edgeSapling) return
     const ground = grid.sampleTerrain(x, z)
     if (!ground || (!canopy && ground.normal.y < MAX_SLOPE_COS)) return
     if (nearLift[Math.floor(z / LIFT_CELL) * liftCols + Math.floor(x / LIFT_CELL)]) {
@@ -137,6 +137,7 @@ export function plantForest(
       }
     }
     height = Math.min(height, MAX_TREE_HEIGHT, ground.height + origin > SUMMIT_ELEVATION ? SUMMIT_TREE_HEIGHT : Infinity)
+    if (edgeSapling) height = Math.min(height, 3.2)
     const tree = {
       x,
       y: ground.height,
@@ -144,7 +145,11 @@ export function plantForest(
       height,
       rotation: random() * Math.PI * 2,
       tone: 0.75 + 0.25 * random(),
-      species: pickSpecies(ground.height + origin, height, random()),
+      species: edgeSapling
+        ? random() < 0.55
+          ? Species.Krummholz
+          : Species.Fir
+        : pickSpecies(ground.height + origin, height, random()),
     }
     const ix = Math.floor(x / TRUNK_SPACING), iz = Math.floor(z / TRUNK_SPACING)
     for (let dz = -1; dz <= 1; dz++) {
@@ -198,6 +203,30 @@ export function plantForest(
         const stand = 0.5 + 0.5 * Math.sin(px / 91 + Math.sin(pz / 160)) * Math.cos(pz / 109)
         if (random() > stand * 0.75 * density) continue
         plant(px, pz, 7 + 13 * random())
+      }
+    }
+  }
+
+  // Edge saplings: short trees 0–5 m inside the clear corridor so run edges look ragged (review #8).
+  // Skip on Low density so the budget stays light.
+  if (density >= 0.75) {
+    for (const run of resort.runs) {
+      if (run.kind !== 'line') continue
+      const half = runHalfWidth(run)
+      for (const line of run.parts) {
+        const length = polylineLength(line)
+        for (let d = 8; d < length - 8; d += 7) {
+          const [cx, cz] = pointAlong(line, d)
+          const [nx, nz] = pointAlong(line, d + 1)
+          const span = Math.hypot(nx - cx, nz - cz) || 1
+          const sx = (nz - cz) / span
+          const sz = -(nx - cx) / span
+          for (const side of [-1, 1]) {
+            if (random() > 0.42 * density) continue
+            const inset = half * (0.72 + 0.22 * random())
+            plant(cx + sx * side * inset, cz + sz * side * inset, 2.4 + random() * 0.9, true)
+          }
+        }
       }
     }
   }

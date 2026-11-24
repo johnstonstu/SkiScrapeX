@@ -132,7 +132,7 @@ describe('resort', () => {
     expect(surface.runNameAt(-5, 5)).toBe('Off-piste')
   })
 
-  it('paints the run as groomed and keeps trees off it and the lift line', () => {
+  it('paints the run as groomed and keeps tall trees off it and the lift line', () => {
     const surface = buildSurface(grid, resort, 1)
     expect(surfaceAt(surface, 25, 25)).toBe(SurfaceId.groomed)
     expect(isClear(surface, 25, 25)).toBe(true)
@@ -140,7 +140,7 @@ describe('resort', () => {
     const forest = plantForest(grid, resort, surface, null, { density: 4 })
     for (const chunk of forest.chunks) {
       for (const tree of chunk.trees) {
-        expect(isClear(surface, tree.x, tree.z)).toBe(false)
+        if (isClear(surface, tree.x, tree.z)) expect(tree.height).toBeLessThan(4)
         expect(Math.abs(tree.x - 40)).toBeGreaterThan(10)
       }
     }
@@ -148,6 +148,36 @@ describe('resort', () => {
     const tall = forest.chunks.flatMap((c) => c.trees).find((t) => t.height >= 4)
     if (tall) expect(trunks.hit(tall.x, tall.z, 0.3)).toBe(tall)
     expect(trunks.hit(25, 25, 0.3)).toBeNull()
+  })
+
+  it('plants short edge saplings inside the clear corridor without trunk collision', () => {
+    const surface = buildSurface(grid, resort, 1)
+    const forest = plantForest(grid, resort, surface, null, { density: 1 })
+    const saplings = forest.chunks.flatMap((c) => c.trees).filter((t) => isClear(surface, t.x, t.z))
+    expect(saplings.length).toBeGreaterThan(0)
+    const trunks = indexTrunks(forest)
+    for (const tree of saplings) {
+      expect(tree.height).toBeLessThan(4)
+      expect(trunks.hit(tree.x, tree.z, 0.3)).toBeNull()
+    }
+  })
+
+  it('scours summit powder into ice and rock above ~2100 m ASL', () => {
+    const heights = new Float32Array(11 * 11).fill(550)
+    const summit = createTerrainGrid({ columns: 11, rows: 11, stepMetres: 5 }, heights)
+    const empty = resortFromFeatures({ version: 1, runs: [] }, summit.heightAt)
+    const scoured = buildSurface(summit, empty, 1, [], { originElevation: 1600 })
+    let iceOrRock = 0
+    for (let z = 1; z < 49; z += 2) {
+      for (let x = 1; x < 49; x += 2) {
+        const id = surfaceAt(scoured, x, z)
+        if (id === SurfaceId.ice || id === SurfaceId.rock) iceOrRock++
+      }
+    }
+    expect(iceOrRock).toBeGreaterThan(20)
+    const low = createTerrainGrid({ columns: 11, rows: 11, stepMetres: 5 }, new Float32Array(11 * 11).fill(100))
+    const valley = buildSurface(low, empty, 1, [], { originElevation: 1600 })
+    expect(surfaceAt(valley, 25, 25)).toBe(SurfaceId.powder)
   })
 })
 

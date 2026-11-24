@@ -36,6 +36,7 @@ export function buildSurface(
   resort: Resort,
   texel = 2.5,
   parks: { name?: string; line: [number, number][]; halfWidth: number }[] = [],
+  options: { originElevation?: number } = {},
 ): SurfaceField {
   const width = Math.ceil(grid.width / texel)
   const height = Math.ceil(grid.depth / texel)
@@ -127,6 +128,22 @@ export function buildSurface(
         clear[index] = 1
       }
     })
+  }
+
+  // Summit wind-scour: ice and rock poke through powder above ~2100 m ASL (review #10).
+  const origin = options.originElevation ?? 1600
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const i = row * width + col
+      if (surface[i] !== SurfaceId.powder) continue
+      const x = (col + 0.5) * texel
+      const z = (row + 0.5) * texel
+      const h = grid.heightAt(x, z)
+      if (!Number.isFinite(h) || h + origin < 2100) continue
+      const n = edgeNoise(x * 1.4, z * 1.4)
+      if (n > 0.45) surface[i] = SurfaceId.rock
+      else if (n > 0.1) surface[i] = SurfaceId.ice
+    }
   }
 
   for (let i = 0; i < count; i++) {

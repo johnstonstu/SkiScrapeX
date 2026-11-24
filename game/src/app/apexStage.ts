@@ -65,6 +65,7 @@ export function buildApexStage(
       // Multi-lane parks need room for side-by-side features.
       halfWidth: ['Claim Jumper', 'Okanagan Park', 'Prospector'].includes(site.name) ? 28 : 16,
     })),
+    { originElevation: world.manifest.originElevation },
   )
   options.phase?.('apex: surface')
   const terrain = createTerrainView(grid, surface, canopy, lighting, quality.terrain)
