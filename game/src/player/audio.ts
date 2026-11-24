@@ -136,6 +136,15 @@ export function createSkiAudio(button: HTMLButtonElement) {
     /** 0 to 1, from settings. */
     setVolume(value: number) { level = Math.max(0, Math.min(1, value)); volume() },
     reset() { airborne = crashed = onRail = false; descent = lastTrick = lastEdgeSign = nextLiftClunk = nextFaceShot = 0; lastPress = 'none' },
+    /** Soft whoosh when another skier passes close without contact. */
+    nearMiss(closing: number) {
+      if (!ctx || muted || paused) return
+      const t = ctx.currentTime
+      const gain = Math.min(1, closing / 8)
+      windFilter.frequency.setValueAtTime(880 + gain * 720, t)
+      transient(wind, t, 0.12 + gain * 0.22, 0.08)
+      transient(hit, t, 0.05 + gain * 0.08, 0.045)
+    },
     update(s: SkiState, riding: boolean) {
       if (!ctx) return
       const t = ctx.currentTime

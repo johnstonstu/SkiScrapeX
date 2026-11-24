@@ -2,6 +2,15 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.2 (2026-11-24): Sample layers and near-miss feel
+
+### Added
+
+- Bundled plant / landing / latch WAV ticks under `public/audio/` (replaceable recorded takes).
+- Flat-light HUD cue when that weather preset is selected.
+- Near-miss NPC whoosh + soft rumble; bump contacts share a lighter cue.
+- Rail nose/tail press counterbalance arm poses.
+
 ## 0.9.1 (2026-11-24): High LOD and village draw budgets
 
 ### Changed

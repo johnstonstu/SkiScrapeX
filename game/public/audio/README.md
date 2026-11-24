@@ -1,6 +1,6 @@
 # Optional one-shot samples
 
-Drop short WAV files here to layer on top of procedural SFX. Missing files are fine — the game stays procedural-only.
+Short WAV files layer on top of procedural SFX. Missing files are fine — the game stays procedural-only.
 
 | File | Used for |
 |---|---|
@@ -8,4 +8,4 @@ Drop short WAV files here to layer on top of procedural SFX. Missing files are f
 | `landing.wav` | Clean / sketchy landings |
 | `latch.wav` | Rail or box latch |
 
-Keep clips under ~200 ms and mono if possible.
+Bundled defaults are short synthetic ticks (~35–90 ms, mono 22.05 kHz). Replace with recorded takes anytime; keep clips under ~200 ms when possible.

@@ -27,6 +27,11 @@ export function createHaptics(rumble: (weak: number, strong: number, durationMs?
       const impact = Math.min(1, 0.2 + Math.sqrt(Math.max(0, trick.efh) * 19.6) * 0.05)
       rumble(hard ? 0.35 : 0.2 * impact, hard ? 0.85 : 0.35 + impact * 0.45, hard ? 140 : 70)
     },
+    nearMiss(closing: number) {
+      if (!enabled || motion?.matches) return
+      const soft = Math.min(1, closing / 8)
+      rumble(0.08 + soft * 0.18, 0.12 + soft * 0.22, 55)
+    },
     update(s: SkiState, now: number) {
       if (!enabled || motion?.matches) {
         airborne = !s.grounded
