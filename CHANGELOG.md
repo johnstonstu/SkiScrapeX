@@ -2,6 +2,13 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.13 (2026-11-24): Edge saplings and summit wind-scour
+
+### Changed
+
+- Short edge saplings (<4 m, no trunk collision) plant just inside clear run corridors on Medium+ density.
+- Summit powder above ~2100 m ASL scours to ice/rock patches for wind-blown look (groomed runs left alone).
+
 ## 0.9.12 (2026-11-24): Modest Saloon and lodge hero pass
 
 ### Changed

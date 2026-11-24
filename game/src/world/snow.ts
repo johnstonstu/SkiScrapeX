@@ -55,6 +55,7 @@ export function createSurfaceSampler(
       case SurfaceId.park:
         return SURFACES.park
       case SurfaceId.ice:
+      case SurfaceId.rock:
         return SURFACES.ice
       default: {
         const shelter = canopy ? shelterFromCover(canopyCover(grid, canopy, x, z)) : 0
