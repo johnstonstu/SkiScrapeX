@@ -1,6 +1,17 @@
 # Workplan: refine, polish, add content
 
-Written 2026-11-23 at v0.8.7, for Stu and for any agent picking up work. `docs/roadmap.md` says where SkiScrapex is going (phases to 1.0). This file says how to get there: the next milestones in order, the work in each, how to tell when an item is done, and how to work without a GPU or without Stu in the loop. Open items link to GitHub issues; when an item gets an issue, link it here.
+Written 2026-11-23 at v0.8.7; refreshed 2026-11-24 at v0.9.0 for Stu and for any agent picking up work. `docs/roadmap.md` says where SkiScrapex is going (phases to 1.0). This file says how to get there: the next milestones in order, the work in each, how to tell when an item is done, and how to work without a GPU or without Stu in the loop. Open items link to GitHub issues; when an item gets an issue, link it here.
+
+### Overnight ship log (0.8.13 → 0.9.0)
+
+| Tag | Focus |
+|---|---|
+| 0.8.13 | Landing EFH leeway, hop/rail capture, plant-leads-steer |
+| 0.8.14 | Powder float / plow / soft yaw (Steep-feel) |
+| 0.8.15 | Map hover+click trip; rail entry/dismount/press; SFX tighten |
+| 0.8.16 | Park approach aim + camera hint; multi-lane spacing |
+| 0.8.17 | Crash recovery: directional tumble, visual gear gather, buildings/signs → beginCrash |
+| 0.9.0 | Optional sample layers, idle hands, weather gusts, Low village lite, docs sync |
 
 ## How we work
 
@@ -71,12 +82,13 @@ Goal: turning, speed and stopping feel natural on keyboard, pad and touch at eve
 
 Goal: the rider looks like a good skier in every state, and the snowboarder gets the same care.
 
-- [ ] Pole plant timing: the plant leads the edge change slightly (triggered by the steer reversal, not the edge flip), tip lands beside the boots, wrist flick visible from behind.
+- [x] Pole plant timing: plant fires on steer flip so the hand leads the turn (0.8.13); tip/wrist polish still open.
+- [x] Idle / soft-cruise hand and pole sway (0.9.0).
 - [ ] Turn shape from behind: outside leg long, inside leg short, hips inside the feet, hands quiet; check in `rider.html?sim` at 12°, 18° and 25° and at three speeds.
 - [ ] Air: compression before a pop, extension at the lip, tuck up in the air, spot the landing, absorb and rebound.
 - [ ] Rails: entry hop, sliding stance, balance arms, exit; presses already pose.
 - [ ] Secondary motion: jacket hem and hood flutter with speed, pole swing, slight head bob on bumps.
-- [~] Crashes with tumbles and yard sales (#61): 0.8.11 has tumble, speed-scaled slide and visual ski scatter; still no collect / get-up loop for lost gear.
+- [~] Crashes with tumbles and yard sales (#61): 0.8.11–0.8.17 tumble, directional slide, visual ski scatter and gather on get-up; buildings/signs share beginCrash. World-space pickups still open.
 - [ ] Snowboard pass: heel and toe turns with the right lean, rotated stance, crouched carve, ollie and grabs, its own tuck, a `rider.html?sim&model=snowboard` view.
 - [ ] Other skiers (#43) use a lighter rider (fewer meshes, no poles past 60 m) so ten of them cost little. Soft collisions with the player landed in 0.8.11.
 
@@ -119,7 +131,7 @@ Goal: strangers can play it and tell us what is wrong.
 
 Goal: reasons to come back. Content that changes how a session plays.
 
-- [ ] Weather and time of day (#39): bluebird, flat light, snowfall days with fresh powder depth, sunset; snow conditions per day (fresh, packed, icy).
+- [~] Weather and time of day (#39): presets + gust pulses (0.8.11 / 0.9.0); still need day cycle, fresh powder depth, sunset, per-day snow conditions.
 - [ ] Night skiing under the lights (#59); snowcats grooming in the evening and corduroy only where groomed (#60, #44).
 - [ ] Instant replay and a photo mode (#62).
 - [ ] Skiing depth (#63): visible balance cue, powder face shots and sluffs, butters, more rail shapes, trick variety bonus.
@@ -146,11 +158,11 @@ Content is added between the polish milestones above, a little at a time, once t
 
 Ongoing, a few items per release:
 
-- **Audio**: carve and skid layers by surface, wind by speed, lift and village ambience, crowd at the base, a music option, UI clicks.
+- **Audio**: carve and skid layers by surface, wind by speed, lift and village ambience, crowd at the base, a music option, UI clicks. Optional plant/landing/latch WAV hooks landed in 0.9.0 (procedural fallback).
 - **Effects**: spray sized by speed and edge, powder plumes, tracks that persist for the session, breath in the cold.
 - **UI**: HUD that shows the run you are on (not the course you picked), lift names on lifts, cleaner menus and transitions, a better loading screen, controller-first navigation.
 - **Camera**: speed field-of-view kick, landing camera, a cinematic lift-ride camera option, camera never inside geometry.
-- **Engineering**: split `sim/skier.ts` (about 850 lines), keep the tuning bots as the feel baseline, a smoke test before each tag, performance numbers in `docs/status.md` every release.
+- **Engineering**: split `sim/skier.ts` and eventually `main.ts` / rider update (deferred past 0.9.0), keep the tuning bots as the feel baseline, a smoke test before each tag, performance numbers in `docs/status.md` every release. Low village lite (cars/decks) in 0.9.0.
 
 ## Open decisions for Stu
 

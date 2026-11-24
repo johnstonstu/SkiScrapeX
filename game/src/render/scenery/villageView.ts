@@ -10,13 +10,19 @@ type HeightAt = (x: number, z: number) => number
  * snow cap), decks with posts and railings, patio tables, and the Billy Goat
  * Hut on the summit.
  */
-export function createVillageView(village: Village, heightAt: HeightAt) {
+export function createVillageView(
+  village: Village,
+  heightAt: HeightAt,
+  options: { detail?: 'full' | 'lite' } = {},
+) {
   const group = new THREE.Group()
   group.name = 'village'
   const disposables: { dispose(): void }[] = []
   const keep = <T extends { dispose(): void }>(x: T) => (disposables.push(x), x)
+  const full = (options.detail ?? 'full') === 'full'
 
-  // ---- Cars ----
+  // ---- Cars (skipped on Low / lite to cut village draws at load) ----
+  if (full) {
   const paint = keep(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.5 }))
   const trim = keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 }))
   const bodies = [carParts(4.5, 1.8, 1.45, 0.62), carParts(4.7, 1.9, 1.75, 0.78), carParts(5.4, 2, 1.85, 0.55, true)]
@@ -42,11 +48,13 @@ export function createVillageView(village: Village, heightAt: HeightAt) {
       group.add(mesh)
     }
   })
+  }
 
   // ---- Decks and patios ----
   const deckParts: THREE.BufferGeometry[] = []
   const tables: THREE.Matrix4[] = []
   for (const deck of village.decks) {
+    if (!full) continue
     const [a, b, , d] = deck.corners
     const ux = b[0] - a[0], uz = b[1] - a[1]
     const length = Math.hypot(ux, uz)

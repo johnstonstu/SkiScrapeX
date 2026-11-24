@@ -2,6 +2,23 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.0 (2026-11-24): Feel depth and High load cuts
+
+### Added
+
+- Optional one-shot WAVs (`public/audio/plant.wav`, `landing.wav`, `latch.wav`) layer on procedural plant/landing/latch ticks; missing files keep procedural-only audio.
+- Weather gust pulses: wind and fog breathe on top of the selected preset (stronger in storm).
+- Idle / cruise hand and pole sway when standing still or soft-gliding.
+
+### Changed
+
+- Low quality skips village cars and decks (hut shells stay); Medium/High keep full village draws.
+- Workplan and status aligned through the 0.8.13–0.8.17 overnight patches and this 0.9.0 feel pass.
+
+### Still open
+
+- Full world-space gear pickups (#61); heavy `main.ts` / rider update split; deeper High LOD beyond village lite; recorded sample files themselves (infra only until WAVs land).
+
 ## 0.8.17 (2026-11-24): Crash recovery
 
 ### Changed

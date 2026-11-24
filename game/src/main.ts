@@ -18,7 +18,7 @@ import { sampleRide, type RidePath } from './render/scenery/liftView'
 import { SIGHT_LINE } from './render/scenery/forestView'
 import { RUN_NAMES } from './world/corrections'
 import { addSceneLights, createLighting, createSky, followSun } from './render/lighting'
-import { applyWeather } from './render/weather'
+import { applyWeather, weatherGust, weatherPreset, type WeatherPreset } from './render/weather'
 import { createControls } from './player/input'
 import { createCameraRig } from './player/camera'
 import { createSkiAudio } from './player/audio'
@@ -66,6 +66,7 @@ ui.hudVersion.textContent = `v${VERSION}`
 const controls = createControls(document.body)
 const mobile = controls.touch
 const settings = readSettings()
+let weatherLive: WeatherPreset = weatherPreset(settings.weather)
 // Quality is fixed for the session (it shapes geometry and buffers); the rest applies live.
 // Auto graphics start from what this machine can do, capped by what it has
 // struggled with before (a GPU reset or slow frames).
@@ -160,8 +161,8 @@ function applySetting(key?: keyof Settings) {
   }
   if (all || key === 'cameraStyle') rig.setStyle(settings.cameraStyle)
   if (all || key === 'weather') {
-    const preset = applyWeather(settings.weather, lighting, scene, sun, sky)
-    effects.setWeather(preset.snowDensity, preset.windEast, preset.windSouth, lighting)
+    weatherLive = applyWeather(settings.weather, lighting, scene, sun, sky)
+    effects.setWeather(weatherLive.snowDensity, weatherLive.windEast, weatherLive.windSouth, lighting)
     if (stageReady && stage.snow) {
       stage.snow.setSun(lighting.sunDirection, lighting.sunColor)
       stage.snow.setFog(lighting.fogDensity, lighting.fogColor)
@@ -939,6 +940,9 @@ function tick(dt: number, frameMs: number) {
   perf.lap('update')
   sound.update(skier, Boolean(ride))
   if (!ride && !pause) haptics.update(skier, performance.now())
+  const gust = weatherGust(weatherLive, performance.now() * 0.001)
+  effects.setWeather(weatherLive.snowDensity * (1 + gust.strength * 0.2), gust.windEast, gust.windSouth, lighting)
+  if (scene.fog instanceof THREE.Fog) scene.fog.far = gust.fogFar
   effects.update(dt, skier, ride ? null : ground, camera, stage.snow, !renderer.shadowMap.enabled && rig.mode !== 'first')
   // The landing ring is a third-person aid; in first person it fills the view.
   landingMarker.update(settings.landingRing && rig.mode !== 'first' && skier.air && !ride ? landingSpot(skier, skier.air, stage.slope.sampleTerrain, PHYSICS.gravity) : null, skier.air?.time ?? 0, dt)

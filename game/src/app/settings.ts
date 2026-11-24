@@ -85,6 +85,8 @@ export interface QualityProfile {
   sprayParticles: number
   snowflakes: number
   trackResolution: number
+  /** Village props: cars/decks on Medium+; Low keeps hut shells only. */
+  villageDetail: 'full' | 'lite'
 }
 
 export const QUALITY: Record<QualityLevel, QualityProfile> = {
@@ -103,6 +105,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     sprayParticles: 900,
     snowflakes: 1600,
     trackResolution: 256,
+    villageDetail: 'lite',
   },
   medium: {
     level: 'medium',
@@ -119,6 +122,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     sprayParticles: 1400,
     snowflakes: 2800,
     trackResolution: 512,
+    villageDetail: 'full',
   },
   high: {
     level: 'high',
@@ -135,6 +139,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     sprayParticles: 2048,
     snowflakes: 4200,
     trackResolution: 512,
+    villageDetail: 'full',
   },
 }
 

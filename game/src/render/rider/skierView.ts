@@ -682,7 +682,11 @@ export function createSkierView(): {
 
       // ---- Arms ----
       // Targets are in chest space: the shoulders sit at (±0.215, 0.21, 0).
-      const breathe = idle * Math.sin(state.time * 1.6) * 0.01
+      const cruise = skiing && !still && !tucked && !braking && !skating && speed > 1 && speed < 14 ? 1 : 0
+      const breathe = idle * Math.sin(state.time * 1.6) * 0.01 + cruise * Math.sin(state.time * 1.1) * 0.006
+      const idleHand =
+        idle * 0.04 * Math.sin(state.time * 0.55) +
+        cruise * 0.025 * Math.sin(state.time * 0.9 + 0.4)
       const handsBack = Math.max(0, Math.min(1, airBlend.x)) * (1 - grabBlend)
       for (let i = 0; i < 2; i++) {
         const side = arms[i].side
@@ -690,7 +694,11 @@ export function createSkierView(): {
         const planting = plantSide === side && skiing ? plantWeight : 0
         // Hands forward and a little wide, about belt height, as if holding a tray.
         // In a turn the inside hand reaches forward and down toward the next plant; the outside one stays wide.
-        const hand = v1.set(side * (0.31 + (1 - inside) * Math.abs(incline.x) * 0.08), breathe - inside * Math.abs(incline.x) * 0.12, 0.42 + inside * Math.abs(incline.x) * 0.14)
+        const hand = v1.set(
+          side * (0.31 + (1 - inside) * Math.abs(incline.x) * 0.08) + side * idleHand * 0.35,
+          breathe - inside * Math.abs(incline.x) * 0.12 + idle * Math.sin(state.time * 1.3 + side) * 0.012,
+          0.42 + inside * Math.abs(incline.x) * 0.14 + cruise * Math.sin(state.time * 0.7 + side) * 0.02,
+        )
         // Plant: a forward reach and wrist flick, then the hand rides past the planted pole.
         const reachIn = plantSide === side && skiing && plantAge < PLANT_REACH ? smooth(plantAge / PLANT_REACH) : 0
         hand.z += planting * (0.06 + reachIn * 0.06)
