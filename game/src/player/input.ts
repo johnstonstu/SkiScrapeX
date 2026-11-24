@@ -13,6 +13,8 @@ export interface Controls {
   setOptions(options: ControlOptions): void
   /** A gamepad is the most recently used input. */
   readonly gamepad: boolean
+  /** Dual-rumble on the active pad when supported. */
+  rumble(weak: number, strong: number, durationMs?: number): void
   /** Edge-triggered actions, cleared on read. */
   takeActions(): Set<Action>
   push(action: Action): void
@@ -213,6 +215,9 @@ export function createControls(root: HTMLElement): Controls {
     },
     get gamepad() {
       return usingPad
+    },
+    rumble(weak, strong, durationMs) {
+      gamepad.rumble(weak, strong, durationMs)
     },
     push(action) {
       actions.add(action)

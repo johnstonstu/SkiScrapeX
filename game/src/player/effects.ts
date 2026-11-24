@@ -39,6 +39,14 @@ export function createSnowEffects(
       tracks.stance = on ? 0 : 0.28
       tracks.skiWidth = on ? 0.27 : 0.11
     },
+    setWeather(density: number, windEast: number, windSouth: number, lighting: Lighting) {
+      snowfall.setDensity(density)
+      snowfall.setWind(windEast, windSouth)
+      const linearSun = new THREE.Vector3(lighting.sunColor.r, lighting.sunColor.g, lighting.sunColor.b)
+      const linearSky = new THREE.Vector3(lighting.skyColor.r, lighting.skyColor.g, lighting.skyColor.b)
+      tracks.setSun(lighting.sunDirection, linearSun, linearSky)
+      tracks.setFog(lighting.fogDensity, new THREE.Vector3(lighting.fogColor.r, lighting.fogColor.g, lighting.fogColor.b))
+    },
     clear() {
       wasAirborne = false
       descent = 0

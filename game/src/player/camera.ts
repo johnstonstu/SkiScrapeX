@@ -36,7 +36,20 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
   let baseFov = camera.fov
   let shake = 1
   let landing = 0
+  /** Extra degrees of FOV from speed; eased so it does not pump on every turn. */
+  let speedFov = 0
   const motion = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+  const applyFov = () => {
+    if (mode === 'first') {
+      camera.fov = 85
+    } else if (mode === 'follow') {
+      camera.fov = baseFov + speedFov
+    } else {
+      camera.fov = baseFov
+    }
+    camera.updateProjectionMatrix()
+  }
 
   return {
     get mode() {
@@ -45,21 +58,20 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
     /** Follow-camera field of view, degrees. */
     setFov(fov: number) {
       baseFov = fov
-      if (mode !== 'first') {
-        camera.fov = fov
-        camera.updateProjectionMatrix()
-      }
+      applyFov()
     },
     setStyle(next: CameraStyle) {
       style = next
     },
-    /** 0 turns chatter shake off. */
+    /** 0 turns chatter shake and speed FOV off. */
     /** In orbit view, the point the camera looks at (the orbit target); otherwise null. */
     get focus(): THREE.Vector3 | null {
       return mode === 'orbit' ? orbit.target : null
     },
     setShake(amount: number) {
       shake = amount
+      if (amount === 0) speedFov = 0
+      applyFov()
     },
     landingImpulse(trick: TrickEvent) {
       if (mode !== 'follow' || motion.matches || shake === 0) return
@@ -68,13 +80,14 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
     snap() {
       snap = true
       landing = 0
+      speedFov = 0
+      applyFov()
     },
     setMode(next: CameraMode, state: SkiState) {
       mode = next
       orbit.enabled = next === 'orbit'
       camera.near = next === 'first' ? 0.05 : 0.25
-      camera.fov = next === 'first' ? 85 : baseFov
-      camera.updateProjectionMatrix()
+      applyFov()
       if (next === 'orbit') {
         orbit.target.set(state.x, state.y + 1, state.z)
         camera.position.set(state.x + 140, state.y + 120, state.z - 160)
@@ -99,6 +112,13 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
         orbit.update()
         return
       }
+      // Sense of speed: widen FOV from about 10 m/s, more in a tuck; gated with shake / reduced motion.
+      const wantFov =
+        mode === 'follow' && shake > 0 && !motion.matches
+          ? THREE.MathUtils.clamp((state.speed - 10) / 20, 0, 1) * (state.tuck ? 12 : 10)
+          : 0
+      speedFov = snap ? wantFov : THREE.MathUtils.lerp(speedFov, wantFov, 1 - Math.exp(-2.2 * dt))
+      applyFov()
       if (mode === 'first' && eye) {
         // Eyes in the helmet, looking a little down so the hands, poles and
         // ski tips are in view. Smoothed so body sway does not jitter.

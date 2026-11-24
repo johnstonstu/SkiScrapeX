@@ -15,7 +15,8 @@ export const PHYSICS = {
   mass: 80,
   airDensity: 1.05,
   dragAreaUpright: 0.66,
-  dragAreaTuck: 0.3,
+  /** Higher than a real race tuck (~0.2 m²) so recreational top speed stays under ~100 km/h on 15°. */
+  dragAreaTuck: 0.42,
   snowFriction: 0.035,
   /** Scale on the braking share (sin of the attack angle) of the edge's cutting force. */
   skidFriction: 0.8,
@@ -67,8 +68,10 @@ export const PHYSICS = {
   surfaceBlendTime: 0.15,
   /** Grip ratio past which the edge washes out, for how long, and the grip left. */
   washoutRatio: 1.9,
-  washoutTime: 0.15,
+  washoutTime: 0.18,
   washoutGrip: 0.65,
+  /** Sustained washout above this speed (m/s) can tip into a crash. */
+  washoutCrashSpeed: 14,
   /** Powder (Lind and Sanders compaction law, n = 1): k in Pa/m, total ski base area m². */
   powderK: 6800,
   skiArea: 0.385,

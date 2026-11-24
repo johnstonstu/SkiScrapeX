@@ -13,6 +13,7 @@ export {
 } from './slopes'
 export type { PresetId, SampleTerrain, Slope, SlopeBounds, Spawn, SurfaceSample } from './slopes'
 export {
+  beginCrash,
   createSkiState,
   createSkier,
   fallLineHeading,

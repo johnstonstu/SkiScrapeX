@@ -4,6 +4,13 @@ export type MenuCommand = 'up' | 'down' | 'left' | 'right' | 'accept' | 'back'
 
 const shortcuts: Record<number, Action> = { 9: 'pause', 8: 'runs', 4: 'camera', 1: 'skip', 13: 'map', 12: 'style', 15: 'reset' }
 
+type VibrationActuator = { playEffect(type: 'dual-rumble', params: {
+  startDelay: number
+  duration: number
+  weakMagnitude: number
+  strongMagnitude: number
+}): Promise<unknown> }
+
 export function createGamepadInput() {
   const before = new Set<number>()
   const menuButtons = new Set<number>()
@@ -11,9 +18,22 @@ export function createGamepadInput() {
   let repeatAt = 0
   let axisBlocked = false
   let index: number | undefined
+  let active: Gamepad | null = null
   const state = { x: 0, y: 0, jump: false, grab: false, second: false, brake: 0 }
   return {
     state,
+    /** Dual-rumble when the pad supports it; fails silently otherwise. */
+    rumble(weak: number, strong: number, durationMs = 80) {
+      const actuator = (active as Gamepad & { vibrationActuator?: VibrationActuator } | null)?.vibrationActuator
+      if (!actuator?.playEffect) return
+      const clamp = (v: number) => Math.max(0, Math.min(1, v))
+      void actuator.playEffect('dual-rumble', {
+        startDelay: 0,
+        duration: Math.max(16, durationMs),
+        weakMagnitude: clamp(weak),
+        strongMagnitude: clamp(strong),
+      }).catch(() => {})
+    },
     poll(now: number, inMenu: boolean, actions: Set<Action>) {
       const commands: MenuCommand[] = []
       Object.assign(state, { x: 0, y: 0, jump: false, grab: false, second: false, brake: 0 })
@@ -27,6 +47,7 @@ export function createGamepadInput() {
         axisBlocked = false
         index = pad?.index
       }
+      active = pad ?? null
       if (!pad) return { commands, used: false }
       const down = (i: number) => Boolean(pad.buttons[i]?.pressed)
       const pressed = (i: number) => down(i) && !before.has(i)

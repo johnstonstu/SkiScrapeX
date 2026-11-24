@@ -1,6 +1,7 @@
 import { KEYS, readJson, writeJson } from './storage'
 import type { ForestDetail } from '../render/scenery/forestView'
 import type { DetailOptions } from '../render/terrain/terrainView'
+import type { WeatherId } from '../render/weather'
 
 export type QualityLevel = 'low' | 'medium' | 'high'
 
@@ -21,6 +22,8 @@ export interface Settings {
   cameraShake: boolean
   /** Steady looks down the hill; tight turns with the skis. */
   cameraStyle: 'steady' | 'tight'
+  /** Day conditions: snow density, fog and light. */
+  weather: WeatherId
   landingRing: boolean
   /** Rotation snap near touchdown. */
   landingAssist: boolean
@@ -38,6 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fov: 58,
   cameraShake: true,
   cameraStyle: 'steady',
+  weather: 'snow',
   landingRing: true,
   landingAssist: true,
   npcs: true,
@@ -49,6 +53,7 @@ export function readSettings(): Settings {
   const stored = settings.shadows as unknown
   if (stored === true) settings.shadows = 'auto'
   if (stored === false) settings.shadows = 'off'
+  if (!settings.weather || !['clear', 'snow', 'storm', 'flat'].includes(settings.weather)) settings.weather = 'snow'
   return settings
 }
 
@@ -236,7 +241,13 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
     chips('Flip controls (up and down)', 'invertPitch', [[false, 'Normal'], [true, 'Inverted']])
     slider('Camera field of view', 'fov', 48, 75, 1, (v) => `${v}°`)
     chips('Camera follow', 'cameraStyle', [['steady', 'Steady'], ['tight', 'Tight']], 'steady looks down the hill, tight turns with the skis')
-    chips('Camera shake', 'cameraShake', [[true, 'On'], [false, 'Off']])
+    chips('Camera shake & rumble', 'cameraShake', [[true, 'On'], [false, 'Off']])
+    chips('Weather', 'weather', [
+      ['clear', 'Bluebird'],
+      ['snow', 'Light snow'],
+      ['storm', 'Storm'],
+      ['flat', 'Flat light'],
+    ])
     slider('Volume', 'volume', 0, 1, 0.05, percent)
     chips('Other skiers', 'npcs', [[true, 'On'], [false, 'Off']])
     chips('Landing marker', 'landingRing', [[true, 'On'], [false, 'Off']])

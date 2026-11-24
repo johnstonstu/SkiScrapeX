@@ -2,10 +2,11 @@
  * Other skiers on the hill. Each one skis a named run with the real ski
  * model, carving S-turns about the run line at its own pace, and starts a
  * new run near the player when it reaches the bottom or gets stuck. They
- * pass through the player (no collisions) and are only drawn up close.
+ * Soft collisions with the player: a bump or, at high closing speed, a crash.
+ * They are only drawn up close.
  */
 import * as THREE from 'three'
-import { FIXED_DT, createSkiState, stepSkier, type SampleTerrain, type SkiEnv, type SkiInput, type SkiState } from '../sim'
+import { FIXED_DT, beginCrash, createSkiState, stepSkier, type SampleTerrain, type SkiEnv, type SkiInput, type SkiState } from '../sim'
 import { createSkierView, SKI_GRAPHICS } from '../render/rider/skierView'
 import { PALETTE } from '../ui/riderPanel'
 import { headingFor, pointAlong, polylineLength, type Point2 } from '../world/resort'
@@ -154,7 +155,7 @@ export function createNpcs(
   return {
     group,
     /** Advance everyone by `dt`. `camera` decides who is drawn. */
-    update(dt: number, camera: THREE.Vector3, player: { x: number; z: number }) {
+    update(dt: number, camera: THREE.Vector3, player: SkiState) {
       for (const npc of npcs) {
         npc.accumulator += Math.min(dt, 0.1)
         while (npc.accumulator >= FIXED_DT) {
@@ -168,6 +169,33 @@ export function createNpcs(
         if (state.offMap || npc.stuck > 6 || npc.away > 20 || Math.hypot(ex - state.x, ez - state.z) < 15) {
           place(npc, player)
           continue
+        }
+        // Soft collision / wipeout when paths cross.
+        if (player.crashed <= 0 && player.grounded && !player.rail && state.grounded && state.crashed <= 0) {
+          const dx = state.x - player.x
+          const dz = state.z - player.z
+          const dist = Math.hypot(dx, dz)
+          if (dist < 1.4 && dist > 1e-3) {
+            const nx = dx / dist
+            const nz = dz / dist
+            const closing = (player.vx - state.vx) * nx + (player.vz - state.vz) * nz
+            const push = (1.4 - dist) * 0.55
+            player.x -= nx * push
+            player.z -= nz * push
+            state.x += nx * push * 0.65
+            state.z += nz * push * 0.65
+            if (closing > 5.5 && player.speed > 7) {
+              beginCrash(player, Math.min(player.speed, closing + 4))
+              beginCrash(state, Math.min(state.speed, closing * 0.7))
+            } else if (closing > 1.2) {
+              player.vx -= nx * closing * 0.45
+              player.vz -= nz * closing * 0.45
+              state.vx += nx * closing * 0.25
+              state.vz += nz * closing * 0.25
+              // Nudge the NPC off the collision line.
+              npc.input.steer = Math.max(-1, Math.min(1, npc.input.steer + (Math.random() < 0.5 ? -0.6 : 0.6)))
+            }
+          }
         }
         const near = Math.hypot(state.x - camera.x, state.z - camera.z) < DRAW_DISTANCE
         npc.view.object.visible = near

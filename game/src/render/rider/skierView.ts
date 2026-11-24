@@ -126,6 +126,10 @@ export function createSkierView(): {
   const fore = new Spring()
   const clothSide = new Spring()
   const clothBack = new Spring()
+  /** Shoulder give when a planted tip bites; decays via spring. */
+  const plantBite = new Spring()
+  /** Arms flare on landing; decays via spring. */
+  const armFlare = new Spring()
   let grabBlend = 0
   let lastGrab: string | null = null
   let wasAir = false
@@ -134,6 +138,7 @@ export function createSkierView(): {
   let plantAge = 10
   let plantRelease = 0
   let plantSide = 1
+  let plantBit = false
   let dpPhase = 0
   let lastEdgeSign = 0
   let ridePhase = 0
@@ -347,23 +352,29 @@ export function createSkierView(): {
         return
       }
       if (crashed) {
-        // Sprawled on the snow, skis twisted; the crossfade makes the fall and the getting up.
-        hips.position.set(0, 0.22, 0)
-        hips.rotation.set(0, 0, 1.35)
-        spine.rotation.x = 0.25
-        chest.rotation.x = 0.18
-        chest.rotation.z = -0.2
-        head.rotation.set(-0.3, 0.3, 0.2)
-        skis[0].position.set(0.55, 0.04, 0.18)
-        skis[1].position.set(0.48, 0.04, -0.13)
-        skis[0].rotation.set(0, 0.4, 0.85)
-        skis[1].rotation.set(0, -0.3, 0.55)
-        if (boarding) placeBoard(0.5, 0.12, 0, 0.9, 0.2)
+        // Sprawled on the snow; hard crashes tumble then sprawl, soft ones sit on a hip.
+        const hard = THREE.MathUtils.clamp(state.crashSpeed / 18, 0, 1)
+        const sliding = Math.min(1, Math.hypot(state.vx, state.vz) / 8)
+        const tumble = hard * sliding * Math.max(0, 1 - state.crashAge / 1.1)
+        const roll = Math.sin(state.crashAge * 9.5) * tumble
+        const pitch = Math.cos(state.crashAge * 7.2) * tumble
+        hips.position.set(roll * 0.08, 0.12 + (1 - hard) * 0.14 + Math.abs(pitch) * 0.04, hard * 0.08)
+        hips.rotation.set(hard * 0.55 + pitch * 1.1, roll * 0.35, 0.95 + hard * 0.55 + roll * 1.4)
+        spine.rotation.x = 0.2 + hard * 0.2 + pitch * 0.25
+        chest.rotation.x = 0.12 + hard * 0.12
+        chest.rotation.z = -0.15 - hard * 0.12 + roll * 0.3
+        head.rotation.set(-0.25 - hard * 0.2 + pitch * 0.2, 0.25 + hard * 0.15, 0.15 + hard * 0.15 + roll * 0.25)
+        // Yard-sale scatter: skis drift farther on hard crashes once the tumble settles.
+        const scatter = hard * (0.55 + (1 - tumble) * 0.45)
+        skis[0].position.set(0.45 + scatter * 0.55, 0.04, 0.12 + scatter * 0.35 + roll * 0.1)
+        skis[1].position.set(0.35 + scatter * 0.4, 0.04, -0.12 - scatter * 0.45 - roll * 0.08)
+        skis[0].rotation.set(hard * 0.15 + pitch * 0.3, 0.3 + scatter * 0.5, 0.55 + scatter * 0.7)
+        skis[1].rotation.set(-hard * 0.1 - pitch * 0.2, -0.25 - scatter * 0.4, 0.4 + scatter * 0.55)
+        if (boarding) placeBoard(0.45 + scatter * 0.2, 0.1 + hard * 0.04, roll * 0.2, 0.75 + hard * 0.25, 0.15 + hard * 0.1)
         fitLegs()
-        placeArm(0, new THREE.Vector3(0.45, -0.01, 0.1), new THREE.Vector3(0.9, 0, 0.6))
-        placeArm(1, new THREE.Vector3(-0.35, 0.09, 0.3), new THREE.Vector3(-0.2, 0, 1.2))
-        // Settle the springs into a low crouch so getting up rises out of it.
-        crouch.x = 0.9
+        placeArm(0, new THREE.Vector3(0.4 + hard * 0.2 + roll * 0.1, -0.02, 0.08 + hard * 0.12), new THREE.Vector3(0.75 + hard * 0.35, 0, 0.5 + hard * 0.25))
+        placeArm(1, new THREE.Vector3(-0.3 - hard * 0.18 - roll * 0.1, 0.06 + hard * 0.04, 0.25 + hard * 0.15), new THREE.Vector3(-0.15 - hard * 0.25, 0, 1.0 + hard * 0.35))
+        crouch.x = 0.85 + hard * 0.1
         crouch.v = 0
         applyFade(dt)
         return
@@ -406,6 +417,7 @@ export function createSkierView(): {
       if (skiing && edgeSign !== 0 && lastEdgeSign !== 0 && edgeSign !== lastEdgeSign && speed > 3) {
         if (!boarding) {
           plantAge = 0
+          plantBit = false
           plantRelease = 10
           plantSide = edgeSign > 0 ? -1 : 1 // right turn: right hand (index 1, side -1)
         }
@@ -418,10 +430,23 @@ export function createSkierView(): {
       if (plantRelease === 10 && plantAge < 5 && (plantTipZ < -0.45 || plantAge > 0.6)) plantRelease = plantAge
       const plantWeight =
         plantAge < PLANT_REACH ? smooth(plantAge / PLANT_REACH) : plantAge < plantRelease ? 1 : 1 - smooth(Math.min(1, (plantAge - plantRelease) / 0.22))
+      // Tip bite: kick the shoulder and a little crouch when the plant lands.
+      if (!plantBit && plantAge >= PLANT_REACH && plantAge < PLANT_REACH + 0.08 && plantWeight > 0.5) {
+        plantBit = true
+        plantBite.v -= 2.4
+        crouch.v -= 0.35
+        counter.v += plantSide * 0.8
+      }
+      plantBite.step(0, dt, 5.5, 0.72)
 
       // Takeoff extends; landing kicks the crouch spring down and it rebounds.
       if (air && !wasAir) crouch.v -= boarding ? 1.6 : 2.2
-      if (!air && wasAir) crouch.v += 1.4 + Math.min(10, Math.max(0, -lastVy)) * 0.4
+      if (!air && wasAir) {
+        const impact = 1.4 + Math.min(10, Math.max(0, -lastVy)) * 0.4
+        crouch.v += impact
+        armFlare.v += 1.2 + Math.min(4, Math.max(0, -lastVy)) * 0.35
+      }
+      armFlare.step(0, dt, 3.2, 0.78)
       wasAir = Boolean(air)
       lastVy = state.vy
 
@@ -630,6 +655,21 @@ export function createSkierView(): {
         hand.z += planting * (0.06 + reachIn * 0.06)
         hand.y += planting * 0.04
         hand.x -= side * planting * 0.03
+        // Bite loads the planting shoulder back and down for a moment.
+        if (plantSide === side) {
+          hand.y += plantBite.x * 0.05
+          hand.z += plantBite.x * 0.04
+          hand.x -= side * plantBite.x * 0.03
+        }
+        // Landing flare: both arms out and a little forward.
+        hand.x += side * Math.max(0, armFlare.x) * 0.14
+        hand.y += Math.max(0, armFlare.x) * 0.05
+        hand.z -= Math.max(0, armFlare.x) * 0.04
+        // Deep carve: inside hand drops toward the snow.
+        if (skiing && Math.abs(edge) > 0.45) {
+          const insideDrop = Math.min(1, (Math.abs(edge) - 0.45) / 0.35)
+          if (Math.sign(edge) === side) hand.y -= insideDrop * 0.14
+        }
         // Skating: the arm opposite the pushing leg swings forward.
         hand.z -= side * stride * 0.2
         hand.y += Math.abs(stride) * 0.04
