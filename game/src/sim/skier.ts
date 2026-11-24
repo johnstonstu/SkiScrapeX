@@ -342,7 +342,10 @@ function stepGround(
   const normalAccel = PHYSICS.gravity * Math.max(n.y, 0)
   const sidecut = env.ski?.sidecutRadius ?? PHYSICS.sidecutRadius
   // Deep snow resists swinging the skis: slower yaw the deeper you sit.
-  const powderYaw = (1 / (1 + state.sink / PHYSICS.powderTurnDepth)) * (state.unweight > 0 ? 2 : 1)
+  // A bounce unweight opens the turn (Steep-style float yaw).
+  const powderYaw =
+    (1 / (1 + state.sink / PHYSICS.powderTurnDepth)) *
+    (state.unweight > 0 ? PHYSICS.powderUnweightYaw : 1)
 
   if (braking && speed > 1) {
     const target = travel + brakeSide * Math.PI * 0.5
@@ -373,9 +376,17 @@ function stepGround(
   const available = edgeGrip(normalAccel, edgeRad, false, surface.latMax)
   const required = edgeDeg >= 1 && Number.isFinite(state.carveRadius) ? (speed * speed) / state.carveRadius : 0
   state.gripRatio = available > 0 ? required / available : 0
-  if (state.gripRatio > PHYSICS.washoutRatio && edgeDeg > 35 && speed > 8 && state.washout <= 0) state.washout = PHYSICS.washoutTime
+  // Deep powder plows rather than washing an edge; groomed/ice still wash out.
   // Washout only softens grip and chatters; it does not tip into a crash on its own.
-  // Hard turns on steeps often sit over the washout ratio for a beat — that should skid, not fall.
+  if (
+    state.sink < PHYSICS.powderNoWashoutSink &&
+    state.gripRatio > PHYSICS.washoutRatio &&
+    edgeDeg > 35 &&
+    speed > 8 &&
+    state.washout <= 0
+  ) {
+    state.washout = PHYSICS.washoutTime
+  }
   const band = clamp((state.gripRatio - 1) / 1.2, 0, 1)
   state.chatter = speed > 8 && edgeDeg > 30 ? surface.chatter * Math.sin(band * Math.PI) : 0
   let gripScale = 1
@@ -437,18 +448,21 @@ function stepGround(
   // then pay compaction drag (worse when skidding) and plow drag.
   if (surface.depth > 0.02) {
     const v = Math.hypot(along, across)
-    const softness = 1 + Math.max(0, surface.depth - 0.35) * 1.45
-    const loaded = normalAccel + lateralLoad * 0.14
+    // Deeper-than-normal packs are softer: more static sink, plane a little later.
+    const softness = 1 + Math.max(0, surface.depth - 0.35) * 1.5
+    const loaded = normalAccel + lateralLoad * 0.1
     const staticSink = softness * PHYSICS.mass * loaded / (PHYSICS.powderK * PHYSICS.skiArea * (env.ski?.floatScale ?? 1))
-    let equilibrium = Math.min(surface.depth, staticSink / (1 + (v / surface.vPlane) ** 2))
-    if (state.unweight > 0) equilibrium *= 0.3
+    const planeSpeed = surface.vPlane * (0.9 + 0.25 * Math.min(1, surface.depth / 0.5))
+    let equilibrium = Math.min(surface.depth, staticSink / (1 + (v / planeSpeed) ** 2))
+    if (state.unweight > 0) equilibrium *= 0.22
     state.sink += (equilibrium - state.sink) * Math.min(1, dt / PHYSICS.sinkTime)
     // Compaction only resists while moving forward through new snow, so a
     // standing skier can still get going on a gentle pitch.
-    const compaction = PHYSICS.skiWidthTotal * (PHYSICS.powderK / softness) * state.sink ** 2 * 0.5 * Math.min(1, v / 2.5)
-    const displaced = 1 + Math.max(0, surface.depth - 0.35) * 3.8
+    const compaction = PHYSICS.skiWidthTotal * (PHYSICS.powderK / softness) * state.sink ** 2 * 0.45 * Math.min(1, v / 2.2)
+    const displaced = 1 + Math.max(0, surface.depth - 0.2) * 4.2
+    // Lined-up tips plow less; skidding throws a face-shot wall of snow.
     const plow = PHYSICS.plowCoefficient * PHYSICS.snowDensity * PHYSICS.skiWidthTotal * state.sink * v * v * displaced
-    const decel = (compaction + plow) * (1 + state.skid * 1.4) / PHYSICS.mass
+    const decel = (compaction + plow) * (1 + state.skid * 1.85) / PHYSICS.mass
     const cut = decel * dt
     if (v <= cut) {
       along = 0
@@ -456,8 +470,8 @@ function stepGround(
     } else {
       along *= (v - cut) / v
       across *= (v - cut) / v
-      // Broadside skis displace more snow than tips pointing down the fall line.
-      across *= Math.exp(-state.sink * v * dt * 0.75)
+      // Soft yaw damp: across decays gently so the float still turns.
+      across *= Math.exp(-state.sink * v * dt * 0.55)
     }
   } else {
     state.sink = Math.max(0, state.sink - dt * 2)
@@ -513,10 +527,10 @@ function stepGround(
     let py = vy
     let pz = vz
     if (pop) {
-      // In deep snow a pop is mostly a bounce to unweight the skis.
+      // In deep snow a light pop is a bounce to unweight and open a turn.
       const charge = state.popCharge
-      if (state.sink > 0.12 && charge < 0.6) {
-        state.unweight = 0.25
+      if (state.sink > 0.1 && charge < 0.7) {
+        state.unweight = PHYSICS.powderUnweightTime
         state.popCharge = 0
       } else {
         const rampScale = clamp(1 - Math.max(0, vy) / FREESTYLE.popRampSpeed, FREESTYLE.popRampMin, 1)
@@ -629,13 +643,21 @@ function stepAir(
   const tangent = projectOnPlane(velocity, n)
   // Short hops (bumps, small pops, rail approaches) are not graded harshly.
   const hop = air.time < 0.55 && Math.abs(air.flip) < 0.7 && Math.abs(air.spin) < 1.15
-  const grade = hop && landing.grade !== 'crash' ? 'clean' : landing.grade
+  // Deep powder cushions imperfect landings — face-shot sink, not a bail.
+  const powderCushion =
+    state.surface.depth > 0.15 &&
+    landing.flipErrDeg < 50 &&
+    landing.spinErrDeg < 50 &&
+    !input.grab
+  let grade = hop && landing.grade !== 'crash' ? 'clean' : landing.grade
+  if (grade === 'crash' && powderCushion) grade = 'sketchy'
   // Soften the normal hit a little even on graded landings so big drops absorb through the legs.
+  const powderKeep = powderCushion ? 0.88 + 0.08 * Math.min(1, state.surface.depth / 0.4) : 1
   const keep = hop
     ? clamp(1 - Math.max(0, -dot(velocity, n)) / PHYSICS.landingSoften, 0.6, 1)
-    : landing.keep <= 0
+    : landing.keep <= 0 && grade === 'crash'
       ? 0
-      : Math.max(0, landing.keep * (1 - Math.min(0.15, landing.efh * 0.018)))
+      : Math.max(0, (landing.keep > 0 ? landing.keep : 0.72) * powderKeep * (1 - Math.min(0.15, landing.efh * 0.018)))
   state.x = nextX
   state.y = ground.height
   state.z = nextZ
@@ -645,7 +667,8 @@ function stepAir(
   state.grounded = true
   state.offMap = false
   state.flipLock = false
-  state.sink = Math.min(state.surface.depth, state.sink + Math.min(0.3, landing.efh * 0.2))
+  state.sink = Math.min(state.surface.depth, state.sink + Math.min(0.35, landing.efh * 0.28 + (powderCushion ? 0.08 : 0)))
+  if (powderCushion && grade !== 'crash') state.unweight = Math.max(state.unweight, 0.18)
   state.ridingSwitch = landing.switchLanding && grade !== 'crash'
   if (grade === 'crash') {
     crash(state)

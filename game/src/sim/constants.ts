@@ -71,14 +71,20 @@ export const PHYSICS = {
   washoutTime: 0.18,
   washoutGrip: 0.65,
   /** Powder (Lind and Sanders compaction law, n = 1): k in Pa/m, total ski base area m². */
-  powderK: 6800,
+  powderK: 7200,
   skiArea: 0.385,
   skiWidthTotal: 0.22,
-  sinkTime: 0.25,
-  plowCoefficient: 0.1,
+  sinkTime: 0.32,
+  plowCoefficient: 0.11,
   snowDensity: 100,
-  /** Sink depth at which yaw rate halves, metres. */
-  powderTurnDepth: 0.15,
+  /** Sink depth at which yaw rate halves, metres. Deeper = softer Steep-like yaw. */
+  powderTurnDepth: 0.11,
+  /** Bounce-unweight window after a light powder pop, seconds. */
+  powderUnweightTime: 0.4,
+  /** Yaw multiplier while unweighted (bounce turns). */
+  powderUnweightYaw: 2.7,
+  /** Above this sink, edge washout is skipped — deep snow plows instead of tipping. */
+  powderNoWashoutSink: 0.08,
   /** Skate push while tucked below `skateMaxSpeed`, m/s². */
   skateAccel: 2.2,
   skateMaxSpeed: 5,

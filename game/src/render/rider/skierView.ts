@@ -294,7 +294,15 @@ export function createSkierView(): {
       )
       qBase.setFromRotationMatrix(basis)
       root.quaternion.copy(qBase)
-      root.position.set(state.x, state.y - (pose === 'ski' ? state.sink * 0.85 : 0), state.z)
+      const powderBob =
+        pose === 'ski' && state.grounded && state.unweight > 0
+          ? Math.sin((1 - state.unweight / Math.max(PHYSICS.powderUnweightTime, 0.01)) * Math.PI) * 0.09
+          : 0
+      root.position.set(
+        state.x,
+        state.y - (pose === 'ski' ? state.sink * 0.9 : 0) + powderBob,
+        state.z,
+      )
       const air = pose === 'ski' ? state.air : null
       const crashed = pose === 'ski' && state.crashed > 0
       const rail = pose === 'ski' && !crashed ? state.rail : null

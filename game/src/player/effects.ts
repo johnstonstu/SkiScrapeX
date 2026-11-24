@@ -84,7 +84,12 @@ export function createSnowEffects(
       lateral.copy(side).multiplyScalar(state.edgeAngle >= 0 ? -1 : 1)
       const fast = Math.min(1, state.speed / 6)
       // The buried area and travel speed drive displaced snow; side slips push more aside.
-      const powder = Math.min(1, state.sink * (2.1 + state.skid * 1.9) + Math.min(state.sink, state.surface.depth) * fast)
+      // Face-shot energy: buried area × speed × slip throws a Steep-style plume.
+      const powder = Math.min(
+        1,
+        state.sink * (2.8 + state.skid * 2.6) + Math.min(state.sink, state.surface.depth) * fast * 1.35 + state.unweight * 0.45,
+      )
+      spray.amount = 0.85 + powder * 0.55
       const skid = Math.min(1, (state.mode === 'braking' ? Math.max(state.skid, 0.7) : state.skid) * fast)
       const grounded = state.grounded && !state.rail && state.crashed <= 0
       const impact = wasAirborne && state.grounded ? Math.min(1, descent / 9) : 0

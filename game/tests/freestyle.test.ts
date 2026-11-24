@@ -32,8 +32,39 @@ describe('powder', () => {
       atTen.vz = 10
       stepSkier(atTen, IDLE, flat.sampleTerrain, FIXED_DT, powder)
     }
-    expect(atTen.sink).toBeGreaterThan(0.06)
+    expect(atTen.sink).toBeGreaterThan(0.04)
     expect(atTen.sink).toBeLessThan(0.14)
+  })
+
+  it('a light pop in powder bounces (unweights) instead of leaving the snow', () => {
+    const slope = createSteadySlope(14, { width: 400, depth: 3000 })
+    const s = createSkiState({ x: 200, z: 100, heading: 0 })
+    s.y = slope.sampleTerrain(200, 100)!.height
+    // Settle into the pack at low speed so sink builds, then a light pop.
+    s.vz = 2.5
+    for (let t = 0; t < 2.5; t += FIXED_DT) stepSkier(s, IDLE, slope.sampleTerrain, FIXED_DT, powder)
+    expect(s.sink).toBeGreaterThan(0.14)
+    expect(s.grounded).toBe(true)
+    for (let t = 0; t < 0.2; t += FIXED_DT) stepSkier(s, { ...IDLE, jump: true }, slope.sampleTerrain, FIXED_DT, powder)
+    stepSkier(s, IDLE, slope.sampleTerrain, FIXED_DT, powder)
+    expect(s.grounded).toBe(true)
+    expect(s.unweight).toBeGreaterThan(0.15)
+    expect(s.crashed).toBe(0)
+  })
+
+  it('hard edge load in powder does not wash out into a crash', () => {
+    const slope = createSteadySlope(28, { width: 400, depth: 4000 })
+    const s = createSkiState({ x: 200, z: 100, heading: 0 })
+    s.y = slope.sampleTerrain(200, 100)!.height
+    s.vz = 14
+    let sawWashout = false
+    for (let t = 0; t < 4; t += FIXED_DT) {
+      stepSkier(s, { ...IDLE, steer: 1 }, slope.sampleTerrain, FIXED_DT, powder)
+      if (s.washout > 0) sawWashout = true
+      expect(s.crashed).toBe(0)
+    }
+    expect(sawWashout).toBe(false)
+    expect(s.grounded).toBe(true)
   })
 })
 

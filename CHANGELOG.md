@@ -2,6 +2,14 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.8.14 (2026-11-24): Powder float and plow
+
+### Changed
+
+- Deep snow planes into a float at speed, plows when sunk, and softens yaw until a bounce unweight opens the turn (Steep-style).
+- Light pops in powder bounce instead of jumping out; hard edge load in powder no longer washes into a tip-in crash (0.8.12 rule kept).
+- Powder landings cushion imperfect touchdowns; face-shot spray, thicker contact audio, soft rumble, and a bounce bob on the rider.
+
 ## 0.8.13 (2026-11-24): Landing leeway
 
 ### Changed
