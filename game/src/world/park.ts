@@ -165,7 +165,8 @@ export const DEMO_LINEUP: LayoutSlot[] = [
   'flatDownRail', 'kickerXL', 'rollerS', 'kickerXL',
 ]
 
-const laneSpacing = 7.5
+/** Lateral gap between side-by-side lane choices, metres. */
+const laneSpacing = 9
 
 /** Lay feature ids along a line. A slot may be a row of side-by-side choices. */
 export function placeLineup(line: Point2[], featureIds: LayoutSlot[], gap?: number): PlacedFeature[] {
@@ -332,6 +333,77 @@ export function featureAhead(features: PlacedFeature[], x: number, z: number, di
     const ahead = dx * dirX + dz * dirZ
     const side = Math.abs(-dx * dirZ + dz * dirX)
     if (ahead > 0 && ahead < (best?.distance ?? range) && side < f.halfWidth + 4) best = { feature: f, distance: ahead }
+  }
+  return best
+}
+
+export type ApproachAim = {
+  x: number
+  z: number
+  distance: number
+  label: string
+  kind: 'jump' | 'rail'
+}
+
+/** Look target for the next park feature or rail ahead of the skier. */
+export function approachAim(
+  features: PlacedFeature[],
+  rails: readonly Rail[],
+  x: number,
+  z: number,
+  dirX: number,
+  dirZ: number,
+  range = 42,
+): ApproachAim | null {
+  const jump = featureAhead(features, x, z, dirX, dirZ, range)
+  let best: ApproachAim | null = jump
+    ? (() => {
+        const { ramp } = kickerRamp(jump.feature.spec, jump.feature.baseDeg)
+        return {
+          x: jump.feature.x + jump.feature.dirX * ramp,
+          z: jump.feature.z + jump.feature.dirZ * ramp,
+          distance: jump.distance,
+          label: jump.feature.spec.label.split(' · ')[0],
+          kind: 'jump' as const,
+        }
+      })()
+    : null
+  for (const f of features) {
+    const railish = f.spec.kind === 'box' || f.spec.kind === 'rail' || f.spec.kind === 'downRail' || f.spec.kind === 'flatDownRail'
+    if (!railish) continue
+    const dx = f.x - x
+    const dz = f.z - z
+    const ahead = dx * dirX + dz * dirZ
+    const side = Math.abs(-dx * dirZ + dz * dirX)
+    if (ahead > 1.5 && ahead < (best?.distance ?? range) && side < f.halfWidth + 6) {
+      best = {
+        x: f.x + f.dirX * Math.min(2, f.footprint * 0.2),
+        z: f.z + f.dirZ * Math.min(2, f.footprint * 0.2),
+        distance: ahead,
+        label: f.spec.label,
+        kind: 'rail',
+      }
+    }
+  }
+  if (!best && rails.length) {
+    for (const rail of rails) {
+      const mid = rail.points[Math.floor(rail.points.length / 2)] ?? rail.points[0]
+      if (!mid) continue
+      const dx = mid.x - x
+      const dz = mid.z - z
+      const ahead = dx * dirX + dz * dirZ
+      const side = Math.abs(-dx * dirZ + dz * dirX)
+      const dist = Math.hypot(dx, dz)
+      if (ahead > 2 && dist < (best?.distance ?? range) && side < 14) {
+        best = {
+          x: mid.x,
+          z: mid.z,
+          distance: dist,
+          label: rail.kind === 'box' ? 'Box' : 'Rail',
+          kind: 'rail',
+        }
+      }
+    }
   }
   return best
 }

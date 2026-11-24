@@ -2,6 +2,16 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.8.16 (2026-11-24): Park approach assist
+
+### Added
+
+- Soft camera look hint toward the next jump or rail ahead; HUD cue for approaching rails/boxes.
+
+### Changed
+
+- Multi-lane parks: wider lane spacing (9 m) and Claim/Okanagan/Prospector half-width 28 m.
+
 ## 0.8.15 (2026-11-24): Map trips and rail language
 
 ### Added
