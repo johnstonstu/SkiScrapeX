@@ -2,6 +2,14 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.10 (2026-11-24): T-bar, Magic Carpet, and maze hint
+
+### Changed
+
+- T-bar: blue drive house at the bottom, yellow return + lookout at the top, portal towers, shorter yellow hangers.
+- Magic Carpet: wider belt, side rails, end ramps, light clear cover over mid-span.
+- Quickdraw bottom: short orange load corral (maze hint).
+
 ## 0.9.9 (2026-11-24): Thicker village roofs and place boards
 
 ### Changed

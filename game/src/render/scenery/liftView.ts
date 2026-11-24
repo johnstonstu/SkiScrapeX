@@ -54,12 +54,9 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
   const paint = new THREE.MeshLambertMaterial({ color: 0x1f4f86 })
   const roof = new THREE.MeshLambertMaterial({ color: 0x6b3b2d })
   const ropeMaterial = new THREE.LineBasicMaterial({ color: 0x2a2a2a })
-  const towerGeometry = new THREE.CylinderGeometry(0.35, 0.5, TOWER_HEIGHT, 8)
-  towerGeometry.translate(0, TOWER_HEIGHT / 2, 0)
-  const armGeometry = new THREE.BoxGeometry(HALF_GAUGE * 2 + 1, 0.4, 0.5)
   // Chairlift hardware after Quickdraw (Doppelmayr-CTEC detachable quad, 1994): galvanized
   // tubular towers and chairs, Uni terminals under a light hood. Stock's (GMD Müller triple)
-  // uses open green-frame terminals instead.
+  // uses open green-frame terminals instead. T-bar uses portal towers + split terminals.
   const galv = new THREE.MeshStandardMaterial({ color: 0xb0b6bc, metalness: 0.55, roughness: 0.42 })
   const pad = new THREE.MeshStandardMaterial({ color: 0x1e2329, roughness: 0.8 })
   const hood = new THREE.MeshStandardMaterial({ color: 0xe4e8ec, roughness: 0.5, metalness: 0.1 })
@@ -68,7 +65,7 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
   const aerialTower = chairTower()
 
   const disposables: { dispose(): void }[] = [
-    steel, paint, roof, ropeMaterial, towerGeometry, armGeometry, galv, pad, hood, stocksGreen, stocksCabin, aerialTower,
+    steel, paint, roof, ropeMaterial, galv, pad, hood, stocksGreen, stocksCabin, aerialTower,
   ]
   const ropes: {
     liftId: string
@@ -83,7 +80,13 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
   const housings: THREE.Group[] = []
   const rides = new Map<string, RidePath>()
   const beltMaterial = new THREE.MeshLambertMaterial({ color: 0x2b2f33 })
-  disposables.push(beltMaterial)
+  const carpetRail = new THREE.MeshLambertMaterial({ color: 0x8a9098 })
+  const carpetClear = new THREE.MeshLambertMaterial({ color: 0xc8d8e8, transparent: true, opacity: 0.35, depthWrite: false })
+  const tbarYellow = new THREE.MeshLambertMaterial({ color: 0xc4a035 })
+  const mazeOrange = new THREE.MeshLambertMaterial({ color: 0xe85a1a })
+  disposables.push(beltMaterial, carpetRail, carpetClear, tbarYellow, mazeOrange)
+  const surfaceTower = tbarPortal()
+  disposables.push(surfaceTower)
 
   for (const lift of lifts) {
     const aerial = AERIAL.has(lift.type)
@@ -102,17 +105,9 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
     const yaw = Math.atan2(dir.x, dir.y)
 
     if (lift.type === 'magic_carpet') {
-      const points = lift.line.map(([x, z]) => new THREE.Vector3(x, ground(x, z) + 0.15, z))
-      for (let i = 1; i < points.length; i++) {
-        const a = points[i - 1]
-        const b = points[i]
-        const belt = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, a.distanceTo(b)), beltMaterial)
-        disposables.push(belt.geometry)
-        belt.position.lerpVectors(a, b, 0.5)
-        belt.lookAt(b)
-        group.add(belt)
-      }
-      rides.set(lift.id, ridePath(points.map((p) => p.clone().setY(p.y + 0.1)), false))
+      addMagicCarpet(group, lift.line, ground, { belt: beltMaterial, rail: carpetRail, cover: carpetClear }, disposables)
+      const points = lift.line.map(([x, z]) => new THREE.Vector3(x, ground(x, z) + 0.25, z))
+      rides.set(lift.id, ridePath(points, false))
       continue
     }
 
@@ -125,18 +120,17 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
         group.add(tower)
         continue
       }
-      const tower = new THREE.Mesh(towerGeometry, steel)
-      tower.position.set(x, ground(x, z) - 0.5 - (TOWER_HEIGHT - towerHeight), z)
-      const arm = new THREE.Mesh(armGeometry, steel)
-      arm.position.set(x, ground(x, z) + towerHeight - 0.2, z)
-      arm.rotation.y = yaw
-      group.add(tower, arm)
+      const tower = new THREE.Mesh(surfaceTower, steel)
+      tower.position.set(x, ground(x, z), z)
+      tower.rotation.y = yaw
+      tower.castShadow = true
+      group.add(tower)
     }
     const stocksLift = aerial && (lift.seats === 3 || /stock/i.test(lift.name))
     for (const [x, z] of [lift.bottom, lift.top]) {
       const atTop = x === lift.top[0] && z === lift.top[1]
       const station = !aerial
-        ? surfaceTerminal(steel, paint, roof, disposables)
+        ? surfaceTerminal({ steel, paint, roof, yellow: tbarYellow }, disposables, atTop ? 'top' : 'bottom')
         : stocksLift
           ? stocksTerminal({ green: stocksGreen, cabin: stocksCabin, steel, roof }, disposables, atTop ? 'top' : 'bottom')
           : terminal({ galv, hood, paint, roof }, disposables)
@@ -145,6 +139,10 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       station.rotation.y = yaw + (aerial && atTop ? Math.PI : 0)
       group.add(station)
       if (station.userData.housing) housings.push(station)
+    }
+    // Tiny orange load corral at Quickdraw bottom only (review #27 slice).
+    if (aerial && /quick\s*draw/i.test(lift.name)) {
+      group.add(liftMazeHint(lift.bottom, dir, side, ground, mazeOrange, disposables))
     }
 
     // Up rope on one side, down rope on the other, joined at the bull wheels.
@@ -208,10 +206,10 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       const count = Math.max(2, Math.round(circuit.total / HANGER_SPACING))
       const stem = new THREE.CylinderGeometry(0.03, 0.03, 1, 5)
       stem.translate(0, -0.5, 0)
-      const bar = new THREE.BoxGeometry(1.1, 0.07, 0.07)
+      const bar = new THREE.BoxGeometry(0.9, 0.07, 0.07)
       disposables.push(stem, bar)
       const chairs = new THREE.InstancedMesh(stem, steel, count)
-      const bars = new THREE.InstancedMesh(bar, paint, count)
+      const bars = new THREE.InstancedMesh(bar, tbarYellow, count)
       chairs.frustumCulled = bars.frustumCulled = false
       group.add(chairs, bars)
       ropes.push({ liftId: lift.id, circuit, uphill, chairs, bars, distance: 0 })
@@ -489,27 +487,175 @@ function stocksTerminal(
 }
 
 /**
- * T-bar terminal: a post carrying the bull wheel at rope height and a small
- * operator hut off to the down-rope side, leaving the loading track open.
+ * T-bar portal tower: two legs, a crossbeam at rope height, and a short
+ * sheave shelf — lighter than chair towers, same SURFACE_TOWER_HEIGHT.
+ */
+function tbarPortal(): THREE.BufferGeometry {
+  const top = SURFACE_TOWER_HEIGHT
+  const span = HALF_GAUGE * 2 + 0.8
+  return merge([
+    box(0.18, top + 0.3, 0.18, -span / 2, (top + 0.3) / 2 - 0.15, 0),
+    box(0.18, top + 0.3, 0.18, span / 2, (top + 0.3) / 2 - 0.15, 0),
+    box(span + 0.4, 0.22, 0.28, 0, top - 0.2, 0),
+    box(span + 0.2, 0.12, 0.5, 0, top - 0.05, 0),
+  ])
+}
+
+/**
+ * T-bar terminals: blue drive house at the bottom, yellow return wheel +
+ * lookout at the top. Rope height stays at STATION_HEIGHT.
  */
 function surfaceTerminal(
-  steel: THREE.Material,
-  paint: THREE.Material,
-  roof: THREE.Material,
+  m: { steel: THREE.Material; paint: THREE.Material; roof: THREE.Material; yellow: THREE.Material },
+  disposables: { dispose(): void }[],
+  end: 'bottom' | 'top',
+): THREE.Group {
+  const group = new THREE.Group()
+  const wheel = new THREE.TorusGeometry(HALF_GAUGE, 0.14, 6, 24)
+  wheel.rotateX(Math.PI / 2)
+  wheel.translate(0, STATION_HEIGHT, 0)
+  if (end === 'bottom') {
+    const column = box(0.7, STATION_HEIGHT, 0.7, 0, STATION_HEIGHT / 2, 0)
+    const hut = box(4, 3, 3.5, HALF_GAUGE + 4.8, 1.5, 0.5)
+    const hutRoof = box(4.5, 0.3, 4, HALF_GAUGE + 4.8, 3.15, 0.5)
+    const windows = box(4.08, 1.0, 2.6, HALF_GAUGE + 4.8, 1.9, 0.5)
+    disposables.push(column, wheel, hut, hutRoof, windows)
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1d2630, roughness: 0.3, metalness: 0.2 })
+    disposables.push(dark)
+    const meshes = [
+      new THREE.Mesh(column, m.steel),
+      new THREE.Mesh(wheel, m.steel),
+      new THREE.Mesh(hut, m.paint),
+      new THREE.Mesh(windows, dark),
+      new THREE.Mesh(hutRoof, m.roof),
+    ]
+    for (const mesh of meshes) mesh.castShadow = true
+    group.add(...meshes)
+    return group
+  }
+  const frame = merge([
+    box(0.35, STATION_HEIGHT, 0.35, -HALF_GAUGE - 0.4, STATION_HEIGHT / 2, 0),
+    box(0.35, STATION_HEIGHT, 0.35, HALF_GAUGE + 0.4, STATION_HEIGHT / 2, 0),
+    box(HALF_GAUGE * 2 + 1.2, 0.25, 0.25, 0, STATION_HEIGHT - 0.15, 0),
+  ])
+  const lookout = box(2.4, 2.1, 2.2, HALF_GAUGE + 3.8, 1.05, -0.4)
+  const lookoutRoof = box(2.8, 0.22, 2.6, HALF_GAUGE + 3.8, 2.2, -0.4)
+  disposables.push(frame, wheel, lookout, lookoutRoof)
+  const meshes = [
+    new THREE.Mesh(frame, m.steel),
+    new THREE.Mesh(wheel, m.yellow),
+    new THREE.Mesh(lookout, m.yellow),
+    new THREE.Mesh(lookoutRoof, m.roof),
+  ]
+  for (const mesh of meshes) mesh.castShadow = true
+  group.add(...meshes)
+  return group
+}
+
+/** Magic carpet: belt deck, side rails, end ramps, and a light clear cover. */
+function addMagicCarpet(
+  group: THREE.Group,
+  line: [number, number][],
+  ground: (x: number, z: number) => number,
+  materials: { belt: THREE.Material; rail: THREE.Material; cover: THREE.Material },
+  disposables: { dispose(): void }[],
+) {
+  const points = line.map(([x, z]) => new THREE.Vector3(x, ground(x, z) + 0.15, z))
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]
+    const b = points[i]
+    const length = a.distanceTo(b)
+    const mid = a.clone().lerp(b, 0.5)
+    const yaw = Math.atan2(b.x - a.x, b.z - a.z)
+    const place = (mesh: THREE.Mesh, y = 0) => {
+      mesh.position.copy(mid)
+      mesh.position.y += y
+      mesh.rotation.y = yaw
+      mesh.castShadow = true
+      group.add(mesh)
+    }
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.28, length), materials.belt)
+    disposables.push(belt.geometry)
+    place(belt)
+    for (const side of [-0.72, 0.72]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.35, length), materials.rail)
+      disposables.push(rail.geometry)
+      rail.position.set(mid.x + Math.cos(yaw) * side, mid.y + 0.25, mid.z - Math.sin(yaw) * side)
+      rail.rotation.y = yaw
+      rail.castShadow = true
+      group.add(rail)
+    }
+    // Clear cover over mid-span segments.
+    if (i > 1 && i < points.length - 1) {
+      const cover = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, length * 0.92), materials.cover)
+      disposables.push(cover.geometry)
+      place(cover, 1.05)
+    }
+  }
+  // End ramps at first and last points.
+  for (const [index, outward] of [
+    [0, -1],
+    [points.length - 1, 1],
+  ] as const) {
+    const p = points[index]
+    const q = points[Math.max(0, Math.min(points.length - 1, index + outward))]
+    const yaw = Math.atan2(q.x - p.x, q.z - p.z)
+    const ramp = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.2, 1.6), materials.rail)
+    disposables.push(ramp.geometry)
+    ramp.position.set(p.x, p.y - 0.05, p.z)
+    ramp.rotation.set(-0.35 * outward, yaw, 0)
+    ramp.castShadow = true
+    group.add(ramp)
+  }
+}
+
+/** Short orange U-corral in front of Quickdraw bottom. */
+function liftMazeHint(
+  bottom: [number, number],
+  dir: THREE.Vector2,
+  side: THREE.Vector2,
+  ground: (x: number, z: number) => number,
+  orange: THREE.Material,
   disposables: { dispose(): void }[],
 ): THREE.Group {
   const group = new THREE.Group()
-  const post = new THREE.BoxGeometry(0.5, STATION_HEIGHT, 0.5)
-  post.translate(0, STATION_HEIGHT / 2, 0)
-  const wheel = new THREE.TorusGeometry(HALF_GAUGE, 0.12, 6, 24)
-  wheel.rotateX(Math.PI / 2)
-  wheel.translate(0, STATION_HEIGHT, 0)
-  const hut = new THREE.BoxGeometry(3, 2.4, 3)
-  hut.translate(HALF_GAUGE + 4.5, 1.2, 0)
-  const hutRoof = new THREE.BoxGeometry(3.6, 0.3, 3.6)
-  hutRoof.translate(HALF_GAUGE + 4.5, 2.55, 0)
-  disposables.push(post, wheel, hut, hutRoof)
-  group.add(new THREE.Mesh(post, steel), new THREE.Mesh(wheel, steel), new THREE.Mesh(hut, paint), new THREE.Mesh(hutRoof, roof))
+  const y0 = ground(bottom[0], bottom[1])
+  const postGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.2, 5)
+  postGeo.translate(0, 0.6, 0)
+  disposables.push(postGeo)
+  const posts: [number, number][] = []
+  for (const across of [-4, 4]) {
+    for (let ahead = 4; ahead <= 12; ahead += 4) {
+      posts.push([bottom[0] + dir.x * ahead + side.x * across, bottom[1] + dir.y * ahead + side.y * across])
+    }
+  }
+  for (const across of [-4, 0, 4]) {
+    posts.push([bottom[0] + dir.x * 12 + side.x * across, bottom[1] + dir.y * 12 + side.y * across])
+  }
+  for (const [x, z] of posts) {
+    const post = new THREE.Mesh(postGeo, orange)
+    post.position.set(x, ground(x, z) || y0, z)
+    post.castShadow = true
+    group.add(post)
+  }
+  const railGeo = new THREE.BoxGeometry(8.2, 0.06, 0.06)
+  disposables.push(railGeo)
+  for (const height of [0.45, 0.95]) {
+    for (const across of [-4, 4]) {
+      const rail = new THREE.Mesh(railGeo, orange)
+      const x = bottom[0] + dir.x * 8 + side.x * across
+      const z = bottom[1] + dir.y * 8 + side.y * across
+      rail.position.set(x, (ground(x, z) || y0) + height, z)
+      rail.rotation.y = Math.atan2(dir.x, dir.y)
+      group.add(rail)
+    }
+    const cross = new THREE.Mesh(railGeo, orange)
+    const x = bottom[0] + dir.x * 12
+    const z = bottom[1] + dir.y * 12
+    cross.position.set(x, (ground(x, z) || y0) + height, z)
+    cross.rotation.y = Math.atan2(side.x, side.y)
+    group.add(cross)
+  }
   return group
 }
 

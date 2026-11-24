@@ -217,6 +217,8 @@ function makeLift(
   // Unknown heights keep the mapped direction.
   const ordered = Number.isFinite(first) && Number.isFinite(last) && first > last ? [...line].reverse() : line
   const orderedTowers = ordered === line ? towers : [...towers].reverse()
+  // Surface lifts (T-bar) get slightly denser portals so the line reads between towers.
+  const spacing = /t-?bar|platter|rope_tow|drag_lift/i.test(type) || /t-?bar/i.test(name) ? 80 : 90
   return {
     id,
     name,
@@ -225,7 +227,7 @@ function makeLift(
     bottom: ordered[0],
     top: ordered[ordered.length - 1],
     line: ordered,
-    towers: orderedTowers.length ? orderedTowers : interpolatedTowers(ordered, 90),
+    towers: orderedTowers.length ? orderedTowers : interpolatedTowers(ordered, spacing),
   }
 }
 
