@@ -74,6 +74,24 @@ export function createSignView(
     labels.push(sprite)
     trailLabels.add(sprite)
   }
+  // Village place names: timber board at the doorline (same kit as trail heads),
+  // with the floating label for distance. Faces the approach from +Z by default.
+  for (const place of places) {
+    const ground = heightAt(place.x, place.z)
+    if (Number.isFinite(ground)) {
+      const face = trailBoard(
+        place.name,
+        null,
+        boardParts,
+        disposables,
+        batch,
+        new THREE.Vector3(place.x, ground - 0.15, place.z),
+        0,
+      )
+      group.add(face)
+      faces.push(face)
+    }
+  }
   for (const mesh of batch.build()) {
     disposables.push(mesh.geometry)
     group.add(mesh)

@@ -2,6 +2,14 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.9 (2026-11-24): Thicker village roofs and place boards
+
+### Changed
+
+- Gable roofs: deeper overhang, lifted snow load, near-only soft snow cap and chimneys.
+- Flat roofs: snow slab 0.35 → 0.55 m; fascia still under the load.
+- Named village places get timber trail-style boards at ground (floating labels kept for distance).
+
 ## 0.9.8 (2026-11-24): Stock's terminals and lift polish
 
 ### Changed
