@@ -122,7 +122,8 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - Crashes: tumble + yard-sale (0.8.11), directional tumble and gear re-attach on get-up (0.8.17); buildings/signs on `beginCrash`. Washout tip-in removed in 0.8.12. World-space gear pickups still open (#61). Landing EFH leeway 0.8.13; powder 0.8.14.
 - Feel depth (0.9.0): optional plant/landing/latch WAV layers, idle/cruise hand sway, weather gusts; Low quality skips village cars/decks.
 - Graphics budgets (0.9.1): Medium village mid + prop distance cull; quality anisotropy and forest density; High wider terrain detail ring.
-- Feel leftovers (0.9.2): bundled sample WAVs, flat-light HUD cue, NPC near-miss audio/rumble, rail press arm poses. World gear pickups still open (#61).
+- Feel leftovers (0.9.2): bundled sample WAVs, flat-light HUD cue, NPC near-miss audio/rumble, rail press arm poses.
+- World gear pickups (0.9.3): hard crashes drop skis/poles/board to collect; soft crashes stay visual-only gather (#61 largely closed).
 - Tuck drag raised in 0.8.11 (0.42 m²); re-check equilibrium on Gunbarrel / Grandfather's after a playtest.
 - Buildings are shells from OSM footprints with guessed heights. Only 10 of 147 have tagged storeys. No interiors, decks or props yet.
 - Roads are stamped as packed snow; there are no cars, parking lots or village props.

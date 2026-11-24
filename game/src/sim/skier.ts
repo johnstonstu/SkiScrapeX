@@ -143,6 +143,10 @@ export interface SkiState {
   crashAge: number
   /** Travel heading at impact (atan2(-vx, vz)), for directional tumble. */
   crashHeading: number
+  /** Hard-crash skis / board still on the snow as world pickups. */
+  missingSkis: boolean
+  /** Hard-crash poles still on the snow as world pickups. */
+  missingPoles: boolean
   /** Seconds before the rail just left can catch the skier again. */
   railCooldown: number
   /** Pitch held off a rail, or off a takeoff without a pop, does not flip until it is let go. */
@@ -195,6 +199,8 @@ export function createSkiState(pose?: { x?: number; y?: number; z?: number; head
     crashSpeed: 0,
     crashAge: 0,
     crashHeading: 0,
+    missingSkis: false,
+    missingPoles: false,
     railCooldown: 0,
     flipLock: false,
     trick: null,

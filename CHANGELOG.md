@@ -2,6 +2,13 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.3 (2026-11-24): World gear pickups
+
+### Added
+
+- Hard crashes (about 12 m/s+) leave skis/poles (or board) on the snow; ski over them to re-attach. Soft crashes keep the visual gather only.
+- Coach tip while gear is still out; awkward glide until skis are back; failsafe auto-collect after ~14 s.
+
 ## 0.9.2 (2026-11-24): Sample layers and near-miss feel
 
 ### Added
