@@ -63,7 +63,7 @@ Goal: turning, speed and stopping feel natural on keyboard, pad and touch at eve
 - [ ] Speed control: a skidded turn should scrub speed predictably; hockey stops at speed should feel strong but not instant.
 - [x] Sense of speed: field of view widens slightly with speed, wind audio scales into tuck top speed and brightens in the air, gamepad rumble on chatter and impacts (0.8.11). Spray already scaled with sink/skid; camera chatter shake was already in.
 - [ ] Terrain response: moguls absorb through the legs (crouch and extend) rather than launching you; rollers and lips feel like weight shifts.
-- [ ] Tuck: top speed and how much tucking matters, checked against real numbers on Gunbarrel and Grandfather's.
+- [x] Tuck: top speed and how much tucking matters (0.8.11 raised tuck drag 0.30→0.42 m²; still verify on Gunbarrel / Grandfather's in a playtest).
 - [ ] Steady camera tuned from play: how much it swings, how high, how far back at speed.
 - [ ] Bots and tests updated so the new feel is the regression baseline.
 
@@ -76,9 +76,9 @@ Goal: the rider looks like a good skier in every state, and the snowboarder gets
 - [ ] Air: compression before a pop, extension at the lip, tuck up in the air, spot the landing, absorb and rebound.
 - [ ] Rails: entry hop, sliding stance, balance arms, exit; presses already pose.
 - [ ] Secondary motion: jacket hem and hood flutter with speed, pole swing, slight head bob on bumps.
-- [ ] Crashes with tumbles and yard sales (#61): roll and slide based on speed and direction, skis or poles left behind above a speed, get up and collect. (0.8.11: speed-scaled slide, timer and pose; still no tumble or yard sale.)
+- [~] Crashes with tumbles and yard sales (#61): 0.8.11 has tumble, speed-scaled slide and visual ski scatter; still no collect / get-up loop for lost gear.
 - [ ] Snowboard pass: heel and toe turns with the right lean, rotated stance, crouched carve, ollie and grabs, its own tuck, a `rider.html?sim&model=snowboard` view.
-- [ ] Other skiers (#43) use a lighter rider (fewer meshes, no poles past 60 m) so ten of them cost little.
+- [ ] Other skiers (#43) use a lighter rider (fewer meshes, no poles past 60 m) so ten of them cost little. Soft collisions with the player landed in 0.8.11.
 
 ### 0.9.x: Looks like Apex (phase 2, visual review)
 

@@ -18,6 +18,7 @@ import { sampleRide, type RidePath } from './render/scenery/liftView'
 import { SIGHT_LINE } from './render/scenery/forestView'
 import { RUN_NAMES } from './world/corrections'
 import { addSceneLights, createLighting, createSky, followSun } from './render/lighting'
+import { applyWeather } from './render/weather'
 import { createControls } from './player/input'
 import { createCameraRig } from './player/camera'
 import { createSkiAudio } from './player/audio'
@@ -158,6 +159,14 @@ function applySetting(key?: keyof Settings) {
     haptics.setEnabled(settings.cameraShake)
   }
   if (all || key === 'cameraStyle') rig.setStyle(settings.cameraStyle)
+  if (all || key === 'weather') {
+    const preset = applyWeather(settings.weather, lighting, scene, sun, sky)
+    effects.setWeather(preset.snowDensity, preset.windEast, preset.windSouth, lighting)
+    if (stageReady && stage.snow) {
+      stage.snow.setSun(lighting.sunDirection, lighting.sunColor)
+      stage.snow.setFog(lighting.fogDensity, lighting.fogColor)
+    }
+  }
   // Choosing a graphics level by hand clears the step-down after a GPU reset.
   if (key === 'quality') {
     try {
@@ -322,6 +331,7 @@ function startApex(world: World) {
   stage = apex.stage
   stage.env.assist = settings.landingAssist
   stageReady = true
+  applySetting('weather')
   setViewDistance = apex.setViewDistance
   perf.phase('stage')
   goals = createGoals({ world, stage, scene: apexRoot, parkSites: apex.parkSites, runNameAt: apex.surface.runNameAt, version: VERSION })
