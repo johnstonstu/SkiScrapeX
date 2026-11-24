@@ -53,6 +53,20 @@ describe('crash feel', () => {
     expect(s.crashAge).toBe(0)
     expect(s.crashSpeed).toBe(16)
   })
+
+  it('records impact travel heading and clears it on get-up', () => {
+    const s = createSkiState({ x: 400, z: 200, heading: 0 })
+    s.y = slope.sampleTerrain(s.x, s.z)!.height
+    s.vx = 4
+    s.vz = 12
+    beginCrash(s, 14)
+    expect(s.crashHeading).toBeCloseTo(Math.atan2(-4, 12), 5)
+    s.crashed = FIXED_DT * 2
+    for (let i = 0; i < 4; i++) stepSkier(s, { steer: 0, brake: 0, tuck: false }, slope.sampleTerrain, FIXED_DT)
+    expect(s.crashed).toBe(0)
+    expect(s.crashHeading).toBe(0)
+    expect(s.mode).not.toBe('crashed')
+  })
 })
 
 describe('weather presets', () => {

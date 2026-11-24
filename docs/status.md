@@ -119,7 +119,7 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - Park names for the two unnamed OSM park ways (Prospector, Okanagan Park) and "Park" (Little Nuggets) are guesses.
 - Rails: hop-friendlier capture (0.8.13), crouch→extend entry and soft step-off (0.8.15). Approach camera/HUD assist and wider multi-lane spacing in 0.8.16.
 - Map: hover tip + click trip on trail map and HUD minimap (0.8.15).
-- Crashes (0.8.11) tumble and scatter skis by entry speed; washout tip-in removed in 0.8.12 (skid only). Landing EFH leeway raised in 0.8.13. Powder float/plow/bounce in 0.8.14. Still no collect / get-up for lost gear (#61).
+- Crashes: tumble + yard-sale (0.8.11), directional tumble and gear re-attach on get-up (0.8.17); buildings/signs on `beginCrash`. Washout tip-in removed in 0.8.12. World-space gear pickups still open (#61). Landing EFH leeway 0.8.13; powder 0.8.14.
 - Tuck drag raised in 0.8.11 (0.42 m²); re-check equilibrium on Gunbarrel / Grandfather's after a playtest.
 - Buildings are shells from OSM footprints with guessed heights. Only 10 of 147 have tagged storeys. No interiors, decks or props yet.
 - Roads are stamped as packed snow; there are no cars, parking lots or village props.
