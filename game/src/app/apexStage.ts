@@ -120,6 +120,14 @@ export function buildApexStage(
     const [x, z] = centroid(b.ring)
     return { name: b.name!, x, z, y: b.eaves + (b.roof?.rise ?? 0) + 3 }
   })
+  if (village.hut) {
+    places.push({
+      name: 'Billy Goat Hut',
+      x: village.hut.x,
+      z: village.hut.z,
+      y: anyHeight(village.hut.x, village.hut.z) + 5,
+    })
+  }
   // OSM's Beaconsfield node carries Apex Mountain's 2247 m; label peaks from the LiDAR instead.
   const peaks = resort.peaks.map((peak) => {
     const ground = grid.heightAt(peak.x, peak.z)

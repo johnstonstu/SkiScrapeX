@@ -15,6 +15,7 @@ SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor 
 
 - Claim Jumper's start is shifted left and uphill off Okanagan Run for a cleaner park run-in.
 - Park score targets count every feature in a lane row.
+- Official spellings: West Bank, Kristi's Run, Greenhorn Traverse. Billy Goat Hut now has a place label at the Quickdraw summit.
 
 ## 0.8.9 (2026-11-23): Terrain park and mountain polish
 
