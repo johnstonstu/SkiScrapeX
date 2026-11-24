@@ -147,7 +147,9 @@ export function resortFromFeatures(doc: FeaturesDocument, heightAt: (x: number, 
     parks: (doc.terrainParks ?? [])
       .map((park, index) => {
         const points = park.points?.length ? park.points : (park.members ?? []).flatMap((m) => m.points)
-        return { osmId: park.id ?? `park/${index}`, name: park.name ?? null, line: downhill(points.map(pt), heightAt) }
+        // Prefer the OSM way id from the relation member when the park object itself has no id.
+        const osmId = park.id ?? park.members?.find((member) => member.id)?.id ?? `park/${index}`
+        return { osmId, name: park.name ?? null, line: downhill(points.map(pt), heightAt) }
       })
       .filter((park) => park.line.length >= 2),
     // Tracks are cat tracks and ski trails in winter; only plowed road classes are roads.

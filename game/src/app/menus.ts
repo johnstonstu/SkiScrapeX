@@ -54,6 +54,10 @@ export function buildParkMenu(
     rollers: 'Rollers and a step-down',
     progression: 'Small jumps and a wide box before a rail',
     lanes: 'Each station offers a left, centre or right feature',
+    claimJumper: 'Step-ups and XL gaps with a side rail or medium table to choose',
+    prospector: 'Progression from rollers to medium jumps and a small gap',
+    okanagan: 'Rollers, rails and a row of jump choices beside the T-Bar',
+    nuggets: 'Small rollers, boxes and a rail by the Magic Carpet',
   }
   const render = () => {
     section.innerHTML = '<h3>Terrain parks</h3><p class="park-intro">Pick a park to ski it, or choose a layout to change its features.</p>'

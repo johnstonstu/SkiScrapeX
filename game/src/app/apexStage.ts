@@ -62,8 +62,8 @@ export function buildApexStage(
     parkSites.map((site) => ({
       name: site.name,
       line: site.line,
-      // Lane layouts need room for side-by-side features; Claim Jumper is the wide jump line.
-      halfWidth: site.name === 'Claim Jumper' ? 22 : 16,
+      // Multi-lane parks need room for side-by-side features.
+      halfWidth: ['Claim Jumper', 'Okanagan Park', 'Prospector'].includes(site.name) ? 26 : 16,
     })),
   )
   options.phase?.('apex: surface')

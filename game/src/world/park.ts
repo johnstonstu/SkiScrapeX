@@ -94,11 +94,31 @@ export const LAYOUTS: ParkLayout[] = [
       ['kickerL', 'kickerXL', 'downRail'],
     ],
   },
+  {
+    id: 'claimJumper',
+    label: 'Claim Jumper',
+    features: ['stepDown', ['kickerL', 'rail'], ['kickerXL', 'flatDownRail'], ['kickerXL', 'downRail', 'kickerM']],
+  },
+  {
+    id: 'prospector',
+    label: 'Prospector',
+    features: ['rollerS', ['kickerS', 'kickerS'], 'box', ['kickerM', 'rail'], ['kickerM', 'stepDown']],
+  },
+  {
+    id: 'okanagan',
+    label: 'Okanagan',
+    features: ['rollerS', 'rollerL', ['kickerS', 'kickerM', 'kickerM'], ['rail', 'downRail'], ['kickerM', 'box']],
+  },
+  {
+    id: 'nuggets',
+    label: 'Little Nuggets',
+    features: ['rollerS', 'rollerS', 'box', 'box', 'rail'],
+  },
 ]
 
 /**
- * Apex parks from the OSM terrain-park ways. Names for the unnamed ways are
- * our best match to the resort's park list (T-Bar area) and may be wrong.
+ * Apex parks from the OSM terrain-park ways. Unnamed ways are matched by OSM
+ * way id against the resort map (T-Bar area), not by length.
  */
 export interface ParkSite {
   id: string
@@ -108,35 +128,27 @@ export interface ParkSite {
 }
 
 export const DEFAULT_LAYOUT: Record<string, string> = {
-  'Claim Jumper': 'lanes',
-  Prospector: 'mixed',
-  'Okanagan Park': 'rollers',
-  'Little Nuggets': 'progression',
+  'Claim Jumper': 'claimJumper',
+  Prospector: 'prospector',
+  'Okanagan Park': 'okanagan',
+  'Little Nuggets': 'nuggets',
   'Boarder Cross': 'rollers',
 }
 
-/**
- * Claim Jumper's OSM line sits on Okanagan Run. Nudge the top left (west) and
- * uphill so the run-in is a clean park start beside the groomer, not on it.
- */
-export function adjustClaimJumperLine(line: Point2[]): Point2[] {
-  if (line.length < 2) return line
-  return line.map((point, index) => {
-    const t = Math.max(0, 1 - index / Math.max(1, line.length * 0.5))
-    return [point[0] - 52 * t, point[1] - 38 * t]
-  })
+/** Official names for OSM park ways that lack a name tag (or use a generic one). */
+export const PARK_WAY_NAMES: Record<string, string> = {
+  'way/374339369': 'Okanagan Park',
+  'way/374339370': 'Prospector',
+  'way/1105323712': 'Little Nuggets',
+  'way/374339381': 'Claim Jumper',
+  'way/374339374': 'Boarder Cross',
 }
 
 export function parkSitesFromLines(lines: { name: string | null; line: Point2[]; osmId: string }[]): ParkSite[] {
-  // Unnamed OSM parks by length: the longer is Prospector, the shorter Okanagan Park.
-  const unnamed = lines.filter((l) => !l.name).sort((a, b) => polylineLength(b.line) - polylineLength(a.line))
-  const guess = new Map<string, string>()
-  if (unnamed[0]) guess.set(unnamed[0].osmId, 'Prospector')
-  if (unnamed[1]) guess.set(unnamed[1].osmId, 'Okanagan Park')
   return lines.map((l) => {
-    const name = l.name === 'Park' ? 'Little Nuggets' : (l.name ?? guess.get(l.osmId) ?? 'Park')
-    const line = name === 'Claim Jumper' ? adjustClaimJumperLine(l.line) : l.line
-    return { id: l.osmId, name, line, layout: DEFAULT_LAYOUT[name] ?? 'mixed' }
+    const fromWay = PARK_WAY_NAMES[l.osmId]
+    const name = fromWay ?? (l.name === 'Park' ? 'Little Nuggets' : l.name ?? 'Park')
+    return { id: l.osmId, name, line: l.line, layout: DEFAULT_LAYOUT[name] ?? 'mixed' }
   })
 }
 

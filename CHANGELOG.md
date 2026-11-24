@@ -9,11 +9,13 @@ SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor 
 - Runs, parks, rider, settings and challenges open as fullscreen menus on large screens, with a tighter stacked layout on phones.
 - The Runs & parks screen has an interactive trail map: click a run or park on the map, see it highlighted, and ski it from the detail card.
 - Rider & gear shows a live 3D standee of the current outfit beside the colour and kit controls.
-- Terrain park layouts can place side-by-side feature rows so you choose a lane. Claim Jumper defaults to that lane-choice line.
+- Terrain park layouts can place side-by-side feature rows so you choose a lane.
+- Park-specific lineups for Claim Jumper, Prospector, Okanagan Park and Little Nuggets.
 
 ### Changed
 
-- Claim Jumper's start is shifted left and uphill off Okanagan Run for a cleaner park run-in.
+- Claim Jumper keeps its OSM centreline (peels skier's right off Okanagan); spawn still starts a little way down the park line.
+- Unnamed OSM park ways are named by way id: longer T-Bar-side line is Okanagan Park, the other is Prospector.
 - Park score targets count every feature in a lane row.
 - Official spellings: West Bank, Kristi's Run, Greenhorn Traverse. Billy Goat Hut now has a place label at the Quickdraw summit.
 

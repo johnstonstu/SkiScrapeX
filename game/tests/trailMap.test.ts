@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adjustClaimJumperLine, placeLineup } from '../src/world/park'
+import { PARK_WAY_NAMES, parkSitesFromLines, placeLineup } from '../src/world/park'
 import { hitTrail } from '../src/ui/trailMap'
 import type { Run } from '../src/world/resort'
 import type { ParkSite } from '../src/world/park'
@@ -26,23 +26,34 @@ describe('trail map picking', () => {
 
   it('prefers a park when the click is closer to the park line', () => {
     const blue = run('Okanagan Run', [[[0, 0], [0, 120]]])
-    const park: ParkSite = { id: '1', name: 'Claim Jumper', line: [[18, 0], [18, 120]], layout: 'lanes' }
+    const park: ParkSite = { id: '1', name: 'Claim Jumper', line: [[18, 0], [18, 120]], layout: 'claimJumper' }
     expect(hitTrail(17, 40, [blue], [park], 12)).toMatchObject({ kind: 'park', site: { name: 'Claim Jumper' } })
   })
 })
 
-describe('Claim Jumper start', () => {
-  it('moves the top of the line left and uphill, leaving the bottom nearly fixed', () => {
+describe('park way naming', () => {
+  it('maps unnamed OSM ways by id, not length', () => {
+    const line: [number, number][] = [[0, 0], [0, 100]]
+    const sites = parkSitesFromLines([
+      { name: null, line, osmId: 'way/374339369' },
+      { name: null, line, osmId: 'way/374339370' },
+      { name: 'Park', line, osmId: 'way/1105323712' },
+      { name: 'Claim Jumper', line, osmId: 'way/374339381' },
+    ])
+    expect(sites.map((site) => site.name)).toEqual(['Okanagan Park', 'Prospector', 'Little Nuggets', 'Claim Jumper'])
+    expect(sites.map((site) => site.layout)).toEqual(['okanagan', 'prospector', 'nuggets', 'claimJumper'])
+    expect(PARK_WAY_NAMES['way/374339369']).toBe('Okanagan Park')
+  })
+
+  it('keeps the Claim Jumper centreline from OSM (no left/uphill offset)', () => {
     const line: [number, number][] = [
       [1912, 838],
       [2000, 740],
       [2100, 640],
       [2251, 521],
     ]
-    const adjusted = adjustClaimJumperLine(line)
-    expect(adjusted[0][0]).toBeLessThan(line[0][0] - 40)
-    expect(adjusted[0][1]).toBeLessThan(line[0][1] - 25)
-    expect(adjusted.at(-1)).toEqual(line.at(-1))
+    const [site] = parkSitesFromLines([{ name: 'Claim Jumper', line, osmId: 'way/374339381' }])
+    expect(site.line).toEqual(line)
   })
 })
 
