@@ -25,6 +25,9 @@ export const RUN_NAMES: Record<string, string> = {
   Dawdler2: 'Dawdler 2',
   '97': 'Highway 97',
   'Pea Shooter': 'Peashooter',
+  Westbank: 'West Bank',
+  "Kristi's": "Kristi's Run",
+  "Greenhorn's Traverse": 'Greenhorn Traverse',
 }
 
 /** Display names for OSM building names with typos or abbreviations. */

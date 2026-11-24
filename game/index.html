@@ -62,13 +62,32 @@
     <p id="status" role="status">Loading…</p>
     <p id="help"></p>
     <p id="credits"></p>
-    <section id="runs" hidden aria-label="Choose a run">
-      <header><h2>Runs &amp; parks</h2><button type="button" id="btn-close-runs" aria-label="Close">✕</button></header>
-      <div id="run-list"></div>
+    <section id="runs" class="menu-shell" hidden aria-label="Choose a run">
+      <header>
+        <div>
+          <h2>Runs &amp; parks</h2>
+          <p class="menu-lead">Click a trail on the map, or pick one from the list.</p>
+        </div>
+        <button type="button" id="btn-close-runs" aria-label="Close">✕</button>
+      </header>
+      <div class="menu-layout">
+        <div class="trail-stage">
+          <canvas id="trail-map" aria-label="Trail map of Apex"></canvas>
+          <ul class="trail-legend" aria-hidden="true">
+            <li><span class="symbol easy"></span>Green</li>
+            <li><span class="symbol intermediate"></span>Blue</li>
+            <li><span class="symbol advanced"></span>Black</li>
+            <li><span class="park-dot"></span>Park</li>
+            <li><span class="lift-dash"></span>Lift</li>
+          </ul>
+          <div id="trail-detail" class="trail-detail" hidden></div>
+        </div>
+        <div id="run-list" class="menu-side"></div>
+      </div>
     </section>
-    <section id="style" hidden aria-label="Rider style"></section>
-    <section id="settings" hidden aria-label="Settings"></section>
-    <section id="challenges" hidden aria-label="Challenges"></section>
+    <section id="style" class="menu-shell" hidden aria-label="Rider style"></section>
+    <section id="settings" class="menu-shell" hidden aria-label="Settings"></section>
+    <section id="challenges" class="menu-shell" hidden aria-label="Challenges"></section>
     <section id="results" hidden aria-label="Results"></section>
     <section id="title-screen" aria-label="SkiScrapex"></section>
     <div id="run-card" hidden></div>

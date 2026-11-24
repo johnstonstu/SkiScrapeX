@@ -28,6 +28,8 @@ export function getUi() {
     coach: $('#coach'),
     runs: $('#runs'),
     runList: $('#run-list'),
+    trailMap: $<HTMLCanvasElement>('#trail-map'),
+    trailDetail: $('#trail-detail'),
     ride: $('#ride'),
     rideText: $('#ride-text'),
     trick: $('#trick'),

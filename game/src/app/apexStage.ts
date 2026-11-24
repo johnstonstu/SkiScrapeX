@@ -55,7 +55,17 @@ export function buildApexStage(
   const parkSites = parkSitesFromLines(resort.parks)
   const savedLayouts = readJson<Record<string, string>>(KEYS.parkLayouts, {})
   for (const site of parkSites) if (savedLayouts[site.name]) site.layout = savedLayouts[site.name]
-  const surface = buildSurface(grid, resort, 2.5, parkSites.map((site) => ({ name: site.name, line: site.line, halfWidth: 16 })))
+  const surface = buildSurface(
+    grid,
+    resort,
+    2.5,
+    parkSites.map((site) => ({
+      name: site.name,
+      line: site.line,
+      // Multi-lane parks need room for side-by-side features.
+      halfWidth: ['Claim Jumper', 'Okanagan Park', 'Prospector'].includes(site.name) ? 26 : 16,
+    })),
+  )
   options.phase?.('apex: surface')
   const terrain = createTerrainView(grid, surface, canopy, lighting, quality.terrain)
   options.phase?.('apex: terrain view')
@@ -110,6 +120,14 @@ export function buildApexStage(
     const [x, z] = centroid(b.ring)
     return { name: b.name!, x, z, y: b.eaves + (b.roof?.rise ?? 0) + 3 }
   })
+  if (village.hut) {
+    places.push({
+      name: 'Billy Goat Hut',
+      x: village.hut.x,
+      z: village.hut.z,
+      y: anyHeight(village.hut.x, village.hut.z) + 5,
+    })
+  }
   // OSM's Beaconsfield node carries Apex Mountain's 2247 m; label peaks from the LiDAR instead.
   const peaks = resort.peaks.map((peak) => {
     const ground = grid.heightAt(peak.x, peak.z)

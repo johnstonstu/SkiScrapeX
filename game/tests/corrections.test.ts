@@ -22,6 +22,19 @@ describe('Apex corrections', () => {
     expect(resort.peaks.filter((p) => p.name === 'Apex Mountain')).toHaveLength(1)
   })
 
+  it('renames OSM spellings that the grooming report uses', () => {
+    const resort = {
+      runs: [
+        { id: '1', name: 'Westbank', difficulty: 'advanced', groomed: true, kind: 'line', parts: [] },
+        { id: '2', name: "Kristi's", difficulty: 'intermediate', groomed: true, kind: 'line', parts: [] },
+        { id: '3', name: "Greenhorn's Traverse", difficulty: 'easy', groomed: true, kind: 'line', parts: [] },
+      ],
+      peaks: [],
+    } as unknown as Resort
+    applyCorrections(resort)
+    expect(resort.runs.map((run) => run.name)).toEqual(['West Bank', "Kristi's Run", 'Greenhorn Traverse'])
+  })
+
   it('names the traced runs the trail maps confirm', () => {
     const byRef = Object.fromEntries(OVERLAY_RUNS.map((run) => [run.ref, run]))
     expect(byRef.L8.name).toBe('Highway 97C')

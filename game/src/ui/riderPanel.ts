@@ -1,5 +1,6 @@
 import { SKI_GRAPHICS, type SkiGraphic } from '../render/rider/skierView'
 import { KEYS, readJson, writeJson } from '../app/storage'
+import { createRiderPreview } from './riderPreview'
 
 /** Rider customization: colours, kit and ski model. */
 export type SkiModel = 'allMountain' | 'park' | 'powder' | 'snowboard'
@@ -55,11 +56,37 @@ export function createStylePanel(
   onChange: (outfit: Outfit) => void,
   unlocked: () => Set<string> = () => new Set(),
   hint: (id: string) => string = () => '',
-): { refresh(): void } {
+): { refresh(): void; setVisible(on: boolean): void } {
+  let preview: ReturnType<typeof createRiderPreview> | null = null
+  let controls: HTMLElement | null = null
+
+  const ensurePreview = () => {
+    if (preview) return preview
+    const stage = panel.querySelector<HTMLElement>('.rider-stage')
+    if (!stage) return null
+    preview = createRiderPreview(stage)
+    preview.setOutfit(outfit)
+    return preview
+  }
+
+  const ensureShell = () => {
+    if (controls) return
+    panel.innerHTML =
+      '<header><div><h2>Rider &amp; gear</h2><p class="menu-lead">Tune the look, then check it on the stand.</p></div>' +
+      '<button type="button" class="close" aria-label="Close">✕</button></header>' +
+      '<div class="menu-layout rider-layout"><div class="rider-stage" aria-hidden="true"></div><div class="style-controls menu-side"></div></div>'
+    panel.querySelector('.close')!.addEventListener('click', () => {
+      panel.hidden = true
+      preview?.stop()
+    })
+    controls = panel.querySelector('.style-controls')
+  }
+
   const render = () => {
+    ensureShell()
     const earned = unlocked()
-    panel.innerHTML = '<header><h2>Rider</h2><button type="button" class="close" aria-label="Close">✕</button></header>'
-    panel.querySelector('.close')!.addEventListener('click', () => (panel.hidden = true))
+    const host = controls!
+    host.innerHTML = ''
     for (const [key, title] of [
       ['jacket', 'Jacket'],
       ['jacketAccent', 'Jacket panels'],
@@ -97,7 +124,7 @@ export function createStylePanel(
         swatches.append(swatch)
       }
       row.append(swatches)
-      panel.append(row)
+      host.append(row)
     }
     const models = document.createElement('div')
     models.className = 'style-row models'
@@ -115,7 +142,7 @@ export function createStylePanel(
       })
       models.append(button)
     }
-    panel.append(models)
+    host.append(models)
     const toggles: [string, keyof Outfit, [string, string][]][] = [
       ['Fit', 'fit', [['baggy', 'Baggy'], ['slim', 'Slim']]],
       ['Head', 'headwear', [['helmet', 'Helmet'], ['beanie', 'Beanie']]],
@@ -147,9 +174,26 @@ export function createStylePanel(
         })
         row.append(button)
       }
-      panel.append(row)
+      host.append(row)
     }
+    if (!panel.hidden) {
+      const live = ensurePreview()
+      live?.setOutfit(outfit)
+      live?.start()
+      live?.resize()
+    } else preview?.setOutfit(outfit)
   }
+
   render()
-  return { refresh: render }
+  return {
+    refresh: render,
+    setVisible(on: boolean) {
+      if (on) {
+        const live = ensurePreview()
+        live?.setOutfit(outfit)
+        live?.start()
+        live?.resize()
+      } else preview?.stop()
+    },
+  }
 }

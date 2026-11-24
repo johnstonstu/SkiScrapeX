@@ -9,6 +9,7 @@ import * as THREE from 'three'
 import './style.css'
 import './pause.css'
 import './presentation.css'
+import './menu.css'
 import { PHYSICS, PRESETS, advance, createClock, createPreset, createSkier, landingSpot, resetSkier, type SkiState } from './sim'
 import { createSkierView, type SkierPose } from './render/rider/skierView'
 import { createLandingMarker } from './render/rider/landingMarker'
@@ -33,7 +34,8 @@ import { $, getUi } from './app/dom'
 import { escapeHtml, formatTime } from './app/format'
 import { KEYS, readJson, writeJson } from './app/storage'
 import { createTrickFeed } from './app/tricks'
-import { buildParkMenu, buildRunMenu } from './app/menus'
+import { buildParkMenu, buildRunMenu, renderTrailDetail, syncTrailListSelection } from './app/menus'
+import { createTrailMap, type TrailSelection } from './ui/trailMap'
 import { buildApexStage } from './app/apexStage'
 import type { Stage } from './app/stage'
 import { VERSION } from './app/version'
@@ -133,6 +135,7 @@ const menuNavigation = createMenuNavigation()
 const parkHud = createParkHud(ui.hint)
 const hideOverlays = () => {
   for (const panel of [ui.menu, ui.results, ui.titleScreen, ...sidePanels]) panel.hidden = true
+  stylePanel.setVisible(false)
 }
 const sound = createSkiAudio($<HTMLButtonElement>('#btn-sound'))
 const effects = createSnowEffects(scene, lighting, pixelRatio, quality)
@@ -225,6 +228,7 @@ let menuWasOpen = false
 let titleSpin = 2.4
 let titleWasShown = false
 let minimap: ReturnType<typeof createMinimap> | null = null
+let trailMap: ReturnType<typeof createTrailMap> | null = null
 let devView: ReturnType<typeof createSlopeView> | null = null
 const ridePoint = new THREE.Vector3()
 let pitchLocked = false
@@ -330,14 +334,27 @@ function startApex(world: World) {
   const { grid, resort } = world
   perf.phase('credits')
   minimap = createMinimap(ui.map, ui.mapLocation, apex.surface.runNameAt, { width: grid.width, depth: grid.depth, resort, hillshade: world.hillshade })
-  buildRunMenu(ui.runList, pickableRuns(resort), (run) => {
+  const runs = pickableRuns(resort)
+  const skiRun = (run: Run) => {
     leaveDemoPark()
     setFreeSki()
     course = courseForRun(resort, run)
     restartFromMenu()
+  }
+  const selectTrail = (selection: TrailSelection) => {
+    trailMap?.setSelection(selection)
+    syncTrailListSelection(ui.runList, selection)
+    renderTrailDetail(ui.trailDetail, selection, { skiRun, skiPark: startPark, lengthOf: (run) => trailMap?.runLength(run) ?? 0 })
+  }
+  trailMap?.dispose()
+  trailMap = createTrailMap(ui.trailMap, { width: grid.width, depth: grid.depth, resort, hillshade: world.hillshade }, {
+    runs,
+    parks: apex.parkSites,
+    onSelect: selectTrail,
   })
+  buildRunMenu(ui.runList, runs, skiRun, (run) => selectTrail({ kind: 'run', run }))
   apexStage = stage
-  buildParkMenu(ui.runList, apex.parkSites, startPark, apex.setLayout, enterDemoPark)
+  buildParkMenu(ui.runList, apex.parkSites, startPark, apex.setLayout, enterDemoPark, (site) => selectTrail({ kind: 'park', site }))
   if (params.has('demo')) queueMicrotask(enterDemoPark)
   const parkParam = params.get('park')?.toLowerCase()
   const parkStart = parkParam ? apex.parkSites.find((site) => site.name.toLowerCase().startsWith(parkParam)) : null
@@ -507,7 +524,14 @@ function setFreeSki() {
 function openPanel(panel: HTMLElement) {
   for (const other of sidePanels) other.hidden = other !== panel
   panel.hidden = false
-  panel.querySelector<HTMLButtonElement>('header button')?.focus()
+  stylePanel.setVisible(panel === ui.style)
+  if (panel === ui.runs) trailMap?.resize()
+  panel.querySelector<HTMLButtonElement>('header button, header .close, #btn-close-runs')?.focus()
+}
+
+function closeSidePanels() {
+  for (const panel of sidePanels) panel.hidden = true
+  stylePanel.setVisible(false)
 }
 
 function openChallenges() {
@@ -689,7 +713,7 @@ function handleActions() {
     if (action === 'pause') {
       const side = sidePanels.find((panel) => !panel.hidden)
       if (side) {
-        side.hidden = true
+        closeSidePanels()
         if (!ui.menu.hidden) $('#btn-resume').focus()
         continue
       }
@@ -720,7 +744,7 @@ function handleActions() {
     } else if (action === 'reset') {
       if (!ui.titleScreen.hidden) continue
       ui.menu.hidden = ui.results.hidden = true
-      for (const panel of sidePanels) panel.hidden = true
+      closeSidePanels()
       pause = null
       ui.fade.classList.remove('on')
       spawn()
@@ -743,7 +767,7 @@ function handleActions() {
         if (action === 'challenges') openChallenges()
         else openPanel(panel)
       } else {
-        panel.hidden = true
+        closeSidePanels()
         if (!ui.menu.hidden) $('#btn-resume').focus()
       }
     } else if (action === 'skip' && ride && !overlaysOpen()) skipRide()

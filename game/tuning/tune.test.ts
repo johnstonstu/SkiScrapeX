@@ -78,7 +78,7 @@ const fmt = (st: Stats) =>
 
 it('runs', () => {
   const env: SkiEnv = { turnModel, sampleSurface }
-  for (const run of pickableRuns(resort).filter((r) => ['Grandfather\'s Trail', 'Okanagan Run', 'Ridge Run', 'Gunbarrel', 'The Great Wall', 'Kristi\'s', 'Make My Day', 'Juniper'].includes(r.name))) {
+  for (const run of pickableRuns(resort).filter((r) => ['Grandfather\'s Trail', 'Okanagan Run', 'Ridge Run', 'Gunbarrel', 'The Great Wall', 'Kristi\'s Run', 'Make My Day', 'Juniper'].includes(r.name))) {
     const line = run.parts.reduce((a, b) => (polylineLength(b) > polylineLength(a) ? b : a))
     for (const cap of [12, 18]) console.log(run.name.padEnd(22), run.difficulty?.padEnd(13), `cap ${cap}`, fmt(follow(line, sampleTerrain, env, cap)))
   }
