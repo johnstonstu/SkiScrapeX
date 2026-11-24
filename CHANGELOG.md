@@ -2,6 +2,14 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.1 (2026-11-24): High LOD and village draw budgets
+
+### Changed
+
+- Village props: Low hut-only, Medium thinned cars (no patio/spindles, no prop shadows), High full; cars/decks distance-cull past ~420 m.
+- Texture anisotropy follows quality (2 / 4 / 8, capped by the GPU).
+- Crop forest plant density scales with quality; Medium apron forest reach trimmed; High terrain detail ring widened.
+
 ## 0.9.0 (2026-11-24): Feel depth and High load cuts
 
 ### Added

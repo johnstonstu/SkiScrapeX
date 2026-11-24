@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { applyTextureBudget } from '../textureBudget'
 import { createStaticBatch } from './mergeStatic'
 import type { Peak, Run } from '../../world/resort'
 import { pointAlong } from '../../world/resort'
@@ -137,7 +138,7 @@ function trailBoard(
   batch.add(parts.panel, parts.boardBack, batch.matrix(at, yaw, local))
   const texture = new THREE.CanvasTexture(signCanvas(text, symbol))
   texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = 4
+  applyTextureBudget(texture)
   const face = new THREE.MeshLambertMaterial({ map: texture })
   disposables.push(texture, face)
   const front = new THREE.Mesh(parts.panel, face)
@@ -155,7 +156,7 @@ export function label(
 ): THREE.Sprite {
   const texture = new THREE.CanvasTexture(signCanvas(text, symbol))
   texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = 4
+  applyTextureBudget(texture)
   const material = new THREE.SpriteMaterial({ map: texture, fog: true })
   disposables.push(texture, material)
   const sprite = new THREE.Sprite(material)

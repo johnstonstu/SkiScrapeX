@@ -121,6 +121,7 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - Map: hover tip + click trip on trail map and HUD minimap (0.8.15).
 - Crashes: tumble + yard-sale (0.8.11), directional tumble and gear re-attach on get-up (0.8.17); buildings/signs on `beginCrash`. Washout tip-in removed in 0.8.12. World-space gear pickups still open (#61). Landing EFH leeway 0.8.13; powder 0.8.14.
 - Feel depth (0.9.0): optional plant/landing/latch WAV layers, idle/cruise hand sway, weather gusts; Low quality skips village cars/decks.
+- Graphics budgets (0.9.1): Medium village mid + prop distance cull; quality anisotropy and forest density; High wider terrain detail ring.
 - Tuck drag raised in 0.8.11 (0.42 m²); re-check equilibrium on Gunbarrel / Grandfather's after a playtest.
 - Buildings are shells from OSM footprints with guessed heights. Only 10 of 147 have tagged storeys. No interiors, decks or props yet.
 - Roads are stamped as packed snow; there are no cars, parking lots or village props.

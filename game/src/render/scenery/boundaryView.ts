@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { applyTextureBudget } from '../textureBudget'
 import { createStaticBatch } from './mergeStatic'
 import { nearestOnPolyline, type Point2 } from '../../world/resort'
 
@@ -143,6 +144,6 @@ function signTexture(): THREE.CanvasTexture {
   c.fillText('Not patrolled · Avalanche risk', 128, 152)
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = 4
+  applyTextureBudget(texture)
   return texture
 }

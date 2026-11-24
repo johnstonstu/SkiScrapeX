@@ -29,4 +29,17 @@ describe('choosing the graphics level', () => {
     expect(resolveQuality(auto, false, 'low').snowDetail).toBe(false)
     expect(resolveQuality(auto, false, 'high').snowDetail).toBe(true)
   })
+
+  it('village and texture budgets step with the level', () => {
+    const low = resolveQuality(auto, false, 'low')
+    const mid = resolveQuality(auto, false, 'medium')
+    const high = resolveQuality(auto, false, 'high')
+    expect(low.villageDetail).toBe('lite')
+    expect(mid.villageDetail).toBe('mid')
+    expect(high.villageDetail).toBe('full')
+    expect(high.anisotropy).toBeGreaterThan(mid.anisotropy)
+    expect(mid.anisotropy).toBeGreaterThan(low.anisotropy)
+    expect(high.forestDensity).toBeGreaterThan(mid.forestDensity)
+    expect(high.terrain.near).toBeGreaterThan(mid.terrain.near ?? 0)
+  })
 })
