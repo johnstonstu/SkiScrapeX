@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createTerrainGrid } from '../src/world/terrainGrid'
-import { chooseCourse, liftAtBottom, resortFromFeatures, type FeaturesDocument } from '../src/world/resort'
+import { chooseCourse, liftAtBottom, resortFromFeatures, runHalfWidth, type FeaturesDocument, type Run } from '../src/world/resort'
 import { buildSurface, isClear, surfaceAt, SurfaceId } from '../src/world/surface'
 import { indexTrunks, plantForest } from '../src/world/forest'
 import { createSkier, fallLineHeading, skiFrame } from '../src/sim'
@@ -56,7 +56,8 @@ const doc: FeaturesDocument = {
   runs: [
     {
       name: 'Down',
-      difficulty: 'easy',
+      // Advanced half-width (~15 m) leaves room for off-piste on this 50 m toy grid.
+      difficulty: 'advanced',
       geometry: 'line',
       points: [
         { x: 25, z: 2 },
@@ -118,13 +119,26 @@ describe('resort', () => {
     for (const chunk of forest.chunks) {
       for (const tree of chunk.trees) {
         expect(isClear(surface, tree.x, tree.z)).toBe(false)
-        expect(Math.abs(tree.x - 40)).toBeGreaterThan(8)
+        expect(Math.abs(tree.x - 40)).toBeGreaterThan(10)
       }
     }
     const trunks = indexTrunks(forest)
     const tall = forest.chunks.flatMap((c) => c.trees).find((t) => t.height >= 4)
     if (tall) expect(trunks.hit(tall.x, tall.z, 0.3)).toBe(tall)
     expect(trunks.hit(25, 25, 0.3)).toBeNull()
+  })
+})
+
+describe('run half-widths', () => {
+  const stub = (difficulty: Run['difficulty'], groomed = true): Run =>
+    ({ difficulty, groomed, kind: 'line', name: 'test', parts: [[[0, 0], [0, 10]]] }) as Run
+
+  it('keeps groomers wider than ungroomed and expert trails', () => {
+    expect(runHalfWidth(stub('easy'))).toBe(22)
+    expect(runHalfWidth(stub('intermediate'))).toBe(20)
+    expect(runHalfWidth(stub('advanced'))).toBe(15)
+    expect(runHalfWidth(stub('easy', false))).toBe(14)
+    expect(runHalfWidth(stub('expert'))).toBe(9.5)
   })
 })
 

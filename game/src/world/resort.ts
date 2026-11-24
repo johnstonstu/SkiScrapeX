@@ -353,11 +353,11 @@ export function runHalfWidth(run: Run): number {
   switch (run.difficulty) {
     case 'novice':
     case 'easy':
-      return groomed ? 20 : 14
+      return groomed ? 22 : 14
     case 'intermediate':
-      return groomed ? 18 : 13
+      return groomed ? 20 : 13
     case 'advanced':
-      return groomed ? 14 : 10.5
+      return groomed ? 15 : 10.5
     default:
       return 9.5
   }

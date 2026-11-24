@@ -2,6 +2,13 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.6 (2026-11-24): Wider groomers and lift clearings
+
+### Changed
+
+- Groomed half-widths: easy 22 m, intermediate 20 m, advanced 15 m (ungroomed / expert unchanged).
+- Lift-line clearance half-width 12 → 14 m; terminal clear 18 → 20 m (ragged edges kept).
+
 ## 0.9.5 (2026-11-24): Safer main / rider module split
 
 ### Changed
