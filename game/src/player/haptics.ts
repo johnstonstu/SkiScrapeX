@@ -42,6 +42,11 @@ export function createHaptics(rumble: (weak: number, strong: number, durationMs?
       if (s.chatter > 0.08 && now >= nextPulse) {
         rumble(0.12 + s.chatter * 0.5, s.chatter * 0.22, 85)
         nextPulse = now + 70
+      } else if (s.grounded && s.sink > 0.14 && s.speed > 5 && now >= nextPulse) {
+        // Soft powder rumble — float/plow pressure, not edge chatter.
+        const soft = Math.min(1, s.sink * 2.2 + s.skid * 0.4)
+        rumble(0.08 + soft * 0.22, soft * 0.12, 70)
+        nextPulse = now + 95
       }
       airborne = !s.grounded
       onRail = Boolean(s.rail)

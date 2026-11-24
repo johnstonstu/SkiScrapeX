@@ -26,8 +26,9 @@ export const SURFACES: Record<SurfaceKind, SurfaceParams> = {
   groomed: { kind: 'groomed', mu: 0.035, latMax: 2.6, maxEdgeDeg: 60, depth: 0, vPlane: 7, chatter: 0.25 },
   ice: { kind: 'ice', mu: 0.025, latMax: 1.0, maxEdgeDeg: 45, depth: 0, vPlane: 7, chatter: 1 },
   park: { kind: 'park', mu: 0.03, latMax: 2.3, maxEdgeDeg: 50, depth: 0, vPlane: 7, chatter: 0.3 },
-  powder: { kind: 'powder', mu: 0.04, latMax: 1.4, maxEdgeDeg: 40, depth: 0.35, vPlane: 7, chatter: 0 },
-  forest: { kind: 'forest', mu: 0.05, latMax: 1.2, maxEdgeDeg: 40, depth: 0.2, vPlane: 6, chatter: 0 },
+  // Deeper pack; planing starts around mid-20s km/h so slow turns stay sunk (Steep).
+  powder: { kind: 'powder', mu: 0.038, latMax: 1.25, maxEdgeDeg: 38, depth: 0.4, vPlane: 6.5, chatter: 0 },
+  forest: { kind: 'forest', mu: 0.05, latMax: 1.15, maxEdgeDeg: 38, depth: 0.24, vPlane: 6, chatter: 0 },
 }
 
 export type SampleSurface = (x: number, z: number) => SurfaceParams

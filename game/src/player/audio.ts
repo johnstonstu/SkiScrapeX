@@ -16,6 +16,7 @@ export function createSkiAudio(button: HTMLButtonElement) {
   let lastTrick = 0
   let lastEdgeSign = 0
   let nextLiftClunk = 0
+  let nextFaceShot = 0
   let level = 0.8
   try { muted = localStorage.getItem('apex.soundMuted') === 'true' } catch { /* Private storage. */ }
   const label = () => {
@@ -95,7 +96,7 @@ export function createSkiAudio(button: HTMLButtonElement) {
     pause(value: boolean) { paused = value; volume() },
     /** 0 to 1, from settings. */
     setVolume(value: number) { level = Math.max(0, Math.min(1, value)); volume() },
-    reset() { airborne = crashed = onRail = false; descent = lastTrick = lastEdgeSign = nextLiftClunk = 0 },
+    reset() { airborne = crashed = onRail = false; descent = lastTrick = lastEdgeSign = nextLiftClunk = nextFaceShot = 0 },
     update(s: SkiState, riding: boolean) {
       if (!ctx) return
       const t = ctx.currentTime
@@ -112,8 +113,20 @@ export function createSkiAudio(button: HTMLButtonElement) {
       const pan = Math.max(-0.65, Math.min(0.65, s.edgeAngle * 1.1))
       contactPan.pan.setTargetAtTime(pan, t, 0.08)
       plantPan.pan.setTargetAtTime(pan * 0.85, t, 0.05)
-      snowFilter.frequency.setTargetAtTime(700 + 2300 * (1 - loose) + edge * 1250, t, 0.08)
-      contact.gain.setTargetAtTime(sliding ? speed * (0.19 + edge * 0.49 + s.sink * 0.45) : 0, t, 0.05)
+      // Powder sits lower and thicker; packed snow stays brighter.
+      snowFilter.frequency.setTargetAtTime(520 + 2480 * (1 - loose) + edge * 1100 - s.sink * 900, t, 0.08)
+      contact.gain.setTargetAtTime(
+        sliding ? speed * (0.17 + edge * 0.42 + s.sink * 0.72 + loose * 0.12) : 0,
+        t,
+        0.05,
+      )
+      // Face-shot whoosh when deep snow is thrown at speed.
+      const faceShot = sliding && s.sink > 0.12 && s.speed > 6 ? Math.min(1, s.sink * 2.2 + s.skid * 0.8) * speed : 0
+      if (faceShot > 0.35 && t >= nextFaceShot) {
+        windFilter.frequency.setValueAtTime(380 + faceShot * 420, t)
+        transient(wind, t, 0.22 + faceShot * 0.28, 0.11)
+        nextFaceShot = t + 0.28 + Math.random() * 0.35
+      }
       // Wind brightens in the air and tightens in a tuck.
       windFilter.frequency.setTargetAtTime(air ? 920 : s.tuck ? 720 : 540, t, 0.18)
       const windGain = 0.015 + speed * speed * (air ? 0.58 : 0.46) + (s.tuck && !air ? 0.04 : 0)

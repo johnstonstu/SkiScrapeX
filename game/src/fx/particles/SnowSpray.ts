@@ -245,7 +245,7 @@ export class SnowSpray {
     const skid = clamp01(input.skid);
     const carving = clamp01(input.carving);
     const powder = clamp01(input.powder ?? 0);
-    const rate = (4 + skid * 120 + carving * 52 + powder * (88 + skid * 48)) * speed01 * Math.max(this.amount, 0);
+    const rate = (4 + skid * 120 + carving * 52 + powder * (120 + skid * 70)) * speed01 * Math.max(this.amount, 0);
     this.spawnDebt += rate * dt;
     const continuous = Math.min(24, Math.floor(this.spawnDebt));
     const impact = clamp01(input.impact ?? 0);
@@ -267,22 +267,22 @@ export class SnowSpray {
         const jy = Math.random();
         const jz = Math.random() - 0.5;
         flake.x = input.position.x + jx * (0.08 + skid * 0.25);
-        flake.y = input.position.y + 0.06 + jy * 0.05;
+        flake.y = input.position.y + 0.06 + jy * (0.05 + powder * 0.22);
         flake.z = input.position.z + jz * (0.08 + skid * 0.25);
         flake.spawnY = flake.y;
-        const backKick = 0.7 + skid * 2.6 + powder * 1.1;
+        const backKick = 0.7 + skid * 2.6 + powder * 1.55;
         flake.vx = vx * 0.22 - dirX * backKick + jx * (0.45 + skid * 2);
-        flake.vy = 0.9 + skid * 2.3 + carving * 0.45 + jy * 0.7 + Math.abs(dirY) * 0.3;
+        flake.vy = 0.9 + skid * 2.3 + carving * 0.45 + jy * 0.7 + Math.abs(dirY) * 0.3 + powder * (1.1 + jy * 1.8);
         flake.vz = vz * 0.22 - dirZ * backKick + jz * (0.45 + skid * 2);
         if (hasLateral && lateral) {
-          const side = (carving * 2.6 + skid * 0.65 + powder * (0.7 + skid * 1.6)) * Math.min(speed / 9, 1.6);
+          const side = (carving * 2.6 + skid * 0.65 + powder * (1.1 + skid * 2.0)) * Math.min(speed / 9, 1.6);
           flake.vx += lateral.x * side;
-          flake.vy += lateral.y * side * 0.2;
+          flake.vy += lateral.y * side * 0.2 + powder * 0.35;
           flake.vz += lateral.z * side;
         }
       flake.vx += jx * impact * 5;
       flake.vz += jz * impact * 5;
-      flake.vy += impact + powder * (0.65 + jy * 1.55);
+      flake.vy += impact + powder * (0.95 + jy * 2.1);
       flake.age = 0;
       flake.life = 0.6 + Math.random() * 0.45 + skid * 0.2 + powder * 0.38;
       flake.size = 0.07 + carving * 0.03 + skid * 0.16 + Math.random() * 0.05;
