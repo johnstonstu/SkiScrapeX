@@ -348,7 +348,6 @@ function startApex(world: World) {
   ui.mapPanel.hidden = false
   const { grid, resort } = world
   perf.phase('credits')
-  minimap = createMinimap(ui.map, ui.mapLocation, apex.surface.runNameAt, { width: grid.width, depth: grid.depth, resort, hillshade: world.hillshade })
   const runs = pickableRuns(resort)
   const skiRun = (run: Run) => {
     leaveDemoPark()
@@ -356,6 +355,17 @@ function startApex(world: World) {
     course = courseForRun(resort, run)
     restartFromMenu()
   }
+  const tripTrail = (selection: TrailSelection) => {
+    if (!selection) return
+    if (selection.kind === 'run') skiRun(selection.run)
+    else startPark(selection.site)
+  }
+  minimap?.dispose()
+  minimap = createMinimap(ui.map, ui.mapLocation, apex.surface.runNameAt, { width: grid.width, depth: grid.depth, resort, hillshade: world.hillshade }, {
+    runs,
+    parks: apex.parkSites,
+    onTrip: tripTrail,
+  })
   const selectTrail = (selection: TrailSelection) => {
     trailMap?.setSelection(selection)
     syncTrailListSelection(ui.runList, selection)
@@ -366,6 +376,7 @@ function startApex(world: World) {
     runs,
     parks: apex.parkSites,
     onSelect: selectTrail,
+    onTrip: tripTrail,
   })
   buildRunMenu(ui.runList, runs, skiRun, (run) => selectTrail({ kind: 'run', run }))
   apexStage = stage

@@ -2,6 +2,17 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.8.15 (2026-11-24): Map trips and rail language
+
+### Added
+
+- Trail map and HUD minimap: hover tip shows the run/park name near the pointer; click trips (teleports) onto that run or park.
+
+### Changed
+
+- Rail entry crouch→hop-extend; softer step-off dismounts; nose/tail press click + rumble.
+- Plant/edge SFX tightened; washout tip-in crash stays rejected.
+
 ## 0.8.14 (2026-11-24): Powder float and plow
 
 ### Changed

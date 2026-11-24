@@ -1,14 +1,7 @@
 import type { SkiState } from '../sim'
-import type { Resort } from '../world/resort'
-
-const RUN_COLOURS: Record<string, string> = {
-  novice: '#3fbf5a',
-  easy: '#3fbf5a',
-  intermediate: '#2f7fe0',
-  advanced: '#1a1a1a',
-  expert: '#1a1a1a',
-  freeride: '#e0782f',
-}
+import type { ParkSite } from '../world/park'
+import type { Resort, Run } from '../world/resort'
+import { hitTrail, trailLabel, type TrailSelection, RUN_COLOURS } from './trailMap'
 
 /** North-up map of the crop: hillshade, runs by difficulty, lifts and the skier. */
 export function createMinimap(
@@ -16,6 +9,11 @@ export function createMinimap(
   caption: HTMLElement,
   runNameAt: (x: number, z: number) => string,
   world: { width: number; depth: number; resort: Resort; hillshade: string | null },
+  options?: {
+    runs?: readonly Run[]
+    parks?: readonly ParkSite[]
+    onTrip?: (selection: Exclude<TrailSelection, null>) => void
+  },
 ) {
   const size = 168
   const scale = size / Math.max(world.width, world.depth)
@@ -31,6 +29,15 @@ export function createMinimap(
   background.width = canvas.width
   background.height = canvas.height
   const bg = background.getContext('2d')!
+  const runs = options?.runs ?? world.resort.runs
+  const parks = options?.parks ?? []
+  let hover: TrailSelection = null
+
+  const tip = document.createElement('div')
+  tip.className = 'map-hover-tip map-hover-tip--hud'
+  tip.hidden = true
+  tip.setAttribute('aria-hidden', 'true')
+  canvas.parentElement?.append(tip)
 
   const drawFeatures = () => {
     bg.setTransform(ratio * scale, 0, 0, ratio * scale, 0, 0)
@@ -76,14 +83,86 @@ export function createMinimap(
   }
   drawFeatures()
 
+  const radius = () => Math.max(40, Math.min(world.width, world.depth) * 0.045)
+
+  const worldFromEvent = (event: PointerEvent) => {
+    const rect = canvas.getBoundingClientRect()
+    if (rect.width < 1 || rect.height < 1) return null
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * world.width,
+      z: ((event.clientY - rect.top) / rect.height) * world.depth,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    }
+  }
+
+  const placeTip = (clientX: number, clientY: number, label: string) => {
+    if (!label) {
+      tip.hidden = true
+      tip.textContent = ''
+      return
+    }
+    tip.hidden = false
+    tip.textContent = label
+    const parent = canvas.parentElement
+    if (!parent) return
+    const rect = parent.getBoundingClientRect()
+    tip.style.left = `${Math.min(rect.width - 8, Math.max(4, clientX - rect.left + 12))}px`
+    tip.style.top = `${Math.min(rect.height - 8, Math.max(4, clientY - rect.top + 12))}px`
+  }
+
+  const onMove = (event: PointerEvent) => {
+    const point = worldFromEvent(event)
+    if (!point) return
+    hover = hitTrail(point.x, point.z, runs, parks, radius())
+    placeTip(point.clientX, point.clientY, trailLabel(hover))
+    canvas.style.cursor = hover ? 'pointer' : 'default'
+  }
+  const onLeave = () => {
+    hover = null
+    tip.hidden = true
+    tip.textContent = ''
+    canvas.style.cursor = 'default'
+  }
+  const onDown = (event: PointerEvent) => {
+    const point = worldFromEvent(event)
+    if (!point) return
+    const hit = hitTrail(point.x, point.z, runs, parks, radius())
+    if (hit) options?.onTrip?.(hit)
+  }
+  canvas.addEventListener('pointermove', onMove)
+  canvas.addEventListener('pointerleave', onLeave)
+  canvas.addEventListener('pointerdown', onDown)
+
   return {
     /** `view` (orbit camera and its target) names the place being looked at and draws a sight line to it. */
     draw(state: SkiState, liftName?: string, view?: { x: number; z: number; tx: number; tz: number }) {
       const location = view ? runNameAt(view.tx, view.tz) : liftName ?? runNameAt(state.x, state.z)
-      if (caption.textContent !== location) caption.textContent = location
+      if (!hover && caption.textContent !== location) caption.textContent = location
+      if (hover) caption.textContent = trailLabel(hover)
       context.setTransform(1, 0, 0, 1, 0, 0)
       context.drawImage(background, 0, 0)
       context.setTransform(ratio * scale, 0, 0, ratio * scale, 0, 0)
+      if (hover) {
+        context.save()
+        context.globalAlpha = 0.55
+        context.strokeStyle = '#ffdc3a'
+        context.lineWidth = 22
+        context.lineCap = 'round'
+        context.lineJoin = 'round'
+        if (hover.kind === 'run') {
+          for (const part of hover.run.parts) {
+            context.beginPath()
+            part.forEach(([x, z], i) => (i ? context.lineTo(x, z) : context.moveTo(x, z)))
+            context.stroke()
+          }
+        } else {
+          context.beginPath()
+          hover.site.line.forEach(([x, z], i) => (i ? context.lineTo(x, z) : context.moveTo(x, z)))
+          context.stroke()
+        }
+        context.restore()
+      }
       const r = 5 / scale
       context.save()
       context.translate(state.x, state.z)
@@ -117,6 +196,12 @@ export function createMinimap(
         context.arc(view.x, view.z, 3 / scale, 0, Math.PI * 2)
         context.fill()
       }
+    },
+    dispose() {
+      canvas.removeEventListener('pointermove', onMove)
+      canvas.removeEventListener('pointerleave', onLeave)
+      canvas.removeEventListener('pointerdown', onDown)
+      tip.remove()
     },
   }
 }

@@ -57,13 +57,27 @@ html, body {
 }
 
 #map-panel {
-  margin: 0; overflow: hidden; pointer-events: none; background: #132637; color: #fff;
+  margin: 0; overflow: visible; pointer-events: auto; background: #132637; color: #fff;
   right: max(0.75rem, env(safe-area-inset-right));
   bottom: max(2.2rem, calc(env(safe-area-inset-bottom) + 1.6rem));
   border-radius: 0.5rem; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
 }
-#minimap { display: block; }
+#minimap { display: block; cursor: crosshair; }
 #map-location { max-width: 168px; padding: 0.35rem 0.55rem; font: 600 0.82rem/1.2 system-ui, sans-serif; }
+.map-hover-tip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  padding: 0.28rem 0.5rem;
+  border-radius: 0.35rem;
+  background: #0a2230f0;
+  border: 1px solid #6a93a4;
+  color: #edf6ff;
+  font: 650 0.78rem/1.2 system-ui, sans-serif;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.map-hover-tip--hud { font-size: 0.72rem; }
 .touch #map-panel { top: 3.9rem; bottom: auto; transform: scale(0.8); transform-origin: top right; }
 
 #status {

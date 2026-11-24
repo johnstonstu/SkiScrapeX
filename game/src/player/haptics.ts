@@ -8,6 +8,7 @@ export function createHaptics(rumble: (weak: number, strong: number, durationMs?
   let onRail = false
   let crashed = false
   let descent = 0
+  let lastPress: 'none' | 'nose' | 'tail' = 'none'
   const motion = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null
 
   return {
@@ -17,6 +18,7 @@ export function createHaptics(rumble: (weak: number, strong: number, durationMs?
     reset() {
       airborne = onRail = crashed = false
       descent = 0
+      lastPress = 'none'
       nextPulse = 0
     },
     landing(trick: TrickEvent) {
@@ -39,6 +41,9 @@ export function createHaptics(rumble: (weak: number, strong: number, durationMs?
         const impact = Math.min(1, descent / 7)
         if (impact > 0.12) rumble(0.15 * impact, 0.25 + impact * 0.5, 50 + impact * 60)
       }
+      const press = s.rail?.press ?? 'none'
+      if (s.rail && press !== 'none' && press !== lastPress) rumble(0.18, 0.38, 55)
+      lastPress = press
       if (s.chatter > 0.08 && now >= nextPulse) {
         rumble(0.12 + s.chatter * 0.5, s.chatter * 0.22, 85)
         nextPulse = now + 70

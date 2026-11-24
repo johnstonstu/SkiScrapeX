@@ -35,6 +35,12 @@ function distToParts(px: number, pz: number, parts: Point2[][]): number {
   return best
 }
 
+/** Label for a hovered/selected trail. */
+export function trailLabel(selection: TrailSelection): string {
+  if (!selection) return ''
+  return selection.kind === 'run' ? selection.run.name : selection.site.name
+}
+
 /** Nearest named run or park within a hit radius, for map clicks. */
 export function hitTrail(
   x: number,
@@ -62,6 +68,14 @@ export function hitTrail(
   return best
 }
 
+function sameTrail(a: TrailSelection, b: TrailSelection): boolean {
+  if (a === null && b === null) return true
+  if (!a || !b || a.kind !== b.kind) return false
+  if (a.kind === 'run' && b.kind === 'run') return a.run.name === b.run.name
+  if (a.kind === 'park' && b.kind === 'park') return a.site.id === b.site.id
+  return false
+}
+
 export function createTrailMap(
   canvas: HTMLCanvasElement,
   world: WorldSize & { resort: Resort; hillshade: string | null },
@@ -69,6 +83,8 @@ export function createTrailMap(
     runs: readonly Run[]
     parks: readonly ParkSite[]
     onSelect: (selection: TrailSelection) => void
+    /** Click teleports onto the run/park (a trip). */
+    onTrip?: (selection: Exclude<TrailSelection, null>) => void
   },
 ) {
   const context = canvas.getContext('2d')!
@@ -80,6 +96,12 @@ export function createTrailMap(
   let scale = 1
   let cssW = 0
   let cssH = 0
+
+  const tip = document.createElement('div')
+  tip.className = 'map-hover-tip'
+  tip.hidden = true
+  tip.setAttribute('aria-hidden', 'true')
+  canvas.parentElement?.append(tip)
 
   const layout = () => {
     const parent = canvas.parentElement
@@ -170,6 +192,23 @@ export function createTrailMap(
     paintFeatures(bg, null)
   }
 
+  const placeTip = (clientX: number, clientY: number, label: string) => {
+    if (!label) {
+      tip.hidden = true
+      tip.textContent = ''
+      return
+    }
+    tip.hidden = false
+    tip.textContent = label
+    const parent = canvas.parentElement
+    if (!parent) return
+    const rect = parent.getBoundingClientRect()
+    const left = Math.min(rect.width - 12, Math.max(8, clientX - rect.left + 14))
+    const top = Math.min(rect.height - 12, Math.max(8, clientY - rect.top + 14))
+    tip.style.left = `${left}px`
+    tip.style.top = `${top}px`
+  }
+
   const paint = () => {
     context.setTransform(1, 0, 0, 1, 0, 0)
     context.clearRect(0, 0, canvas.width, canvas.height)
@@ -192,16 +231,15 @@ export function createTrailMap(
     const point = worldFromEvent(event)
     if (!point) return
     const next = hitTrail(point[0], point[1], options.runs, options.parks, radius())
-    const same =
-      (next === null && hover === null) ||
-      (next?.kind === 'run' && hover?.kind === 'run' && next.run.name === hover.run.name) ||
-      (next?.kind === 'park' && hover?.kind === 'park' && next.site.id === hover.site.id)
-    if (same) return
+    placeTip(event.clientX, event.clientY, trailLabel(next))
+    if (sameTrail(next, hover)) return
     hover = next
     canvas.style.cursor = next ? 'pointer' : 'default'
     paint()
   })
   canvas.addEventListener('pointerleave', () => {
+    tip.hidden = true
+    tip.textContent = ''
     if (!hover) return
     hover = null
     canvas.style.cursor = 'default'
@@ -213,6 +251,7 @@ export function createTrailMap(
     const next = hitTrail(point[0], point[1], options.runs, options.parks, radius())
     selection = next
     options.onSelect(next)
+    if (next) options.onTrip?.(next)
     paint()
   })
 
@@ -223,11 +262,13 @@ export function createTrailMap(
     setSelection(next: TrailSelection) {
       selection = next
       hover = null
+      tip.hidden = true
       paint()
     },
     resize: layout,
     dispose() {
       window.removeEventListener('resize', layout)
+      tip.remove()
     },
     /** Useful for tests and detail copy. */
     runLength(run: Run) {

@@ -17,6 +17,7 @@ export function createSkiAudio(button: HTMLButtonElement) {
   let lastEdgeSign = 0
   let nextLiftClunk = 0
   let nextFaceShot = 0
+  let lastPress: 'none' | 'nose' | 'tail' = 'none'
   let level = 0.8
   try { muted = localStorage.getItem('apex.soundMuted') === 'true' } catch { /* Private storage. */ }
   const label = () => {
@@ -96,7 +97,7 @@ export function createSkiAudio(button: HTMLButtonElement) {
     pause(value: boolean) { paused = value; volume() },
     /** 0 to 1, from settings. */
     setVolume(value: number) { level = Math.max(0, Math.min(1, value)); volume() },
-    reset() { airborne = crashed = onRail = false; descent = lastTrick = lastEdgeSign = nextLiftClunk = nextFaceShot = 0 },
+    reset() { airborne = crashed = onRail = false; descent = lastTrick = lastEdgeSign = nextLiftClunk = nextFaceShot = 0; lastPress = 'none' },
     update(s: SkiState, riding: boolean) {
       if (!ctx) return
       const t = ctx.currentTime
@@ -143,16 +144,24 @@ export function createSkiAudio(button: HTMLButtonElement) {
       // Same edge-flip rule as the rider plant: a tick when the edge changes side at speed.
       const edgeSign = sliding && Math.abs(s.edgeAngle) > 0.12 ? Math.sign(s.edgeAngle) : 0
       if (edgeSign !== 0 && lastEdgeSign !== 0 && edgeSign !== lastEdgeSign && s.speed > 3) {
-        plantFilter.frequency.setValueAtTime(3600 + speed * 900, t)
-        transient(plant, t, 0.18 + speed * 0.12, 0.028)
-        hitFilter.frequency.setValueAtTime((1600 + edge * 800) * (1 - loose * 0.55), t)
-        transient(hit, t, 0.12 + speed * 0.16 + (1 - loose) * 0.1, 0.05)
+        plantFilter.frequency.setValueAtTime(3400 + speed * 1100 - loose * 900, t)
+        transient(plant, t, 0.16 + speed * 0.14, 0.026)
+        hitFilter.frequency.setValueAtTime((1500 + edge * 900) * (1 - loose * 0.6), t)
+        transient(hit, t, 0.11 + speed * 0.18 + (1 - loose) * 0.12, 0.048)
       }
       if (edgeSign !== 0) lastEdgeSign = edgeSign
       if (railState && !onRail) {
         latchFilter.frequency.setValueAtTime(box ? 1600 : 3900, t)
         transient(latch, t, box ? 0.22 : 0.36, 0.038)
-      } else if (!riding && ((airborne && s.grounded && !railState) || (!crashed && s.crashed > 0) || freshEvent?.kind === 'air')) {
+      }
+      const press = railState ? railState.press : 'none'
+      if (railState && press !== 'none' && press !== lastPress) {
+        latchFilter.frequency.setValueAtTime(press === 'nose' ? 2800 : 1900, t)
+        transient(latch, t, 0.2, 0.04)
+        transient(hit, t, 0.1, 0.05)
+      }
+      lastPress = press
+      if (!riding && ((airborne && s.grounded && !railState) || (!crashed && s.crashed > 0) || freshEvent?.kind === 'air')) {
         const bail = s.crashed > 0 || freshEvent?.grade === 'crash'
         const sketchy = freshEvent?.grade === 'sketchy'
         const speedImpact = freshEvent?.kind === 'air' ? Math.sqrt(Math.max(0, freshEvent.efh) * 19.6) : descent
