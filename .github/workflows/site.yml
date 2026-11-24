@@ -12,10 +12,13 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read
 
 concurrency:
   group: site
-  cancel-in-progress: true
+  # Do not cancel: a half-finished deploy leaves duplicate github-pages artifacts
+  # and the next deploy-pages step fails with "Found 0" or "Found 2".
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -95,5 +98,8 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: game/dist
+      # Give the artifact API a moment; deploy-pages@v4 often races and reports 0 artifacts.
+      - name: Wait for pages artifact
+        run: sleep 20
       - id: pages
         uses: actions/deploy-pages@v4
