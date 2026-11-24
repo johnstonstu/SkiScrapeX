@@ -47,6 +47,8 @@ import { classifyHardware, probeHardware } from './app/hardware'
 import { setSnowDetail } from './fx'
 import { setTextureAnisotropy } from './render/textureBudget'
 import { QUALITY, createSettingsPanel, lighterQuality, readSettings, resolveQuality, shadowsOn, writeSettings, type QualityLevel, type Settings } from './app/settings'
+import { lowerAutoCap, readAutoCap } from './app/autoCap'
+import { showGraphicsProblem } from './app/graphicsFail'
 import { createSession, type Challenge, type SessionEvent } from './app/session'
 import { createGoals, type Goals } from './app/goals'
 import { renderChallenges, renderResults, renderTitle, setTitleStatus } from './ui/goalsPanels'
@@ -1215,42 +1217,6 @@ function watchForGpuReset() {
       true,
     )
   })
-}
-
-function showGraphicsProblem(title: string, detail: string, reload: boolean) {
-  const box = document.createElement('div')
-  box.className = 'graphics-problem'
-  box.setAttribute('role', 'alert')
-  box.innerHTML = `<strong>${escapeHtml(title)}</strong><p>${escapeHtml(detail)}</p>`
-  if (reload) {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.textContent = 'Reload'
-    button.addEventListener('click', () => location.reload())
-    box.append(button)
-  }
-  document.body.append(box)
-}
-
-/** Highest level Auto may use here, learned from GPU resets and slow frames. */
-function readAutoCap(): QualityLevel | null {
-  try {
-    const level = localStorage.getItem(KEYS.autoCap)
-    return level === 'low' || level === 'medium' || level === 'high' ? level : null
-  } catch {
-    return null
-  }
-}
-
-function lowerAutoCap(level: QualityLevel) {
-  const order: QualityLevel[] = ['low', 'medium', 'high']
-  const current = readAutoCap()
-  if (current && order.indexOf(current) <= order.indexOf(level)) return
-  try {
-    localStorage.setItem(KEYS.autoCap, level)
-  } catch {
-    /* not persisted */
-  }
 }
 
 /**

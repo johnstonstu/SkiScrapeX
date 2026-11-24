@@ -1,31 +1,17 @@
 import * as THREE from 'three'
 import { PHYSICS, fallLineHeading, skiFrame, type SkiInput, type SkiState, type SurfaceSample } from '../../sim'
 import { ANKLE_IN_SKI, BOARD_BINDINGS, BOARD_BOOT_HEIGHT, FORE_ARM, SHIN_LENGTH, THIGH_LENGTH, UPPER_ARM, buildRider, type RiderLook } from './skierModel'
+import { Spring } from './spring'
+import { DOUBLE_POLE_CYCLE, doublePolePose } from './doublePole'
+import { applyCrashPose } from './skierCrashPose'
+import { applySitPose } from './skierLiftPose'
 
 export { SKI_GRAPHICS, type RiderLook, type SkiGraphic } from './skierModel'
+export { Spring } from './spring'
+export { doublePolePose } from './doublePole'
 
 /** `ski` follows the sim; `sit` is on a chair; `stand` is upright on a surface lift. */
 export type SkierPose = 'ski' | 'sit' | 'stand'
-
-/**
- * A damped spring toward a moving target. Under-damped channels overshoot a
- * little, which reads as weight: the body sinks past the landing and comes
- * back, the hips swing through an edge change. Sub-stepped so a long frame
- * cannot blow it up.
- */
-export class Spring {
-  v = 0
-  constructor(public x = 0) {}
-  step(target: number, dt: number, hz: number, zeta: number): number {
-    const w = 2 * Math.PI * hz
-    for (let left = dt; left > 1e-6; left -= 1 / 120) {
-      const h = Math.min(left, 1 / 120)
-      this.v += (w * w * (target - this.x) - 2 * zeta * w * this.v) * h
-      this.x += this.v * h
-    }
-    return this.x
-  }
-}
 
 /** Grip to tip, metres. */
 const POLE_REACH = 1.1
@@ -33,40 +19,6 @@ const smooth = (t: number) => t * t * (3 - 2 * t)
 /** Turn pole plant: where the tip strikes (metres ahead of the boots) and how long the reach takes. */
 const PLANT_AHEAD = 0.75
 const PLANT_REACH = 0.12
-/** Seconds per double-pole push. */
-const DOUBLE_POLE_CYCLE = 1.05
-
-/**
- * Double-pole push at phase 0..1: reach forward and plant (0 to 0.35), drive
- * the hands down past the hips while the back crunches (to 0.75), then swing
- * the arms forward again. Hands in chest space, pole tips in root space.
- */
-export function doublePolePose(phase: number, speed: number) {
-  const reachEnd = 0.35
-  const pushEnd = 0.75
-  const forward = { handX: 0.27, handY: 0.12, handZ: 0.5 }
-  const back = { handX: 0.33, handY: -0.32, handZ: -0.2 }
-  const lerp = (a: number, b: number, t: number) => a + (b - a) * t
-  if (phase < reachEnd) {
-    const t = smooth(phase / reachEnd)
-    return {
-      handX: lerp(back.handX, forward.handX, t), handY: lerp(back.handY, forward.handY, t), handZ: lerp(back.handZ, forward.handZ, t),
-      tipY: lerp(0.35, 0.0, t), tipZ: lerp(-0.7, 0.4, t), crunch: 0,
-    }
-  }
-  if (phase < pushEnd) {
-    const t = (phase - reachEnd) / (pushEnd - reachEnd)
-    const k = smooth(t)
-    return {
-      handX: lerp(forward.handX, back.handX, k), handY: lerp(forward.handY, back.handY, k), handZ: lerp(forward.handZ, back.handZ, k),
-      // The tip stays put on the snow while the skier slides past it.
-      tipY: -0.02, tipZ: 0.4 - speed * t * (pushEnd - reachEnd) * DOUBLE_POLE_CYCLE - k * 0.5,
-      crunch: 0.75 * Math.sin(t * Math.PI),
-    }
-  }
-  const t = smooth((phase - pushEnd) / (1 - pushEnd))
-  return { handX: back.handX, handY: lerp(back.handY, back.handY + 0.1, t), handZ: back.handZ, tipY: lerp(0, 0.35, t), tipZ: -0.7, crunch: 0 }
-}
 
 /** Discrete poses that crossfade into each other instead of snapping. */
 type Mode = 'ski' | 'rail' | 'crash' | 'sit' | 'stand'
@@ -352,73 +304,36 @@ export function createSkierView(): {
 
       if (pose === 'sit') {
         ridePhase += dt * 1.55
-        const swing = Math.sin(ridePhase) * 0.045
-        hips.position.set(0, 0.5, 0)
-        spine.rotation.x = -0.1
-        chest.rotation.x = -0.04
-        head.rotation.y = Math.sin(ridePhase * 0.23) * 0.5
-        head.rotation.x = 0.1
-        skis[0].position.set(0.14, -0.16, 0.44 + swing)
-        skis[1].position.set(-0.14, -0.16, 0.44 - swing)
-        skis[0].rotation.x = -0.07 - swing
-        skis[1].rotation.x = -0.07 + swing
-        if (boarding) placeBoard(0, -0.2, 0.46, 0, Math.PI / 2, swing)
-        fitLegs()
-        // Hands rest on the bar, poles across the lap.
-        placeArm(0, v1.set(0.2, -0.2, 0.34).clone(), new THREE.Vector3(0.3, 0.2, 1.2))
-        placeArm(1, v1.set(-0.2, -0.2, 0.34).clone(), new THREE.Vector3(-0.3, 0.2, 1.2))
+        applySitPose({
+          ridePhase,
+          boarding,
+          hips,
+          spine,
+          chest,
+          head,
+          skis,
+          placeBoard,
+          placeArm,
+          fitLegs,
+          scratch: v1,
+        })
         applyFade(dt)
         return
       }
       if (crashed) {
-        // Sprawled on the snow; hard crashes tumble along the impact heading, then gear re-attaches.
-        const hard = THREE.MathUtils.clamp(state.crashSpeed / 18, 0, 1)
-        const sliding = Math.min(1, Math.hypot(state.vx, state.vz) / 8)
-        const tumble = hard * Math.max(sliding, 0.35) * Math.max(0, 1 - state.crashAge / 1.15)
-        const impactOff = Math.atan2(
-          Math.sin(state.crashHeading - state.heading),
-          Math.cos(state.crashHeading - state.heading),
-        )
-        const roll = Math.sin(state.crashAge * 9.5) * tumble + Math.sin(impactOff) * tumble * 0.55
-        const pitch = Math.cos(state.crashAge * 7.2) * tumble + Math.cos(impactOff) * tumble * 0.4
-        hips.position.set(roll * 0.08, 0.12 + (1 - hard) * 0.14 + Math.abs(pitch) * 0.04, hard * 0.08)
-        hips.rotation.set(hard * 0.55 + pitch * 1.1, roll * 0.35, 0.95 + hard * 0.55 + roll * 1.4)
-        spine.rotation.x = 0.2 + hard * 0.2 + pitch * 0.25
-        chest.rotation.x = 0.12 + hard * 0.12
-        chest.rotation.z = -0.15 - hard * 0.12 + roll * 0.3
-        head.rotation.set(-0.25 - hard * 0.2 + pitch * 0.2, 0.25 + hard * 0.15, 0.15 + hard * 0.15 + roll * 0.25)
-        // Yard-sale then re-attach: scatter peaks mid-crash and gathers in the last half-second.
-        const gather = state.crashed < 0.55 ? state.crashed / 0.55 : 1
-        const scatter = hard * (0.55 + (1 - tumble) * 0.45) * gather
-        const sideThrow = Math.sin(impactOff)
-        const alongThrow = Math.cos(impactOff)
-        skis[0].position.set(
-          0.45 + scatter * (0.55 + sideThrow * 0.35),
-          0.04,
-          0.12 + scatter * (0.35 + alongThrow * 0.25) + roll * 0.1,
-        )
-        skis[1].position.set(
-          0.35 + scatter * (0.4 - sideThrow * 0.3),
-          0.04,
-          -0.12 - scatter * (0.45 - alongThrow * 0.2) - roll * 0.08,
-        )
-        skis[0].rotation.set(hard * 0.15 + pitch * 0.3, 0.3 + scatter * 0.5, 0.55 + scatter * 0.7)
-        skis[1].rotation.set(-hard * 0.1 - pitch * 0.2, -0.25 - scatter * 0.4, 0.4 + scatter * 0.55)
-        if (boarding) placeBoard(0.45 + scatter * 0.2, 0.1 + hard * 0.04, roll * 0.2, 0.75 + hard * 0.25, 0.15 + hard * 0.1)
-        fitLegs()
-        // Poles follow the yard-sale then come back with gather.
-        placeArm(
-          0,
-          new THREE.Vector3(0.4 + hard * 0.2 * gather + roll * 0.1, -0.02, 0.08 + hard * 0.12 * gather),
-          new THREE.Vector3(0.75 + hard * 0.35 * gather, 0, 0.5 + hard * 0.25 * gather),
-        )
-        placeArm(
-          1,
-          new THREE.Vector3(-0.3 - hard * 0.18 * gather - roll * 0.1, 0.06 + hard * 0.04, 0.25 + hard * 0.15 * gather),
-          new THREE.Vector3(-0.15 - hard * 0.25 * gather, 0, 1.0 + hard * 0.35 * gather),
-        )
-        crouch.x = 0.85 + hard * 0.1 * gather
-        crouch.v = 0
+        applyCrashPose({
+          state,
+          boarding,
+          hips,
+          spine,
+          chest,
+          head,
+          skis,
+          crouch,
+          placeBoard,
+          placeArm,
+          fitLegs,
+        })
         applyFade(dt)
         return
       }
