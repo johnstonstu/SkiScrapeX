@@ -141,6 +141,8 @@ export interface SkiState {
   crashSpeed: number
   /** Seconds since the crash started, for tumble animation. */
   crashAge: number
+  /** Travel heading at impact (atan2(-vx, vz)), for directional tumble. */
+  crashHeading: number
   /** Seconds before the rail just left can catch the skier again. */
   railCooldown: number
   /** Pitch held off a rail, or off a takeoff without a pop, does not flip until it is let go. */
@@ -192,6 +194,7 @@ export function createSkiState(pose?: { x?: number; y?: number; z?: number; head
     crashed: 0,
     crashSpeed: 0,
     crashAge: 0,
+    crashHeading: 0,
     railCooldown: 0,
     flipLock: false,
     trick: null,
@@ -710,6 +713,8 @@ function finishAir(state: SkiState, grade: TrickEvent['grade'], switchLanding: b
 export function beginCrash(state: SkiState, entrySpeed = Math.hypot(state.vx, state.vz)): void {
   state.crashSpeed = Math.max(0, entrySpeed)
   state.crashAge = 0
+  const planar = Math.hypot(state.vx, state.vz)
+  state.crashHeading = planar > 0.2 ? Math.atan2(-state.vx, state.vz) : state.heading
   // About 1.2 s at a crawl, up to about 2.8 s past 25 m/s.
   state.crashed = FREESTYLE.crashTime * (0.75 + Math.min(1.25, state.crashSpeed / 18))
   state.grounded = true
@@ -741,10 +746,11 @@ function stepCrashed(state: SkiState, sampleTerrain: SampleTerrain, dt: number):
   state.y = ground.height
   state.vy = 0
   if (state.crashed <= 0) {
-    // Get up facing down the hill.
+    // Get up facing down the hill; gear is back under the boots (view re-attaches).
     state.crashed = 0
     state.crashSpeed = 0
     state.crashAge = 0
+    state.crashHeading = 0
     state.vx = state.vz = 0
     const fall = fallLineHeading(facingUp(ground.normal))
     state.ridingSwitch = false

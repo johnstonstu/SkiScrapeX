@@ -10,7 +10,7 @@ import './style.css'
 import './pause.css'
 import './presentation.css'
 import './menu.css'
-import { PHYSICS, PRESETS, advance, createClock, createPreset, createSkier, landingSpot, resetSkier, type SkiState } from './sim'
+import { PHYSICS, PRESETS, advance, beginCrash, createClock, createPreset, createSkier, landingSpot, resetSkier, type SkiState } from './sim'
 import { createSkierView, type SkierPose } from './render/rider/skierView'
 import { createLandingMarker } from './render/rider/landingMarker'
 import { createSlopeView } from './render/terrain/slopeView'
@@ -1019,14 +1019,11 @@ function checkEvents() {
   }
   const world = stage.world
   if (!world) return
-  const crash = (what: string) => {
-    const kmh = Math.round(skier.speed * 3.6)
-    // Bounce back a little and lie in the snow; the sim gets the skier up.
+  const wipe = (what: string, into: number) => {
+    const kmh = Math.round(Math.max(into, skier.speed) * 3.6)
+    beginCrash(skier, Math.max(into, Math.hypot(skier.vx, skier.vz)))
     skier.vx *= -0.15
     skier.vz *= -0.15
-    skier.crashed = 1.6
-    skier.rail = null
-    skier.air = null
     tricks.show(what, `${kmh} km/h`, 'crash')
   }
   if (skier.crashed > 0) return
@@ -1040,13 +1037,40 @@ function checkEvents() {
     const ground = stage.slope.sampleTerrain(skier.x, skier.z)
     if (ground && skier.grounded) skier.y = ground.height
     if (into * 3.6 > 15) {
-      crash('Ran into a building')
+      wipe('Ran into a building', into)
       return
     }
     // Slow: lose the speed into the wall and slide along it.
     if (into > 0) {
       skier.vx += out.nx * into
       skier.vz += out.nz * into
+    }
+  }
+  // Trail-head posts: same placement as signView (skier's right, ~6 m down the line).
+  if (skier.grounded && skier.speed > 6) {
+    for (const run of world.resort.runs) {
+      if (run.kind !== 'line' || !run.name || run.name === 'Unnamed run' || !run.parts[0]) continue
+      const line = run.parts[0]
+      const [x0, z0] = pointAlong(line, 6)
+      const [x1, z1] = pointAlong(line, 14)
+      const length = Math.hypot(x1 - x0, z1 - z0) || 1
+      const sx = x0 - ((z1 - z0) / length) * 9
+      const sz = z0 + ((x1 - x0) / length) * 9
+      if (Math.hypot(skier.x - sx, skier.z - sz) > 0.9) continue
+      const nx = (skier.x - sx) / Math.max(0.05, Math.hypot(skier.x - sx, skier.z - sz))
+      const nz = (skier.z - sz) / Math.max(0.05, Math.hypot(skier.x - sx, skier.z - sz))
+      const into = Math.max(0, -(skier.vx * nx + skier.vz * nz))
+      if (into < 4) {
+        skier.x = sx + nx * 1.05
+        skier.z = sz + nz * 1.05
+        skier.vx += nx * into
+        skier.vz += nz * into
+        break
+      }
+      skier.x = sx + nx * 1.1
+      skier.z = sz + nz * 1.1
+      wipe('Hit a trail sign', into)
+      return
     }
   }
   // Tutorial: the bottom of the bunny hill sends you back to the top.
