@@ -6,7 +6,7 @@ The aim is an Apex that locals recognise, and skiing that feels good on groomers
 
 **Play it:** https://johnstonstu.github.io/SkiScrapeX/ (desktop or phone, nothing to install).
 
-Current version: **0.8.6** (see [CHANGELOG.md](CHANGELOG.md)). Plan to 1.0: [docs/roadmap.md](docs/roadmap.md).
+Current version: **0.8.8** (see [CHANGELOG.md](CHANGELOG.md)). Plan to 1.0: [docs/roadmap.md](docs/roadmap.md).
 
 ## Play locally
 
