@@ -117,15 +117,31 @@ export function findLots(grid: TerrainGrid, canopy: Canopy, roads: Point2[][], r
       for (let col = Math.max(col0, Math.floor(Math.min(...xs) / step)); col <= Math.min(col1, Math.ceil(Math.max(...xs) / step)); col++)
         if (pointInRing(col * step, row * step, b.ring)) blocked[row * columns + col] = 1
   }
+  // Stamp "within 250 m of a building" once instead of scanning centres per cell.
+  const nearBuilding = new Uint8Array(columns * rows)
+  const NEAR = 250
+  for (const [cx, cz] of centres) {
+    const c0 = Math.max(col0, Math.floor((cx - NEAR) / step))
+    const c1 = Math.min(col1, Math.ceil((cx + NEAR) / step))
+    const r0 = Math.max(row0, Math.floor((cz - NEAR) / step))
+    const r1 = Math.min(row1, Math.ceil((cz + NEAR) / step))
+    const nearSq = NEAR * NEAR
+    for (let row = r0; row <= r1; row++) {
+      for (let col = c0; col <= c1; col++) {
+        const x = col * step - cx
+        const z = row * step - cz
+        if (x * x + z * z < nearSq) nearBuilding[row * columns + col] = 1
+      }
+    }
+  }
   for (let row = row0; row < row1; row++) {
     for (let col = col0; col < col1; col++) {
       const i = row * columns + col
-      const x = col * step, z = row * step
+      if (!nearBuilding[i]) continue
       if (canopy.cover[i] >= 0.1) continue
       const h = grid.heights
       const dx = (h[i + 1] - h[i - 1]) / (2 * step), dz = (h[i + columns] - h[i - columns]) / (2 * step)
       if (Math.hypot(dx, dz) > Math.tan((5 * Math.PI) / 180)) continue
-      if (!centres.some(([cx, cz]) => (cx - x) ** 2 + (cz - z) ** 2 < 250 * 250)) continue
       const road = roadDistSq[i]
       if (road > 40 * 40 || road < 5 * 5) continue
       if (blocked[i]) continue

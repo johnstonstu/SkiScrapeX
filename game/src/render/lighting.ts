@@ -27,16 +27,13 @@ export function createLighting(): Lighting {
 }
 
 /** Scene lights for everything that is not the snow shader (trees, skier, lifts). */
-export function addSceneLights(scene: THREE.Scene, lighting: Lighting): THREE.DirectionalLight {
+export function addSceneLights(scene: THREE.Scene, lighting: Lighting, shadowRange = 110): THREE.DirectionalLight {
   scene.add(new THREE.HemisphereLight(lighting.skyColor, lighting.groundColor, 1.1))
   const sun = new THREE.DirectionalLight(lighting.sunColor, 2.0)
   sun.position.copy(lighting.sunDirection).multiplyScalar(1000)
   // Shadows cover a box around the skier; main.ts moves the light with them.
   sun.castShadow = true
-  sun.shadow.camera.left = -110
-  sun.shadow.camera.right = 110
-  sun.shadow.camera.top = 110
-  sun.shadow.camera.bottom = -110
+  setShadowRange(sun, shadowRange)
   sun.shadow.camera.near = 1
   sun.shadow.camera.far = 1600
   sun.shadow.bias = -0.0004
@@ -48,10 +45,21 @@ export function addSceneLights(scene: THREE.Scene, lighting: Lighting): THREE.Di
   return sun
 }
 
+/** Orthographic shadow box half-extent in metres (High uses a longer reach). */
+export function setShadowRange(sun: THREE.DirectionalLight, half: number): void {
+  sun.shadow.camera.left = -half
+  sun.shadow.camera.right = half
+  sun.shadow.camera.top = half
+  sun.shadow.camera.bottom = -half
+  sun.shadow.camera.updateProjectionMatrix()
+  sun.userData.shadowRange = half
+}
+
 /** Keep the shadow box centred a little ahead of the skier. */
 export function followSun(sun: THREE.DirectionalLight, lighting: Lighting, focus: THREE.Vector3): void {
   // Snap to whole shadow texels so shadows do not shimmer as the box moves.
-  const texel = (220 / sun.shadow.mapSize.x) * 4
+  const half = typeof sun.userData.shadowRange === 'number' ? sun.userData.shadowRange : 110
+  const texel = ((half * 2) / sun.shadow.mapSize.x) * 4
   const fx = Math.round(focus.x / texel) * texel
   const fz = Math.round(focus.z / texel) * texel
   sun.target.position.set(fx, focus.y, fz)

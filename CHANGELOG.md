@@ -2,6 +2,14 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.4 (2026-11-24): Building LOD and longer High shadows
+
+### Changed
+
+- Buildings swap to a cheaper far shell (no window shader / fascia) past ~340 m from the village cluster.
+- `findLots` stamps a near-building mask instead of scanning every cell against every footprint centre.
+- High quality shadow box half-extent 110 → 160 m (map size unchanged; 0.9.1 village/forest budgets kept).
+
 ## 0.9.3 (2026-11-24): World gear pickups
 
 ### Added

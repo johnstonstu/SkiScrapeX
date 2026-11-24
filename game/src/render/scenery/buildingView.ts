@@ -7,13 +7,62 @@ const WALLS = ['#8a6243', '#6b4a33', '#7a8088', '#8c3b2b', '#c2a684', '#5f4636']
 const SNOW = new THREE.Color('#eef3f7')
 const TRIM = new THREE.Color('#3b2e26')
 const OVERHANG = 0.7
+/** Show the windowed near mesh inside this distance of the village cluster. */
+const NEAR_LOD = 340
 
 /**
- * All buildings in one mesh. Walls carry (u, v) in metres so the shader can
- * draw a window grid without textures. Gable roofs for box-like footprints,
- * flat snow-covered roofs otherwise.
+ * Buildings as near (windowed) and far (shell) meshes. Collision stays on the
+ * world index; this only swaps draws by camera distance.
  */
 export function createBuildingView(buildings: Building[]) {
+  const group = new THREE.Group()
+  group.name = 'buildings'
+  const near = buildMesh(buildings, true)
+  const far = buildMesh(buildings, false)
+  group.add(near.mesh, far.mesh)
+  near.mesh.visible = true
+  far.mesh.visible = false
+
+  let cx = 0
+  let cz = 0
+  if (buildings.length) {
+    for (const b of buildings) {
+      const [x, z] = centroid(b.ring)
+      cx += x
+      cz += z
+    }
+    cx /= buildings.length
+    cz /= buildings.length
+  }
+
+  return {
+    object: group,
+    update(camera: { x: number; z: number }) {
+      if (!buildings.length) return
+      const dx = camera.x - cx
+      const dz = camera.z - cz
+      const nearCam = dx * dx + dz * dz < NEAR_LOD * NEAR_LOD
+      near.mesh.visible = nearCam
+      far.mesh.visible = !nearCam
+    },
+    dispose() {
+      near.dispose()
+      far.dispose()
+    },
+  }
+}
+
+function centroid(ring: [number, number][]): [number, number] {
+  let x = 0
+  let z = 0
+  for (const [px, pz] of ring) {
+    x += px
+    z += pz
+  }
+  return [x / ring.length, z / ring.length]
+}
+
+function buildMesh(buildings: Building[], detail: boolean) {
   const positions: number[] = []
   const normals: number[] = []
   const colors: number[] = []
@@ -36,7 +85,7 @@ export function createBuildingView(buildings: Building[]) {
   for (const building of buildings) {
     const wall = building.wall ? new THREE.Color(building.wall) : WALLS[building.palette].clone().multiplyScalar(0.9 + (building.palette % 3) * 0.05)
     const { ring, base, eaves } = building
-    const windows = building.kind === 'service' ? 0 : 1
+    const windows = detail && building.kind !== 'service' ? 1 : 0
     let u = 0
     for (let i = 0; i < ring.length; i++) {
       const [ax, az] = ring[i]
@@ -85,13 +134,15 @@ export function createBuildingView(buildings: Building[]) {
           tri(eA, ridgeA, eB, SNOW)
           tri(ridgeA, ridgeB, eB, SNOW)
         }
-        // Thin fascia under the eave.
-        const fA = at(-L, sign * W, eaves - drop - 0.25)
-        const fB = at(L, sign * W, eaves - drop - 0.25)
-        tri(fA, eA, fB, TRIM)
-        tri(fB, eA, eB, TRIM)
-        tri(fA, fB, eA, TRIM)
-        tri(fB, eB, eA, TRIM)
+        if (detail) {
+          // Thin fascia under the eave.
+          const fA = at(-L, sign * W, eaves - drop - 0.25)
+          const fB = at(L, sign * W, eaves - drop - 0.25)
+          tri(fA, eA, fB, TRIM)
+          tri(fB, eA, eB, TRIM)
+          tri(fA, fB, eA, TRIM)
+          tri(fB, eB, eA, TRIM)
+        }
       }
       // Gable triangles at both ends, in the wall colour.
       for (const end of [-1, 1]) {
@@ -114,11 +165,13 @@ export function createBuildingView(buildings: Building[]) {
         if (n.y >= 0) tri(a, b, c, SNOW)
         else tri(a, c, b, SNOW)
       }
-      for (let i = 0; i < ring.length; i++) {
-        const [ax, az] = ring[i]
-        const [bx, bz] = ring[(i + 1) % ring.length]
-        tri(v3(ax, eaves, az), v3(ax, y, az), v3(bx, eaves, bz), TRIM)
-        tri(v3(bx, eaves, bz), v3(ax, y, az), v3(bx, y, bz), TRIM)
+      if (detail) {
+        for (let i = 0; i < ring.length; i++) {
+          const [ax, az] = ring[i]
+          const [bx, bz] = ring[(i + 1) % ring.length]
+          tri(v3(ax, eaves, az), v3(ax, y, az), v3(bx, eaves, bz), TRIM)
+          tri(v3(bx, eaves, bz), v3(ax, y, az), v3(bx, y, bz), TRIM)
+        }
       }
     }
   }
@@ -131,23 +184,24 @@ export function createBuildingView(buildings: Building[]) {
   geometry.computeBoundingSphere()
 
   const material = new THREE.MeshLambertMaterial({ vertexColors: true })
-  material.onBeforeCompile = (shader) => {
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec3 aWall;\nvarying vec3 vWall;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWall = aWall;')
-      .replace('#include <project_vertex>', '#include <project_vertex>\nvCamDist = -mvPosition.z;')
-      .replace('varying vec3 vWall;', 'varying vec3 vWall;\nvarying float vCamDist;')
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWall;\nvarying float vCamDist;')
-      .replace(
-        '#include <clipping_planes_fragment>',
-        `#include <clipping_planes_fragment>
+  if (detail) {
+    material.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec3 aWall;\nvarying vec3 vWall;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWall = aWall;')
+        .replace('#include <project_vertex>', '#include <project_vertex>\nvCamDist = -mvPosition.z;')
+        .replace('varying vec3 vWall;', 'varying vec3 vWall;\nvarying float vCamDist;')
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vWall;\nvarying float vCamDist;')
+        .replace(
+          '#include <clipping_planes_fragment>',
+          `#include <clipping_planes_fragment>
         float keep = smoothstep(2.0, 6.0, vCamDist);
         if (keep < 1.0 && fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) > keep) discard;`,
-      )
-      .replace(
-        '#include <color_fragment>',
-        /* glsl */ `#include <color_fragment>
+        )
+        .replace(
+          '#include <color_fragment>',
+          /* glsl */ `#include <color_fragment>
         if (vWall.z > 0.5) {
           // Windows: 1.4 m wide every 3.4 m, one row per 3 m storey, none in the foundation.
           vec2 cell = vec2(fract(vWall.x / 3.4), fract((vWall.y - 0.6) / 3.0));
@@ -159,14 +213,15 @@ export function createBuildingView(buildings: Building[]) {
           // Horizontal board lines on the siding.
           diffuseColor.rgb *= 1.0 - 0.08 * step(0.92, fract(vWall.y / 0.3)) * (1.0 - pane);
         }`,
-      )
+        )
+    }
   }
   const mesh = new THREE.Mesh(geometry, material)
-  mesh.name = 'buildings'
+  mesh.name = detail ? 'buildings-near' : 'buildings-far'
   mesh.castShadow = true
   mesh.receiveShadow = true
   return {
-    object: mesh,
+    mesh,
     dispose() {
       geometry.dispose()
       material.dispose()

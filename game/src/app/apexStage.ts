@@ -98,7 +98,8 @@ export function buildApexStage(
   mergeStatic(lifts.object, (object) => Boolean(object.userData.hood))
   scene.add(lifts.object)
   const buildings = buildBuildings(resort.buildings, grid.heightAt, canopy ? { grid, canopy } : undefined)
-  scene.add(createBuildingView(buildings).object)
+  const buildingView = createBuildingView(buildings)
+  scene.add(buildingView.object)
   options.phase?.('apex: terrain, forest, lifts, buildings')
 
   const village = buildVillage(grid, canopy, resort.roads, resort.runs, buildings, resort.lifts)
@@ -199,6 +200,7 @@ export function buildApexStage(
     update(camera) {
       terrain.update(camera.x, camera.z)
       forestView.update(camera)
+      buildingView.update(camera)
       villageView.update(camera)
       signs.update(camera)
       parkView?.update(camera)
