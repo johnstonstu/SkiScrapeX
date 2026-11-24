@@ -2,6 +2,14 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.7 (2026-11-24): Heavier tree snow and summit ghosts
+
+### Changed
+
+- Summit species mix leans harder into snow ghosts (short and tall stands above ~2080 m).
+- Near spruce / fir / krummholz carry thicker branch snow; compact LODs match.
+- Far stand-in needles and frost tint read whiter from the air (no extra draw calls).
+
 ## 0.9.6 (2026-11-24): Wider groomers and lift clearings
 
 ### Changed

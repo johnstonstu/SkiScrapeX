@@ -87,6 +87,12 @@ export function createForestView(forest: Forest, detail: ForestDetail) {
     if (tree.species === Species.Ghost) color.setRGB(1.5, 1.55, 1.6)
     else if (tree.species === Species.Snag) color.setRGB(1.1, 1.05, 1)
     else if (tree.species === Species.Fir) color.multiplyScalar(1.05)
+    else {
+      // Soft frost lift so distant spruce/pine/krummholz aren't pure dark green.
+      color.r = color.r * 0.78 + 0.22 * 0.78
+      color.g = color.g * 0.78 + 0.22 * 0.85
+      color.b = color.b * 0.78 + 0.22 * 0.9
+    }
     return color
   }
   const batches: { far: THREE.InstancedMesh; trees: Tree[]; cx: number; cz: number; y: number; n: number; near: boolean }[] = []

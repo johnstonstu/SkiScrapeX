@@ -151,8 +151,11 @@ describe('tree species', () => {
       return counts
     }
     const summit = tally(2150, 5)
+    const summitTall = tally(2150, 12)
     const valley = tally(1650, 24)
-    expect(summit[Species.Krummholz] + summit[Species.Ghost]).toBeGreaterThan(600)
+    expect(summit[Species.Krummholz] + summit[Species.Ghost]).toBeGreaterThan(750)
+    expect(summit[Species.Ghost]).toBeGreaterThan(summit[Species.Krummholz])
+    expect(summitTall[Species.Ghost]).toBeGreaterThan(500)
     expect(summit[Species.Pine]).toBe(0)
     expect(valley[Species.Pine]).toBeGreaterThan(valley[Species.Fir])
     expect(valley[Species.Ghost]).toBe(0)
