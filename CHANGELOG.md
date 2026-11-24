@@ -2,6 +2,16 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.8.13 (2026-11-24): Landing leeway
+
+### Changed
+
+- Upright, lined-up landings get more equivalent-fall-height headroom before a bail; big stomps scrub speed as sketchy instead of wiping out.
+- Short hop / bump landings stay soft a little longer; big graded landings absorb more through the legs.
+- Rail hop-on capture is wider (reach, height window, align).
+- Pole plant fires on steer flip so the hand leads the turn; edge flip still unweights the legs.
+- NPC mutual wipeouts need a harder closing hit; light brushes still bump.
+
 ## 0.8.12 (2026-11-23): Washout no longer crashes
 
 ### Fixed

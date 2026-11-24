@@ -141,6 +141,7 @@ export function createSkierView(): {
   let plantBit = false
   let dpPhase = 0
   let lastEdgeSign = 0
+  let lastSteerSign = 0
   let ridePhase = 0
   let skatePhase = 0
   let switchLook = 0
@@ -411,18 +412,22 @@ export function createSkierView(): {
         : 0
       incline.step(wantIncline, dt, 2.6, 0.92)
 
-      // Edge change: pole plant on the new inside hand, and the legs extend to
-      // release the old edges before flexing into the new turn.
+      // Steer flip plants first (hand leads the turn); edge flip still unweights the legs.
       const edgeSign = Math.abs(edge) > 0.12 ? Math.sign(edge) : 0
-      if (skiing && edgeSign !== 0 && lastEdgeSign !== 0 && edgeSign !== lastEdgeSign && speed > 3) {
-        if (!boarding) {
+      const steerSign = Math.abs(input.steer) > 0.22 ? Math.sign(input.steer) : 0
+      if (skiing && !tucked && !skating && !braking && speed > 3) {
+        if (!boarding && steerSign !== 0 && lastSteerSign !== 0 && steerSign !== lastSteerSign) {
           plantAge = 0
           plantBit = false
           plantRelease = 10
-          plantSide = edgeSign > 0 ? -1 : 1 // right turn: right hand (index 1, side -1)
+          // Positive steer = right turn → plant with the right hand (side -1).
+          plantSide = steerSign > 0 ? -1 : 1
         }
-        crouch.v -= (boarding ? 0.8 : 1.1) * Math.min(1, speed / 10)
+        if (edgeSign !== 0 && lastEdgeSign !== 0 && edgeSign !== lastEdgeSign) {
+          crouch.v -= (boarding ? 0.8 : 1.1) * Math.min(1, speed / 10)
+        }
       }
+      if (steerSign !== 0) lastSteerSign = steerSign
       if (edgeSign !== 0) lastEdgeSign = edgeSign
       plantAge = Math.min(10, plantAge + dt)
       // The tip stays where it struck the snow while the skier passes it; let go once it is behind the boots.

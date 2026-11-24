@@ -77,7 +77,11 @@ describe('pop and landing', () => {
     const n = { x: 0, y: 1, z: 0 }
     expect(gradeLanding({ x: 0, y: -2, z: 10 }, n, 0, air, false).grade).toBe('perfect')
     expect(gradeLanding({ x: 0, y: -5, z: 10 }, n, 0, air, false).grade).toBe('clean')
-    expect(gradeLanding({ x: 0, y: -9, z: 10 }, n, 0, air, false).grade).toBe('crash')
+    // Upright on a big drop stomps sketchy instead of bailing.
+    expect(gradeLanding({ x: 0, y: -9, z: 10 }, n, 0, air, false).grade).toBe('sketchy')
+    expect(gradeLanding({ x: 0, y: -12, z: 10 }, n, 0, air, false).grade).toBe('sketchy')
+    // Only a truly huge upright drop still wipes out.
+    expect(gradeLanding({ x: 0, y: -18, z: 10 }, n, 0, air, false).grade).toBe('crash')
     // Skis 90 degrees across the direction of travel.
     expect(gradeLanding({ x: 0, y: -2, z: 10 }, n, Math.PI / 2, air, false).grade).toBe('crash')
     // Backwards is a switch landing, not a crash.
