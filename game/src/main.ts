@@ -21,6 +21,7 @@ import { addSceneLights, createLighting, createSky, followSun } from './render/l
 import { createControls } from './player/input'
 import { createCameraRig } from './player/camera'
 import { createSkiAudio } from './player/audio'
+import { createHaptics } from './player/haptics'
 import { createSnowEffects } from './player/effects'
 import { createMinimap } from './ui/minimap'
 import { SKI_MODELS, createStylePanel, readOutfit, writeOutfit } from './ui/riderPanel'
@@ -138,6 +139,7 @@ const hideOverlays = () => {
   stylePanel.setVisible(false)
 }
 const sound = createSkiAudio($<HTMLButtonElement>('#btn-sound'))
+const haptics = createHaptics((weak, strong, ms) => controls.rumble(weak, strong, ms))
 const effects = createSnowEffects(scene, lighting, pixelRatio, quality)
 effects.setBoard(outfit.model === 'snowboard')
 const tricks = createTrickFeed(ui.trick)
@@ -151,7 +153,10 @@ function applySetting(key?: keyof Settings) {
   if (all || key === 'steering' || key === 'invertPitch') controls.setOptions({ steering: settings.steering, invertPitch: settings.invertPitch })
   if (all || key === 'volume') sound.setVolume(settings.volume)
   if (all || key === 'fov') rig.setFov(settings.fov)
-  if (all || key === 'cameraShake') rig.setShake(settings.cameraShake ? 1 : 0)
+  if (all || key === 'cameraShake') {
+    rig.setShake(settings.cameraShake ? 1 : 0)
+    haptics.setEnabled(settings.cameraShake)
+  }
   if (all || key === 'cameraStyle') rig.setStyle(settings.cameraStyle)
   // Choosing a graphics level by hand clears the step-down after a GPU reset.
   if (key === 'quality') {
@@ -466,6 +471,7 @@ function spawn() {
   tricks.resetTotal()
   effects.clear()
   sound.reset()
+  haptics.reset()
   rig.snap()
   if (challenge.kind !== 'free') {
     const best = goals?.progress.bests[challenge.id]
@@ -651,6 +657,7 @@ function startRide(lift: Lift) {
   ui.ride.hidden = false
   effects.clear()
   sound.reset()
+  haptics.reset()
   rig.snap()
 }
 
@@ -849,7 +856,10 @@ function tick(dt: number, frameMs: number) {
     perf.begin()
     steps = advance(clock, skier, input, stage.slope.sampleTerrain, dt, stage.env, stage.trunks ? checkTreeContact : undefined)
     perf.lap('sim')
-    if (tricks.onTrick(skier.trick) && skier.trick?.kind === 'air') rig.landingImpulse(skier.trick)
+    if (tricks.onTrick(skier.trick) && skier.trick?.kind === 'air') {
+      rig.landingImpulse(skier.trick)
+      haptics.landing(skier.trick)
+    }
     tricks.update(dt, skier.grounded && !skier.rail)
     if (skier.mode === 'crashed' && !crashShown) {
       crashShown = true
@@ -886,6 +896,7 @@ function tick(dt: number, frameMs: number) {
   stage.update(camera.position)
   perf.lap('update')
   sound.update(skier, Boolean(ride))
+  if (!ride && !pause) haptics.update(skier, performance.now())
   effects.update(dt, skier, ride ? null : ground, camera, stage.snow, !renderer.shadowMap.enabled && rig.mode !== 'first')
   // The landing ring is a third-person aid; in first person it fills the view.
   landingMarker.update(settings.landingRing && rig.mode !== 'first' && skier.air && !ride ? landingSpot(skier, skier.air, stage.slope.sampleTerrain, PHYSICS.gravity) : null, skier.air?.time ?? 0, dt)

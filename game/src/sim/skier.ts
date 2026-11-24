@@ -137,6 +137,8 @@ export interface SkiState {
   rail: RailState | null
   /** Seconds left lying in the snow after a crash. */
   crashed: number
+  /** Planar speed (m/s) at the moment of the crash, for pose and slide length. */
+  crashSpeed: number
   /** Seconds before the rail just left can catch the skier again. */
   railCooldown: number
   /** Pitch held off a rail, or off a takeoff without a pop, does not flip until it is let go. */
@@ -186,6 +188,7 @@ export function createSkiState(pose?: { x?: number; y?: number; z?: number; head
     air: null,
     rail: null,
     crashed: 0,
+    crashSpeed: 0,
     railCooldown: 0,
     flipLock: false,
     trick: null,
@@ -667,17 +670,28 @@ function finishAir(state: SkiState, grade: TrickEvent['grade'], switchLanding: b
   }
 }
 
-function crash(state: SkiState): void {
-  state.crashed = FREESTYLE.crashTime
+/**
+ * Start a crash. `entrySpeed` is the planar speed (m/s) that sets how long
+ * the rider stays down and how far they slide; defaults to current velocity.
+ */
+export function beginCrash(state: SkiState, entrySpeed = Math.hypot(state.vx, state.vz)): void {
+  state.crashSpeed = Math.max(0, entrySpeed)
+  // About 1.2 s at a crawl, up to about 2.8 s past 25 m/s.
+  state.crashed = FREESTYLE.crashTime * (0.75 + Math.min(1.25, state.crashSpeed / 18))
   state.grounded = true
   state.mode = 'crashed'
 }
 
+function crash(state: SkiState): void {
+  beginCrash(state)
+}
+
 function stepCrashed(state: SkiState, sampleTerrain: SampleTerrain, dt: number): void {
   state.crashed -= dt
-  // Tumble to a stop in a couple of metres.
+  // Slow with snow friction plus tumble loss so fast crashes slide farther.
   const speed = Math.hypot(state.vx, state.vz)
-  const keep = speed > 0 ? Math.max(0, 1 - (9 * dt) / speed) : 0
+  const decel = 3.5 + Math.min(10, speed * 0.28)
+  const keep = speed > 0 ? Math.max(0, 1 - (decel * dt) / speed) : 0
   state.vx *= keep
   state.vz *= keep
   state.x += state.vx * dt
@@ -692,6 +706,7 @@ function stepCrashed(state: SkiState, sampleTerrain: SampleTerrain, dt: number):
   if (state.crashed <= 0) {
     // Get up facing down the hill.
     state.crashed = 0
+    state.crashSpeed = 0
     state.vx = state.vz = 0
     const fall = fallLineHeading(facingUp(ground.normal))
     state.ridingSwitch = false

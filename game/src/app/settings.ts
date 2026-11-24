@@ -236,7 +236,7 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
     chips('Flip controls (up and down)', 'invertPitch', [[false, 'Normal'], [true, 'Inverted']])
     slider('Camera field of view', 'fov', 48, 75, 1, (v) => `${v}°`)
     chips('Camera follow', 'cameraStyle', [['steady', 'Steady'], ['tight', 'Tight']], 'steady looks down the hill, tight turns with the skis')
-    chips('Camera shake', 'cameraShake', [[true, 'On'], [false, 'Off']])
+    chips('Camera shake & rumble', 'cameraShake', [[true, 'On'], [false, 'Off']])
     slider('Volume', 'volume', 0, 1, 0.05, percent)
     chips('Other skiers', 'npcs', [[true, 'On'], [false, 'Off']])
     chips('Landing marker', 'landingRing', [[true, 'On'], [false, 'Off']])

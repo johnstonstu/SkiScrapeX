@@ -2,6 +2,20 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## Unreleased — 0.8.11: Sense of speed and crash feel
+
+### Added
+
+- Gamepad dual-rumble from edge chatter, landings, rail latch and crashes (Settings → Camera shake & rumble; respects reduced motion).
+- Follow-camera field of view widens with speed (more in a tuck); off with camera shake or reduced motion.
+- Pole-plant tick and edge-set scrape when the edge flips at speed.
+- Crash entry speed scales how long you stay down, how far you slide, and how sprawled the pose is.
+
+### Changed
+
+- Wind and snow contact keep rising through tuck top speed instead of flattening at ~80 km/h; wind brightens in the air and tightens in a tuck.
+- Tree wipeouts use the same crash path as failed landings.
+
 ## 0.8.10 (2026-11-23): Fullscreen menus and park lines
 
 ### Added

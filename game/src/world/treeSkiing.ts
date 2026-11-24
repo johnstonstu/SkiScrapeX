@@ -1,4 +1,4 @@
-import { fallLineHeading, type SampleTerrain, type SkiState, type SurfaceSample } from '../sim'
+import { beginCrash, fallLineHeading, type SampleTerrain, type SkiState, type SurfaceSample } from '../sim'
 import type { TrunkContact, TrunkIndex } from './forest'
 
 const SKIER_RADIUS = 0.22
@@ -23,9 +23,8 @@ export function resolveTreeContact(
     state.x = gap?.x ?? x
     state.z = gap?.z ?? z
     state.y = gap?.height ?? base.height
+    beginCrash(state, Math.max(into, Math.hypot(state.vx, state.vz)))
     state.vx = state.vy = state.vz = state.speed = 0
-    state.crashed = 1.6
-    state.mode = 'crashed'
     state.air = null
     state.popCharge = state.windup = 0
     state.jumpHeld = false

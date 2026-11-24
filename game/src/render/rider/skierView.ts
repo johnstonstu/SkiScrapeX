@@ -347,23 +347,25 @@ export function createSkierView(): {
         return
       }
       if (crashed) {
-        // Sprawled on the snow, skis twisted; the crossfade makes the fall and the getting up.
-        hips.position.set(0, 0.22, 0)
-        hips.rotation.set(0, 0, 1.35)
-        spine.rotation.x = 0.25
-        chest.rotation.x = 0.18
-        chest.rotation.z = -0.2
-        head.rotation.set(-0.3, 0.3, 0.2)
-        skis[0].position.set(0.55, 0.04, 0.18)
-        skis[1].position.set(0.48, 0.04, -0.13)
-        skis[0].rotation.set(0, 0.4, 0.85)
-        skis[1].rotation.set(0, -0.3, 0.55)
-        if (boarding) placeBoard(0.5, 0.12, 0, 0.9, 0.2)
+        // Sprawled on the snow; hard crashes sprawl flatter, soft ones sit on a hip.
+        // The crossfade makes the fall and the getting up.
+        const hard = THREE.MathUtils.clamp(state.crashSpeed / 18, 0, 1)
+        hips.position.set(0, 0.14 + (1 - hard) * 0.12, hard * 0.08)
+        hips.rotation.set(hard * 0.55, 0, 0.95 + hard * 0.55)
+        spine.rotation.x = 0.2 + hard * 0.2
+        chest.rotation.x = 0.12 + hard * 0.12
+        chest.rotation.z = -0.15 - hard * 0.12
+        head.rotation.set(-0.25 - hard * 0.2, 0.25 + hard * 0.15, 0.15 + hard * 0.15)
+        skis[0].position.set(0.45 + hard * 0.2, 0.04, 0.12 + hard * 0.12)
+        skis[1].position.set(0.4 + hard * 0.18, 0.04, -0.1 - hard * 0.08)
+        skis[0].rotation.set(hard * 0.15, 0.3 + hard * 0.2, 0.55 + hard * 0.4)
+        skis[1].rotation.set(-hard * 0.1, -0.25 - hard * 0.15, 0.4 + hard * 0.25)
+        if (boarding) placeBoard(0.45 + hard * 0.1, 0.1 + hard * 0.04, 0, 0.75 + hard * 0.25, 0.15 + hard * 0.1)
         fitLegs()
-        placeArm(0, new THREE.Vector3(0.45, -0.01, 0.1), new THREE.Vector3(0.9, 0, 0.6))
-        placeArm(1, new THREE.Vector3(-0.35, 0.09, 0.3), new THREE.Vector3(-0.2, 0, 1.2))
+        placeArm(0, new THREE.Vector3(0.4 + hard * 0.12, -0.02, 0.08 + hard * 0.08), new THREE.Vector3(0.75 + hard * 0.25, 0, 0.5 + hard * 0.2))
+        placeArm(1, new THREE.Vector3(-0.3 - hard * 0.1, 0.06 + hard * 0.04, 0.25 + hard * 0.1), new THREE.Vector3(-0.15 - hard * 0.15, 0, 1.0 + hard * 0.3))
         // Settle the springs into a low crouch so getting up rises out of it.
-        crouch.x = 0.9
+        crouch.x = 0.85 + hard * 0.1
         crouch.v = 0
         applyFade(dt)
         return
