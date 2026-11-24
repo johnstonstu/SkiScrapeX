@@ -88,6 +88,28 @@ describe('resort', () => {
     expect(resort.lifts[0].towers.length).toBe(0)
   })
 
+  it('fills seat counts from Apex lift names when OSM omits occupancy', () => {
+    expect(resort.lifts[0].seats).toBe(4)
+    const withStocks = resortFromFeatures(
+      {
+        ...doc,
+        lifts: [
+          ...doc.lifts!,
+          {
+            name: "Stock's Chair",
+            aerialway: 'chair_lift',
+            line: [
+              { x: 10, z: 48 },
+              { x: 10, z: 2 },
+            ],
+          },
+        ],
+      },
+      grid.heightAt,
+    )
+    expect(withStocks.lifts.find((l) => /stock/i.test(l.name))?.seats).toBe(3)
+  })
+
   it('spawns on the run beside the top terminal, facing down it', () => {
     const course = chooseCourse(resort, grid.heightAt)
     expect(course.startRun?.name).toBe('Down')

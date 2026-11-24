@@ -1,7 +1,29 @@
 import { expect, it } from 'vitest'
-import { InstancedMesh, Matrix4, Vector3 } from 'three'
+import { InstancedMesh, Matrix4, Mesh, Vector3 } from 'three'
 import { createLiftView, sampleRide } from '../src/render/scenery/liftView'
 import type { Lift } from '../src/world/resort'
+
+it('builds open green Stock\'s terminals instead of a Uni hood', () => {
+  const lift: Lift = {
+    seats: 3,
+    id: 'stocks',
+    name: "Stock's Chair",
+    type: 'chair_lift',
+    bottom: [10, 20],
+    top: [210, 320],
+    towers: [[110, 170]],
+    line: [[10, 20], [210, 320]],
+  }
+  const view = createLiftView([lift], (_x, z) => z * 0.2)
+  const ride = view.ride(lift.id)!
+  expect(ride.speed).toBeCloseTo(2.28, 2)
+  let greens = 0
+  view.object.traverse((child) => {
+    if (child instanceof Mesh && (child.material as { color?: { getHex(): number } }).color?.getHex() === 0x3f6b3a) greens++
+  })
+  expect(greens).toBeGreaterThan(0)
+  view.dispose()
+})
 
 it.each([3, 4])('keeps the rider on the same %i-seat chair during fast-forward', seats => {
   const lift: Lift = {

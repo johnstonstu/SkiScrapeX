@@ -58,13 +58,18 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
   towerGeometry.translate(0, TOWER_HEIGHT / 2, 0)
   const armGeometry = new THREE.BoxGeometry(HALF_GAUGE * 2 + 1, 0.4, 0.5)
   // Chairlift hardware after Quickdraw (Doppelmayr-CTEC detachable quad, 1994): galvanized
-  // tubular towers and chairs, Uni terminals under a light hood.
-  const galv = new THREE.MeshStandardMaterial({ color: 0xa4abb2, metalness: 0.55, roughness: 0.42 })
-  const pad = new THREE.MeshStandardMaterial({ color: 0x262b33, roughness: 0.8 })
-  const hood = new THREE.MeshStandardMaterial({ color: 0xdfe3e7, roughness: 0.5, metalness: 0.1 })
+  // tubular towers and chairs, Uni terminals under a light hood. Stock's (GMD Müller triple)
+  // uses open green-frame terminals instead.
+  const galv = new THREE.MeshStandardMaterial({ color: 0xb0b6bc, metalness: 0.55, roughness: 0.42 })
+  const pad = new THREE.MeshStandardMaterial({ color: 0x1e2329, roughness: 0.8 })
+  const hood = new THREE.MeshStandardMaterial({ color: 0xe4e8ec, roughness: 0.5, metalness: 0.1 })
+  const stocksGreen = new THREE.MeshLambertMaterial({ color: 0x3f6b3a })
+  const stocksCabin = new THREE.MeshLambertMaterial({ color: 0x6e7a68 })
   const aerialTower = chairTower()
 
-  const disposables: { dispose(): void }[] = [steel, paint, roof, ropeMaterial, towerGeometry, armGeometry, galv, pad, hood, aerialTower]
+  const disposables: { dispose(): void }[] = [
+    steel, paint, roof, ropeMaterial, towerGeometry, armGeometry, galv, pad, hood, stocksGreen, stocksCabin, aerialTower,
+  ]
   const ropes: {
     liftId: string
     circuit: RidePath
@@ -127,11 +132,17 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       arm.rotation.y = yaw
       group.add(tower, arm)
     }
+    const stocksLift = aerial && (lift.seats === 3 || /stock/i.test(lift.name))
     for (const [x, z] of [lift.bottom, lift.top]) {
-      const station = aerial ? terminal({ galv, hood, paint, roof }, disposables) : surfaceTerminal(steel, paint, roof, disposables)
+      const atTop = x === lift.top[0] && z === lift.top[1]
+      const station = !aerial
+        ? surfaceTerminal(steel, paint, roof, disposables)
+        : stocksLift
+          ? stocksTerminal({ green: stocksGreen, cabin: stocksCabin, steel, roof }, disposables, atTop ? 'top' : 'bottom')
+          : terminal({ galv, hood, paint, roof }, disposables)
       station.position.set(x, ground(x, z), z)
       // Each terminal's detach section faces down the line toward the other end.
-      station.rotation.y = yaw + (aerial && x === lift.top[0] && z === lift.top[1] ? Math.PI : 0)
+      station.rotation.y = yaw + (aerial && atTop ? Math.PI : 0)
       group.add(station)
       if (station.userData.housing) housings.push(station)
     }
@@ -389,7 +400,7 @@ function terminal(
   ])
   const shell = new THREE.CylinderGeometry(width / 2 + 0.15, width / 2 + 0.15, length + 0.4, 20, 1, false, Math.PI / 2, Math.PI)
   shell.rotateX(Math.PI / 2)
-  shell.scale(1, 0.5, 1)
+  shell.scale(1, 0.58, 1)
   shell.translate(0, base + 0.9, from + length / 2)
   const skirt = box(width + 0.3, 0.35, length + 0.4, 0, base + 0.75, from + length / 2)
   const hut = box(3.2, 2.6, 3.2, width / 2 + 3, 1.3, 6)
@@ -412,6 +423,67 @@ function terminal(
   // The housing and hood stay separate meshes (see mergeStatic's keep) so they can hide around the camera.
   for (const mesh of meshes.slice(0, 3)) mesh.userData.hood = true
   group.userData.housing = { parts: meshes.slice(0, 3), halfWidth: width / 2 + 2.5, from: from - 3, to: from + length + 7, top: base + 5 }
+  group.add(...meshes)
+  return group
+}
+
+/**
+ * Stock's Chair (GMD Müller fixed-grip triple): open green steel at the bottom
+ * return, grey-green A-frame drive cabin at the top. Rope height matches Uni
+ * terminals so the shared stop / ride path stays valid.
+ */
+function stocksTerminal(
+  m: { green: THREE.Material; cabin: THREE.Material; steel: THREE.Material; roof: THREE.Material },
+  disposables: { dispose(): void }[],
+  end: 'bottom' | 'top',
+): THREE.Group {
+  const group = new THREE.Group()
+  const width = HALF_GAUGE * 2 + 1.2
+  const base = STATION_HEIGHT
+  if (end === 'bottom') {
+    // Open return: four legs, crossbeams, bullwheel, small attendant hut.
+    const legs = [-1, 1].flatMap((sx) =>
+      [-1, 1].map((sz) => box(0.28, base, 0.28, sx * (width / 2 - 0.2), base / 2, sz * 2.4)),
+    )
+    const beams = [
+      box(width, 0.22, 0.22, 0, base - 0.2, -2.4),
+      box(width, 0.22, 0.22, 0, base - 0.2, 2.4),
+      box(0.22, 0.22, 5.0, -width / 2 + 0.2, base - 0.2, 0),
+      box(0.22, 0.22, 5.0, width / 2 - 0.2, base - 0.2, 0),
+      box(width * 0.7, 0.35, 0.35, 0, base + 0.15, 0),
+    ]
+    const wheel = new THREE.TorusGeometry(HALF_GAUGE, 0.14, 6, 24)
+    wheel.rotateX(Math.PI / 2)
+    wheel.translate(0, base, 0)
+    const hut = box(2.8, 2.2, 2.8, width / 2 + 3.2, 1.1, 1.5)
+    const hutRoof = box(3.2, 0.25, 3.2, width / 2 + 3.2, 2.35, 1.5)
+    const frame = merge([...legs, ...beams])
+    disposables.push(frame, wheel, hut, hutRoof)
+    const meshes = [
+      new THREE.Mesh(frame, m.green),
+      new THREE.Mesh(wheel, m.steel),
+      new THREE.Mesh(hut, m.cabin),
+      new THREE.Mesh(hutRoof, m.roof),
+    ]
+    for (const mesh of meshes) mesh.castShadow = true
+    group.add(...meshes)
+    return group
+  }
+  // Top drive: grey-green A-frame cabin with a window strip; open under the rope.
+  const cabin = box(5.2, 3.2, 4.4, 0, base + 0.2, -0.4)
+  const roofA = box(5.8, 0.28, 2.6, 0, base + 2.2, -1.3, -0.45)
+  const roofB = box(5.8, 0.28, 2.6, 0, base + 2.2, 0.5, 0.45)
+  const posts = [-1, 1].flatMap((sx) => [
+    box(0.35, base, 0.35, sx * 2.0, base / 2, -1.6),
+    box(0.35, base, 0.35, sx * 2.0, base / 2, 1.2),
+  ])
+  const windows = box(5.3, 1.0, 3.6, 0, base + 0.6, -0.4)
+  const frame = merge([...posts, cabin, roofA, roofB])
+  disposables.push(frame, windows)
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1d2630, roughness: 0.25, metalness: 0.25 })
+  disposables.push(dark)
+  const meshes = [new THREE.Mesh(frame, m.cabin), new THREE.Mesh(windows, dark)]
+  for (const mesh of meshes) mesh.castShadow = true
   group.add(...meshes)
   return group
 }

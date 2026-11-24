@@ -129,17 +129,28 @@ export function resortFromFeatures(doc: FeaturesDocument, heightAt: (x: number, 
     })
   })
   const lifts = (doc.lifts ?? [])
-    .map((lift, index) =>
-      makeLift(
+    .map((lift, index) => {
+      const name = lift.name === "Stock's Chiar" ? "Stock's Chair" : lift.name ?? 'Lift'
+      // OSM often omits aerialway:occupancy; Apex locals know Stock's is a triple and Quickdraw a quad.
+      const tagged = Number(lift.tags?.['aerialway:occupancy'])
+      const seats =
+        Number.isFinite(tagged) && tagged > 0
+          ? tagged
+          : /stock/i.test(name)
+            ? 3
+            : /quick\s*draw/i.test(name)
+              ? 4
+              : undefined
+      return makeLift(
         lift.id ?? `lift/${index}`,
-        lift.name === "Stock's Chiar" ? "Stock's Chair" : lift.name ?? 'Lift',
+        name,
         lift.aerialway ?? 'lift',
         (lift.line ?? []).map(pt),
         (lift.towers ?? []).map(pt),
         heightAt,
-        Number(lift.tags?.['aerialway:occupancy']) || undefined,
-      ),
-    )
+        seats,
+      )
+    })
     .filter((lift): lift is Lift => lift !== null)
   return {
     runs: runs.filter((run) => run.parts.length > 0),
