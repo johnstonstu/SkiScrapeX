@@ -99,7 +99,7 @@ export function buildApexStage(
   options.phase?.('apex: terrain, forest, lifts, buildings')
 
   const village = buildVillage(grid, canopy, resort.roads, resort.runs, buildings, resort.lifts)
-  scene.add(createVillageView(village, grid.heightAt).object)
+  scene.add(createVillageView(village, grid.heightAt, { detail: quality.villageDetail }).object)
   options.phase?.('apex: village')
   const solid: Building[] = [...buildings]
   if (village.hut) {

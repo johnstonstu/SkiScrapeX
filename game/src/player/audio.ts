@@ -1,5 +1,14 @@
 import type { SkiState } from '../sim'
 
+type SampleKind = 'plant' | 'landing' | 'latch'
+
+/** Optional one-shot WAVs under `public/audio/` layered on procedural ticks (missing files = procedural only). */
+const SAMPLE_URLS: Record<SampleKind, string> = {
+  plant: 'audio/plant.wav',
+  landing: 'audio/landing.wav',
+  latch: 'audio/latch.wav',
+}
+
 /** Procedural ski contact, airflow and lift sounds, unlocked by the first user gesture. */
 export function createSkiAudio(button: HTMLButtonElement) {
   let ctx: AudioContext | undefined
@@ -19,6 +28,8 @@ export function createSkiAudio(button: HTMLButtonElement) {
   let nextFaceShot = 0
   let lastPress: 'none' | 'nose' | 'tail' = 'none'
   let level = 0.8
+  const samples: Partial<Record<SampleKind, AudioBuffer>> = {}
+  let samplesTried = false
   try { muted = localStorage.getItem('apex.soundMuted') === 'true' } catch { /* Private storage. */ }
   const label = () => {
     button.textContent = muted ? 'Sound · Off' : 'Sound · On'
@@ -27,6 +38,32 @@ export function createSkiAudio(button: HTMLButtonElement) {
   const volume = () => {
     if (ctx) master.gain.setTargetAtTime(muted || paused || document.hidden ? 0 : 0.575 * level, ctx.currentTime, 0.025)
   }
+  const loadSamples = () => {
+    if (!ctx || samplesTried) return
+    samplesTried = true
+    for (const [kind, url] of Object.entries(SAMPLE_URLS) as [SampleKind, string][]) {
+      void fetch(url)
+        .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject()))
+        .then((raw) => ctx!.decodeAudioData(raw))
+        .then((buf) => {
+          samples[kind] = buf
+        })
+        .catch(() => {
+          /* Procedural-only when the file is missing. */
+        })
+    }
+  }
+  const playSample = (kind: SampleKind, time: number, gainLevel: number) => {
+    const buf = samples[kind]
+    if (!ctx || !buf || !master) return false
+    const src = ctx.createBufferSource()
+    const g = ctx.createGain()
+    g.gain.value = gainLevel
+    src.buffer = buf
+    src.connect(g).connect(master)
+    src.start(time)
+    return true
+  }
   const unlock = () => {
     if (muted || !window.AudioContext) return
     if (!ctx) {
@@ -34,6 +71,7 @@ export function createSkiAudio(button: HTMLButtonElement) {
       master = ctx.createGain()
       master.gain.value = 0
       master.connect(ctx.destination)
+      loadSamples()
       const buffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate)
       const samples = buffer.getChannelData(0)
       for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1
@@ -145,14 +183,16 @@ export function createSkiAudio(button: HTMLButtonElement) {
       const edgeSign = sliding && Math.abs(s.edgeAngle) > 0.12 ? Math.sign(s.edgeAngle) : 0
       if (edgeSign !== 0 && lastEdgeSign !== 0 && edgeSign !== lastEdgeSign && s.speed > 3) {
         plantFilter.frequency.setValueAtTime(3400 + speed * 1100 - loose * 900, t)
-        transient(plant, t, 0.16 + speed * 0.14, 0.026)
+        const plantLevel = 0.16 + speed * 0.14
+        if (!playSample('plant', t, plantLevel * 0.85)) transient(plant, t, plantLevel, 0.026)
         hitFilter.frequency.setValueAtTime((1500 + edge * 900) * (1 - loose * 0.6), t)
         transient(hit, t, 0.11 + speed * 0.18 + (1 - loose) * 0.12, 0.048)
       }
       if (edgeSign !== 0) lastEdgeSign = edgeSign
       if (railState && !onRail) {
         latchFilter.frequency.setValueAtTime(box ? 1600 : 3900, t)
-        transient(latch, t, box ? 0.22 : 0.36, 0.038)
+        const latchLevel = box ? 0.22 : 0.36
+        if (!playSample('latch', t, latchLevel * 0.9)) transient(latch, t, latchLevel, 0.038)
       }
       const press = railState ? railState.press : 'none'
       if (railState && press !== 'none' && press !== lastPress) {
@@ -166,7 +206,10 @@ export function createSkiAudio(button: HTMLButtonElement) {
         const sketchy = freshEvent?.grade === 'sketchy'
         const speedImpact = freshEvent?.kind === 'air' ? Math.sqrt(Math.max(0, freshEvent.efh) * 19.6) : descent
         hitFilter.frequency.setValueAtTime(bail ? 520 : (sketchy ? 1380 : 840) * (1 - loose * 0.52), t)
-        transient(hit, t, bail ? 0.82 : Math.min(0.74, 0.14 + speedImpact * 0.045 + (sketchy ? 0.17 : 0)), bail ? 0.13 : sketchy ? 0.096 : 0.062)
+        const landLevel = bail ? 0.82 : Math.min(0.74, 0.14 + speedImpact * 0.045 + (sketchy ? 0.17 : 0))
+        if (bail || !playSample('landing', t, landLevel * 0.8)) {
+          transient(hit, t, landLevel, bail ? 0.13 : sketchy ? 0.096 : 0.062)
+        }
       }
       onRail = Boolean(railState)
       airborne = air

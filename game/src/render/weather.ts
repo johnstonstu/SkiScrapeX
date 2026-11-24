@@ -110,6 +110,27 @@ export function weatherPreset(id: WeatherId): WeatherPreset {
   return PRESETS[id] ?? PRESETS.snow
 }
 
+/** Live wind + fog nudge for a short gust on top of a weather preset. */
+export function weatherGust(preset: WeatherPreset, timeSeconds: number): {
+  windEast: number
+  windSouth: number
+  fogFar: number
+  strength: number
+} {
+  // Occasional ~4 s gusts; stronger in storm, mild on bluebird.
+  const period = preset.id === 'storm' ? 11 : preset.id === 'snow' ? 16 : 22
+  const phase = ((timeSeconds % period) / period) * Math.PI * 2
+  const pulse = Math.max(0, Math.sin(phase)) ** 2
+  const base = preset.id === 'storm' ? 0.85 : preset.id === 'snow' ? 0.45 : preset.id === 'flat' ? 0.25 : 0.12
+  const strength = base * pulse
+  return {
+    windEast: preset.windEast * (1 + strength * 1.8),
+    windSouth: preset.windSouth * (1 + strength * 1.5),
+    fogFar: preset.fogFar * (1 - strength * (preset.id === 'storm' ? 0.35 : 0.18)),
+    strength,
+  }
+}
+
 /** Push a preset into the shared lighting object and live scene lights / sky / fog. */
 export function applyWeather(
   id: WeatherId,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { FIXED_DT, beginCrash, createSkiState, createSteadySlope, stepSkier } from '../src/sim'
-import { applyWeather, weatherPreset } from '../src/render/weather'
+import { applyWeather, weatherGust, weatherPreset } from '../src/render/weather'
 import { createLighting, createSky, addSceneLights } from '../src/render/lighting'
 import * as THREE from 'three'
 
@@ -82,5 +82,15 @@ describe('weather presets', () => {
     applyWeather('storm', lighting, scene, sun, sky)
     expect(lighting.fogDensity).toBeGreaterThan(0.0002)
     expect(sun.intensity).toBeLessThan(1.2)
+  })
+
+  it('gusts strengthen wind and pull fog nearer without leaving the preset band', () => {
+    const storm = weatherPreset('storm')
+    const calm = weatherGust(storm, 0)
+    const peak = weatherGust(storm, 2.75)
+    expect(peak.windEast).toBeGreaterThanOrEqual(calm.windEast)
+    expect(peak.fogFar).toBeLessThanOrEqual(storm.fogFar)
+    expect(peak.strength).toBeGreaterThanOrEqual(0)
+    expect(peak.strength).toBeLessThanOrEqual(1)
   })
 })
