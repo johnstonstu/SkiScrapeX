@@ -41,5 +41,7 @@ describe('choosing the graphics level', () => {
     expect(mid.anisotropy).toBeGreaterThan(low.anisotropy)
     expect(high.forestDensity).toBeGreaterThan(mid.forestDensity)
     expect(high.terrain.near).toBeGreaterThan(mid.terrain.near ?? 0)
+    expect(high.shadowRange).toBeGreaterThan(mid.shadowRange)
+    expect(mid.shadowRange).toBe(low.shadowRange)
   })
 })

@@ -104,7 +104,7 @@ const scene = new THREE.Scene()
 if (params.has('perf')) Object.assign(window, { __scene: scene })
 // `?test`: handles for the headless smoke test.
 if (params.has('test')) Object.assign(window, { __game: { scene, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals }, get npcs() { return npcs } } })
-const sun = addSceneLights(scene, lighting)
+const sun = addSceneLights(scene, lighting, quality.shadowRange)
 sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize)
 const sky = createSky(lighting)
 scene.add(sky)

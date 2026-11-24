@@ -74,6 +74,8 @@ export interface QualityProfile {
   pixelRatioMax: number
   antialias: boolean
   shadowMapSize: number
+  /** Orthographic shadow box half-extent in metres (High reaches farther). */
+  shadowRange: number
   /** Shadows when the setting is Auto. Off on Low: the shadow pass is the biggest single cost on phones. */
   shadows: boolean
   /** Close-up snow detail in the terrain shader (fine relief, worn patches, wandering edges). */
@@ -100,6 +102,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     pixelRatioMax: 1.5,
     antialias: false,
     shadowMapSize: 1024,
+    shadowRange: 110,
     shadows: false,
     snowDetail: false,
     forest: { near: 150, mid: 600, midShare: 0.45, farShare: 0.1, compact: true },
@@ -119,6 +122,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     pixelRatioMax: 1.75,
     antialias: true,
     shadowMapSize: 2048,
+    shadowRange: 110,
     shadows: true,
     snowDetail: true,
     forest: { near: 200, mid: 750, midShare: 0.55, farShare: 0.15 },
@@ -138,6 +142,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     pixelRatioMax: 2,
     antialias: true,
     shadowMapSize: 2048,
+    shadowRange: 160,
     shadows: true,
     snowDetail: true,
     forest: { near: 260, mid: 900, midShare: 0.7, farShare: 0.22 },
