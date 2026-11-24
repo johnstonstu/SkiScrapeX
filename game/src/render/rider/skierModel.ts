@@ -11,6 +11,7 @@
  */
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
+import { applyTextureBudget } from '../textureBudget'
 import { makeBoardBoot, makeSkiBoot } from './riderBoot'
 import { jacketGeometry, fabricWeave } from './riderCloth'
 
@@ -127,7 +128,7 @@ function skiGraphicTexture(graphic: SkiGraphic, base: string, accent: string): T
   }
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = 4
+  applyTextureBudget(texture)
   return texture
 }
 

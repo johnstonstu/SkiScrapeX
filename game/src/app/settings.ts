@@ -85,8 +85,12 @@ export interface QualityProfile {
   sprayParticles: number
   snowflakes: number
   trackResolution: number
-  /** Village props: cars/decks on Medium+; Low keeps hut shells only. */
-  villageDetail: 'full' | 'lite'
+  /** Village props: High full; Medium thinned cars/decks; Low hut only. */
+  villageDetail: 'full' | 'mid' | 'lite'
+  /** Canvas / map anisotropy (clamped to the renderer max at boot). */
+  anisotropy: number
+  /** Main crop forest plant density (apron has its own fields). */
+  forestDensity: number
 }
 
 export const QUALITY: Record<QualityLevel, QualityProfile> = {
@@ -106,6 +110,8 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     snowflakes: 1600,
     trackResolution: 256,
     villageDetail: 'lite',
+    anisotropy: 2,
+    forestDensity: 0.7,
   },
   medium: {
     level: 'medium',
@@ -117,12 +123,14 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     snowDetail: true,
     forest: { near: 200, mid: 750, midShare: 0.55, farShare: 0.15 },
     apronForestDensity: 0.8,
-    apronForestReach: 1300,
+    apronForestReach: 1100,
     terrain: { near: 110, far: 180, cache: 36, coarseStride: 1 },
     sprayParticles: 1400,
     snowflakes: 2800,
     trackResolution: 512,
-    villageDetail: 'full',
+    villageDetail: 'mid',
+    anisotropy: 4,
+    forestDensity: 0.8,
   },
   high: {
     level: 'high',
@@ -135,11 +143,13 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     forest: { near: 260, mid: 900, midShare: 0.7, farShare: 0.22 },
     apronForestDensity: 1,
     apronForestReach: 1800,
-    terrain: {},
+    terrain: { near: 160, far: 250, cache: 56 },
     sprayParticles: 2048,
     snowflakes: 4200,
     trackResolution: 512,
     villageDetail: 'full',
+    anisotropy: 8,
+    forestDensity: 0.85,
   },
 }
 

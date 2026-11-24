@@ -44,6 +44,7 @@ import { VERSION } from './app/version'
 import { createFrameWatch } from './app/adaptive'
 import { classifyHardware, probeHardware } from './app/hardware'
 import { setSnowDetail } from './fx'
+import { setTextureAnisotropy } from './render/textureBudget'
 import { QUALITY, createSettingsPanel, lighterQuality, readSettings, resolveQuality, shadowsOn, writeSettings, type QualityLevel, type Settings } from './app/settings'
 import { createSession, type Challenge, type SessionEvent } from './app/session'
 import { createGoals, type Goals } from './app/goals'
@@ -88,6 +89,7 @@ console.info(`SkiScrapex graphics: ${quality.level} (${qualityReason})`, hardwar
 const frameWatch = createFrameWatch()
 const pixelRatio = Math.min(window.devicePixelRatio, quality.pixelRatioMax)
 const renderer = createRenderer()
+setTextureAnisotropy(Math.min(quality.anisotropy, renderer.capabilities.getMaxAnisotropy()))
 watchForGpuReset()
 renderer.setPixelRatio(pixelRatio)
 renderer.outputColorSpace = THREE.SRGBColorSpace

@@ -77,7 +77,10 @@ export function buildApexStage(
 
   options.phase?.('apex: apron')
   // Trunk positions are terrain, not a graphics setting.
-  const forest = plantForest(grid, resort, surface, canopy, { density: 0.85, originElevation: world.manifest.originElevation })
+  const forest = plantForest(grid, resort, surface, canopy, {
+    density: quality.forestDensity,
+    originElevation: world.manifest.originElevation,
+  })
   const trunks = indexTrunks(forest)
   options.phase?.('apex: forest')
   const apronForest = plantApronForest(apron, grid, { density: quality.apronForestDensity, reach: quality.apronForestReach })
@@ -99,7 +102,8 @@ export function buildApexStage(
   options.phase?.('apex: terrain, forest, lifts, buildings')
 
   const village = buildVillage(grid, canopy, resort.roads, resort.runs, buildings, resort.lifts)
-  scene.add(createVillageView(village, grid.heightAt, { detail: quality.villageDetail }).object)
+  const villageView = createVillageView(village, grid.heightAt, { detail: quality.villageDetail })
+  scene.add(villageView.object)
   options.phase?.('apex: village')
   const solid: Building[] = [...buildings]
   if (village.hut) {
@@ -195,6 +199,7 @@ export function buildApexStage(
     update(camera) {
       terrain.update(camera.x, camera.z)
       forestView.update(camera)
+      villageView.update(camera)
       signs.update(camera)
       parkView?.update(camera)
       lifts.clearView(camera)

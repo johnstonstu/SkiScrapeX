@@ -4,57 +4,77 @@ import type { Village } from '../../world/village'
 import { mergeStatic } from '../mergeStatic'
 
 type HeightAt = (x: number, z: number) => number
+export type VillageDetail = 'full' | 'mid' | 'lite'
 
 /**
  * Parked cars (instanced: painted shell plus unpainted glass, tyres and a
  * snow cap), decks with posts and railings, patio tables, and the Billy Goat
- * Hut on the summit.
+ * Hut on the summit. Low = hut only; Medium thins cars and skips patio /
+ * prop shadows; High keeps full fidelity. Props distance-cull past ~420 m.
  */
 export function createVillageView(
   village: Village,
   heightAt: HeightAt,
-  options: { detail?: 'full' | 'lite' } = {},
+  options: { detail?: VillageDetail } = {},
 ) {
   const group = new THREE.Group()
   group.name = 'village'
+  const props = new THREE.Group()
+  props.name = 'village-props'
+  group.add(props)
   const disposables: { dispose(): void }[] = []
   const keep = <T extends { dispose(): void }>(x: T) => (disposables.push(x), x)
-  const full = (options.detail ?? 'full') === 'full'
+  const detail = options.detail ?? 'full'
+  const showProps = detail !== 'lite'
+  const full = detail === 'full'
+  const castPropShadows = full
+
+  let propCx = village.hut?.x ?? 0
+  let propCz = village.hut?.z ?? 0
+  let propCount = village.hut ? 1 : 0
+  const noteProp = (x: number, z: number) => {
+    propCx += x
+    propCz += z
+    propCount++
+  }
 
   // ---- Cars (skipped on Low / lite to cut village draws at load) ----
-  if (full) {
-  const paint = keep(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.5 }))
-  const trim = keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 }))
-  const bodies = [carParts(4.5, 1.8, 1.45, 0.62), carParts(4.7, 1.9, 1.75, 0.78), carParts(5.4, 2, 1.85, 0.55, true)]
-  const placement = new THREE.Object3D()
-  const tint = new THREE.Color()
-  bodies.forEach((parts, body) => {
-    const cars = village.cars.filter((c) => c.body === body)
-    if (!cars.length) return
-    const shell = new THREE.InstancedMesh(keep(parts.painted), paint, cars.length)
-    const rest = new THREE.InstancedMesh(keep(parts.plain), trim, cars.length)
-    cars.forEach((car, i) => {
-      placement.position.set(car.x, heightAt(car.x, car.z), car.z)
-      placement.rotation.set(0, car.heading, 0)
-      placement.updateMatrix()
-      shell.setMatrixAt(i, placement.matrix)
-      rest.setMatrixAt(i, placement.matrix)
-      shell.setColorAt(i, tint.setHex(car.colour))
+  if (showProps) {
+    const paint = keep(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.5 }))
+    const trim = keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 }))
+    const bodies = [carParts(4.5, 1.8, 1.45, 0.62), carParts(4.7, 1.9, 1.75, 0.78), carParts(5.4, 2, 1.85, 0.55, true)]
+    const placement = new THREE.Object3D()
+    const tint = new THREE.Color()
+    // Medium keeps about half the cars to cut instance count and load.
+    const cars = full ? village.cars : village.cars.filter((_, i) => i % 2 === 0)
+    bodies.forEach((parts, body) => {
+      const ofBody = cars.filter((c) => c.body === body)
+      if (!ofBody.length) return
+      const shell = new THREE.InstancedMesh(keep(parts.painted), paint, ofBody.length)
+      const rest = new THREE.InstancedMesh(keep(parts.plain), trim, ofBody.length)
+      ofBody.forEach((car, i) => {
+        placement.position.set(car.x, heightAt(car.x, car.z), car.z)
+        placement.rotation.set(0, car.heading, 0)
+        placement.updateMatrix()
+        shell.setMatrixAt(i, placement.matrix)
+        rest.setMatrixAt(i, placement.matrix)
+        shell.setColorAt(i, tint.setHex(car.colour))
+        noteProp(car.x, car.z)
+      })
+      for (const mesh of [shell, rest]) {
+        mesh.castShadow = castPropShadows
+        mesh.receiveShadow = true
+        mesh.computeBoundingSphere()
+        props.add(mesh)
+      }
     })
-    for (const mesh of [shell, rest]) {
-      mesh.castShadow = true
-      mesh.receiveShadow = true
-      mesh.computeBoundingSphere()
-      group.add(mesh)
-    }
-  })
   }
 
   // ---- Decks and patios ----
   const deckParts: THREE.BufferGeometry[] = []
   const tables: THREE.Matrix4[] = []
   for (const deck of village.decks) {
-    if (!full) continue
+    if (!showProps) continue
     const [a, b, , d] = deck.corners
     const ux = b[0] - a[0], uz = b[1] - a[1]
     const length = Math.hypot(ux, uz)
@@ -62,6 +82,7 @@ export function createVillageView(
     const depth = Math.hypot(ox, oz)
     const cx = (a[0] + b[0]) / 2 + ox / 2
     const cz = (a[1] + b[1]) / 2 + oz / 2
+    noteProp(cx, cz)
     const floor = deck.floor
     // Local frame: X along the wall, Y up, Z outward (kept right-handed).
     const outward = new THREE.Vector3(ox / depth, 0, oz / depth)
@@ -89,8 +110,11 @@ export function createVillageView(
     box(length, 0.08, 0.08, 0, floor + 1.0, depth / 2 - 0.05, wood)
     box(length, 0.12, 0.1, 0, floor + 1.08, depth / 2 - 0.05, snow)
     for (const side of [-1, 1]) box(0.08, 0.08, depth, side * (length / 2 - 0.05), floor + 1.0, 0, wood)
-    for (let s = -length / 2; s <= length / 2 + 1e-6; s += 0.5) box(0.04, 1.0, 0.04, s, floor + 0.5, depth / 2 - 0.05, post)
-    if (deck.patio) {
+    // Dense balusters only on High — Medium keeps the rail line without the spindles.
+    if (full) {
+      for (let s = -length / 2; s <= length / 2 + 1e-6; s += 0.5) box(0.04, 1.0, 0.04, s, floor + 0.5, depth / 2 - 0.05, post)
+    }
+    if (full && deck.patio) {
       for (let s = -length / 2 + 1.5; s < length / 2 - 1; s += 3) {
         const m = new THREE.Matrix4().makeTranslation(s, floor + 0.09, 0).premultiply(toWorld)
         tables.push(m)
@@ -101,15 +125,15 @@ export function createVillageView(
     const merged = keep(mergeGeometries(deckParts)!)
     for (const g of deckParts) g.dispose()
     const mesh = new THREE.Mesh(merged, keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 })))
-    mesh.castShadow = mesh.receiveShadow = true
-    group.add(mesh)
+    mesh.castShadow = mesh.receiveShadow = castPropShadows
+    props.add(mesh)
   }
   if (tables.length) {
     const patio = keep(patioSet())
     const mesh = new THREE.InstancedMesh(patio, keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 })), tables.length)
     tables.forEach((m, i) => mesh.setMatrixAt(i, m))
-    mesh.castShadow = true
-    group.add(mesh)
+    mesh.castShadow = castPropShadows
+    props.add(mesh)
   }
 
   // ---- Billy Goat Hut ----
@@ -127,8 +151,19 @@ export function createVillageView(
     })
   }
 
+  const centreX = propCount ? propCx / propCount : 0
+  const centreZ = propCount ? propCz / propCount : 0
+  // Hide cars/decks when the camera is far from the village cluster.
+  const CULL = 420
+
   return {
     object: group,
+    update(camera: { x: number; z: number }) {
+      if (!props.children.length) return
+      const dx = camera.x - centreX
+      const dz = camera.z - centreZ
+      props.visible = dx * dx + dz * dz < CULL * CULL
+    },
     dispose() {
       for (const d of disposables) d.dispose()
     },
