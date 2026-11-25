@@ -191,11 +191,13 @@ export function createSkiAudio(button: HTMLButtonElement) {
       // Same edge-flip rule as the rider plant: a tick when the edge changes side at speed.
       const edgeSign = sliding && Math.abs(s.edgeAngle) > 0.12 ? Math.sign(s.edgeAngle) : 0
       if (edgeSign !== 0 && lastEdgeSign !== 0 && edgeSign !== lastEdgeSign && s.speed > 3) {
-        plantFilter.frequency.setValueAtTime(3400 + speed * 1100 - loose * 900, t)
-        const plantLevel = 0.16 + speed * 0.14
-        if (!playSample('plant', t, plantLevel * 0.85)) transient(plant, t, plantLevel, 0.026)
-        hitFilter.frequency.setValueAtTime((1500 + edge * 900) * (1 - loose * 0.6), t)
-        transient(hit, t, 0.11 + speed * 0.18 + (1 - loose) * 0.12, 0.048)
+        // Stu: the plant was far too loud. A soft, low tick now, almost gone in loose snow,
+        // and a gentler edge-change thump under it.
+        plantFilter.frequency.setValueAtTime(2200 + speed * 500 - loose * 700, t)
+        const plantLevel = (0.025 + speed * 0.02) * (1 - loose * 0.7)
+        if (!playSample('plant', t, plantLevel * 0.85)) transient(plant, t, plantLevel, 0.02)
+        hitFilter.frequency.setValueAtTime((1200 + edge * 600) * (1 - loose * 0.6), t)
+        transient(hit, t, 0.04 + speed * 0.06 + (1 - loose) * 0.03, 0.04)
       }
       if (edgeSign !== 0) lastEdgeSign = edgeSign
       if (railState && !onRail) {

@@ -2,6 +2,19 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.19 (2026-11-24): Deep snow that keeps up, quieter poles
+
+### Fixed
+
+- Deep snow lagged and appeared in chunks behind the skier: the 0.9.16 partial texture uploads passed multi-row ranges, which three.js uploads as one row, so WebGL rejected them and the trenches only reached the GPU when the whole texture refreshed. Uploads are now one range per changed row (`fx/rowUpload.ts`, tested). The ski-track stamp had the same bug and the same fix.
+- Trench walls no longer render as jagged grey rock: steep-rock and scour rules read the ground's own slope, not the trench walls.
+- The white ribbon tracks no longer float over the trenches; they hide where the deep-snow patch draws (Medium and High) and stay on Low.
+
+### Changed
+
+- Trenches sit in a soft blue shade and berms catch a little more light, so tracks read in flat light.
+- The pole plant is a soft low tick, nearly silent in powder, and the edge-change thump under it is gentler (Stu: far too loud).
+
 ## 0.9.18 (2026-11-24): Run pass A, names and layout from the Apex research
 
 ### Added

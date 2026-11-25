@@ -1,3 +1,4 @@
+import { addRowRanges } from '../rowUpload';
 import {
   BufferAttribute,
   BufferGeometry,
@@ -451,10 +452,7 @@ export class SkiTracks {
     if (this.dirtyMax < this.dirtyMin) return;
     // Upload only the rows this segment touched (a few KB) instead of the whole
     // 1 MB stamp. A pending full upload (window moved or cleared) wins.
-    if (!this.fullUpload) {
-      const n = this.resolution;
-      this.stampTexture.addUpdateRange(this.dirtyMin * n * 4, (this.dirtyMax - this.dirtyMin + 1) * n * 4);
-    }
+    if (!this.fullUpload) addRowRanges(this.stampTexture, this.dirtyMin, this.dirtyMax, this.resolution);
     this.stampTexture.needsUpdate = true;
   }
 
