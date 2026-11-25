@@ -2,6 +2,10 @@
 
 The 21 runs in `game/src/world/runOverlay.ts` were traced from LidarBC canopy gaps because OpenStreetMap does not map them. Their refs match `docs/runs-overlay.png`. Rename a run by editing its `name` there.
 
+## Status (0.9.18)
+
+Applied from the research handoff (`docs/review/apex-terrain/overlay-ref-mapping.json`), with the Wildside and south-face orders confirmed by Stu: W1 and W2 Any Which Way Glades, W3 Jackpot, W4 Gun Slinger, W5 ShootOut, W6 Showdown, L2 Prospector (Stu), L3 Chaser, L8 Highway 97C, L12 Mini-Colorado, L15 Crusher. The research found L7, L9, L10, L11, L13 and L14 are not the runs guessed below; they and L1, L4, L5, L6 are "Unnamed cut L…" until someone identifies them. The table below is the earlier reasoning, kept for history.
+
 ## What we know
 
 Apex's grooming report (apexresort.com/weather, read 2026-11-22) lists these runs that OpenStreetMap does not have, by lift:

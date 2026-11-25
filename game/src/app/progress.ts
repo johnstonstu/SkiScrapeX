@@ -4,7 +4,7 @@
  */
 import { MEDAL_RANK, type Medal } from '../world/challenges'
 import { KEYS, readJson, writeJson } from './storage'
-import { RUN_NAMES } from '../world/corrections'
+import { PROGRESS_RENAMES } from '../world/corrections'
 
 export interface Progress {
   /** Best medal per challenge id (`time:<run>`, `slalom:<run>`, `park:<site>:<layout>`). */
@@ -31,10 +31,19 @@ export function readProgress(): Progress {
 
 /** Carry medals, bests and run coverage across run renames (old OSM spellings). */
 export function renameRuns(progress: Progress): Progress {
-  const rename = (key: string) => {
-    for (const [from, to] of Object.entries(RUN_NAMES)) {
+  const once = (key: string) => {
+    for (const [from, to] of Object.entries(PROGRESS_RENAMES)) {
       if (key === from) return to
       for (const prefix of ['time:', 'slalom:']) if (key === prefix + from) return prefix + to
+    }
+    return key
+  }
+  // Follow chains (an old spelling renamed, then split) a few steps.
+  const rename = (key: string) => {
+    for (let i = 0; i < 4; i++) {
+      const next = once(key)
+      if (next === key) break
+      key = next
     }
     return key
   }

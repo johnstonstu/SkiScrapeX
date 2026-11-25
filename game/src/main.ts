@@ -16,7 +16,7 @@ import { createLandingMarker } from './render/rider/landingMarker'
 import { createSlopeView } from './render/terrain/slopeView'
 import { sampleRide, type RidePath } from './render/scenery/liftView'
 import { SIGHT_LINE } from './render/scenery/forestView'
-import { RUN_NAMES } from './world/corrections'
+import { PROGRESS_RENAMES } from './world/corrections'
 import { addSceneLights, createLighting, createSky, followSun } from './render/lighting'
 import { applyWeather, weatherGust, weatherPreset, type WeatherPreset } from './render/weather'
 import { createControls } from './player/input'
@@ -247,7 +247,7 @@ let pause: { until: number; then: () => void } | null = null
 let ride: Ride | null = null
 // Free-ski bests by run name; renamed runs keep their best.
 const bests = Object.fromEntries(
-  Object.entries(readJson<Record<string, number>>(KEYS.bests, {})).map(([name, time]) => [RUN_NAMES[name] ?? name, time]),
+  Object.entries(readJson<Record<string, number>>(KEYS.bests, {})).map(([name, time]) => [PROGRESS_RENAMES[PROGRESS_RENAMES[name] ?? name] ?? PROGRESS_RENAMES[name] ?? name, time]),
 )
 let elapsed = 0
 let menuWasOpen = false

@@ -1,0 +1,152 @@
+{
+ "note": "Proposed names for runOverlay.ts refs. Confidence is about the name, not the geometry (geometry is LiDAR-traced). \"(keep unnamed)\" = no evidence for any official name.",
+ "mapping": [
+  {
+   "ref": "W1",
+   "proposedName": "Any Which Way Glades (west edge)",
+   "confidence": "low",
+   "currentName": "Wildside cut 1",
+   "evidence": "Inside the Any Which Way Glades zone beside upper Grandmother's; could also be the east edge of Granny's Glades. Proposal: keep as a glade line or fold into the AWW polygon."
+  },
+  {
+   "ref": "W2",
+   "proposedName": "Any Which Way Glades",
+   "confidence": "low-medium",
+   "currentName": "Wildside cut 2",
+   "evidence": "Runs through the OSM 'Glades' way west of Jackpot; inset puts the purple AWW glade here."
+  },
+  {
+   "ref": "W3",
+   "proposedName": "Jackpot",
+   "confidence": "medium-low",
+   "currentName": "Wildside cut 3",
+   "evidence": "First black east of AWW and west of Wildly Easy on the inset; W3 is the only trace in that slot."
+  },
+  {
+   "ref": "W4",
+   "proposedName": "Gun Slinger",
+   "confidence": "medium-low",
+   "currentName": "Wildside cut 4",
+   "evidence": "First black east of Wildly Easy on the inset."
+  },
+  {
+   "ref": "W5",
+   "proposedName": "ShootOut",
+   "confidence": "medium-low",
+   "currentName": "Wildside cut 5",
+   "evidence": "Next east of Gun Slinger."
+  },
+  {
+   "ref": "W6",
+   "proposedName": "Showdown",
+   "confidence": "medium-low",
+   "currentName": "Wildside cut 6",
+   "evidence": "Last before Bob's Run on the inset; W6 is the eastmost trace west of Bob's Run."
+  },
+  {
+   "ref": "L1",
+   "proposedName": "(keep unnamed) Wishbone-area link",
+   "confidence": "low",
+   "currentName": "Unmapped run L1",
+   "evidence": "Upper Wishbone to Grandfather's connector; not a named run on the map."
+  },
+  {
+   "ref": "L2",
+   "proposedName": "(keep unnamed) T-Bar area link",
+   "confidence": "low",
+   "currentName": "Unmapped run L2",
+   "evidence": "Rookie's Trail to Upper Wishbone."
+  },
+  {
+   "ref": "L3",
+   "proposedName": "Chaser",
+   "confidence": "low",
+   "currentName": "Unmapped run L3",
+   "evidence": "Chaser is a Quickdraw black on the grooming report but unlabeled on the maps; L3 (near Chute/Poma, 23.6 deg) is the only unnamed black-pitch cut in the Quickdraw lower pod. Guess."
+  },
+  {
+   "ref": "L4",
+   "proposedName": "(Okanagan Run variant)",
+   "confidence": "low",
+   "currentName": "Unmapped run L4",
+   "evidence": "Parallels Okanagan Run."
+  },
+  {
+   "ref": "L5",
+   "proposedName": "(keep unnamed)",
+   "confidence": "low",
+   "currentName": "Unmapped run L5",
+   "evidence": "Kristi's Run to Village Traverse; earlier 'Lower Spruce Hollow?' guess is unlikely now that Spruce Hollow is split along its own OSM line."
+  },
+  {
+   "ref": "L6",
+   "proposedName": "(Adrian's Alley variant)",
+   "confidence": "low",
+   "currentName": "Unmapped run L6",
+   "evidence": "Alongside Adrian's Alley."
+  },
+  {
+   "ref": "L7",
+   "proposedName": "(keep unnamed) - NOT Essendale",
+   "confidence": "medium (negative)",
+   "currentName": "Unmapped run L7",
+   "evidence": "docs/run-names.md suggested Essendale. The trail map and R&A POV place Essendale on the upper ridge left of Toilet Bowl, running out to the Stock's top, far from L7 (Hanks/Old Mill area)."
+  },
+  {
+   "ref": "L8",
+   "proposedName": "Highway 97C",
+   "confidence": "already applied",
+   "currentName": "Highway 97C",
+   "evidence": "Matches both maps."
+  },
+  {
+   "ref": "L9",
+   "proposedName": "(keep unnamed) - NOT Essendale",
+   "confidence": "medium (negative)",
+   "currentName": "Unmapped run L9",
+   "evidence": "As L7."
+  },
+  {
+   "ref": "L10",
+   "proposedName": "(keep unnamed) - NOT Tooth Tusk/Sweet Sue",
+   "confidence": "medium (negative)",
+   "currentName": "Unmapped run L10",
+   "evidence": "Sweet Sue and Tooth/Tusk are the leftmost upper-ridge runs on the map (south face above the Stock's top); R&A Tooth/Tusk POV matches that face. L10 (The Pit/West Bank) is likely an unnamed steep line or Mini-Colorado variant."
+  },
+  {
+   "ref": "L11",
+   "proposedName": "(keep unnamed) - NOT Toilet Bowl",
+   "confidence": "medium (negative)",
+   "currentName": "Unmapped run L11",
+   "evidence": "Toilet Bowl sits between Essendale and Crusher on the upper ridge (south face), not by Tongue/Grouse Gulch."
+  },
+  {
+   "ref": "L12",
+   "proposedName": "Mini-Colorado",
+   "confidence": "already applied",
+   "currentName": "Mini-Colorado",
+   "evidence": "R&A chapter overlay \"Mini Colorado\" footage consistent."
+  },
+  {
+   "ref": "L13",
+   "proposedName": "(keep unnamed) - NOT Tooth Tusk/Sweet Sue",
+   "confidence": "medium (negative)",
+   "currentName": "Unmapped run L13",
+   "evidence": "As L10; likely a line within the Great Wall/Sunbowl face."
+  },
+  {
+   "ref": "L14",
+   "proposedName": "(keep unnamed) - NOT Tooth Tusk/Sweet Sue",
+   "confidence": "medium (negative)",
+   "currentName": "Unmapped run L14",
+   "evidence": "As L10; Sunbowl/Ridge Run face."
+  },
+  {
+   "ref": "L15",
+   "proposedName": "Crusher",
+   "confidence": "medium (keep)",
+   "currentName": "Crusher",
+   "evidence": "Next left of Golden Eagle on the map; Romagnoli Crusher POV shows an open steep slope with natural tree edges, consistent."
+  }
+ ]
+}

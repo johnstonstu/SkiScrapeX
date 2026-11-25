@@ -35,7 +35,7 @@ function pickSlalomRuns(runs: Run[]): Run[] {
   const fit = runs.filter((run) => {
     const length = polylineLength(mainLine(run))
     // The provisional LiDAR traces wait for real names before they get a course.
-    return !run.name.startsWith('Unmapped') && run.groomed && ['easy', 'intermediate'].includes(run.difficulty ?? '') && length > 420 && length < 1100
+    return !/^(Unmapped|Unnamed)/.test(run.name) && run.groomed && ['easy', 'intermediate'].includes(run.difficulty ?? '') && length > 420 && length < 1100
   })
   const easy = fit.filter((run) => run.difficulty === 'easy').slice(0, 1)
   const blue = fit.filter((run) => run.difficulty === 'intermediate').sort((a, b) => polylineLength(mainLine(a)) - polylineLength(mainLine(b)))

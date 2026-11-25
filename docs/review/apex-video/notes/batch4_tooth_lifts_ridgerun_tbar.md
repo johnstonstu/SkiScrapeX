@@ -1,0 +1,8 @@
+# Batch 4: Tooth, "legendary lift", under the chair, Ridge Run, mogul team Alberta
+- Tooth: an extreme, narrow, halfpipe-like chute entrance, scraped thin with jagged exposed rocks. It widens into a steep gully of tracked powder with dense snow-ghost walls. The skier side-slips and scrapes rock, then makes survival jump turns. "Very shallow through here." Overcast and monochrome.
+- Quickdraw base: an operator shack, a yellow "Quickdraw" sign, red queue poles, and a dancing liftie with a music speaker ("It's always a party"). The quad has galvanized tubular towers, the cable about 20-30 ft above the run, and a fast ride: "few minutes up, few minutes down."
+- Under the chair (Quickdraw lift line): steep, straight fall line with soft irregular traffic bumps (not zipper lines), tight tree walls, rapid short turns and pole plants.
+- Ridge Run: a wide, moderate, fresh corduroy groomer with thinner trees and a big valley view over the cloud inversion under blue sky. GS carving with spray.
+- T-bar: a Doppelmayr surface lift with a boxy grey steel bottom terminal and horizontal bullwheel. Mogul team kids on straight mogul skis, and a liftie in a blue jacket and toque. NOTE: there's no mogul course footage in this video.
+- Creator on snow: "interior is so different ... the snow is cold and it's soft ... In Whistler we're constantly getting freeze-thaw."
+- Dev takeaways: a cloud inversion layer (it can also hide valley geometry for performance); a rock choke entrance at Tooth that rewards slowing and side-slipping; irregular traffic bumps under the lifts; a dancing liftie NPC with positional music at the Quickdraw base; the Doppelmayr look for the T-bar terminal.
