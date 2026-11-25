@@ -1,0 +1,7 @@
+# Batch 5: Grouse Gulch, "Gromit" chapter (on-screen text says Mini Colorado, double black), creator's closing thoughts
+- Grouse Gulch: single black. A wide, moderately steep upper bowl funnels into a narrower, steeper gully/glade. Ungroomed soft chop with small ruts. Sparse snow-ghost conifers at the top, denser glade lower down. Overcast diffuse light, with a cloud inversion in the valley below. Fluid fast turns, and a loud shhh scrape.
+- Interlude: the top terminal is a wooden shack with a yellow "Keep Tips Up" triangle, and there's a big metal radio/communications tower at the summit. A wide flat groomer with parallel corduroy looks out over the inversion.
+- Mini Colorado (chapter titled "gromit"; on-screen label is Mini Colorado, double black): steep, narrow, a tight glade with deep soft moguls between the trees, and rapid bouncy jump turns.
+- Village: brown wood lodges with green roofs, a gravel lot and a yellow school bus.
+- Creator quotes: "so much fall line"; "primarily bumpier, softer snow skiing"; "The mountain blew my mind. I wasn't expecting it to be this much fun"; "it's so fun skiing with locals".
+- Dev takeaways: an overcast diffuse sky; a valley cloud-inversion plane; two snow materials (corduroy vs chopped); sustained fall line on blacks with no flats; snow-ghost trees and density funnels; surface-dependent ski audio; a rustic village; a summit radio tower; wood shack terminals with yellow warning signs.

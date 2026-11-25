@@ -2,6 +2,20 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.18 (2026-11-24): Run pass A, names and layout from the Apex research
+
+### Added
+
+- Five upper Quickdraw south-face runs from the research handoff (`docs/review/apex-terrain`): Toilet Bowl, Essendale Ward 1 and 2 (blacks), Tooth Tusk and Sweet Sue (double blacks). Ungroomed. Lines are LiDAR fall-line drafts placed in the trail-map order Stu confirmed, so each may be off by a gully.
+- Wildly Easy, a blue on the Wildside.
+
+### Changed
+
+- Wildside traces named: Jackpot, Gun Slinger, ShootOut, Showdown (order confirmed by Stu); the two westmost are Any Which Way Glades. L3 is Chaser.
+- Gambit, Spruce Hollow and Hang 'em High split into Upper and Lower runs at their junctions, as the grooming report names them. Upper and Lower Wishbone are one blue Wishbone. Grandmother's Trail is blue.
+- Traces with no known name are "Unnamed cut L…" and stay out of run challenges.
+- Saved medals, bests and the run checklist follow every rename; results for a whole split run carry to its upper part.
+
 ## 0.9.17 (2026-11-24): Arrivals, unloads, parks and rider feel
 
 ### Changed

@@ -1,0 +1,1590 @@
+{
+ "sheets": [
+  {
+   "run": "Grandfathers",
+   "sheet": "run-sheets/Grandfathers.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Ben's Run",
+   "sheet": "run-sheets/Bens_Run.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Highway 97C",
+   "sheet": "run-sheets/Highway_97C.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Juniper (part 1)",
+   "sheet": "run-sheets/Juniper_(part_1).jpg",
+   "frames": 6
+  },
+  {
+   "run": "Juniper (part 2)",
+   "sheet": "run-sheets/Juniper_(part_2).jpg",
+   "frames": 6
+  },
+  {
+   "run": "Ridge Run",
+   "sheet": "run-sheets/Ridge_Run.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Wild Bill",
+   "sheet": "run-sheets/Wild_Bill.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Buckshot (part 1)",
+   "sheet": "run-sheets/Buckshot_(part_1).jpg",
+   "frames": 0
+  },
+  {
+   "run": "Buckshot (part 2)",
+   "sheet": "run-sheets/Buckshot_(part_2).jpg",
+   "frames": 0
+  },
+  {
+   "run": "Chute (part 1)",
+   "sheet": "run-sheets/Chute_(part_1).jpg",
+   "frames": 6
+  },
+  {
+   "run": "Chute (part 2)",
+   "sheet": "run-sheets/Chute_(part_2).jpg",
+   "frames": 6
+  },
+  {
+   "run": "Crusher",
+   "sheet": "run-sheets/Crusher.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Face",
+   "sheet": "run-sheets/Face.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Golden Eagle",
+   "sheet": "run-sheets/Golden_Eagle.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Grouse Gulch",
+   "sheet": "run-sheets/Grouse_Gulch.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Hanks",
+   "sheet": "run-sheets/Hanks.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Highway 97",
+   "sheet": "run-sheets/Highway_97.jpg",
+   "frames": 0
+  },
+  {
+   "run": "K",
+   "sheet": "run-sheets/K.jpg",
+   "frames": 0
+  },
+  {
+   "run": "K2",
+   "sheet": "run-sheets/K2.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Magnum",
+   "sheet": "run-sheets/Magnum.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Poma",
+   "sheet": "run-sheets/Poma.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Showboat",
+   "sheet": "run-sheets/Showboat.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Sunbowl",
+   "sheet": "run-sheets/Sunbowl.jpg",
+   "frames": 3
+  },
+  {
+   "run": "The Great Wall",
+   "sheet": "run-sheets/The_Great_Wall.jpg",
+   "frames": 0
+  },
+  {
+   "run": "The Pit",
+   "sheet": "run-sheets/The_Pit.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Tongue",
+   "sheet": "run-sheets/Tongue.jpg",
+   "frames": 3
+  },
+  {
+   "run": "West Bank",
+   "sheet": "run-sheets/West_Bank.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Winchester",
+   "sheet": "run-sheets/Winchester.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Dirty Harry",
+   "sheet": "run-sheets/Dirty_Harry.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Gromit",
+   "sheet": "run-sheets/Gromit.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Gunbarrel",
+   "sheet": "run-sheets/Gunbarrel.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Make My Day",
+   "sheet": "run-sheets/Make_My_Day.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Mini-Colorado",
+   "sheet": "run-sheets/Mini-Colorado.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Peashooter",
+   "sheet": "run-sheets/Peashooter.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Twenty Two",
+   "sheet": "run-sheets/Twenty_Two.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Dude-Ney Trail",
+   "sheet": "run-sheets/Dude-Ney_Trail.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Easy Out",
+   "sheet": "run-sheets/Easy_Out.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Finger",
+   "sheet": "run-sheets/Finger.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Greenhorn Traverse",
+   "sheet": "run-sheets/Greenhorn_Traverse.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Stock's Traverse",
+   "sheet": "run-sheets/Stocks_Traverse.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Village Traverse",
+   "sheet": "run-sheets/Village_Traverse.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Whipsaw",
+   "sheet": "run-sheets/Whipsaw.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Dawdler 1",
+   "sheet": "run-sheets/Dawdler_1.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Dawdler 2",
+   "sheet": "run-sheets/Dawdler_2.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Lower Gambit",
+   "sheet": "run-sheets/Lower_Gambit.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Little Joe",
+   "sheet": "run-sheets/Little_Joe.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Lucky Strike",
+   "sheet": "run-sheets/Lucky_Strike.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Maverick",
+   "sheet": "run-sheets/Maverick.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Motherlode (part 1)",
+   "sheet": "run-sheets/Motherlode_(part_1).jpg",
+   "frames": 6
+  },
+  {
+   "run": "Motherlode (part 2)",
+   "sheet": "run-sheets/Motherlode_(part_2).jpg",
+   "frames": 6
+  },
+  {
+   "run": "Sluice Box",
+   "sheet": "run-sheets/Sluice_Box.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Stagecoach",
+   "sheet": "run-sheets/Stagecoach.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Sweet Louise (part 1)",
+   "sheet": "run-sheets/Sweet_Louise_(part_1).jpg",
+   "frames": 0
+  },
+  {
+   "run": "Sweet Louise (part 2)",
+   "sheet": "run-sheets/Sweet_Louise_(part_2).jpg",
+   "frames": 0
+  },
+  {
+   "run": "Upper Gambit",
+   "sheet": "run-sheets/Upper_Gambit.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Window",
+   "sheet": "run-sheets/Window.jpg",
+   "frames": 0
+  },
+  {
+   "run": "The Cut",
+   "sheet": "run-sheets/The_Cut.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Grandmothers",
+   "sheet": "run-sheets/Grandmothers.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Bob's Run",
+   "sheet": "run-sheets/Bobs_Run.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Lower Hang 'em High",
+   "sheet": "run-sheets/Lower_Hang_em_High.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Upper Hang 'em High",
+   "sheet": "run-sheets/Upper_Hang_em_High.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Chicken Finger",
+   "sheet": "run-sheets/Chicken_Finger.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Rookies Trail",
+   "sheet": "run-sheets/Rookies_Trail.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Adrian's Alley",
+   "sheet": "run-sheets/Adrians_Alley.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Okanagan Run",
+   "sheet": "run-sheets/Okanagan_Run.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Old Mill",
+   "sheet": "run-sheets/Old_Mill.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Lower Spruce Hollow",
+   "sheet": "run-sheets/Lower_Spruce_Hollow.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Upper Spruce Hollow",
+   "sheet": "run-sheets/Upper_Spruce_Hollow.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Wishbone (part 1)",
+   "sheet": "run-sheets/Wishbone_(part_1).jpg",
+   "frames": 0
+  },
+  {
+   "run": "Wishbone (part 2)",
+   "sheet": "run-sheets/Wishbone_(part_2).jpg",
+   "frames": 0
+  },
+  {
+   "run": "Kristi's Run",
+   "sheet": "run-sheets/Kristis_Run.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Easy Rider",
+   "sheet": "run-sheets/Easy_Rider.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Claim Jumper",
+   "sheet": "run-sheets/Claim_Jumper.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Okanagan Park",
+   "sheet": "run-sheets/Okanagan_Park.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Prospector",
+   "sheet": "run-sheets/Prospector.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Toilet Bowl",
+   "sheet": "run-sheets/Toilet_Bowl.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Essendale Ward 1",
+   "sheet": "run-sheets/Essendale_Ward_1.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Essendale Ward 2",
+   "sheet": "run-sheets/Essendale_Ward_2.jpg",
+   "frames": 6
+  },
+  {
+   "run": "Tooth Tusk",
+   "sheet": "run-sheets/Tooth_Tusk.jpg",
+   "frames": 3
+  },
+  {
+   "run": "Sweet Sue",
+   "sheet": "run-sheets/Sweet_Sue.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Wildly Easy",
+   "sheet": "run-sheets/Wildly_Easy.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Jackpot",
+   "sheet": "run-sheets/Jackpot.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Gun Slinger",
+   "sheet": "run-sheets/Gun_Slinger.jpg",
+   "frames": 0
+  },
+  {
+   "run": "ShootOut",
+   "sheet": "run-sheets/ShootOut.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Showdown",
+   "sheet": "run-sheets/Showdown.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Chaser",
+   "sheet": "run-sheets/Chaser.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Any Which Way Glades",
+   "sheet": "run-sheets/Any_Which_Way_Glades.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Granny's Glades",
+   "sheet": "run-sheets/Grannys_Glades.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Fools Gold",
+   "sheet": "run-sheets/Fools_Gold.jpg",
+   "frames": 0
+  },
+  {
+   "run": "Hidden Gold",
+   "sheet": "run-sheets/Hidden_Gold.jpg",
+   "frames": 0
+  }
+ ],
+ "frameCredits": [
+  {
+   "sheet": "Juniper_(part_1).jpg",
+   "video": "https://youtu.be/kLUTwEc71yo",
+   "t": "1:04",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Juniper_(part_1).jpg",
+   "video": "https://youtu.be/kLUTwEc71yo",
+   "t": "2:29",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Juniper_(part_1).jpg",
+   "video": "https://youtu.be/kLUTwEc71yo",
+   "t": "3:54",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Juniper_(part_1).jpg",
+   "video": "https://youtu.be/m59O5gCpyy8",
+   "t": "0:56",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Juniper_(part_1).jpg",
+   "video": "https://youtu.be/m59O5gCpyy8",
+   "t": "2:10",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Juniper_(part_1).jpg",
+   "video": "https://youtu.be/m59O5gCpyy8",
+   "t": "3:25",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Juniper_(part_2).jpg",
+   "video": "https://youtu.be/kLUTwEc71yo",
+   "t": "1:04",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Juniper_(part_2).jpg",
+   "video": "https://youtu.be/kLUTwEc71yo",
+   "t": "2:29",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Juniper_(part_2).jpg",
+   "video": "https://youtu.be/kLUTwEc71yo",
+   "t": "3:54",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Juniper_(part_2).jpg",
+   "video": "https://youtu.be/m59O5gCpyy8",
+   "t": "0:56",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Juniper_(part_2).jpg",
+   "video": "https://youtu.be/m59O5gCpyy8",
+   "t": "2:10",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Juniper_(part_2).jpg",
+   "video": "https://youtu.be/m59O5gCpyy8",
+   "t": "3:25",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Ridge_Run.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "13:56",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Ridge_Run.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "14:13",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Ridge_Run.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "14:31",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Wild_Bill.jpg",
+   "video": "https://youtu.be/IrKPYnvGmkk",
+   "t": "0:29",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Wild_Bill.jpg",
+   "video": "https://youtu.be/IrKPYnvGmkk",
+   "t": "1:08",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Wild_Bill.jpg",
+   "video": "https://youtu.be/IrKPYnvGmkk",
+   "t": "1:46",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Wild_Bill.jpg",
+   "video": "https://youtu.be/kLUTwEc71yo",
+   "t": "1:04",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Wild_Bill.jpg",
+   "video": "https://youtu.be/kLUTwEc71yo",
+   "t": "2:29",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Wild_Bill.jpg",
+   "video": "https://youtu.be/kLUTwEc71yo",
+   "t": "3:54",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Chute_(part_1).jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "4:23",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Chute_(part_1).jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "4:39",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Chute_(part_1).jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "4:55",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Chute_(part_1).jpg",
+   "video": "https://youtu.be/uuZgEg_GIUQ",
+   "t": "1:07",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Chute_(part_1).jpg",
+   "video": "https://youtu.be/uuZgEg_GIUQ",
+   "t": "2:36",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Chute_(part_1).jpg",
+   "video": "https://youtu.be/uuZgEg_GIUQ",
+   "t": "4:05",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Chute_(part_2).jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "4:23",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Chute_(part_2).jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "4:39",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Chute_(part_2).jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "4:55",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Chute_(part_2).jpg",
+   "video": "https://youtu.be/uuZgEg_GIUQ",
+   "t": "1:07",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Chute_(part_2).jpg",
+   "video": "https://youtu.be/uuZgEg_GIUQ",
+   "t": "2:36",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Chute_(part_2).jpg",
+   "video": "https://youtu.be/uuZgEg_GIUQ",
+   "t": "4:05",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Crusher.jpg",
+   "video": "https://youtu.be/VLkA4K69GUg",
+   "t": "0:57",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Crusher.jpg",
+   "video": "https://youtu.be/VLkA4K69GUg",
+   "t": "2:14",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Crusher.jpg",
+   "video": "https://youtu.be/VLkA4K69GUg",
+   "t": "3:31",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Golden_Eagle.jpg",
+   "video": "https://youtu.be/Hhd7WEX5AWE",
+   "t": "0:41",
+   "channel": "Ian Watson"
+  },
+  {
+   "sheet": "Golden_Eagle.jpg",
+   "video": "https://youtu.be/Hhd7WEX5AWE",
+   "t": "1:37",
+   "channel": "Ian Watson"
+  },
+  {
+   "sheet": "Golden_Eagle.jpg",
+   "video": "https://youtu.be/Hhd7WEX5AWE",
+   "t": "2:33",
+   "channel": "Ian Watson"
+  },
+  {
+   "sheet": "Grouse_Gulch.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "15:45",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Grouse_Gulch.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "16:06",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Grouse_Gulch.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "16:26",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Hanks.jpg",
+   "video": "https://youtu.be/-LWeS0OJpjE",
+   "t": "1:15",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Hanks.jpg",
+   "video": "https://youtu.be/-LWeS0OJpjE",
+   "t": "2:55",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Hanks.jpg",
+   "video": "https://youtu.be/-LWeS0OJpjE",
+   "t": "4:35",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Hanks.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "3:48",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Hanks.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "3:58",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Hanks.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "4:08",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "K2.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "10:32",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "K2.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "10:45",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "K2.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "10:58",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Sunbowl.jpg",
+   "video": "https://youtu.be/vQWeD5M5EWI",
+   "t": "0:27",
+   "channel": "rkitt12"
+  },
+  {
+   "sheet": "Sunbowl.jpg",
+   "video": "https://youtu.be/vQWeD5M5EWI",
+   "t": "1:05",
+   "channel": "rkitt12"
+  },
+  {
+   "sheet": "Sunbowl.jpg",
+   "video": "https://youtu.be/vQWeD5M5EWI",
+   "t": "1:42",
+   "channel": "rkitt12"
+  },
+  {
+   "sheet": "The_Pit.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "7:33",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "The_Pit.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "7:54",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "The_Pit.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "8:15",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Tongue.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "3:10",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Tongue.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "3:19",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Tongue.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "3:29",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "West_Bank.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "9:34",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "West_Bank.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "9:55",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "West_Bank.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "10:16",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "West_Bank.jpg",
+   "video": "https://youtu.be/NvHneGrrHw8",
+   "t": "0:22",
+   "channel": "James Rogers"
+  },
+  {
+   "sheet": "West_Bank.jpg",
+   "video": "https://youtu.be/NvHneGrrHw8",
+   "t": "0:52",
+   "channel": "James Rogers"
+  },
+  {
+   "sheet": "West_Bank.jpg",
+   "video": "https://youtu.be/NvHneGrrHw8",
+   "t": "1:23",
+   "channel": "James Rogers"
+  },
+  {
+   "sheet": "Gromit.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "16:58",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Gromit.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "17:12",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Gromit.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "17:26",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Gunbarrel.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "2:22",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Gunbarrel.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "2:40",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Gunbarrel.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "2:58",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Gunbarrel.jpg",
+   "video": "https://youtu.be/GftiOYKcjJg",
+   "t": "1:15",
+   "channel": "Charles Vallance"
+  },
+  {
+   "sheet": "Gunbarrel.jpg",
+   "video": "https://youtu.be/GftiOYKcjJg",
+   "t": "2:55",
+   "channel": "Charles Vallance"
+  },
+  {
+   "sheet": "Gunbarrel.jpg",
+   "video": "https://youtu.be/GftiOYKcjJg",
+   "t": "4:35",
+   "channel": "Charles Vallance"
+  },
+  {
+   "sheet": "Make_My_Day.jpg",
+   "video": "https://youtu.be/JETpQdA_oCo",
+   "t": "0:12",
+   "channel": "rkitt12"
+  },
+  {
+   "sheet": "Make_My_Day.jpg",
+   "video": "https://youtu.be/JETpQdA_oCo",
+   "t": "0:28",
+   "channel": "rkitt12"
+  },
+  {
+   "sheet": "Make_My_Day.jpg",
+   "video": "https://youtu.be/JETpQdA_oCo",
+   "t": "0:45",
+   "channel": "rkitt12"
+  },
+  {
+   "sheet": "Make_My_Day.jpg",
+   "video": "https://youtu.be/WW0m4UvDdvM",
+   "t": "0:45",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Make_My_Day.jpg",
+   "video": "https://youtu.be/WW0m4UvDdvM",
+   "t": "1:45",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Make_My_Day.jpg",
+   "video": "https://youtu.be/WW0m4UvDdvM",
+   "t": "2:45",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Twenty_Two.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "6:31",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Twenty_Two.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "6:44",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Twenty_Two.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "6:57",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Twenty_Two.jpg",
+   "video": "https://youtu.be/Zrb5_WJdIyE",
+   "t": "1:15",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Twenty_Two.jpg",
+   "video": "https://youtu.be/Zrb5_WJdIyE",
+   "t": "2:55",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Twenty_Two.jpg",
+   "video": "https://youtu.be/Zrb5_WJdIyE",
+   "t": "4:35",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Dude-Ney_Trail.jpg",
+   "video": "https://youtu.be/dVnBtVTaX28",
+   "t": "0:36",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Dude-Ney_Trail.jpg",
+   "video": "https://youtu.be/dVnBtVTaX28",
+   "t": "1:25",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Dude-Ney_Trail.jpg",
+   "video": "https://youtu.be/dVnBtVTaX28",
+   "t": "2:13",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Easy_Out.jpg",
+   "video": "https://youtu.be/rJ3KyzKRLvM",
+   "t": "0:51",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Easy_Out.jpg",
+   "video": "https://youtu.be/rJ3KyzKRLvM",
+   "t": "2:00",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Easy_Out.jpg",
+   "video": "https://youtu.be/rJ3KyzKRLvM",
+   "t": "3:09",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Finger.jpg",
+   "video": "https://youtu.be/BA_igQibUEI",
+   "t": "0:36",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Finger.jpg",
+   "video": "https://youtu.be/BA_igQibUEI",
+   "t": "1:24",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Finger.jpg",
+   "video": "https://youtu.be/BA_igQibUEI",
+   "t": "2:12",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Greenhorn_Traverse.jpg",
+   "video": "https://youtu.be/--CvY91njD8",
+   "t": "0:45",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Greenhorn_Traverse.jpg",
+   "video": "https://youtu.be/--CvY91njD8",
+   "t": "1:45",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Greenhorn_Traverse.jpg",
+   "video": "https://youtu.be/--CvY91njD8",
+   "t": "2:45",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Stocks_Traverse.jpg",
+   "video": "https://youtu.be/RVzeTbB2WU0",
+   "t": "0:20",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Stocks_Traverse.jpg",
+   "video": "https://youtu.be/RVzeTbB2WU0",
+   "t": "0:46",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Stocks_Traverse.jpg",
+   "video": "https://youtu.be/RVzeTbB2WU0",
+   "t": "1:13",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Village_Traverse.jpg",
+   "video": "https://youtu.be/cWfC9OEdcqk",
+   "t": "0:52",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Village_Traverse.jpg",
+   "video": "https://youtu.be/cWfC9OEdcqk",
+   "t": "2:03",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Village_Traverse.jpg",
+   "video": "https://youtu.be/cWfC9OEdcqk",
+   "t": "3:13",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Whipsaw.jpg",
+   "video": "https://youtu.be/0UJUGUYd35U",
+   "t": "0:52",
+   "channel": "Aleksandr Belous"
+  },
+  {
+   "sheet": "Whipsaw.jpg",
+   "video": "https://youtu.be/0UJUGUYd35U",
+   "t": "2:02",
+   "channel": "Aleksandr Belous"
+  },
+  {
+   "sheet": "Whipsaw.jpg",
+   "video": "https://youtu.be/0UJUGUYd35U",
+   "t": "3:12",
+   "channel": "Aleksandr Belous"
+  },
+  {
+   "sheet": "Whipsaw.jpg",
+   "video": "https://youtu.be/syY9O1CQENU",
+   "t": "0:52",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Whipsaw.jpg",
+   "video": "https://youtu.be/syY9O1CQENU",
+   "t": "2:03",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Whipsaw.jpg",
+   "video": "https://youtu.be/syY9O1CQENU",
+   "t": "3:13",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Lower_Gambit.jpg",
+   "video": "https://youtu.be/zH7aAn360oA",
+   "t": "0:39",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Lower_Gambit.jpg",
+   "video": "https://youtu.be/zH7aAn360oA",
+   "t": "1:31",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Lower_Gambit.jpg",
+   "video": "https://youtu.be/zH7aAn360oA",
+   "t": "2:23",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Little_Joe.jpg",
+   "video": "https://youtu.be/RI0F9UCqgCc",
+   "t": "0:24",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Little_Joe.jpg",
+   "video": "https://youtu.be/RI0F9UCqgCc",
+   "t": "0:58",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Little_Joe.jpg",
+   "video": "https://youtu.be/RI0F9UCqgCc",
+   "t": "1:31",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Lucky_Strike.jpg",
+   "video": "https://youtu.be/pLlcGwoouYk",
+   "t": "1:00",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Lucky_Strike.jpg",
+   "video": "https://youtu.be/pLlcGwoouYk",
+   "t": "2:20",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Lucky_Strike.jpg",
+   "video": "https://youtu.be/pLlcGwoouYk",
+   "t": "3:40",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Maverick.jpg",
+   "video": "https://youtu.be/Cqte9NmdrXI",
+   "t": "0:57",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Maverick.jpg",
+   "video": "https://youtu.be/Cqte9NmdrXI",
+   "t": "2:14",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Maverick.jpg",
+   "video": "https://youtu.be/Cqte9NmdrXI",
+   "t": "3:31",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Maverick.jpg",
+   "video": "https://youtu.be/qugIpOiqC0s",
+   "t": "1:08",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Maverick.jpg",
+   "video": "https://youtu.be/qugIpOiqC0s",
+   "t": "2:40",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Maverick.jpg",
+   "video": "https://youtu.be/qugIpOiqC0s",
+   "t": "4:12",
+   "channel": "Colin West"
+  },
+  {
+   "sheet": "Motherlode_(part_1).jpg",
+   "video": "https://youtu.be/NBWOeYfCWKk",
+   "t": "0:58",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Motherlode_(part_1).jpg",
+   "video": "https://youtu.be/NBWOeYfCWKk",
+   "t": "2:17",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Motherlode_(part_1).jpg",
+   "video": "https://youtu.be/NBWOeYfCWKk",
+   "t": "3:35",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Motherlode_(part_1).jpg",
+   "video": "https://youtu.be/sfZqf8K-8Mg",
+   "t": "0:09",
+   "channel": "StillVenom"
+  },
+  {
+   "sheet": "Motherlode_(part_1).jpg",
+   "video": "https://youtu.be/sfZqf8K-8Mg",
+   "t": "0:22",
+   "channel": "StillVenom"
+  },
+  {
+   "sheet": "Motherlode_(part_1).jpg",
+   "video": "https://youtu.be/sfZqf8K-8Mg",
+   "t": "0:34",
+   "channel": "StillVenom"
+  },
+  {
+   "sheet": "Motherlode_(part_2).jpg",
+   "video": "https://youtu.be/NBWOeYfCWKk",
+   "t": "0:58",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Motherlode_(part_2).jpg",
+   "video": "https://youtu.be/NBWOeYfCWKk",
+   "t": "2:17",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Motherlode_(part_2).jpg",
+   "video": "https://youtu.be/NBWOeYfCWKk",
+   "t": "3:35",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Motherlode_(part_2).jpg",
+   "video": "https://youtu.be/sfZqf8K-8Mg",
+   "t": "0:09",
+   "channel": "StillVenom"
+  },
+  {
+   "sheet": "Motherlode_(part_2).jpg",
+   "video": "https://youtu.be/sfZqf8K-8Mg",
+   "t": "0:22",
+   "channel": "StillVenom"
+  },
+  {
+   "sheet": "Motherlode_(part_2).jpg",
+   "video": "https://youtu.be/sfZqf8K-8Mg",
+   "t": "0:34",
+   "channel": "StillVenom"
+  },
+  {
+   "sheet": "Sluice_Box.jpg",
+   "video": "https://youtu.be/mlRb7-3TrWQ",
+   "t": "0:06",
+   "channel": "_christian_sison_"
+  },
+  {
+   "sheet": "Sluice_Box.jpg",
+   "video": "https://youtu.be/mlRb7-3TrWQ",
+   "t": "0:15",
+   "channel": "_christian_sison_"
+  },
+  {
+   "sheet": "Sluice_Box.jpg",
+   "video": "https://youtu.be/mlRb7-3TrWQ",
+   "t": "0:24",
+   "channel": "_christian_sison_"
+  },
+  {
+   "sheet": "Sluice_Box.jpg",
+   "video": "https://youtu.be/zW85q-b38P4",
+   "t": "0:55",
+   "channel": "Kelly Douglas"
+  },
+  {
+   "sheet": "Sluice_Box.jpg",
+   "video": "https://youtu.be/zW85q-b38P4",
+   "t": "2:08",
+   "channel": "Kelly Douglas"
+  },
+  {
+   "sheet": "Sluice_Box.jpg",
+   "video": "https://youtu.be/zW85q-b38P4",
+   "t": "3:21",
+   "channel": "Kelly Douglas"
+  },
+  {
+   "sheet": "Stagecoach.jpg",
+   "video": "https://youtu.be/kN5MNkT0o4I",
+   "t": "0:29",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Stagecoach.jpg",
+   "video": "https://youtu.be/kN5MNkT0o4I",
+   "t": "1:08",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Stagecoach.jpg",
+   "video": "https://youtu.be/kN5MNkT0o4I",
+   "t": "1:47",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Upper_Gambit.jpg",
+   "video": "https://youtu.be/zH7aAn360oA",
+   "t": "0:39",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Upper_Gambit.jpg",
+   "video": "https://youtu.be/zH7aAn360oA",
+   "t": "1:31",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Upper_Gambit.jpg",
+   "video": "https://youtu.be/zH7aAn360oA",
+   "t": "2:23",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Grandmothers.jpg",
+   "video": "https://youtu.be/9l3cnZh--7Q",
+   "t": "1:15",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Grandmothers.jpg",
+   "video": "https://youtu.be/9l3cnZh--7Q",
+   "t": "2:55",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Grandmothers.jpg",
+   "video": "https://youtu.be/9l3cnZh--7Q",
+   "t": "4:35",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Okanagan_Run.jpg",
+   "video": "https://youtu.be/3H8I_9M7Fmg",
+   "t": "0:23",
+   "channel": "Genadiy"
+  },
+  {
+   "sheet": "Okanagan_Run.jpg",
+   "video": "https://youtu.be/3H8I_9M7Fmg",
+   "t": "0:55",
+   "channel": "Genadiy"
+  },
+  {
+   "sheet": "Okanagan_Run.jpg",
+   "video": "https://youtu.be/3H8I_9M7Fmg",
+   "t": "1:27",
+   "channel": "Genadiy"
+  },
+  {
+   "sheet": "Okanagan_Run.jpg",
+   "video": "https://youtu.be/b4Qc35tJc3U",
+   "t": "0:36",
+   "channel": "James Shalman"
+  },
+  {
+   "sheet": "Okanagan_Run.jpg",
+   "video": "https://youtu.be/b4Qc35tJc3U",
+   "t": "0:59",
+   "channel": "James Shalman"
+  },
+  {
+   "sheet": "Okanagan_Run.jpg",
+   "video": "https://youtu.be/b4Qc35tJc3U",
+   "t": "1:23",
+   "channel": "James Shalman"
+  },
+  {
+   "sheet": "Old_Mill.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "3:34",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Old_Mill.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "3:37",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Old_Mill.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "3:40",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Old_Mill.jpg",
+   "video": "https://youtu.be/OQHicJdqpB0",
+   "t": "0:45",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Old_Mill.jpg",
+   "video": "https://youtu.be/OQHicJdqpB0",
+   "t": "1:47",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Old_Mill.jpg",
+   "video": "https://youtu.be/OQHicJdqpB0",
+   "t": "2:48",
+   "channel": "Matt Oviatt"
+  },
+  {
+   "sheet": "Claim_Jumper.jpg",
+   "video": "https://youtu.be/215BO7j8oX0",
+   "t": "0:03",
+   "channel": "JTPOV"
+  },
+  {
+   "sheet": "Claim_Jumper.jpg",
+   "video": "https://youtu.be/215BO7j8oX0",
+   "t": "0:08",
+   "channel": "JTPOV"
+  },
+  {
+   "sheet": "Claim_Jumper.jpg",
+   "video": "https://youtu.be/215BO7j8oX0",
+   "t": "0:13",
+   "channel": "JTPOV"
+  },
+  {
+   "sheet": "Toilet_Bowl.jpg",
+   "video": "https://youtu.be/0S-11EKa27g",
+   "t": "1:15",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Toilet_Bowl.jpg",
+   "video": "https://youtu.be/0S-11EKa27g",
+   "t": "2:55",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Toilet_Bowl.jpg",
+   "video": "https://youtu.be/0S-11EKa27g",
+   "t": "4:35",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Toilet_Bowl.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "1:42",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Toilet_Bowl.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "1:54",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Toilet_Bowl.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "2:06",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Essendale_Ward_1.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "5:08",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Essendale_Ward_1.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "5:20",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Essendale_Ward_1.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "5:32",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Essendale_Ward_1.jpg",
+   "video": "https://youtu.be/Jn-ukp6tBDQ",
+   "t": "1:15",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Essendale_Ward_1.jpg",
+   "video": "https://youtu.be/Jn-ukp6tBDQ",
+   "t": "2:55",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Essendale_Ward_1.jpg",
+   "video": "https://youtu.be/Jn-ukp6tBDQ",
+   "t": "4:35",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Essendale_Ward_2.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "5:08",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Essendale_Ward_2.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "5:20",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Essendale_Ward_2.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "5:32",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Essendale_Ward_2.jpg",
+   "video": "https://youtu.be/Jn-ukp6tBDQ",
+   "t": "1:15",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Essendale_Ward_2.jpg",
+   "video": "https://youtu.be/Jn-ukp6tBDQ",
+   "t": "2:55",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Essendale_Ward_2.jpg",
+   "video": "https://youtu.be/Jn-ukp6tBDQ",
+   "t": "4:35",
+   "channel": "Adam Romagnoli"
+  },
+  {
+   "sheet": "Tooth_Tusk.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "12:12",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Tooth_Tusk.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "12:29",
+   "channel": "Rise & Alpine"
+  },
+  {
+   "sheet": "Tooth_Tusk.jpg",
+   "video": "https://youtu.be/An8kSTvZv_k",
+   "t": "12:45",
+   "channel": "Rise & Alpine"
+  }
+ ]
+}

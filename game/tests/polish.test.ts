@@ -13,7 +13,7 @@ describe('official run spellings', () => {
     const run = (name: string, difficulty = 'easy') => ({ id: name, name, difficulty, groomed: true, kind: 'line', parts: [] })
     const resort = { runs: [run('Dude ney Trail'), run('Grommit', 'expert'), run('97', 'advanced'), run('Upper Wishbone')], peaks: [] } as unknown as Resort
     applyCorrections(resort)
-    expect(resort.runs.map((r) => r.name)).toEqual(['Dude-Ney Trail', 'Gromit', 'Highway 97', 'Upper Wishbone'])
+    expect(resort.runs.map((r) => r.name)).toEqual(['Dude-Ney Trail', 'Gromit', 'Highway 97', 'Wishbone'])
     expect(resort.runs[3].difficulty).toBe('intermediate')
   })
 

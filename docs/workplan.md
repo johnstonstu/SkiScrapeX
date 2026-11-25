@@ -53,6 +53,13 @@ Expensive shader work goes behind a define (like `SNOW_DETAIL`). Expensive geome
 
 ## Milestones
 
+### Runs from the Apex research handoff (PR #101, `docs/review/apex-terrain-handoff.md`)
+
+- [x] 0.9.18, pass A: south-face runs, Wildside names and Wildly Easy, Upper/Lower splits, Wishbone merge, Grandmother's blue, Chaser, neutral names for unknown traces.
+- [ ] Pass B: thin trees in the four glade polygons and label them; moguls on Sunbowl, Make My Day, Old Mill, Gunbarrel, K2; ungroomed Crusher and Hanks, packed Grandmother's; landmarks (summit orange slat fence, Tooth/Tusk signpost, padded lift towers); a test of run widths and pitches against `run-profiles.json`.
+- [ ] Events: Shoot the Chute and the Mars downhill (`docs/review/apex-events/game-event-ideas.md`).
+- [ ] Distant forest: apron tree density (the LiDAR ring is sparser than our cover already), with the performance pass.
+
 ### Next up (from Stu's 0.9.16 playtest, 2026-11-24)
 
 - [x] 0.9.17: instant deep-snow trenches, chair arrival on free ski, arrival camera, T-bar and carpet unloads, carpet on the ground, window flicker, Aerial Site, Prospector park on L2, Claim Jumper XL line, pole push vs tuck, gravity-relative lean.

@@ -1,0 +1,9 @@
+# Batch 1: intro, village, Quickdraw, the top, Toilet Bowl, Gunbarrel, Tongue, Old Mill
+- Village: wood-sided buildings painted yellow, green and blue/grey, with wooden balconies, heavy roof snow and long icicles. A walk-up ticket booth (Adult $105), a "Lunch Room" sign, and a small terrain park fenced inside the village. Crunchy footsteps.
+- Quickdraw: a high-speed quad with black padded seats, safety bars and galvanized towers, and a liftie with a scanner. Mechanical hum and sheave clicks. Rime load on the trees grows with height.
+- The top: a flat unload onto a narrow traverse/cat track. Snow ghosts, more widely spaced. Fog and low visibility at the summit. A white lift shack with green trim, "Notice" and "Cliff Area" signs, orange slat fencing, and a big lattice radio tower. Creator: "to the right everything is steep ... to the left ... almost like fingers coming off this main peak."
+- Toilet Bowl: drops straight off the traverse and rolls over into a wide steep bowl. Snow-laden trees at the edges, soft chopped snow, jump turns, chalky scrape.
+- Gunbarrel: very steep, sustained fall line, narrower, heavily moguled, tree-bounded, with exposed rocks/stumps ("snakes"). Creator: "a real Gunbarrel ... long, fall line, barrel of a gun all the way down the mountain." Rhythmic mogul thuds.
+- Tongue: moderate-steep glades of spaced snow ghosts, light powder, surfy turns, brighter light than the summit.
+- Old Mill: blue, wide, straight groomer with a wall of tall trees on both sides, orange netting at the edges, GS carving, a zipper carve sound and wind.
+- Dev takeaways: an altitude tree biome (normal conifers at the base, rime snow ghosts on top); summit fog that clears lower down; three terrain styles (moguls, groomer, bowl); camera behaviour that varies with terrain; a surface-tagged audio system; a colourful painted-wood village with icicles; a summit radio tower, orange slat fencing and cliff signs.

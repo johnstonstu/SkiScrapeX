@@ -70,7 +70,8 @@ describe('Apex corrections', () => {
     applyCorrections(resort)
     const rating = (name: string) => resort.runs.find((run) => run.name === name)?.difficulty
     // Spot checks against Wikipedia's list by lift.
-    expect(rating('Upper Wishbone')).toBe('intermediate')
+    expect(rating('Wishbone')).toBe('intermediate')
+    expect(rating("Grandmother's Trail")).toBe('intermediate')
     expect(rating('Gunbarrel')).toBe('expert')
     expect(rating('Okanagan Run')).toBe('intermediate')
     expect(rating("Grandfather's Trail")).toBe('easy')
