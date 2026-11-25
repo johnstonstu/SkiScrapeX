@@ -101,7 +101,9 @@ function buildMesh(buildings: Building[], detail: boolean) {
       : WALLS[building.palette].clone().multiplyScalar(0.9 + (building.palette % 3) * 0.05)
     if (hero && building.name === 'Gunbarrel Saloon') wall.multiplyScalar(0.92)
     const { ring, base, eaves } = building
-    const windows = detail && building.kind !== 'service' ? 1 : 0
+    // Windows on both levels of detail: the far mesh used to drop them, so any building
+    // more than 340 m from the village centre (the summit hut, outlying lots) had none.
+    const windows = building.kind !== 'service' ? 1 : 0
     const snowLift = GABLE_SNOW_LIFT + (hero ? 0.12 : 0)
     let u = 0
     let longest = { i: 0, length: 0, ax: 0, az: 0, bx: 0, bz: 0 }
@@ -292,7 +294,7 @@ function buildMesh(buildings: Building[], detail: boolean) {
   geometry.computeBoundingSphere()
 
   const material = new THREE.MeshLambertMaterial({ vertexColors: true })
-  if (detail) {
+  {
     material.onBeforeCompile = (shader) => {
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', '#include <common>\nattribute vec3 aWall;\nvarying vec3 vWall;')

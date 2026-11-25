@@ -5,6 +5,9 @@ import type { Slope } from '../sim'
 import type { World } from '../world/loadWorld'
 import { buildSurface, type SurfaceField } from '../world/surface'
 import { buildExposure } from '../world/exposure'
+import { EXTRA_PEAKS, SUMMIT_HUT_FOOTPRINT } from '../world/corrections'
+import { apexMountainTowers, beaconsfieldTowers } from '../world/telecom'
+import { createTelecomView } from '../render/scenery/telecomView'
 import { buildMoguls } from '../world/moguls'
 import { buildApron } from '../world/apron'
 import { indexTrunks, plantApronForest, plantForest } from '../world/forest'
@@ -99,12 +102,15 @@ export function buildApexStage(
   lifts.object.traverse((child) => (child.castShadow = true))
   mergeStatic(lifts.object, (object) => Boolean(object.userData.hood))
   scene.add(lifts.object)
-  const buildings = buildBuildings(resort.buildings, grid.heightAt, canopy ? { grid, canopy } : undefined)
+  // The Billy Goat Hut is modelled by hand on its OSM footprint, so that shell is not drawn.
+  const shells = buildBuildings(resort.buildings, grid.heightAt, canopy ? { grid, canopy } : undefined)
+  const hutFootprint = shells.find((b) => b.id === SUMMIT_HUT_FOOTPRINT)?.ring ?? null
+  const buildings = shells.filter((b) => b.id !== SUMMIT_HUT_FOOTPRINT)
   const buildingView = createBuildingView(buildings)
   scene.add(buildingView.object)
   options.phase?.('apex: terrain, forest, lifts, buildings')
 
-  const village = buildVillage(grid, canopy, resort.roads, resort.runs, buildings, resort.lifts)
+  const village = buildVillage(grid, canopy, resort.roads, resort.runs, buildings, resort.lifts, undefined, hutFootprint)
   const villageView = createVillageView(village, grid.heightAt, { detail: quality.villageDetail })
   scene.add(villageView.object)
   options.phase?.('apex: village')
@@ -146,6 +152,15 @@ export function buildApexStage(
   scene.add(createBoundaryView(resort.boundary, grid.heightAt, resort.roads).object)
   const summitFlags = createSummitFlags(resort.lifts, grid.heightAt)
   scene.add(summitFlags.object)
+  // Telecom towers on Beaconsfield (in the crop, solid) and on Apex Mountain (horizon only).
+  const apexPeak = EXTRA_PEAKS.find((p) => p.name === 'Apex Mountain')
+  const localTowers = beaconsfieldTowers(grid.heightAt)
+  scene.add(createTelecomView([...localTowers, ...(apexPeak ? apexMountainTowers(anyHeight, apexPeak) : [])]).object)
+  for (const tower of localTowers) {
+    const r = tower.kind === 'cabinet' ? 1.7 : tower.kind === 'lattice' ? 1.9 : 0.8
+    const ring: [number, number][] = [[tower.x - r, tower.z - r], [tower.x + r, tower.z - r], [tower.x + r, tower.z + r], [tower.x - r, tower.z + r]]
+    solid.push({ id: `telecom-${solid.length}`, name: 'Telecom tower', kind: 'hut', ring, base: 0, eaves: 0, roof: null, palette: 0 })
+  }
   let lastFlagTime = performance.now()
 
   // Park features sit on top of the LiDAR ground; rebuilt when a layout changes.

@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { applyCorrections, buildingName } from '../src/world/corrections'
+import { applyCorrections, buildingName, DROPPED_BUILDINGS, SUMMIT_HUT_FOOTPRINT } from '../src/world/corrections'
+import { placeHut } from '../src/world/village'
+import { createTerrainGrid } from '../src/world/terrainGrid'
 import { OVERLAY_RUNS } from '../src/world/runOverlay'
 import { resortFromFeatures, type Resort } from '../src/world/resort'
 import { loadDiskGrid } from './diskGrid'
@@ -11,6 +13,24 @@ describe('Apex corrections', () => {
     expect(buildingName('Apex Mtn Inn')).toBe('Apex Mountain Inn')
     expect(buildingName('Ticket Office')).toBe('Ticket Office')
     expect(buildingName(null)).toBeNull()
+  })
+
+  it('leaves one building on the summit: the Billy Goat Hut footprint', () => {
+    const square = (x: number) => [{ x, z: 0 }, { x: x + 5, z: 0 }, { x: x + 5, z: 5 }, { x, z: 5 }]
+    const ids = [SUMMIT_HUT_FOOTPRINT, ...DROPPED_BUILDINGS, 'way/1']
+    const resort = { runs: [], peaks: [], buildings: ids.map((id, i) => ({ id, points: square(i * 10) })) } as unknown as Resort
+    applyCorrections(resort)
+    expect(resort.buildings.map((b) => b.id)).toEqual([SUMMIT_HUT_FOOTPRINT, 'way/1'])
+  })
+
+  it('puts the hut on its footprint, door toward the lift top', () => {
+    const grid = createTerrainGrid({ columns: 21, rows: 21, stepMetres: 5 }, new Float32Array(21 * 21).fill(500))
+    const lift = { name: 'Quickdraw', top: [50, 20], bottom: [50, 90] } as never
+    const hut = placeHut([lift], [], grid, [[20, 20], [26, 20], [26, 26], [20, 26]])
+    expect(hut?.x).toBeCloseTo(23)
+    expect(hut?.z).toBeCloseTo(23)
+    // Same door convention as the free placement (atan2 of the offset to the lift top).
+    expect(Math.sin(hut!.heading)).toBeLessThan(0)
   })
 
   it('applies official difficulty and adds Apex Mountain', () => {

@@ -96,6 +96,8 @@ export function createSignView(
     disposables.push(mesh.geometry)
     group.add(mesh)
   }
+  // Peak names read from afar; standing on the summit they hang overhead behind the HUD.
+  const peakLabels: THREE.Sprite[] = []
   for (const peak of peaks) {
     const ground = heightAt(peak.x, peak.z)
     if (!Number.isFinite(ground)) continue
@@ -103,6 +105,7 @@ export function createSignView(
     sprite.scale.multiplyScalar(2.5)
     sprite.position.set(peak.x, ground + 12, peak.z)
     group.add(sprite)
+    peakLabels.push(sprite)
   }
 
   for (const place of places) {
@@ -121,6 +124,11 @@ export function createSignView(
         const d = sprite.position.distanceToSquared(camera)
         // Trail heads: the board is readable up close, so the floating label only helps from afar.
         sprite.visible = d < 260 * 260 && d > (trailLabels.has(sprite) ? 60 * 60 : 7 * 7)
+      }
+      for (const sprite of peakLabels) {
+        const dx = sprite.position.x - camera.x
+        const dz = sprite.position.z - camera.z
+        sprite.visible = dx * dx + dz * dz > 150 * 150
       }
       // Painted faces only up close: past 250 m they are a few pixels and the label takes over.
       for (const face of faces) face.visible = face.position.distanceToSquared(camera) < 250 * 250

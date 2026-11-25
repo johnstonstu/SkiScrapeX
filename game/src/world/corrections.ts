@@ -69,6 +69,17 @@ export function buildingName(name: string | null | undefined): string | null {
  */
 export const EXTRA_PEAKS: Peak[] = [{ name: 'Apex Mountain', x: 1768, z: 3988, ele: 2247 }]
 
+/**
+ * The summit has one building: the Billy Goat Hut, a small cabin beside the
+ * Quickdraw top (now a ski patrol cabin; sonnybou.ca trip report, see
+ * game/research/apex-references.md). OSM has four untagged footprints there.
+ * The one on the summit point becomes the hut; the others are dropped (Stu's
+ * 0.9.13 playtest: "there just needs to be one"). The two south of the hut
+ * are where world/telecom.ts puts the Beaconsfield cell towers instead.
+ */
+export const SUMMIT_HUT_FOOTPRINT = 'way/171556503'
+export const DROPPED_BUILDINGS = new Set(['way/171556518', 'way/171556521', 'way/171556575'])
+
 /** Apply the fixes in place. */
 export function applyCorrections(resort: Resort): void {
   for (const run of resort.runs) {
@@ -76,5 +87,6 @@ export function applyCorrections(resort: Resort): void {
     const difficulty = DIFFICULTY_FIXES[run.name]
     if (difficulty) run.difficulty = difficulty
   }
+  if (resort.buildings) resort.buildings = resort.buildings.filter((b) => !(b.id && DROPPED_BUILDINGS.has(b.id)))
   for (const peak of EXTRA_PEAKS) if (!resort.peaks.some((p) => p.name === peak.name)) resort.peaks.push({ ...peak })
 }
