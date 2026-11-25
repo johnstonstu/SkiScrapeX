@@ -30,7 +30,7 @@ export interface SnowDeform {
 /** Encoding for an 8-bit texture: offsets from -DEFORM_RANGE.low to +DEFORM_RANGE.high metres. */
 export const DEFORM_RANGE = { low: 0.75, high: 0.25 } as const
 
-export function createSnowDeform(size = 48, texel = 0.1): SnowDeform {
+export function createSnowDeform(size = 48, texel = 0.08): SnowDeform {
   const n = Math.round(size / texel)
   const values = new Float32Array(n * n)
   const scratch = new Float32Array(n * n)
@@ -104,8 +104,9 @@ export function createSnowDeform(size = 48, texel = 0.1): SnowDeform {
           if (d >= reach) continue
           const i = row * n + col
           if (d < halfWidth) {
-            // Rounded trench floor.
-            const cut = -depth * Math.sqrt(1 - (d / halfWidth) ** 2)
+            // Flat floor with soft walls, so the edge is smooth at 8 cm texels.
+            const w = Math.max(0, Math.min(1, (d - halfWidth * 0.45) / (halfWidth * 0.55)))
+            const cut = -depth * (1 - w * w * (3 - 2 * w))
             if (cut < values[i]) values[i] = cut
           } else if (values[i] > -0.01) {
             // Berm: only on snow that is not already part of another trench.
@@ -160,50 +161,58 @@ export interface SkiImprint {
 export function imprint(field: SnowDeform, ski: SkiImprint, boardWidth = 0) {
   // Loose snow compresses behind the ski, so the track sits deeper than the planing depth.
   const depth = ski.loose > 0.02 ? Math.min(ski.loose, Math.max(ski.sink * 1.5, ski.loose * 0.5, 0.02)) : 0.012
-  const halfWidth = (boardWidth > 0 ? boardWidth / 2 : 0.07) + ski.skid * 0.32
+  // A ski track is the ski plus the boot's spray: about 25 cm wide.
+  const halfWidth = (boardWidth > 0 ? boardWidth / 2 + 0.04 : 0.13) + ski.skid * 0.32
   const berm = ski.loose > 0.02 ? depth * (0.32 + ski.skid * 0.5) : 0.004
-  const bermWidth = 0.14 + depth * 0.6 + ski.skid * 0.25
+  const bermWidth = 0.22 + depth * 0.6 + ski.skid * 0.25
   field.carve(ski.x0, ski.z0, ski.x1, ski.z1, halfWidth, depth, berm, bermWidth)
 }
 
 /**
- * Queues imprints and lays them down a moment after the skis pass. The sim
- * reads the field (packed snow is shallower), so stamping under the skis at
- * once would make the skier ride up out of their own fresh track; the delay
- * keeps that feedback out while the trench still forms right behind them.
+ * Lays imprints into two fields. The one you see (`field`) takes them at once,
+ * so the trench forms right under the skis. The one the sim reads (`packed`)
+ * takes them a moment later: packed snow is shallower, so reading the skier's
+ * own fresh track would make them ride up out of it.
  */
 export function createStamper(field: SnowDeform, delay = 0.25) {
-  const queue: { due: number; ski: SkiImprint; boardWidth: number; crater: boolean }[] = []
+  const packed = createSnowDeform(field.size, field.texel)
+  const queue: { due: number; ski: SkiImprint; boardWidth: number }[] = []
   let time = 0
   let last: { lx: number; lz: number; rx: number; rz: number } | null = null
+  const lay = (ski: SkiImprint, boardWidth: number) => {
+    imprint(field, ski, boardWidth)
+    queue.push({ due: time + delay, ski, boardWidth })
+  }
   return {
     field,
+    packed,
     /**
      * Record this frame's skis. `side` is the skier's right on the ground, `stance` the
      * distance from the centre to each ski (0 for a board, which leaves one wide track).
      */
     push(s: { x: number; z: number; sideX: number; sideZ: number; stance: number; boardWidth: number; sink: number; loose: number; skid: number; grounded: boolean; crashed: boolean }) {
       field.recentre(s.x, s.z)
+      packed.recentre(s.x, s.z)
       const lx = s.x - s.sideX * s.stance
       const lz = s.z - s.sideZ * s.stance
       const rx = s.x + s.sideX * s.stance
       const rz = s.z + s.sideZ * s.stance
       if (s.crashed && s.loose > 0.05) {
-        queue.push({ due: time + delay, ski: { x0: s.x, z0: s.z, x1: s.x, z1: s.z, sink: Math.min(0.35, s.loose), loose: s.loose, skid: 1 }, boardWidth: 0.6, crater: true })
+        lay({ x0: s.x, z0: s.z, x1: s.x, z1: s.z, sink: Math.min(0.35, s.loose), loose: s.loose, skid: 1 }, 0.6)
       } else if (s.grounded && last) {
         const base = { sink: s.sink, loose: s.loose, skid: s.skid }
-        queue.push({ due: time + delay, ski: { x0: last.lx, z0: last.lz, x1: lx, z1: lz, ...base }, boardWidth: s.boardWidth, crater: false })
-        if (s.stance > 0) queue.push({ due: time + delay, ski: { x0: last.rx, z0: last.rz, x1: rx, z1: rz, ...base }, boardWidth: s.boardWidth, crater: false })
+        lay({ x0: last.lx, z0: last.lz, x1: lx, z1: lz, ...base }, s.boardWidth)
+        if (s.stance > 0) lay({ x0: last.rx, z0: last.rz, x1: rx, z1: rz, ...base }, s.boardWidth)
       }
       last = s.grounded && !s.crashed ? { lx, lz, rx, rz } : null
     },
-    /** Lay down every imprint that is due. */
+    /** Pack the snow the sim reads, once the skis have moved on. */
     step(dt: number) {
       time += dt
       let k = 0
       while (k < queue.length && queue[k].due <= time) {
         const entry = queue[k++]
-        imprint(field, entry.ski, entry.boardWidth)
+        imprint(packed, entry.ski, entry.boardWidth)
       }
       if (k) queue.splice(0, k)
     },
@@ -211,6 +220,7 @@ export function createStamper(field: SnowDeform, delay = 0.25) {
       queue.length = 0
       last = null
       field.clear()
+      packed.clear()
     },
   }
 }

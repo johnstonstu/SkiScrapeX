@@ -242,6 +242,16 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
     ride(liftId: string): RidePath | null {
       return rides.get(liftId) ?? null
     },
+    /** Move a lift's rope so a chair sits at `s` metres up the ride (a session opening on the chair). */
+    alignChair(liftId: string, s: number) {
+      const rope = ropes.find((r) => r.liftId === liftId)
+      if (!rope) return
+      const spacing = rope.circuit.total / rope.chairs.count
+      const offset = (((s - rope.distance) % spacing) + spacing) % spacing
+      rope.distance = (rope.distance + offset) % rope.circuit.total
+      rope.uphill.spacing = spacing
+      rope.uphill.boardingDistance = rope.distance % spacing
+    },
     update(dt: number, fastLift?: string) {
       for (const rope of ropes) {
         const spacing = rope.circuit.total / rope.chairs.count
@@ -560,36 +570,50 @@ function addMagicCarpet(
   materials: { belt: THREE.Material; rail: THREE.Material; cover: THREE.Material },
   disposables: { dispose(): void }[],
 ) {
-  const points = line.map(([x, z]) => new THREE.Vector3(x, ground(x, z) + 0.15, z))
+  // Follow the snow in short pieces: one level box per mapped segment floated over
+  // the low end and buried the high end (the 164 m carpet rises 25 m).
+  const points: THREE.Vector3[] = []
+  for (let k = 0; k < line.length; k++) {
+    const [x, z] = line[k]
+    points.push(new THREE.Vector3(x, ground(x, z) + 0.15, z))
+    if (k === line.length - 1) break
+    const [nx, nz] = line[k + 1]
+    const steps = Math.max(1, Math.ceil(Math.hypot(nx - x, nz - z) / 2))
+    for (let j = 1; j < steps; j++) {
+      const px = x + ((nx - x) * j) / steps
+      const pz = z + ((nz - z) * j) / steps
+      points.push(new THREE.Vector3(px, ground(px, pz) + 0.15, pz))
+    }
+  }
+  const forward = new THREE.Vector3(0, 0, 1)
+  let run = 0
+  const total = points.reduce((sum, p, k) => (k ? sum + p.distanceTo(points[k - 1]) : 0), 0)
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1]
     const b = points[i]
     const length = a.distanceTo(b)
     const mid = a.clone().lerp(b, 0.5)
-    const yaw = Math.atan2(b.x - a.x, b.z - a.z)
-    const place = (mesh: THREE.Mesh, y = 0) => {
-      mesh.position.copy(mid)
-      mesh.position.y += y
-      mesh.rotation.y = yaw
+    const tilt = new THREE.Quaternion().setFromUnitVectors(forward, b.clone().sub(a).normalize())
+    const place = (mesh: THREE.Mesh, offset: THREE.Vector3) => {
+      mesh.position.copy(mid).add(offset.applyQuaternion(tilt))
+      mesh.quaternion.copy(tilt)
       mesh.castShadow = true
       group.add(mesh)
     }
-    const belt = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.28, length), materials.belt)
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.28, length + 0.02), materials.belt)
     disposables.push(belt.geometry)
-    place(belt)
+    place(belt, new THREE.Vector3())
     for (const side of [-0.72, 0.72]) {
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.35, length), materials.rail)
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.35, length + 0.02), materials.rail)
       disposables.push(rail.geometry)
-      rail.position.set(mid.x + Math.cos(yaw) * side, mid.y + 0.25, mid.z - Math.sin(yaw) * side)
-      rail.rotation.y = yaw
-      rail.castShadow = true
-      group.add(rail)
+      place(rail, new THREE.Vector3(side, 0.25, 0))
     }
-    // Clear cover over mid-span segments.
-    if (i > 1 && i < points.length - 1) {
-      const cover = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, length * 0.92), materials.cover)
+    // Clear cover over the middle, open for the first and last few metres.
+    run += length
+    if (run > 4 && run < total - 4) {
+      const cover = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, length + 0.02), materials.cover)
       disposables.push(cover.geometry)
-      place(cover, 1.05)
+      place(cover, new THREE.Vector3(0, 1.05, 0))
     }
   }
   // End ramps at first and last points.

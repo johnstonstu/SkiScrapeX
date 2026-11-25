@@ -48,8 +48,8 @@ describe('park way naming', () => {
       { name: 'Park', line, osmId: 'way/1105323712' },
       { name: 'Claim Jumper', line, osmId: 'way/374339381' },
     ])
-    expect(sites.map((site) => site.name)).toEqual(['Okanagan Park', 'Prospector', 'Little Nuggets', 'Claim Jumper'])
-    expect(sites.map((site) => site.layout)).toEqual(['okanagan', 'prospector', 'nuggets', 'claimJumper'])
+    expect(sites.map((site) => site.name)).toEqual(['Okanagan Park', 'Aerial Site', 'Little Nuggets', 'Claim Jumper'])
+    expect(sites.map((site) => site.layout)).toEqual(['okanagan', 'aerial', 'nuggets', 'claimJumper'])
     expect(PARK_WAY_NAMES['way/374339369']).toBe('Okanagan Park')
   })
 

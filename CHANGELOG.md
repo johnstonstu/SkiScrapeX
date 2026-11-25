@@ -2,6 +2,22 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.17 (2026-11-24): Arrivals, unloads, parks and rider feel
+
+### Changed
+
+- Free ski starts on the Quickdraw chair, a few seconds from the top: you ride in, stand up and ski off. A chair is lined up for you, so you always arrive seated.
+- Lift arrivals hold a camera shot beside the top station's exit instead of following you through the terminal (which used to hide its roof and walls), then ease back to the follow camera without a cut.
+- T-bar and Magic Carpet unloads: hold on to the top, let the bar go round the bullwheel, drift aside away from the lift line and stop, then pick your own way. Every unload turns toward open ground, so the carpet no longer drops you facing an apartment block.
+- Deep snow: trenches appear under the skis at once (the sim still packs its own copy a moment later), with smoother walls (8 cm field, finer patch: 0.12 m on Medium, 0.1 m on High) and wider, more natural ski tracks.
+- Rider: a forward tap at cruising speed (18 to 40 km/h) is a double-pole push that adds speed; holding forward settles into a tuck after a third of a second, and the tuck deepens with speed. The body now leans against gravity rather than the slope, so it stays plumb on traverses and no longer over-leans into banked turns.
+- Parks: the old "Prospector" OSM park is the Aerial Site. Prospector is the blue run beside Claim Jumper (trace L2) with its own park: rails, boxes, a quarter-pipe step-over and jump lines. Claim Jumper is the XL line: a straight shot through ever bigger tables up to a new Pro gap. Every station in the named parks offers two or three features.
+
+### Fixed
+
+- The Magic Carpet follows the ground in 2 m pieces; it was one level box floating over half its length.
+- Distant windows no longer flicker: antialiased edges, fading to the average wall and glass colour when a window is a few pixels wide.
+
 ## 0.9.16 (2026-11-24): Deep snow, West Bank and The Pit, runs that fit
 
 ### Added

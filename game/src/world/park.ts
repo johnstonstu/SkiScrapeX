@@ -51,6 +51,15 @@ export const KICKERS: Record<'S' | 'M' | 'L' | 'XL', FeatureSpec> = {
   XL: { kind: 'kicker', label: 'XL gap jump · 25-50 km/h', speed: [25, 50], height: 3.2, lipDeg: 23, deck: 13, landingDeg: 32, width: 8 },
 }
 
+/** Claim Jumper's biggest table: more lip, a longer gap and a long, steep landing for real air. */
+export const PRO_KICKER: FeatureSpec = { kind: 'kicker', label: 'Pro gap jump · 35-60 km/h', speed: [35, 60], height: 3.8, lipDeg: 25, deck: 16, landingDeg: 33, width: 9 }
+
+/**
+ * Quarter-pipe step-over: a short, steep, curved kick that throws you up more
+ * than out, over a deck onto a landing (Prospector).
+ */
+export const STEP_OVER: FeatureSpec = { kind: 'kicker', label: 'Quarter-pipe step-over · 20-35 km/h', speed: [20, 35], height: 2.2, lipDeg: 36, deck: 5, landingDeg: 30, width: 7 }
+
 export const FEATURES: Record<string, FeatureSpec> = {
   ...Object.fromEntries(Object.entries(KICKERS).map(([k, v]) => [`kicker${k}`, v])),
   rollerS: { kind: 'roller', label: 'Roller', height: 1.5, length: 12, width: 8 },
@@ -60,6 +69,8 @@ export const FEATURES: Record<string, FeatureSpec> = {
   downRail: { kind: 'downRail', label: 'Down rail', height: 1.4, length: 9, width: 0.08 },
   flatDownRail: { kind: 'flatDownRail', label: 'Flat-down rail', height: 1.1, length: 10, width: 0.08 },
   stepDown: { kind: 'stepDown', label: 'Step-down', height: 1.2, lipDeg: 20, deck: 3, landingDeg: 26, width: 7 },
+  kickerPro: PRO_KICKER,
+  stepOver: STEP_OVER,
 }
 
 /** One feature, or a side-by-side row the rider can choose from. */
@@ -94,25 +105,39 @@ export const LAYOUTS: ParkLayout[] = [
       ['kickerL', 'kickerXL', 'downRail'],
     ],
   },
+  // Stu (2026-11-24): every station offers two or three features to choose from.
   {
     id: 'claimJumper',
     label: 'Claim Jumper',
-    features: ['stepDown', ['kickerL', 'rail'], ['kickerXL', 'flatDownRail'], ['kickerXL', 'downRail', 'kickerM']],
+    // The XL line: a straight shot through ever bigger tables.
+    features: [['kickerM', 'kickerL', 'kickerXL'], ['kickerL', 'kickerXL', 'kickerPro'], ['kickerXL', 'kickerPro'], ['kickerXL', 'kickerPro']],
   },
   {
     id: 'prospector',
     label: 'Prospector',
-    features: ['rollerS', ['kickerS', 'kickerS'], 'box', ['kickerM', 'rail'], ['kickerM', 'stepDown']],
+    features: [
+      ['box', 'rail', 'flatDownRail'],
+      ['kickerS', 'kickerM', 'rail'],
+      ['stepOver', 'downRail', 'box'],
+      ['kickerM', 'kickerL', 'flatDownRail'],
+      ['rail', 'downRail', 'box'],
+      ['kickerM', 'kickerL'],
+    ],
+  },
+  {
+    id: 'aerial',
+    label: 'Aerial Site',
+    features: [['rollerS', 'kickerS'], ['kickerS', 'kickerM', 'kickerL'], ['kickerM', 'kickerL'], ['kickerL', 'kickerXL']],
   },
   {
     id: 'okanagan',
     label: 'Okanagan',
-    features: ['rollerS', 'rollerL', ['kickerS', 'kickerM', 'kickerM'], ['rail', 'downRail'], ['kickerM', 'box']],
+    features: [['rollerS', 'box'], ['rollerL', 'rail'], ['kickerS', 'kickerM', 'kickerM'], ['rail', 'downRail', 'box'], ['kickerM', 'box']],
   },
   {
     id: 'nuggets',
     label: 'Little Nuggets',
-    features: ['rollerS', 'rollerS', 'box', 'box', 'rail'],
+    features: [['rollerS', 'box'], ['rollerS', 'rail'], ['box', 'kickerS']],
   },
 ]
 
@@ -125,11 +150,14 @@ export interface ParkSite {
   name: string
   line: Point2[]
   layout: string
+  /** Where features go when it differs from the park's centreline (Claim Jumper's straight shot). */
+  featureLine?: Point2[]
 }
 
 export const DEFAULT_LAYOUT: Record<string, string> = {
   'Claim Jumper': 'claimJumper',
   Prospector: 'prospector',
+  'Aerial Site': 'aerial',
   'Okanagan Park': 'okanagan',
   'Little Nuggets': 'nuggets',
   'Boarder Cross': 'rollers',
@@ -138,7 +166,8 @@ export const DEFAULT_LAYOUT: Record<string, string> = {
 /** Official names for OSM park ways that lack a name tag (or use a generic one). */
 export const PARK_WAY_NAMES: Record<string, string> = {
   'way/374339369': 'Okanagan Park',
-  'way/374339370': 'Prospector',
+  // Stu: this park is the aerial site; Prospector is the blue run beside Claim Jumper (trace L2).
+  'way/374339370': 'Aerial Site',
   'way/1105323712': 'Little Nuggets',
   'way/374339381': 'Claim Jumper',
   'way/374339374': 'Boarder Cross',
@@ -148,14 +177,29 @@ export function parkSitesFromLines(lines: { name: string | null; line: Point2[];
   return lines.map((l) => {
     const fromWay = PARK_WAY_NAMES[l.osmId]
     const name = fromWay ?? (l.name === 'Park' ? 'Little Nuggets' : l.name ?? 'Park')
-    return { id: l.osmId, name, line: l.line, layout: DEFAULT_LAYOUT[name] ?? 'mixed' }
+    const site: ParkSite = { id: l.osmId, name, line: l.line, layout: DEFAULT_LAYOUT[name] ?? 'mixed' }
+    const straight = STRAIGHT_FROM[name]
+    if (straight !== undefined) {
+      const total = polylineLength(l.line)
+      site.featureLine = [pointAlong(l.line, total * straight), l.line[l.line.length - 1]]
+    }
+    return site
   })
+}
+
+/** Parks whose features run on a straight line from this share of the way down to the bottom. */
+export const STRAIGHT_FROM: Record<string, number> = { 'Claim Jumper': 0.38 }
+
+/** A park laid on a run line (Prospector on trace L2), drawn downhill. */
+export function parkOnRun(name: string, line: Point2[], heightAt: (x: number, z: number) => number): ParkSite {
+  const downhill = heightAt(...line[0]) >= heightAt(...line[line.length - 1]) ? line : [...line].reverse()
+  return { id: `run/${name}`, name, line: downhill, layout: DEFAULT_LAYOUT[name] ?? 'mixed' }
 }
 
 /** Lay a lineup along a park line, leaving run-in and run-out between features. */
 export function placeFeatures(site: ParkSite, layoutId: string): PlacedFeature[] {
   const layout = LAYOUTS.find((l) => l.id === layoutId) ?? LAYOUTS[0]
-  return placeLineup(site.line, layout.features)
+  return placeLineup(site.featureLine ?? site.line, layout.features)
 }
 
 /** The demo park's lineup: a long progression from rollers to XL jumps, with a jib between most kickers. */

@@ -19,6 +19,8 @@ export interface Stage {
   snow: SnowMaterial | null
   advanceLifts?: (dt: number, fastLift?: string) => void
   ride: ((lift: Lift) => RidePath | null) | null
+  /** Put a chair at `s` metres up a lift's ride. */
+  alignChair?: (lift: Lift, s: number) => void
   /** Park features, for the approach-speed hint. */
   features: () => ParkOverlay['features']
   env: SkiEnv

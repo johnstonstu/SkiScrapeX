@@ -113,6 +113,10 @@ export interface SkiState {
   grounded: boolean
   offMap: boolean
   tuck: boolean
+  /** Seconds the forward control has been held. */
+  tuckTime: number
+  /** Pushing with both poles this step (a forward tap at moderate speed). */
+  poling: boolean
   mode: SkiMode
   /** Smoothed snow parameters under the skis. */
   surface: SurfaceParams
@@ -181,6 +185,8 @@ export function createSkiState(pose?: { x?: number; y?: number; z?: number; head
     grounded: true,
     offMap: false,
     tuck: false,
+    tuckTime: 0,
+    poling: false,
     mode: 'still',
     surface: SURFACES.groomed,
     sink: 0,
@@ -256,7 +262,12 @@ export function stepSkier(
   state.railCooldown = Math.max(0, state.railCooldown - dt)
   const steer = clamp(input.steer, -1, 1)
   const brake = clamp(input.brake, 0, 1)
-  state.tuck = input.tuck
+  // Forward means different things at different speeds: skate when slow, a pole push
+  // when cruising (a tap is one stroke), and a tuck when held or already fast.
+  state.tuckTime = input.tuck ? state.tuckTime + dt : 0
+  state.poling =
+    input.tuck && state.grounded && state.speed >= PHYSICS.skateMaxSpeed && state.speed < PHYSICS.polePushMaxSpeed && state.tuckTime < PHYSICS.tuckHold
+  state.tuck = input.tuck && !state.poling
   if (state.offMap) {
     holdOffMap(state)
     return
@@ -419,6 +430,10 @@ function stepGround(
     const bogged = 1 - 0.4 * clamp((state.sink - 0.15) / 0.15, 0, 1)
     const polePush = 1 + 0.5 * Math.max(0, 1 - speed / 1.5)
     along += PHYSICS.skateAccel * bogged * polePush * (1 - speed / PHYSICS.skateMaxSpeed) * dt
+  }
+  if (state.poling && !braking) {
+    const bogged = 1 - 0.5 * clamp((state.sink - 0.1) / 0.2, 0, 1)
+    along += PHYSICS.polePushAccel * bogged * (1 - speed / PHYSICS.polePushMaxSpeed) * dt
   }
 
   // Attack angle between the skis and the travel direction. The edge's

@@ -302,7 +302,7 @@ function buildMesh(buildings: Building[], detail: boolean) {
         .replace('#include <project_vertex>', '#include <project_vertex>\nvCamDist = -mvPosition.z;')
         .replace('varying vec3 vWall;', 'varying vec3 vWall;\nvarying float vCamDist;')
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying vec3 vWall;\nvarying float vCamDist;')
+        .replace('#include <common>', '#include <common>\nvarying vec3 vWall;\nvarying float vCamDist;\nfloat winBox(float x, float a, float b, float w) { return smoothstep(a - w, a + w, x) - smoothstep(b - w, b + w, x); }')
         .replace(
           '#include <clipping_planes_fragment>',
           `#include <clipping_planes_fragment>
@@ -316,20 +316,29 @@ function buildMesh(buildings: Building[], detail: boolean) {
           // Windows: 1.4 m wide every 3.4 m, one row per 3 m storey, none in the foundation.
           // Some bays are blank wall; each window has a light trim frame, a centre mullion
           // and glass that catches the sky toward its top.
-          vec2 bay = floor(vec2(vWall.x / 3.4, (vWall.y - 0.6) / 3.0));
+          vec2 grid = vec2(vWall.x / 3.4, (vWall.y - 0.6) / 3.0);
+          vec2 bay = floor(grid);
           float pick = fract(sin(dot(bay, vec2(12.9898, 78.233))) * 43758.5453);
-          vec2 cell = vec2(fract(vWall.x / 3.4), fract((vWall.y - 0.6) / 3.0));
+          vec2 cell = fract(grid);
+          // Antialiased edges, and far away (a window only a few pixels wide) fade to the
+          // average of wall and glass: hard steps there crawl and flicker.
+          vec2 fw = max(fwidth(grid), vec2(1e-4));
+          float detail = 1.0 - smoothstep(0.07, 0.2, max(fw.x, fw.y));
           float open = step(0.14, pick) * step(1.4, vWall.y);
-          float frame = step(0.26, cell.x) * step(cell.x, 0.75) * step(0.26, cell.y) * step(cell.y, 0.82) * open;
-          float pane = step(0.3, cell.x) * step(cell.x, 0.71) * step(0.3, cell.y) * step(cell.y, 0.78) * open;
-          pane *= step(0.018, abs(cell.x - 0.505));
+          float frame = winBox(cell.x, 0.26, 0.75, fw.x) * winBox(cell.y, 0.26, 0.82, fw.y) * open;
+          float pane = winBox(cell.x, 0.3, 0.71, fw.x) * winBox(cell.y, 0.3, 0.78, fw.y) * open;
+          pane *= smoothstep(0.018 - fw.x, 0.018 + fw.x, abs(cell.x - 0.505));
           float lit = step(0.86, fract(pick * 7.13));
           vec3 glass = mix(vec3(0.13, 0.17, 0.23), vec3(0.55, 0.66, 0.78), smoothstep(0.35, 0.8, cell.y) * 0.6);
           glass = mix(glass, vec3(1.0, 0.82, 0.5), lit * 0.7);
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9, 0.88, 0.82), frame);
-          diffuseColor.rgb = mix(diffuseColor.rgb, glass, pane);
+          vec3 wallColour = diffuseColor.rgb;
+          vec3 near = mix(wallColour, vec3(0.9, 0.88, 0.82), frame);
+          near = mix(near, glass, pane);
           // Horizontal board lines on the siding.
-          diffuseColor.rgb *= 1.0 - 0.08 * step(0.92, fract(vWall.y / 0.3)) * (1.0 - frame);
+          near *= 1.0 - 0.08 * step(0.92, fract(vWall.y / 0.3)) * (1.0 - frame);
+          // About 20% of a bay is glass and 6% trim when the bay has a window.
+          vec3 average = mix(mix(wallColour, vec3(0.9, 0.88, 0.82), 0.06 * 0.86), vec3(0.2, 0.26, 0.34), 0.2 * 0.86 * step(1.4, vWall.y));
+          diffuseColor.rgb = mix(average, near, detail);
         }`,
         )
     }
