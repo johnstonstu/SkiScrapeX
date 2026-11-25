@@ -25,6 +25,11 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
   let lookHeight = 0
   let heading = 0
   let snap = true
+  /** Heading snaps but the position eases in: handing over from a held shot without a cut. */
+  let ease = false
+  /** A fixed shot (lift arrivals): where the camera waits and what it watches. */
+  let shot: { position: THREE.Vector3; look: THREE.Vector3 } | null = null
+  const shotLook = new THREE.Vector3()
   let mode: CameraMode = 'follow'
   let style: CameraStyle = 'steady'
   const eyeQuat = new THREE.Quaternion()
@@ -83,6 +88,29 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
       speedFov = 0
       applyFov()
     },
+    /**
+     * Hold a shot from `position` watching `look` (both copied), e.g. beside a
+     * lift's top station so the camera never drives through the terminal.
+     */
+    holdShot(position: THREE.Vector3, look: THREE.Vector3) {
+      if (!shot) {
+        shot = { position: position.clone(), look: look.clone() }
+        shotLook.copy(look)
+        return
+      }
+      shot.position.copy(position)
+      shot.look.copy(look)
+    },
+    /** Back to the follow camera, easing out of the held shot rather than cutting. */
+    releaseShot() {
+      if (!shot) return
+      shot = null
+      snap = false
+      ease = true
+    },
+    get holding() {
+      return shot !== null
+    },
     setMode(next: CameraMode, state: SkiState) {
       mode = next
       orbit.enabled = next === 'orbit'
@@ -114,6 +142,15 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
         orbit.update()
         return
       }
+      if (shot && mode !== 'first') {
+        const k = snap ? 1 : 1 - Math.exp(-2.5 * dt)
+        camera.position.lerp(shot.position, k)
+        shotLook.lerp(shot.look, snap ? 1 : 1 - Math.exp(-6 * dt))
+        camera.up.set(0, 1, 0)
+        camera.lookAt(shotLook)
+        snap = false
+        return
+      }
       // Sense of speed: widen FOV from about 10 m/s, more in a tuck; gated with shake / reduced motion.
       const wantFov =
         mode === 'follow' && shake > 0 && !motion.matches
@@ -140,7 +177,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
         snap = false
         return
       }
-      heading = followHeading(style, state, sampleTerrain, heading, snap ? Infinity : dt)
+      heading = followHeading(style, state, sampleTerrain, heading, snap || ease ? Infinity : dt)
       // Pull back and up a little with speed.
       let back = 7.2 + Math.min(4, state.speed * 0.08)
       landing *= Math.exp(-9 * dt)
@@ -150,7 +187,8 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
       const under = sampleTerrain(desired.x, desired.z)
       if (under) desired.y = Math.max(desired.y, under.height + 1.4)
       if (snap) camera.position.copy(desired)
-      else camera.position.lerp(desired, 1 - Math.exp(-6 * dt))
+      else camera.position.lerp(desired, 1 - Math.exp(-(ease ? 2.2 : 6) * dt))
+      if (ease && camera.position.distanceToSquared(desired) < 0.25) ease = false
       target.set(state.x - Math.sin(heading) * 8, state.y + 1.1, state.z + Math.cos(heading) * 8)
       const ahead = sampleTerrain(target.x, target.z)
       const current = sampleTerrain(state.x, state.z)

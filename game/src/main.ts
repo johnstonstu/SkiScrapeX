@@ -28,7 +28,7 @@ import { createSnowEffects } from './player/effects'
 import { createMinimap } from './ui/minimap'
 import { SKI_MODELS, createStylePanel, readOutfit, writeOutfit } from './ui/riderPanel'
 import { loadWorld, type World } from './world/loadWorld'
-import { chooseCourse, courseForRun, headingFor, liftAtBottom, pickableRuns, pointAlong, type Course as RunCourse, type Lift, type Run } from './world/resort'
+import { chooseCourse, courseForRun, headingFor, liftAtBottom, nearestOnPolyline, pickableRuns, pointAlong, type Course as RunCourse, type Lift, type Run } from './world/resort'
 import { approachAim, featureAhead, type ParkSite } from './world/park'
 import { pushOutOfRing } from './world/buildings'
 import { resolveTreeContact } from './world/treeSkiing'
@@ -223,10 +223,14 @@ interface Ride {
   s: number
   /** Getting off at the top: stand up and glide down the unload ramp. */
   unload: { t: number; from: THREE.Vector3; to: THREE.Vector3; yaw: number } | null
+  /** Where the rider leaves the lift and which way they go, worked out once per ride. */
+  exit?: { from: THREE.Vector3; yaw: number; lineYaw: number }
 }
 
 /** Seconds of ride left after Skip, so you arrive at the top and get off. */
 const SKIP_LEAD = 2.2
+/** Seconds of chair ride shown when a free-ski session starts. */
+const ARRIVAL_SECONDS = 4.5
 const UNLOAD_TIME = 1.8
 /** Metres past the top terminal where the unload ramp ends. */
 const UNLOAD_DISTANCE = { aerial: 10, surface: 5 }
@@ -279,7 +283,10 @@ boot()
 
 function titleActions() {
   return {
-    play: () => (ui.titleScreen.hidden = true),
+    play: () => {
+      ui.titleScreen.hidden = true
+      arriveByChair()
+    },
     learn: () => startTutorial(),
     challenges: () => openChallenges(),
     rider: () => openPanel(ui.style),
@@ -502,7 +509,8 @@ function startPark(site: ParkSite) {
   restartFromMenu()
 }
 
-function spawn() {
+/** `keepCamera`: coming off a lift, ease the camera from its arrival shot instead of cutting. */
+function spawn(keepCamera = false) {
   stage.env.turnModel = turnModel
   ride = null
   ui.ride.hidden = true
@@ -520,7 +528,7 @@ function spawn() {
   gearDrops.clear()
   skier.missingSkis = false
   skier.missingPoles = false
-  rig.snap()
+  if (!keepCamera) rig.snap()
   if (challenge.kind !== 'free') {
     const best = goals?.progress.bests[challenge.id]
     const score = challenge.kind === 'park'
@@ -714,6 +722,28 @@ function startRide(lift: Lift) {
   rig.snap()
 }
 
+/**
+ * Free skiing starts at the top of Quickdraw: ride the last few seconds of the
+ * chair into the top station and step off, so every session opens with the
+ * arrival rather than a skier standing in the snow.
+ */
+function arriveByChair() {
+  const lift = stage.world?.resort.lifts.find((l) => /quickdraw/i.test(l.name))
+  if (!lift || !stage.ride) return
+  setFreeSki()
+  // Lifts do not run behind the title screen: put a chair a few seconds from the top.
+  stage.advanceLifts?.(0)
+  const path = stage.ride(lift)
+  if (!path) return
+  const at = Math.max(0, path.total - path.speed * ARRIVAL_SECONDS)
+  stage.alignChair?.(lift, at)
+  startRide(lift)
+  if (!ride) return
+  ride.s = at
+  arrivalShot(ride)
+  rig.snap()
+}
+
 /** Skip: jump to just before the top and ride in. A second press steps straight off. */
 function skipRide() {
   if (!ride) return
@@ -731,10 +761,56 @@ function skipRide() {
   } else beginUnload(ride)
 }
 
+/**
+ * Which way to step off: straight on if the way is open, otherwise the
+ * nearest turn that is clear of buildings and trees for a good run-out
+ * (the Magic Carpet top faces an apartment block 10 m ahead).
+ */
+function unloadHeading(from: THREE.Vector3, yaw: number): number {
+  let best = yaw
+  let bestScore = -Infinity
+  for (const turn of [0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35]) {
+    const heading = yaw + turn
+    let clear = 0
+    for (let d = 2; d <= 20; d += 1.5) {
+      const x = from.x + Math.sin(heading) * d
+      const z = from.z + Math.cos(heading) * d
+      if (!stage.slope.sampleTerrain(x, z) || stage.buildings?.hit(x, z) || stage.trunks?.hit(x, z, 1)) break
+      clear = d
+    }
+    const score = Math.min(clear, 16) - Math.abs(turn) * 3
+    if (score > bestScore) ((bestScore = score), (best = heading))
+  }
+  return best
+}
+
+/** The end of the ride and the way off it: straight on for chairs if clear; to the side for surface lifts. */
+function exitPlan(current: Ride): NonNullable<Ride['exit']> {
+  if (current.exit) return current.exit
+  const from = new THREE.Vector3()
+  const lineYaw = sampleRide(current.path, current.path.total, from)
+  let yaw: number
+  if (current.path.aerial) {
+    yaw = unloadHeading(from, lineYaw)
+  } else {
+    // Let go of the T (or step off the belt) and stand aside, away from the lift line,
+    // so the bar can swing round the bullwheel behind you.
+    const line = current.lift.line
+    const away = (turn: number) => {
+      const x = from.x + Math.sin(lineYaw + turn) * 4
+      const z = from.z + Math.cos(lineYaw + turn) * 4
+      return nearestOnPolyline(x, z, line).distanceSq
+    }
+    const side = away(Math.PI / 2) > away(-Math.PI / 2) ? 1 : -1
+    yaw = unloadHeading(from, lineYaw + side * 1.25)
+  }
+  current.exit = { from, yaw, lineYaw }
+  return current.exit
+}
+
 /** Off the chair (or the T-bar) at the top: glide from the seat to the end of the ramp. */
 function beginUnload(current: Ride) {
-  const from = new THREE.Vector3()
-  const yaw = sampleRide(current.path, current.path.total, from)
+  const { from, yaw } = exitPlan(current)
   const reach = current.path.aerial ? UNLOAD_DISTANCE.aerial : UNLOAD_DISTANCE.surface
   const x = from.x + Math.sin(yaw) * reach
   const z = from.z + Math.cos(yaw) * reach
@@ -743,9 +819,35 @@ function beginUnload(current: Ride) {
     finishRide(current.lift)
     return
   }
-  current.unload = { t: 0, from, to: new THREE.Vector3(x, ground.height, z), yaw }
+  current.unload = { t: 0, from: from.clone(), to: new THREE.Vector3(x, ground.height, z), yaw }
   ui.rideText.textContent = `Top of ${current.lift.name}`
 }
+
+/**
+ * Arrival shot: the camera waits beside the top station's exit and watches the
+ * rider come out and step off, instead of following through the terminal.
+ */
+function arrivalShot(current: Ride) {
+  const { from, yaw } = exitPlan(current)
+  const aerial = current.path.aerial
+  const remaining = current.path.total - current.s
+  if (!current.unload && remaining > (aerial ? 30 : 8) && !rig.holding) {
+    rig.releaseShot()
+    return
+  }
+  // Ahead of the exit, off to the left of the way out (the operator hut sits on the right at Quickdraw).
+  const ahead = aerial ? 16 : 9
+  const aside = aerial ? -9 : -6
+  const sx = Math.cos(yaw)
+  const sz = -Math.sin(yaw)
+  shotPos.set(from.x + Math.sin(yaw) * ahead + sx * aside, 0, from.z + Math.cos(yaw) * ahead + sz * aside)
+  const ground = stage.slope.sampleTerrain(shotPos.x, shotPos.z)?.height ?? from.y
+  shotPos.y = Math.max(ground + 3.4, from.y + 1.6)
+  shotLook.set(skier.x, skier.y + 1.1, skier.z)
+  rig.holdShot(shotPos, shotLook)
+}
+const shotPos = new THREE.Vector3()
+const shotLook = new THREE.Vector3()
 
 /**
  * Top of the lift: you are standing at the end of the unload ramp, free to
@@ -758,13 +860,14 @@ function finishRide(lift: Lift, at?: { to: THREE.Vector3; yaw: number }) {
   const world = stage.world
   if (world) course = chooseCourse(world.resort, world.grid.heightAt, lift.name, course?.startRun?.name ?? 'Grandfather')
   if (course && at) course = { ...course, spawn: { x: at.to.x, z: at.to.z, heading: Math.atan2(-Math.sin(at.yaw), Math.cos(at.yaw)) } }
-  spawn()
+  spawn(Boolean(at))
   if (at) {
     ui.title.textContent = `Top of ${lift.name}`
-    // Keep the glide off the ramp going.
-    skier.vx = Math.sin(at.yaw) * 2
-    skier.vz = Math.cos(at.yaw) * 2
-    rig.snap()
+    // Off a chair, keep the glide off the ramp going; off a T-bar you stand and choose.
+    const glide = /t-?bar|platter|drag|carpet|rope_tow/i.test(lift.type) ? 0.3 : 2
+    skier.vx = Math.sin(at.yaw) * glide
+    skier.vz = Math.cos(at.yaw) * glide
+    rig.releaseShot()
   }
 }
 
@@ -899,6 +1002,7 @@ function tick(dt: number, frameMs: number) {
   let pose: SkierPose = 'ski'
   if (ride) {
     pose = stepRide(dt, input.tuck)
+    if (ride) arrivalShot(ride)
   } else if (pause) {
     if (elapsed >= pause.until) {
       const done = pause.then
@@ -1058,6 +1162,7 @@ function stepRide(dt: number, fast: boolean): SkierPose {
 /** Stand up off the seat and glide down the ramp, then hand over control. */
 function stepUnload(current: Ride, unload: NonNullable<Ride['unload']>, dt: number): SkierPose {
   unload.t += dt
+  if (!current.path.aerial) return stepSurfaceUnload(current, unload)
   const k = Math.min(1, unload.t / UNLOAD_TIME)
   // Ease in from the seat, carry a little speed off the end.
   const along = k * k * (3 - 2 * k) * 0.7 + k * 0.3
@@ -1081,6 +1186,53 @@ function stepUnload(current: Ride, unload: NonNullable<Ride['unload']>, dt: numb
   if (k >= 1) finishRide(current.lift, unload)
   // Sitting until the skis touch, then standing: the rider view crossfades between them.
   return current.path.aerial && drop < 0.6 ? 'sit' : 'stand'
+}
+
+/**
+ * T-bar and carpet: hold on to the top, let the bar go so it swings round the
+ * bullwheel, and drift aside to a stop facing away from the lift, ready to
+ * pick a way down.
+ */
+function stepSurfaceUnload(current: Ride, unload: NonNullable<Ride['unload']>): SkierPose {
+  const hold = 0.45
+  const total = 2.1
+  const lineYaw = current.exit?.lineYaw ?? unload.yaw
+  const t = unload.t
+  let x: number
+  let z: number
+  let yaw: number
+  let speed: number
+  if (t < hold) {
+    // Still holding the bar: a last metre along the lift line.
+    const k = t / hold
+    x = unload.from.x + Math.sin(lineYaw) * k
+    z = unload.from.z + Math.cos(lineYaw) * k
+    yaw = lineYaw
+    speed = current.path.speed
+  } else {
+    // Let go: carry on, curving aside, slowing to a stop.
+    const k = Math.min(1, (t - hold) / (total - hold))
+    const e = 1 - (1 - k) * (1 - k)
+    const startX = unload.from.x + Math.sin(lineYaw)
+    const startZ = unload.from.z + Math.cos(lineYaw)
+    yaw = lineYaw + Math.atan2(Math.sin(unload.yaw - lineYaw), Math.cos(unload.yaw - lineYaw)) * e
+    x = startX + (unload.to.x - startX) * e
+    z = startZ + (unload.to.z - startZ) * e
+    speed = current.path.speed * (1 - k) + 0.3 * k
+  }
+  const ground = stage.slope.sampleTerrain(x, z)?.height ?? unload.to.y
+  Object.assign(skier, {
+    x,
+    y: ground,
+    z,
+    vx: Math.sin(yaw) * speed,
+    vy: 0,
+    vz: Math.cos(yaw) * speed,
+    speed,
+    heading: Math.atan2(-Math.sin(yaw), Math.cos(yaw)),
+  })
+  if (t >= total) finishRide(current.lift, { to: new THREE.Vector3(x, ground, z), yaw })
+  return t < hold ? 'stand' : 'ski'
 }
 
 function cameraBlocked(x: number, z: number): boolean {

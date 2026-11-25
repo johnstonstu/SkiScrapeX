@@ -88,6 +88,13 @@ export const PHYSICS = {
   /** Skate push while tucked below `skateMaxSpeed`, m/s². */
   skateAccel: 2.2,
   skateMaxSpeed: 5,
+  /**
+   * Between skating and tucking speeds, forward is a double-pole push: a tap is one
+   * stroke, and holding it settles into a tuck after `tuckHold` seconds.
+   */
+  polePushAccel: 2.6,
+  polePushMaxSpeed: 11,
+  tuckHold: 0.35,
   snapDistance: 0.3,
   landingSoften: 12,
   /** A normal shorter than this is a bad sample, same as a hole. */

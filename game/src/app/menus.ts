@@ -54,8 +54,9 @@ export function buildParkMenu(
     rollers: 'Rollers and a step-down',
     progression: 'Small jumps and a wide box before a rail',
     lanes: 'Each station offers a left, centre or right feature',
-    claimJumper: 'Step-ups and XL gaps with a side rail or medium table to choose',
-    prospector: 'Progression from rollers to medium jumps and a small gap',
+    claimJumper: 'The XL line: a straight shot through bigger and bigger tables, up to the Pro gap',
+    prospector: 'Rails, boxes, a quarter-pipe step-over and jump lines, two or three choices at every station',
+    aerial: 'Rollers into a row of tables for big, clean air',
     okanagan: 'Rollers, rails and a row of jump choices beside the T-Bar',
     nuggets: 'Small rollers, boxes and a rail by the Magic Carpet',
   }

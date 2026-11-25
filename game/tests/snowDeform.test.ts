@@ -52,15 +52,16 @@ describe('deformable snow', () => {
     expect(groomer.at(10, 10)).toBeLessThan(0)
   })
 
-  it('lays imprints down behind the skis, not under them', () => {
+  it('shows the trench at once but packs the snow the sim reads only after the skis move on', () => {
     const stamper = createStamper(createSnowDeform(20, 0.1), 0.25)
     const base = { sideX: 0, sideZ: 1, stance: 0.16, boardWidth: 0, sink: 0.2, loose: 0.4, skid: 0, grounded: true, crashed: false }
     stamper.push({ ...base, x: 9, z: 10 })
     stamper.push({ ...base, x: 10, z: 10 })
     stamper.step(0.1)
-    expect(stamper.field.at(9.5, 10.16)).toBe(0)
-    stamper.step(0.2)
     expect(stamper.field.at(9.5, 10.16)).toBeLessThan(-0.1)
+    expect(stamper.packed.at(9.5, 10.16)).toBe(0)
+    stamper.step(0.2)
+    expect(stamper.packed.at(9.5, 10.16)).toBeLessThan(-0.1)
   })
 
   it('makes packed track snow shallower for the sim', () => {

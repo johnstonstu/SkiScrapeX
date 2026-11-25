@@ -1,6 +1,6 @@
 # Status
 
-Updated 2026-11-24 for v0.9.16. Older measurement sections below stay dated. Open work is tracked as GitHub issues with phase labels. Release history is in `CHANGELOG.md`, the plan in `docs/roadmap.md`.
+Updated 2026-11-24 for v0.9.17. Older measurement sections below stay dated. Open work is tracked as GitHub issues with phase labels. Release history is in `CHANGELOG.md`, the plan in `docs/roadmap.md`.
 
 ## How the pieces fit
 
@@ -139,6 +139,7 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - Terrain blending (0.9.14): wind-exposure field drives summit crust and rock (shader and sim), organic patch edges, outcrop slope rock, corduroy cross-fade at run seams. Not yet seen on a real GPU by Stu; steep cliff outcrops not screenshot-checked.
 - Summit, towers and windows (0.9.15): windows on all building LODs, Billy Goat Hut on its OSM footprint (other summit shells dropped in `world/corrections.ts`), telecom towers on Beaconsfield and Apex Mountain (`world/telecom.ts`).
 - Deep snow, drops and fitted runs (0.9.16): deformable trenches and berms around the player (drawn on Medium and High, read by the sim everywhere), West Bank moguls and tower drop, The Pit cliff and rock band, LiDAR-fitted run corridors, edge saplings only at real edges, fall-line corduroy, window detail, upload and streaming performance fixes. Not yet profiled on a real GPU.
+- Arrivals, unloads, parks and rider feel (0.9.17): free ski opens on the Quickdraw chair, arrival camera shot, T-bar and carpet step-aside unloads, carpet follows the ground, instant trenches, pole push vs graded tuck, gravity-relative lean, Aerial Site / Prospector (L2) / Claim Jumper XL parks, antialiased windows.
 - Tuck drag raised in 0.8.11 (0.42 m²); re-check equilibrium on Gunbarrel / Grandfather's after a playtest.
 - Buildings are shells from OSM footprints with guessed heights. Only 10 of 147 have tagged storeys. No interiors, decks or props yet.
 - Roads are stamped as packed snow; there are no cars, parking lots or village props.

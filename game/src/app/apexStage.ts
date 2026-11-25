@@ -17,7 +17,7 @@ import { buildApron } from '../world/apron'
 import { indexTrunks, plantApronForest, plantForest } from '../world/forest'
 import { buildBuildings, indexBuildings, type Building } from '../world/buildings'
 import { buildVillage } from '../world/village'
-import { buildParkOverlay, LAYOUTS, parkSitesFromLines, placeFeatures, type ParkOverlay, type ParkSite } from '../world/park'
+import { buildParkOverlay, LAYOUTS, parkOnRun, parkSitesFromLines, placeFeatures, type ParkOverlay, type ParkSite } from '../world/park'
 import { pointAlong } from '../world/resort'
 import { createSurfaceSampler } from '../world/snow'
 import { createTerrainView } from '../render/terrain/terrainView'
@@ -61,6 +61,9 @@ export function buildApexStage(
   const { grid, resort, canopy } = world
   const { quality } = options
   const parkSites = parkSitesFromLines(resort.parks)
+  // Prospector is the blue run beside Claim Jumper (trace L2), with its own park.
+  const prospectorRun = resort.runs.find((run) => run.name === 'Prospector' && run.kind === 'line')
+  if (prospectorRun) parkSites.push(parkOnRun('Prospector', prospectorRun.parts[0], grid.heightAt))
   const savedLayouts = readJson<Record<string, string>>(KEYS.parkLayouts, {})
   for (const site of parkSites) if (savedLayouts[site.name]) site.layout = savedLayouts[site.name]
   const surface = buildSurface(
@@ -71,7 +74,7 @@ export function buildApexStage(
       name: site.name,
       line: site.line,
       // Multi-lane parks need room for side-by-side features.
-      halfWidth: ['Claim Jumper', 'Okanagan Park', 'Prospector'].includes(site.name) ? 28 : 16,
+      halfWidth: ['Claim Jumper', 'Okanagan Park', 'Prospector', 'Aerial Site'].includes(site.name) ? 28 : 18,
     })),
     { exposure: buildExposure(grid, { originElevation: world.manifest.originElevation, cover: canopy?.cover }), canopyCover: canopy?.cover },
   )
@@ -207,7 +210,7 @@ export function buildApexStage(
   const stamper = createStamper(createSnowDeform())
   const snowPatch = quality.snowPatch ? createSnowPatchView(grid, stamper.field, terrain.material, quality.snowPatch) : null
   if (snowPatch) scene.add(snowPatch.mesh)
-  const sampleSurface = createSurfaceSampler(grid, surface, canopy, { inPark: (x, z) => overlay.inside(x, z), onMogul: moguls.onMogul, deform: stamper.field })
+  const sampleSurface = createSurfaceSampler(grid, surface, canopy, { inPark: (x, z) => overlay.inside(x, z), onMogul: moguls.onMogul, deform: stamper.packed })
 
   const slope: Slope = {
     id: 'apex',
@@ -229,6 +232,7 @@ export function buildApexStage(
     snow: terrain.material,
     advanceLifts: lifts.update,
     ride: (lift) => lifts.ride(lift.id),
+    alignChair: (lift, s) => lifts.alignChair(lift.id, s),
     features: () => overlay.features,
     env: { sampleSurface, rails: overlay.rails, assist: true, ski: options.ski },
     snowDeform: { stamper, patch: snowPatch },

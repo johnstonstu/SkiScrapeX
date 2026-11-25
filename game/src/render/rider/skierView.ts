@@ -68,6 +68,7 @@ export function createSkierView(): {
   const crouch = new Spring(0.3)
   const counter = new Spring()
   const tuck = new Spring()
+  const poling = new Spring()
   const brake = new Spring()
   const plow = new Spring()
   const skate = new Spring()
@@ -343,7 +344,11 @@ export function createSkierView(): {
       const stance = state.ridingSwitch ? -1 : 1
       const speed = state.speed
       const still = skiing && speed < 0.5
-      const tucked = skiing && input.tuck && speed >= PHYSICS.skateMaxSpeed
+      const tucked = skiing && state.tuck && speed >= PHYSICS.skateMaxSpeed
+      // A half tuck when cruising, folding all the way down as the speed builds.
+      const tuckDepth = tucked ? 0.68 + 0.32 * Math.min(1, Math.max(0, (speed - 8) / 9)) : 0
+      // A forward tap at cruising speed: one double-pole stroke.
+      const poleStroke = skiing && state.poling && !boarding
       const braking = skiing && input.brake > 0.2 && speed > 1
       // Slow braking is a snowplough; faster it is a hockey stop (the sim turns the skis across).
       const plowing = braking && speed < 6 && !boarding
@@ -364,8 +369,15 @@ export function createSkierView(): {
       pathAccel += ((skiing ? turnRate * horizontal : 0) - pathAccel) * ease(11, dt)
       const lateralG = pathAccel / PHYSICS.gravity
       // Scaled and capped: full race inclination reads as falling at game camera distances.
+      // The lean above is against gravity, but the body hangs off the root, which lies on
+      // the slope. On a side-hill or a banked berm the slope already tips the root, so take
+      // that roll back out (most of it) or the skier over-leans into banks and tips downhill
+      // on traverses.
+      const rightX = -Math.cos(state.heading)
+      const rightZ = -Math.sin(state.heading)
+      const slopeRoll = skiing && ground ? Math.asin(Math.max(-0.6, Math.min(0.6, ground.normal.x * rightX + ground.normal.z * rightZ))) : 0
       const wantIncline = skiing
-        ? stance * Math.sign(lateralG || edge) * Math.min(0.85, Math.max(Math.atan(Math.abs(lateralG)) * 0.78, Math.abs(edge) * 0.15))
+        ? stance * Math.sign(lateralG || edge) * Math.min(0.85, Math.max(Math.atan(Math.abs(lateralG)) * 0.78, Math.abs(edge) * 0.15)) - slopeRoll * 0.8
         : 0
       incline.step(wantIncline, dt, 2.6, 0.92)
 
@@ -416,7 +428,8 @@ export function createSkierView(): {
       const grabbing = Boolean(air?.grab && input.grab)
       if (grabbing && air?.grab) lastGrab = air.grab
       grabBlend += ((grabbing ? 1 : 0) - grabBlend) * ease(14, dt)
-      tuck.step(tucked ? 1 : 0, dt, 1.9, 0.9)
+      tuck.step(tuckDepth, dt, 1.9, 0.9)
+      poling.step(poleStroke ? 1 : 0, dt, 3.2, 0.9)
       brake.step(braking && !plowing ? 1 : 0, dt, 2.6, 0.85)
       plow.step(plowing ? 1 : 0, dt, 2.4, 0.95)
       skate.step(skating ? 1 : 0, dt, 2, 1)
@@ -443,8 +456,8 @@ export function createSkierView(): {
       counter.step(wantCounter, dt, 1.7, 0.9)
 
       // Pushing on the flat: double-pole when nearly stopped, skate as speed builds.
-      const doublePole = skate.x * Math.max(0, Math.min(1, (2.4 - speed) / 1.2))
-      const skateAmount = skate.x - doublePole
+      const doublePole = Math.max(skate.x * Math.max(0, Math.min(1, (2.4 - speed) / 1.2)), poling.x)
+      const skateAmount = Math.max(0, skate.x - doublePole)
       if (skateAmount > 0.01) skatePhase += dt * (4 + speed * 0.9)
       const stride = Math.sin(skatePhase) * skateAmount
       if (doublePole > 0.01) dpPhase = (dpPhase + dt / DOUBLE_POLE_CYCLE) % 1
@@ -459,7 +472,7 @@ export function createSkierView(): {
       }
       wantCrouch = Math.max(
         wantCrouch,
-        tucked ? (boarding ? 0.8 : 1) : 0,
+        tucked ? (boarding ? 0.8 : 1) * tuckDepth : 0,
         braking ? (plowing ? 0.38 : 0.6) : 0,
         skating ? 0.4 : 0,
         charging ? 0.45 + state.popCharge * 0.45 : 0,
