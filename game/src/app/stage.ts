@@ -9,6 +9,8 @@ import type { SnowMaterial } from '../fx'
 import type { RidePath } from '../render/scenery/liftView'
 
 /** What the frame loop needs from either the Apex world or a test slope. */
+import type { createStamper } from '../world/snowDeform'
+import type { createSnowPatchView } from '../render/terrain/snowPatchView'
 export interface Stage {
   slope: Slope
   world: World | null
@@ -20,6 +22,8 @@ export interface Stage {
   /** Park features, for the approach-speed hint. */
   features: () => ParkOverlay['features']
   env: SkiEnv
+  /** Deformable snow: imprints from the skis, and the patch that draws them (Medium and up). */
+  snowDeform?: { stamper: ReturnType<typeof createStamper>; patch: ReturnType<typeof createSnowPatchView> }
   /** Per-frame scenery update around the camera. */
   update(camera: THREE.Vector3): void
   /** One line for the info overlay. */

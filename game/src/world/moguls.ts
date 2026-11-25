@@ -22,7 +22,7 @@ export function pointOnMogul(bump: Mogul, across: number, along: number): [numbe
 }
 
 /** Staggered, irregular rows along mapped mogul runs, with smoother shoulders. */
-export function buildMoguls(grid: TerrainGrid, runs: Run[], surface: SurfaceField) {
+export function buildMoguls(grid: TerrainGrid, runs: Run[], surface: SurfaceField, avoid?: (x: number, z: number) => boolean) {
   const bumps: Mogul[] = []
   const cells = new Map<number, Mogul[]>()
   const stride = Math.ceil(grid.width / 8) + 4
@@ -43,7 +43,7 @@ export function buildMoguls(grid: TerrainGrid, runs: Run[], surface: SurfaceFiel
           const stagger = 0.4 * Math.cos(shape * 1.2)
           const bx = x + side * dirZ + dirX * stagger
           const bz = z - side * dirX + dirZ * stagger
-          if (surfaceAt(surface, bx, bz) !== SurfaceId.powder || !Number.isFinite(grid.heightAt(bx, bz))) continue
+          if (surfaceAt(surface, bx, bz) !== SurfaceId.powder || !Number.isFinite(grid.heightAt(bx, bz)) || avoid?.(bx, bz)) continue
           // Mapped runs can share a centreline. Plant one bump where they overlap.
           if (cells.get(cell(bx, bz))?.some((b) => (b.x - bx) ** 2 + (b.z - bz) ** 2 < 1.5 ** 2)) continue
           const bump = {

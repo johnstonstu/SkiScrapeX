@@ -192,6 +192,9 @@ function createDetailTiles(grid: TerrainGrid, material: SnowMaterial, options: D
   })
   const tiles = new Map<number, THREE.Mesh>()
   let visible = 0
+  let settled = false
+  let lastX = Infinity
+  let lastZ = Infinity
   const centreOf = (index: number) => [
     ((index % layout.across) + 0.5) * layout.size,
     (Math.floor(index / layout.across) + 0.5) * layout.size,
@@ -222,6 +225,10 @@ function createDetailTiles(grid: TerrainGrid, material: SnowMaterial, options: D
     },
     update(x: number, z: number) {
       material.setDetailMorph(x, z, options.near, options.far)
+      // Nothing to build and barely moved: skip the per-frame lists and sets.
+      if (settled && (x - lastX) ** 2 + (z - lastZ) ** 2 < 4) return
+      lastX = x
+      lastZ = z
       const wanted = chunksNear(layout, x, z, options.far)
       const missing = wanted.filter((i) => !tiles.has(i))
       missing.sort((a, b) => {
@@ -234,6 +241,7 @@ function createDetailTiles(grid: TerrainGrid, material: SnowMaterial, options: D
         build(index)
         if (performance.now() - started > options.budgetMs) break
       }
+      settled = wanted.every((i) => tiles.has(i))
       const show = new Set(wanted.filter((i) => tiles.has(i)))
       let changed = false
       visible = 0

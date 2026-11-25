@@ -1,6 +1,6 @@
 # Status
 
-Updated 2026-11-24 for v0.9.0 (overnight 0.8.13–0.9.0 on Pages). Older measurement sections below stay dated. Open work is tracked as GitHub issues with phase labels. Release history is in `CHANGELOG.md`, the plan in `docs/roadmap.md`.
+Updated 2026-11-24 for v0.9.16. Older measurement sections below stay dated. Open work is tracked as GitHub issues with phase labels. Release history is in `CHANGELOG.md`, the plan in `docs/roadmap.md`.
 
 ## How the pieces fit
 
@@ -20,6 +20,7 @@ Updated 2026-11-24 for v0.9.0 (overnight 0.8.13–0.9.0 on Pages). Older measure
 | `src/world/buildings.ts` | OSM footprints to shells: storeys from tags or building type, stacked from the high side of the lot, gable roof for box-like footprints, flat snowy roof otherwise. Footprint index for collisions. |
 | `src/world/forest.ts` | Trees from canopy cover and height per 5 m cell (procedural scatter if canopy is missing). Off runs, 9 m clear of lift lines, under 40°. Trunk index for collisions. |
 | `src/world/park.ts` | Park feature library (four tabletop sizes, step-down, rollers, box, flat, down and flat-down rails) as analytic height overlays and rail polylines; six swappable layouts placed along the OSM park lines. Lip and landing angles are absolute and adjusted for the slope. |
+| `src/world/cliffs.ts`, `snowDeform.ts`, `runEdges.ts` | Rock drops on West Bank and The Pit (physics and placement); the deformable snow field and the delayed ski stamper; run corridors fitted to the LiDAR clearing. |
 | `src/world/snow.ts` | Surface sampler for the sim: groomed runs, parks, open powder (0.35 m) off-piste, heavier shallower snow under canopy, wind crust and rock from `world/exposure.ts`. |
 | `src/world/exposure.ts` | Wind exposure per 5 m sample (ridges, windward faces, elevation, tree cover); thresholds shared by the snow shader and the sim. |
 | `src/world/apron.ts` | Procedural land around the crop: matches the crop edge, blends into rolling ridges over 1.6 km, extends 5 km. Trees out to 1.8 km. Purely visual; the skier still stops at the crop edge. |
@@ -137,6 +138,7 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - Edge saplings inside clear corridors + summit wind-scour ice/rock above ~2100 m ASL (0.9.13).
 - Terrain blending (0.9.14): wind-exposure field drives summit crust and rock (shader and sim), organic patch edges, outcrop slope rock, corduroy cross-fade at run seams. Not yet seen on a real GPU by Stu; steep cliff outcrops not screenshot-checked.
 - Summit, towers and windows (0.9.15): windows on all building LODs, Billy Goat Hut on its OSM footprint (other summit shells dropped in `world/corrections.ts`), telecom towers on Beaconsfield and Apex Mountain (`world/telecom.ts`).
+- Deep snow, drops and fitted runs (0.9.16): deformable trenches and berms around the player (drawn on Medium and High, read by the sim everywhere), West Bank moguls and tower drop, The Pit cliff and rock band, LiDAR-fitted run corridors, edge saplings only at real edges, fall-line corduroy, window detail, upload and streaming performance fixes. Not yet profiled on a real GPU.
 - Tuck drag raised in 0.8.11 (0.42 m²); re-check equilibrium on Gunbarrel / Grandfather's after a playtest.
 - Buildings are shells from OSM footprints with guessed heights. Only 10 of 147 have tagged storeys. No interiors, decks or props yet.
 - Roads are stamped as packed snow; there are no cars, parking lots or village props.

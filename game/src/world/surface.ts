@@ -1,5 +1,6 @@
 import type { TerrainGrid } from './terrainGrid'
 import type { ExposureField } from './exposure'
+import { fitRunsToCanopy } from './runEdges'
 import { nearestOnPolyline, pointInRing, runHalfWidth, type Resort } from './resort'
 
 /** Same ids as `fx/snow/mask.ts`. Kept here so the world module has no Three.js import. */
@@ -39,7 +40,7 @@ export function buildSurface(
   resort: Resort,
   texel = 2.5,
   parks: { name?: string; line: [number, number][]; halfWidth: number }[] = [],
-  options: { exposure?: ExposureField } = {},
+  options: { exposure?: ExposureField; canopyCover?: Float32Array } = {},
 ): SurfaceField {
   const width = Math.ceil(grid.width / texel)
   const height = Math.ceil(grid.depth / texel)
@@ -51,9 +52,13 @@ export function buildSurface(
   const runDistance = new Float32Array(count).fill(Infinity)
   const surface = new Uint8Array(count).fill(SurfaceId.powder)
   const heading = new Float32Array(count)
+  const halfWidths: number[] = [0]
+  const woodedRuns: number[] = [0]
 
   for (const run of resort.runs) {
     const location = names.push(run.name) - 1
+    halfWidths[location] = run.kind === 'area' ? 0 : runHalfWidth(run)
+    woodedRuns[location] = run.wooded ? 1 : 0
     const clearCorridor = !run.wooded
     const id = run.groomed ? SurfaceId.groomed : SurfaceId.powder
     if (run.kind === 'area') {
@@ -90,6 +95,14 @@ export function buildSurface(
         })
       }
     }
+  }
+
+  if (options.canopyCover) {
+    fitRunsToCanopy(
+      { width, height, texel, locations, surface, heading, clear, runDistance, halfWidth: Float32Array.from(halfWidths), wooded: Uint8Array.from(woodedRuns) },
+      grid,
+      options.canopyCover,
+    )
   }
 
   // Terrain parks: groomed look, park physics, no trees.
@@ -133,6 +146,15 @@ export function buildSurface(
     })
   }
 
+  // Groomers: cats work the fall line on runs that head roughly downhill, so lean the
+  // corduroy toward it there. Traverses and cat tracks keep their own heading.
+  for (let i = 0; i < count; i++) {
+    if (surface[i] !== SurfaceId.groomed || !locations[i]) continue
+    const ground = grid.sampleTerrain(((i % width) + 0.5) * texel, (Math.floor(i / width) + 0.5) * texel)
+    if (!ground) continue
+    heading[i] = groomHeading(heading[i], ground.normal.x, ground.normal.z)
+  }
+
   for (let i = 0; i < count; i++) {
     const turns = (((heading[i] / TAU) % 1) + 1) % 1
     mask[i * 4] = surface[i] * 32
@@ -145,6 +167,26 @@ export function buildSurface(
     return names[locations[row * width + col]]
   }
   return { width, height, texel, mask, clear, runNameAt, exposure: options.exposure ?? null }
+}
+
+/**
+ * Corduroy heading for a groomed texel: the run's own heading, turned toward the
+ * fall line when the run runs within 55° of it and the slope is over about 6°.
+ */
+export function groomHeading(runHeading: number, normalX: number, normalZ: number): number {
+  const fall = Math.hypot(normalX, normalZ)
+  if (fall < 0.1) return runHeading
+  let fx = normalX / fall
+  let fz = normalZ / fall
+  const dx = Math.cos(runHeading)
+  const dz = Math.sin(runHeading)
+  const along = dx * fx + dz * fz
+  // The run may be drawn uphill or downhill; match the fall line to its sense.
+  if (along < 0) ((fx = -fx), (fz = -fz))
+  const cos = Math.abs(along)
+  if (cos < Math.cos((55 * Math.PI) / 180)) return runHeading
+  const t = 0.65 * Math.min(1, (cos - 0.57) / 0.3)
+  return Math.atan2(dz + (fz - dz) * t, dx + (fx - dx) * t)
 }
 
 export function surfaceAt(field: SurfaceField, x: number, z: number): number {

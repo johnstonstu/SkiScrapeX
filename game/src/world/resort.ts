@@ -15,6 +15,8 @@ export interface Run {
   wooded?: boolean
   moguls?: boolean
   groomed: boolean
+  /** Known half width in metres, overriding the guess from difficulty (see corrections RUN_STYLE). */
+  halfWidth?: number
   /** Area runs are filled polygons; line runs are centrelines. */
   kind: 'line' | 'area'
   /** One or more polylines (or rings for areas). Downhill order when known. */
@@ -362,6 +364,7 @@ export function pointInRing(x: number, z: number, ring: Point2[]): boolean {
 export function runHalfWidth(run: Run): number {
   // From the footage: groomers like Grandfather's and Okanagan are 40 m or more wide,
   // steeps like Gunbarrel and Chute about 15 to 20 m. Ungroomed runs stay narrow.
+  if (run.halfWidth) return run.halfWidth
   const groomed = run.groomed !== false
   switch (run.difficulty) {
     case 'novice':

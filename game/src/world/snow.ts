@@ -1,6 +1,7 @@
 import { SURFACES, blendSurface, type SampleSurface, type SurfaceParams } from '../sim'
 import type { TerrainGrid } from './terrainGrid'
 import { exposureAt, scourShares } from './exposure'
+import type { SnowDeform } from './snowDeform'
 import { surfaceAt, SurfaceId, type Canopy, type SurfaceField } from './surface'
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x))
@@ -45,7 +46,7 @@ export function createSurfaceSampler(
   grid: TerrainGrid,
   field: SurfaceField,
   canopy: Canopy | null,
-  options: { freshSnow?: number; inPark?: (x: number, z: number) => boolean; onMogul?: (x: number, z: number) => boolean } = {},
+  options: { freshSnow?: number; inPark?: (x: number, z: number) => boolean; onMogul?: (x: number, z: number) => boolean; deform?: SnowDeform } = {},
 ): SampleSurface {
   const fresh = Math.max(0, options.freshSnow ?? 1)
   return (x, z) => {
@@ -65,11 +66,17 @@ export function createSurfaceSampler(
         const base = blendSurface(SURFACES.powder, SURFACES.forest, shelter)
         const depth = depthFromDrift(drift, shelter)
         const packedBump = options.onMogul?.(x, z)
-        const snow: SurfaceParams = {
+        let snow: SurfaceParams = {
           ...base,
           kind: shelter >= 0.5 ? 'forest' : 'powder',
           depth: depth * fresh * (packedBump ? 0.48 : 1),
           vPlane: mix(6.2 + 2.2 * drift, 6.1, shelter),
+        }
+        // Tracks already skied: the snow in them is packed, so less to sink into and it runs faster.
+        const trench = options.deform ? Math.max(0, -options.deform.at(x, z)) : 0
+        if (trench > 0.01) {
+          const packed = Math.min(1, trench / 0.25)
+          snow = { ...blendSurface(snow, SURFACES.groomed, packed * 0.45), kind: snow.kind, depth: Math.max(0, snow.depth - trench * 1.3) }
         }
         if (!field.exposure) return snow
         // Summit wind-scour: powder thins to crust, then rock shows through.

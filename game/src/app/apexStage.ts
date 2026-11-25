@@ -9,6 +9,10 @@ import { EXTRA_PEAKS, SUMMIT_HUT_FOOTPRINT } from '../world/corrections'
 import { apexMountainTowers, beaconsfieldTowers } from '../world/telecom'
 import { createTelecomView } from '../render/scenery/telecomView'
 import { buildMoguls } from '../world/moguls'
+import { buildCliffs, nearOutcrop, placeRunDrops, placeTowerDrop, TOWER_DROP } from '../world/cliffs'
+import { createSnowDeform, createStamper } from '../world/snowDeform'
+import { createSnowPatchView } from '../render/terrain/snowPatchView'
+import { createCliffView } from '../render/terrain/cliffView'
 import { buildApron } from '../world/apron'
 import { indexTrunks, plantApronForest, plantForest } from '../world/forest'
 import { buildBuildings, indexBuildings, type Building } from '../world/buildings'
@@ -69,13 +73,19 @@ export function buildApexStage(
       // Multi-lane parks need room for side-by-side features.
       halfWidth: ['Claim Jumper', 'Okanagan Park', 'Prospector'].includes(site.name) ? 28 : 16,
     })),
-    { exposure: buildExposure(grid, { originElevation: world.manifest.originElevation, cover: canopy?.cover }) },
+    { exposure: buildExposure(grid, { originElevation: world.manifest.originElevation, cover: canopy?.cover }), canopyCover: canopy?.cover },
   )
   options.phase?.('apex: surface')
   const terrain = createTerrainView(grid, surface, canopy, lighting, quality.terrain)
   options.phase?.('apex: terrain view')
-  const moguls = buildMoguls(grid, resort.runs, surface)
-  scene.add(terrain.mesh, createMogulView(moguls, terrain.material))
+  // Rock drops on West Bank (beside a Quickdraw tower) and The Pit; moguls stay off the rocks.
+  const quickdraw = resort.lifts.find((l) => TOWER_DROP.lift.test(l.name))
+  const towerDrop = placeTowerDrop(grid, resort.runs, quickdraw?.towers ?? [])
+  const outcrops = [...placeRunDrops(grid, resort.runs), ...(towerDrop ? [towerDrop] : [])]
+  const nearRock = (x: number, z: number) => outcrops.some((o) => (x - o.x) ** 2 + (z - o.z) ** 2 < (o.width / 2 + 4) ** 2 + (o.depth + 4) ** 2)
+  const moguls = buildMoguls(grid, resort.runs, surface, nearRock)
+  const cliffs = buildCliffs(outcrops, moguls.sampleTerrain)
+  scene.add(terrain.mesh, createMogulView(moguls, terrain.material), createCliffView(outcrops, grid.heightAt))
   options.phase?.('apex: moguls')
   const apron = buildApron(grid, world.horizon)
   scene.add(createApronView(apron, lighting).mesh)
@@ -86,6 +96,9 @@ export function buildApexStage(
     density: quality.forestDensity,
     originElevation: world.manifest.originElevation,
   })
+  // Clean run-ins and landings around the rock drops.
+  for (const chunk of forest.chunks) chunk.trees = chunk.trees.filter((t) => !nearOutcrop(outcrops, t.x, t.z))
+  forest.count = forest.chunks.reduce((n, c) => n + c.trees.length, 0)
   const trunks = indexTrunks(forest)
   options.phase?.('apex: forest')
   const apronForest = plantApronForest(apron, grid, { density: quality.apronForestDensity, reach: quality.apronForestReach })
@@ -169,7 +182,7 @@ export function buildApexStage(
   let stage: Stage | null = null
   const rebuildParks = () => {
     const features = parkSites.flatMap((site) => placeFeatures(site, site.layout))
-    overlay = buildParkOverlay(features, moguls.sampleTerrain, grid.heightAt)
+    overlay = buildParkOverlay(features, cliffs.sampleTerrain, grid.heightAt)
     if (parkView) {
       scene.remove(parkView.object)
       parkView.dispose()
@@ -190,7 +203,11 @@ export function buildApexStage(
   options.phase?.('apex: signs')
   rebuildParks()
   options.phase?.('apex: parks')
-  const sampleSurface = createSurfaceSampler(grid, surface, canopy, { inPark: (x, z) => overlay.inside(x, z), onMogul: moguls.onMogul })
+  // Deep snow: the skis cut trenches the sim reads back; Medium and up also draw them.
+  const stamper = createStamper(createSnowDeform())
+  const snowPatch = quality.snowPatch ? createSnowPatchView(grid, stamper.field, terrain.material, quality.snowPatch) : null
+  if (snowPatch) scene.add(snowPatch.mesh)
+  const sampleSurface = createSurfaceSampler(grid, surface, canopy, { inPark: (x, z) => overlay.inside(x, z), onMogul: moguls.onMogul, deform: stamper.field })
 
   const slope: Slope = {
     id: 'apex',
@@ -214,6 +231,7 @@ export function buildApexStage(
     ride: (lift) => lifts.ride(lift.id),
     features: () => overlay.features,
     env: { sampleSurface, rails: overlay.rails, assist: true, ski: options.ski },
+    snowDeform: { stamper, patch: snowPatch },
     update(camera) {
       terrain.update(camera.x, camera.z)
       forestView.update(camera)

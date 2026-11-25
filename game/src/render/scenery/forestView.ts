@@ -2,6 +2,9 @@ import * as THREE from 'three'
 import { SPECIES_COUNT, Species, type Forest, type Tree } from '../../world/forest'
 import { compactTreeShapes, distantTree, treeShapes } from './treeShapes'
 
+/** Metres a chunk must move past the near distance before it drops back to stand-ins. */
+const NEAR_HYSTERESIS = 30
+
 export interface ForestDetail {
   /** Full conifer inside this radius, metres. */
   near: number
@@ -172,7 +175,9 @@ export function createForestView(forest: Forest, detail: ForestDetail) {
       let changed = false
       for (const batch of batches) {
         const d = Math.hypot(batch.cx - camera.x, batch.cz - camera.z, (batch.y - camera.y) * 0.5)
-        const near = d < detail.near
+        // Hysteresis: a camera hovering at the boundary (lift bob, orbit sway) must not
+        // flip a chunk every frame, because each flip refills and re-uploads every near tree.
+        const near = batch.near ? d < detail.near + NEAR_HYSTERESIS : d < detail.near
         if (near !== batch.near) {
           batch.near = near
           changed = true

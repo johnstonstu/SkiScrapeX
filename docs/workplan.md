@@ -56,12 +56,12 @@ Expensive shader work goes behind a define (like `SNOW_DETAIL`). Expensive geome
 ### Next up (from Stu's 0.9.13 playtest, 2026-11-24)
 
 - [x] 0.9.15: windows on all buildings, one summit hut, telecom towers on both peaks.
-- [ ] 0.9.16, runs: trace real cleared run edges from LiDAR canopy so no trees stand in runs (bottom of Quickdraw first); groomer corduroy leans to the fall line on wide runs, traverses keep their heading.
-- [ ] 0.9.16, West Bank and The Pit (Stu: "awesome runs, need to be accurate"). West Bank is a fun mogul run right under Quickdraw with some steep sections; one of the lift towers has a small cliff beside it you can jump off. The Pit has a big cliff at the top and a rock band in the middle to jump off; a big-mountain run people watch from the chair. Needs cliff and rock-band overlays on the terrain, moguls on West Bank, and real widths.
-- [ ] Building look pass against photos (`game/research/apex-references.md`).
+- [x] 0.9.16, runs: trace real cleared run edges from LiDAR canopy so no trees stand in runs (bottom of Quickdraw first); groomer corduroy leans to the fall line on wide runs, traverses keep their heading.
+- [x] 0.9.16, West Bank and The Pit (Stu: "awesome runs, need to be accurate"). West Bank is a fun mogul run right under Quickdraw with some steep sections; one of the lift towers has a small cliff beside it you can jump off. The Pit has a big cliff at the top and a rock band in the middle to jump off; a big-mountain run people watch from the chair. Needs cliff and rock-band overlays on the terrain, moguls on West Bank, and real widths.
+- [x] Building windows pass (0.9.16). A full photo-matched rebuild of the hero buildings is still open (#32).
 - [ ] Run names: later, with Stu.
-- [ ] Performance: profile on Stu's GPU (Claude in Chrome), then refactor the hot spots (chunk builds off the main thread, shader warm-up, per-frame allocations).
-- [ ] Deep snow: deformable snow height field around the player (trenches and berms), read by both the renderer and the sim; prototype behind a setting.
+- [~] Performance: 0.9.16 fixed the likely hitches found by reading the code (track uploads, forest LOD flapping, shader warm-up, streaming churn). Still to do: profile on Stu's GPU (Claude in Chrome) and move chunk builds off the main thread if hitches remain.
+- [x] Deep snow (0.9.16): trenches and berms around the player, drawn on Medium and High, read by the sim. Next: sluffs and face-shot spray tied to the berms, persistent coarse tracks beyond the patch.
 
 
 Ordered by what unblocks the most. Each is one or more patch releases.

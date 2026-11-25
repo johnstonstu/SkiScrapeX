@@ -86,6 +86,9 @@ export function makeRandom(seed: number): () => number {
   }
 }
 
+/** A sapling needs uncleared ground this many metres outward to count as a run edge. */
+const SAPLING_EDGE = 3.5
+
 /**
  * Plant trees. With LidarBC canopy, every 5 m cell gets trees in proportion to
  * its measured cover, scaled to its measured height. Without canopy, a noise
@@ -224,7 +227,12 @@ export function plantForest(
           for (const side of [-1, 1]) {
             if (random() > 0.42 * density) continue
             const inset = half * (0.72 + 0.22 * random())
-            plant(cx + sx * side * inset, cz + sz * side * inset, 2.4 + random() * 0.9, true)
+            const px = cx + sx * side * inset
+            const pz = cz + sz * side * inset
+            // Only at a real edge: open corridor here, uncleared ground a few metres out.
+            // Where runs merge or a run is wider than guessed, the spot is mid-run: skip it.
+            if (!isClear(surface, px, pz) || isClear(surface, px + sx * side * SAPLING_EDGE, pz + sz * side * SAPLING_EDGE)) continue
+            plant(px, pz, 2.4 + random() * 0.9, true)
           }
         }
       }

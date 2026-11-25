@@ -10,7 +10,7 @@ import './style.css'
 import './pause.css'
 import './presentation.css'
 import './menu.css'
-import { PHYSICS, PRESETS, advance, beginCrash, createClock, createPreset, createSkier, landingSpot, resetSkier, type SkiState } from './sim'
+import { PHYSICS, PRESETS, advance, beginCrash, createClock, createPreset, createSkier, landingSpot, resetSkier, skiFrame, type SkiState, type SurfaceSample } from './sim'
 import { createSkierView, type SkierPose } from './render/rider/skierView'
 import { createLandingMarker } from './render/rider/landingMarker'
 import { createSlopeView } from './render/terrain/slopeView'
@@ -105,7 +105,7 @@ const lighting = createLighting()
 const scene = new THREE.Scene()
 if (params.has('perf')) Object.assign(window, { __scene: scene })
 // `?test`: handles for the headless smoke test.
-if (params.has('test')) Object.assign(window, { __game: { scene, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals }, get npcs() { return npcs } } })
+if (params.has('test')) Object.assign(window, { __game: { scene, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals }, get npcs() { return npcs }, get snowDeform() { return stage.snowDeform } } })
 const sun = addSceneLights(scene, lighting, quality.shadowRange)
 sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize)
 const sky = createSky(lighting)
@@ -293,6 +293,19 @@ function showTitle() {
   ui.titleScreen.hidden = false
 }
 
+/**
+ * Compile every material's program before the first frames, so the first sight
+ * of a new material (park features, cliffs, gear, other skiers) does not stall a
+ * frame mid-run. Capped at 4 s; a failure only costs the warm-up, not the game.
+ */
+async function warmShaders() {
+  try {
+    await Promise.race([renderer.compileAsync(scene, camera), new Promise((resolve) => setTimeout(resolve, 4000))])
+  } catch (error) {
+    console.warn('Shader warm-up failed; programs will compile on first use.', error)
+  }
+}
+
 async function boot() {
   // Review links (`?park`, `?ride`, `?at`) and test slopes go straight in.
   const skipTitle = ['dev', 'park', 'ride', 'at', 'perf', 'demo'].some((key) => params.has(key))
@@ -310,6 +323,8 @@ async function boot() {
       perf.phase('loadWorld')
       startApex(world)
       perf.phase('startApex')
+      await warmShaders()
+      perf.phase('shaders')
       if (!skipTitle) showTitle()
     } catch (error) {
       console.error(error)
@@ -499,6 +514,7 @@ function spawn() {
   goals?.resetGates()
   tricks.resetTotal()
   effects.clear()
+  stage.snowDeform?.stamper.reset()
   sound.reset()
   haptics.reset()
   gearDrops.clear()
@@ -692,6 +708,7 @@ function startRide(lift: Lift) {
   ui.best.textContent = '–'
   ui.ride.hidden = false
   effects.clear()
+  stage.snowDeform?.stamper.reset()
   sound.reset()
   haptics.reset()
   rig.snap()
@@ -976,6 +993,7 @@ function tick(dt: number, frameMs: number) {
   effects.setWeather(weatherLive.snowDensity * (1 + gust.strength * 0.2), gust.windEast, gust.windSouth, lighting)
   if (scene.fog instanceof THREE.Fog) scene.fog.far = gust.fogFar
   effects.update(dt, skier, ride ? null : ground, camera, stage.snow, !renderer.shadowMap.enabled && rig.mode !== 'first')
+  stepDeepSnow(dt, ride ? null : ground)
   // The landing ring is a third-person aid; in first person it fills the view.
   landingMarker.update(settings.landingRing && rig.mode !== 'first' && skier.air && !ride ? landingSpot(skier, skier.air, stage.slope.sampleTerrain, PHYSICS.gravity) : null, skier.air?.time ?? 0, dt)
   if (!ui.mapPanel.hidden) {
@@ -987,6 +1005,32 @@ function tick(dt: number, frameMs: number) {
   renderer.render(scene, camera)
   perf.lap('render')
   perf.end(renderer, frameMs)
+}
+
+/** Ski imprints into the deformable snow field, and the patch that draws them. */
+function stepDeepSnow(dt: number, ground: SurfaceSample | null) {
+  const deep = stage.snowDeform
+  if (!deep) return
+  if (ground && !skier.offMap) {
+    const board = outfit.model === 'snowboard'
+    const { side } = skiFrame(skier.heading, ground.normal)
+    const fast = Math.min(1, skier.speed / 6)
+    deep.stamper.push({
+      x: skier.x,
+      z: skier.z,
+      sideX: side.x,
+      sideZ: side.z,
+      stance: board ? 0 : 0.16,
+      boardWidth: board ? 0.27 : 0,
+      sink: skier.sink,
+      loose: skier.surface.depth,
+      skid: Math.min(1, (skier.mode === 'braking' ? Math.max(skier.skid, 0.7) : skier.skid) * fast),
+      grounded: skier.grounded && !skier.rail && skier.crashed <= 0 && skier.y - ground.height < 0.4,
+      crashed: skier.crashed > 0 && skier.grounded,
+    })
+  }
+  deep.stamper.step(dt)
+  deep.patch?.update(skier.x, skier.z)
 }
 
 /** Move the rider along the lift. Hold tuck to fast-forward. */
