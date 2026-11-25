@@ -30,6 +30,18 @@ export const RUN_NAMES: Record<string, string> = {
   "Greenhorn's Traverse": 'Greenhorn Traverse',
 }
 
+/**
+ * How runs are kept where OSM says otherwise. Source: Stu (2026-11-24): West Bank
+ * is "a really fun kind of mogul run right underneath the chairlift", The Pit a
+ * big-mountain run with a cliff at the top and a rock band in the middle.
+ */
+export const RUN_STYLE: Record<string, { groomed?: boolean; moguls?: boolean; halfWidth?: number }> = {
+  // Mogul lanes need room; the LiDAR clearing under Quickdraw is wide.
+  'West Bank': { groomed: false, moguls: true, halfWidth: 15 },
+  // A wide big-mountain face, room to ski around the drops.
+  'The Pit': { groomed: false, halfWidth: 22 },
+}
+
 /** Display names for OSM building names with typos or abbreviations. */
 export const BUILDING_NAMES: [RegExp, string][] = [
   [/^the gunbarell saloon$/i, 'Gunbarrel Saloon'],
@@ -86,6 +98,8 @@ export function applyCorrections(resort: Resort): void {
     run.name = RUN_NAMES[run.name] ?? run.name
     const difficulty = DIFFICULTY_FIXES[run.name]
     if (difficulty) run.difficulty = difficulty
+    const style = RUN_STYLE[run.name]
+    if (style) Object.assign(run, style)
   }
   if (resort.buildings) resort.buildings = resort.buildings.filter((b) => !(b.id && DROPPED_BUILDINGS.has(b.id)))
   for (const peak of EXTRA_PEAKS) if (!resort.peaks.some((p) => p.name === peak.name)) resort.peaks.push({ ...peak })

@@ -2,7 +2,30 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
-## 0.9.15 (unreleased): Summit, towers and windows
+## 0.9.16 (2026-11-24): Deep snow, West Bank and The Pit, runs that fit
+
+### Added
+
+- Deep snow: skis cut trenches as deep as they sink and push the snow into berms beside them; skids plough a wide swath and a crash leaves a crater. Medium and High draw it as real geometry in a fine patch around the player (`world/snowDeform.ts`, `render/terrain/snowPatchView.ts`). On every level the sim reads it back, so your own tracks are packed, shallower and a little faster.
+- West Bank is an ungroomed mogul run under Quickdraw, wider, with a rock drop beside the Quickdraw tower closest to the run.
+- The Pit is an ungroomed big-mountain face: a big cliff where it rolls over at the top and a rock band with chutes through the steep middle. Drops are solid rock you ski onto and launch off (`world/cliffs.ts`); trees stay off them and their landings.
+
+### Changed
+
+- Run corridors follow the real LiDAR clearings: runs widen into open ground beside them and give standing forest at their outer edge back to the trees (`world/runEdges.ts`).
+- Edge saplings only grow at a true run edge, so no more small trees in the middle of runs where runs merge (the Quickdraw base and elsewhere).
+- Corduroy leans toward the fall line on runs that head downhill; traverses keep their heading.
+- Windows have light trim, a centre mullion, sky reflections and some blank bays instead of one uniform grid.
+
+### Performance
+
+- Ski-track stamp uploads only the rows painted each frame (a few KB instead of 1 MB).
+- Forest chunks switch detail with 30 m of hysteresis, so a camera at the boundary no longer refills every near tree each frame.
+- Terrain detail streaming skips its per-frame bookkeeping when nothing changed.
+- Shaders compile at load (`compileAsync`), not on first sight mid-run.
+- three.js ships as its own cached chunk.
+
+## 0.9.15 (2026-11-24): Summit, towers and windows
 
 ### Fixed
 

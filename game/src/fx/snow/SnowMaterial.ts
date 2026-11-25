@@ -80,6 +80,9 @@ interface SnowUniforms {
   uDetailMaskRect: { value: Vector4 };
   uDetailLimit: { value: Vector2 };
   uHasDetail: { value: number };
+  uPatchCentre: { value: Vector2 };
+  uPatchRadius: { value: number };
+  uHasPatch: { value: number };
 }
 
 const vertexShader = /* glsl */ `
@@ -88,6 +91,7 @@ const vertexShader = /* glsl */ `
 varying vec3 vWorld;
 varying vec3 vNormal;
 varying float vHoleable;
+varying float vTerrain;
 // x: detail chunk vertex (morphs toward aBase), y: coarse terrain (cut where detail draws).
 attribute vec2 aFlags;
 // Coarse surface under a detail vertex: height, then normal.
@@ -104,10 +108,75 @@ void main() {
     n = normalize(mix(normal, aBase.yzw, morph));
   }
   vHoleable = aFlags.y;
+  vTerrain = max(aFlags.x, aFlags.y);
   vec4 worldPosition = modelMatrix * vec4(p, 1.0);
   vWorld = worldPosition.xyz;
   vNormal = mat3(modelMatrix) * n;
   vec3 transformedNormal = normalMatrix * n;
+  #include <shadowmap_vertex>
+  gl_Position = projectionMatrix * viewMatrix * worldPosition;
+}
+`;
+
+/**
+ * Vertex program for the deformable snow patch (SNOW_PATCH). The patch is a fine
+ * grid that follows the player: each vertex rebuilds the terrain height from the
+ * 2 m height texture on the same triangle split as the terrain mesh, so it meets
+ * the terrain exactly, then adds the trench and berm offsets, faded to zero at
+ * the rim.
+ */
+export const snowPatchVertexShader = /* glsl */ `
+#include <common>
+#include <shadowmap_pars_vertex>
+varying vec3 vWorld;
+varying vec3 vNormal;
+varying float vHoleable;
+varying float vTerrain;
+uniform sampler2D uHeights;
+uniform vec2 uHeightsSize;
+uniform float uHeightsStep;
+uniform vec2 uPatchOrigin;
+uniform vec2 uPatchCentre;
+uniform float uPatchRadius;
+uniform sampler2D uDeform;
+uniform vec4 uDeformRect;
+uniform vec2 uDeformRange;
+
+float ground(vec2 p) {
+  vec2 g = clamp(p / uHeightsStep, vec2(0.0), uHeightsSize - 1.001);
+  ivec2 c = ivec2(min(floor(g), uHeightsSize - 2.0));
+  vec2 f = g - vec2(c);
+  float a = texelFetch(uHeights, c, 0).r;
+  float b = texelFetch(uHeights, c + ivec2(1, 0), 0).r;
+  float l = texelFetch(uHeights, c + ivec2(0, 1), 0).r;
+  float d = texelFetch(uHeights, c + ivec2(1, 1), 0).r;
+  // NE to SW split, as in world/terrainGrid.ts.
+  if (f.x + f.y <= 1.0) return a + f.x * (b - a) + f.y * (l - a);
+  return d - (1.0 - f.x) * (d - l) - (1.0 - f.y) * (d - b);
+}
+
+float offsetAt(vec2 p) {
+  vec2 uv = (p - uDeformRect.xy) / uDeformRect.zw;
+  if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return 0.0;
+  float rim = 1.0 - smoothstep(uPatchRadius - 2.5, uPatchRadius - 0.6, distance(p, uPatchCentre));
+  return (texture2D(uDeform, uv).r * (uDeformRange.x + uDeformRange.y) - uDeformRange.x) * rim;
+}
+
+float surface(vec2 p) {
+  return ground(p) + offsetAt(p);
+}
+
+void main() {
+  vec2 p = uPatchOrigin + position.xz;
+  float h = surface(p);
+  float e = 0.12;
+  vec3 n = normalize(vec3(surface(p - vec2(e, 0.0)) - surface(p + vec2(e, 0.0)), 2.0 * e, surface(p - vec2(0.0, e)) - surface(p + vec2(0.0, e))));
+  vHoleable = 0.0;
+  vTerrain = 0.0;
+  vec4 worldPosition = vec4(p.x, h, p.y, 1.0);
+  vWorld = worldPosition.xyz;
+  vNormal = n;
+  vec3 transformedNormal = (viewMatrix * vec4(n, 0.0)).xyz;
   #include <shadowmap_vertex>
   gl_Position = projectionMatrix * viewMatrix * worldPosition;
 }
@@ -121,6 +190,10 @@ const fragmentShader = /* glsl */ `
 varying vec3 vWorld;
 varying vec3 vNormal;
 varying float vHoleable;
+varying float vTerrain;
+uniform vec2 uPatchCentre;
+uniform float uPatchRadius;
+uniform float uHasPatch;
 uniform sampler2D uDetailMask;
 uniform vec4 uDetailMaskRect;
 uniform vec2 uDetailLimit;
@@ -194,6 +267,12 @@ float patchFbm(vec2 p) {
 }
 
 void main() {
+  // Deformable snow patch: it replaces the terrain inside a circle round the player.
+#ifdef SNOW_PATCH
+  if (distance(vWorld.xz, uPatchCentre) > uPatchRadius) discard;
+#else
+  if (uHasPatch > 0.5 && vTerrain > 0.5 && distance(vWorld.xz, uPatchCentre) < uPatchRadius) discard;
+#endif
   if (vHoleable > 0.5 && uHasDetail > 0.5) {
     vec2 cellUv = (vWorld.xz - uDetailMaskRect.xy) / uDetailMaskRect.zw;
     if (all(greaterThanEqual(cellUv, vec2(0.0))) && all(lessThan(cellUv, vec2(1.0))) && all(lessThanEqual(vWorld.xz, uDetailLimit)) && texture2D(uDetailMask, cellUv).r > 0.5) discard;
@@ -540,6 +619,9 @@ export class SnowMaterial extends ShaderMaterial {
       uDetailMaskRect: { value: new Vector4(0, 0, 1, 1) },
       uDetailLimit: { value: new Vector2(1e9, 1e9) },
       uHasDetail: { value: 0 },
+      uPatchCentre: { value: new Vector2() },
+      uPatchRadius: { value: 0 },
+      uHasPatch: { value: 0 },
     };
 
     super({
@@ -622,6 +704,13 @@ export class SnowMaterial extends ShaderMaterial {
   setDetailMorph(centreX: number, centreZ: number, near: number, far: number): void {
     this.u.uDetailCentre.value.set(centreX, centreZ);
     this.u.uDetailMorph.value.set(near, Math.max(far, near + 1));
+  }
+
+  /** Hide the terrain inside a circle where the deformable snow patch draws instead. */
+  setPatch(centreX: number, centreZ: number, radius: number, on: boolean): void {
+    this.u.uPatchCentre.value.set(centreX, centreZ);
+    this.u.uPatchRadius.value = radius;
+    this.u.uHasPatch.value = on ? 1 : 0;
   }
 
   setMaskEnabled(enabled: boolean): void {

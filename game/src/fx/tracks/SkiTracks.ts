@@ -159,6 +159,10 @@ export class SkiTracks {
   private head = 0;
   private count = 0;
   private placed = false;
+  /** Rows painted this segment, and whether the whole stamp is already due for upload. */
+  private dirtyMin = Infinity;
+  private dirtyMax = -Infinity;
+  private fullUpload = true;
   private ribbonEnabled = true;
   private hasPaint = false;
   private paintX = 0;
@@ -191,6 +195,9 @@ export class SkiTracks {
     this.stampTexture.colorSpace = NoColorSpace;
     this.stampTexture.generateMipmaps = false;
     this.stampTexture.needsUpdate = true;
+    this.stampTexture.onUpdate = () => {
+      this.fullUpload = false;
+    };
 
     this.samples = Array.from({ length: this.max }, () => ({
       x: 0, y: 0, z: 0, nx: 0, ny: 1, nz: 0, lx: 1, ly: 0, lz: 0,
@@ -262,7 +269,7 @@ export class SkiTracks {
 
   clear(): void {
     this.data.fill(0);
-    this.stampTexture.needsUpdate = true;
+    this.uploadAll();
     this.count = 0;
     this.head = 0;
     this.placed = false;
@@ -381,7 +388,7 @@ export class SkiTracks {
     this.originX = Math.round((x - this.windowMetres * 0.5) / texel) * texel;
     this.originZ = Math.round((z - this.windowMetres * 0.5) / texel) * texel;
     this.data.fill(0);
-    this.stampTexture.needsUpdate = true;
+    this.uploadAll();
     this.placed = true;
   }
 
@@ -409,7 +416,7 @@ export class SkiTracks {
     const n = this.resolution;
     if (Math.abs(dx) >= n || Math.abs(dz) >= n) {
       this.data.fill(0);
-      this.stampTexture.needsUpdate = true;
+      this.uploadAll();
       return;
     }
     this.scratch.fill(0);
@@ -428,17 +435,33 @@ export class SkiTracks {
       }
     }
     this.data.set(this.scratch);
-    this.stampTexture.needsUpdate = true;
+    this.uploadAll();
   }
 
   private paintSegment(x0: number, z0: number, x1: number, z1: number, radius: number, amount: number): void {
     const dist = Math.hypot(x1 - x0, z1 - z0);
     const step = Math.max(radius * 0.45, this.windowMetres / this.resolution);
     const steps = Math.min(48, Math.max(1, Math.ceil(dist / step)));
+    this.dirtyMin = Infinity;
+    this.dirtyMax = -Infinity;
     for (let i = 0; i <= steps; i += 1) {
       const t = i / steps;
       this.paintDisc(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, radius, amount);
     }
+    if (this.dirtyMax < this.dirtyMin) return;
+    // Upload only the rows this segment touched (a few KB) instead of the whole
+    // 1 MB stamp. A pending full upload (window moved or cleared) wins.
+    if (!this.fullUpload) {
+      const n = this.resolution;
+      this.stampTexture.addUpdateRange(this.dirtyMin * n * 4, (this.dirtyMax - this.dirtyMin + 1) * n * 4);
+    }
+    this.stampTexture.needsUpdate = true;
+  }
+
+  /** Mark the whole stamp for upload, dropping any row ranges. */
+  private uploadAll(): void {
+    this.stampTexture.clearUpdateRanges();
+    this.fullUpload = true;
     this.stampTexture.needsUpdate = true;
   }
 
@@ -451,6 +474,8 @@ export class SkiTracks {
     const maxX = Math.min(this.resolution - 1, Math.ceil(cx + r));
     const minY = Math.max(0, Math.floor(cy - r));
     const maxY = Math.min(this.resolution - 1, Math.ceil(cy + r));
+    if (minY < this.dirtyMin) this.dirtyMin = minY;
+    if (maxY > this.dirtyMax) this.dirtyMax = maxY;
     const r2 = r * r;
     const n = this.resolution;
     for (let y = minY; y <= maxY; y += 1) {

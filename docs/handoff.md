@@ -45,7 +45,8 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 | `?ride=quickdraw` | Start on a lift |
 | `?park=claim` | Start at a terrain park |
 | `?perf` | Load-phase and frame timing on `window.__perf` |
-| `?test` | Smoke-test handles on `window.__game` |
+| `?test` | Smoke-test handles on `window.__game` (scene, skier, challenge, goals, NPCs, deformable snow) |
+| `?quality=low\|medium\|high` | Try a graphics level for one load without saving it (the deep-snow patch needs Medium or High) |
 
 Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
 

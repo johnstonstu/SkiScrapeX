@@ -22,7 +22,7 @@ const height = readFileSync(`${DATA}canopy-height.u8`)
 const canopy: Canopy = { cover: Float32Array.from(cover, (b) => b / 255), height: Float32Array.from(height, (b) => b / 4) }
 const resort = resortFromFeatures(JSON.parse(readFileSync(`${DATA}features.json`, 'utf8')), grid.heightAt)
 const sites = parkSitesFromLines(resort.parks)
-const surface = buildSurface(grid, resort, 2.5, sites.map((s) => ({ line: s.line, halfWidth: 16 })))
+const surface = buildSurface(grid, resort, 2.5, sites.map((s) => ({ line: s.line, halfWidth: 16 })), { canopyCover: canopy.cover })
 const { sampleTerrain, onMogul } = buildMoguls(grid, resort.runs, surface)
 const sampleSurface = createSurfaceSampler(grid, surface, canopy, { onMogul })
 

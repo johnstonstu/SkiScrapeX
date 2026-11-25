@@ -87,6 +87,8 @@ export interface QualityProfile {
   sprayParticles: number
   snowflakes: number
   trackResolution: number
+  /** Deformable snow around the player: radius and vertex spacing in metres, or null (trenches only in the physics). */
+  snowPatch: { radius: number; spacing: number } | null
   /** Village props: High full; Medium thinned cars/decks; Low hut only. */
   villageDetail: 'full' | 'mid' | 'lite'
   /** Canvas / map anisotropy (clamped to the renderer max at boot). */
@@ -112,6 +114,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     sprayParticles: 900,
     snowflakes: 1600,
     trackResolution: 256,
+    snowPatch: null,
     villageDetail: 'lite',
     anisotropy: 2,
     forestDensity: 0.7,
@@ -132,6 +135,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     sprayParticles: 1400,
     snowflakes: 2800,
     trackResolution: 512,
+    snowPatch: { radius: 10, spacing: 0.16 },
     villageDetail: 'mid',
     anisotropy: 4,
     forestDensity: 0.8,
@@ -152,6 +156,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     sprayParticles: 2048,
     snowflakes: 4200,
     trackResolution: 512,
+    snowPatch: { radius: 14, spacing: 0.125 },
     villageDetail: 'full',
     anisotropy: 8,
     forestDensity: 0.85,
