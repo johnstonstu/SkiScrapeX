@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import type { Lift } from '../../world/resort'
+import { mergedAsset, partsNamed, placeAsset, type AssetSet } from './sceneryAssets'
 
 const TOWER_HEIGHT = 11
 /** Surface lift (T-bar) towers are shorter: the rope only has to clear the hangers. */
@@ -46,8 +47,12 @@ export function sampleRide(path: RidePath, s: number, out: THREE.Vector3): numbe
   return Math.atan2(b.x - a.x, b.z - a.z)
 }
 
-/** Towers, haul rope, terminals and moving chairs for each lift. */
-export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) => number) {
+/**
+ * Towers, haul rope, terminals and moving chairs for each lift. With `models`
+ * (lifts.glb, from tools/blender/build_lifts.py) the chairs, towers and
+ * terminals are the modelled ones; without, the code-built parts below.
+ */
+export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) => number, models: AssetSet | null = null) {
   const group = new THREE.Group()
   group.name = 'lifts'
   const steel = new THREE.MeshLambertMaterial({ color: 0x5b6168 })
@@ -77,7 +82,7 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
     distance: number
   }[] = []
   const transform = new THREE.Object3D()
-  const housings: THREE.Group[] = []
+  const housings: THREE.Object3D[] = []
   const rides = new Map<string, RidePath>()
   const beltMaterial = new THREE.MeshLambertMaterial({ color: 0x2b2f33 })
   const carpetRail = new THREE.MeshLambertMaterial({ color: 0x8a9098 })
@@ -111,7 +116,16 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       continue
     }
 
+    const stocksLift = aerial && (lift.seats === 3 || /stock/i.test(lift.name))
+    const kind = !aerial ? 'tb' : stocksLift ? 'st' : 'qd'
     for (const [x, z] of lift.towers) {
+      const modelled = models && placeAsset(models, `${kind}_tower`)
+      if (modelled) {
+        modelled.position.set(x, ground(x, z), z)
+        modelled.rotation.y = yaw
+        group.add(modelled)
+        continue
+      }
       if (aerial) {
         const tower = new THREE.Mesh(aerialTower, galv)
         tower.position.set(x, ground(x, z), z)
@@ -126,14 +140,20 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       tower.castShadow = true
       group.add(tower)
     }
-    const stocksLift = aerial && (lift.seats === 3 || /stock/i.test(lift.name))
     for (const [x, z] of [lift.bottom, lift.top]) {
       const atTop = x === lift.top[0] && z === lift.top[1]
-      const station = !aerial
+      const modelled = models && placeAsset(models, `${kind}_terminal_${atTop ? 'top' : 'bottom'}`)
+      if (modelled) {
+        // Housing parts hide when the camera is inside them (boarding and unloading).
+        const hood = partsNamed(modelled, 'hood_')
+        for (const mesh of hood) mesh.userData.hood = true
+        if (hood.length) modelled.userData.housing = { parts: hood, halfWidth: 5.9, from: -6, to: 17, top: STATION_HEIGHT + 5.5 }
+      }
+      const station = modelled ?? (!aerial
         ? surfaceTerminal({ steel, paint, roof, yellow: tbarYellow }, disposables, atTop ? 'top' : 'bottom')
         : stocksLift
           ? stocksTerminal({ green: stocksGreen, cabin: stocksCabin, steel, roof }, disposables, atTop ? 'top' : 'bottom')
-          : terminal({ galv, hood, paint, roof }, disposables)
+          : terminal({ galv, hood, paint, roof }, disposables))
       station.position.set(x, ground(x, z), z)
       // Each terminal's detach section faces down the line toward the other end.
       station.rotation.y = yaw + (aerial && atTop ? Math.PI : 0)
@@ -141,7 +161,7 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       if (station.userData.housing) housings.push(station)
     }
     // Tiny orange load corral at Quickdraw bottom only (review #27 slice).
-    if (aerial && /quick\s*draw/i.test(lift.name)) {
+    if (aerial && !models && /quick\s*draw/i.test(lift.name)) {
       group.add(liftMazeHint(lift.bottom, dir, side, ground, mazeOrange, disposables))
     }
 
@@ -215,10 +235,11 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       ropes.push({ liftId: lift.id, circuit, uphill, chairs, bars, distance: 0 })
       continue
     }
-    const geometry = chair()
-    geometry.scale(triple ? 0.75 : 1, 1, 1)
+    const model = models && mergedAsset(models, triple ? 'st_chair' : 'qd_chair')
+    const geometry = model?.geometry ?? chair()
+    if (!model) geometry.scale(triple ? 0.75 : 1, 1, 1)
     disposables.push(geometry)
-    const chairs = new THREE.InstancedMesh(geometry, [galv, pad], triple ? 138 : 79)
+    const chairs = new THREE.InstancedMesh(geometry, model?.materials ?? [galv, pad], triple ? 138 : 79)
     chairs.castShadow = true
     chairs.frustumCulled = false
     group.add(chairs)
