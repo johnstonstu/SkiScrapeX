@@ -57,6 +57,9 @@ def review_asset(name, path, distance=8.0, height=2.0, target_height=None, angle
         obj.hide_render = obj not in keep
     cam = _stage(scene)
     cam.data.lens = lens
+    # three.js draws one side of each face; so should the review, or inward faces hide.
+    for mat in bpy.data.materials:
+        mat.use_backface_culling = True
     target = Vector((0, 0, target_height if target_height is not None else height * 0.6))
     frames = []
     for angle in angles:

@@ -2,6 +2,22 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.21 (2026-11-25): Lifts and the Gunbarrel modelled from photos
+
+### Added
+
+- The lifts are modelled in Blender from Liftblog photos (`tools/blender/build_lifts.py`, `game/research/scenery-references.md`):
+  - Quickdraw: open galvanized quads with slatted benches, bars and footrests; grey tube towers with orange base pads, walkways and sheave trains; early Doppelmayr Uni terminals with the rounded white housing and tinted glass band, operator huts, signs, rope fencing and the antenna mast.
+  - Stock's: Müller triples with the loop back, the A-frame drive cabin on splayed legs at the top, the green portal return with its counterweight at the bottom.
+  - T-Bar: the blue counterweight column painted with snowflakes, the yellow bullwheel, yellow lattice portal towers, the top portal and lookout hut with the run board.
+- The Gunbarrel Saloon is modelled on its OSM footprint: brown board-and-batten walls, two glazed front gables with log trusses, a porch, the log-railed deck with picnic tables facing the slope, string lights, the round GUNBARREL sign, a flag and a stone chimney (`tools/blender/build_buildings.py`).
+- The Apex Mountain Inn is modelled too: ochre lap siding over a stone base, framed windows on four storeys, staggered timber balconies, cross gables over the wings, chimneys.
+
+### Changed
+
+- Scenery models load alongside the world data; the code-built lifts and building shells stay as the fallback.
+- Lift and building models are reviewed in Blender from four sides (`tools/blender/review_scenery.py`), drawn one-sided as the game draws them.
+
 ## 0.9.20 (2026-11-24): A rider built in Blender, with jacket styles
 
 ### Added

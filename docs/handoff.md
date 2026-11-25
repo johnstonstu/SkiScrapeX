@@ -45,6 +45,14 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 - To review a change without a GPU, render an outfit in a skiing stance from four sides after `build_all` in the same namespace: `exec(open(r"<repo>/tools/blender/review_rider.py").read(), ns); ns["review"]({"jacket": "shell", "pants": "baggy", "gloves": "mitt", "headwear": "helmet"}, r"<out.png>", closeup=False)`. It shades garments the way the game does (mask colours, normal map, AO).
 - Rider lab: `?snow` starts each rider snow-covered (crash patches and powder up the legs) so the snow shader can be checked; it fades as it would in game.
 
+## Scenery models (Blender)
+
+- Lifts: `tools/blender/build_lifts.py` exports `game/public/models/scenery/lifts.glb`. Each part is an empty named `qd_*`, `st_*` or `tb_*` (chair, tower, terminal_bottom, terminal_top) authored in the frames `liftView.ts` uses: chairs from the grip at the origin, towers on the ground with the rope at 11 m (7 m for the T-bar) and 2.6 m either side, terminals on the ground under the bullwheel with +Z down the line. Meshes named `hood_*` hide when the camera is inside the station. `tests/liftAssets.test.ts` checks those anchors.
+- Hero buildings: `tools/blender/build_buildings.py` exports `buildings.glb`, modelled on the footprints in `tools/blender/footprints.json` (regenerate with `UPDATE_FOOTPRINTS=1 npx vitest run tests/heroFootprints.test.ts` in `game/` after the data changes). `buildingView.ts` swaps the shell for the model by OSM name (`MODELLED`), at the footprint centroid on the lowest ground. `tests/buildingAssets.test.ts` checks each model stays on its footprint.
+- Shared geometry helpers are in `tools/blender/scenery_kit.py`. Run any build like the rider: `ns = {"REPO": r"<repo>"}; exec(open(r"<repo>/tools/blender/build_lifts.py").read(), ns); ns["build_lifts"]()`.
+- Review renders: after a build, `exec(open(r"<repo>/tools/blender/review_scenery.py").read(), ns); ns["review_asset"]("gunbarrel", r"<out.png>", distance=58, height=14, target_height=4)`. They cull back faces like the game, so an inward-facing wall shows up as missing.
+- Keep metalness low on scenery materials: the game has no environment reflections, so strongly metallic surfaces render black.
+
 ## URL parameters
 
 | Parameter | Effect |

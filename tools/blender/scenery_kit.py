@@ -156,7 +156,11 @@ class Kit:
         self.add(mat, pts, faces)
 
     def prism(self, mat, outline, y0, y1, cap_top=True, cap_bottom=False, wall_mat=None):
-        """Extrude a (x, z) outline from y0 to y1."""
+        """Extrude a (x, z) outline from y0 to y1, walls facing outward whatever its winding."""
+        area = sum(outline[i][0] * outline[(i + 1) % len(outline)][1] - outline[(i + 1) % len(outline)][0] * outline[i][1] for i in range(len(outline)))
+        if area > 0:
+            # Loft quads face (-dz, dx) along each edge, which is inward for this winding.
+            outline = list(reversed(outline))
         low = [(x, y0, z) for x, z in outline]
         high = [(x, y1, z) for x, z in outline]
         self.loft(wall_mat or mat, [low, high], smooth=False)

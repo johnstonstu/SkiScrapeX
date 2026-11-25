@@ -123,7 +123,7 @@ export function buildApexStage(
   const shells = buildBuildings(resort.buildings, grid.heightAt, canopy ? { grid, canopy } : undefined)
   const hutFootprint = shells.find((b) => b.id === SUMMIT_HUT_FOOTPRINT)?.ring ?? null
   const buildings = shells.filter((b) => b.id !== SUMMIT_HUT_FOOTPRINT)
-  const buildingView = createBuildingView(buildings)
+  const buildingView = createBuildingView(buildings, options.scenery?.buildings ?? null)
   scene.add(buildingView.object)
   options.phase?.('apex: terrain, forest, lifts, buildings')
 

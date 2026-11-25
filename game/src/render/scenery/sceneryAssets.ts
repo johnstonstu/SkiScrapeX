@@ -14,6 +14,7 @@ export type AssetSet = Map<string, THREE.Object3D>
 
 export interface SceneryAssets {
   lifts: AssetSet | null
+  buildings: AssetSet | null
 }
 
 async function loadSet(file: string): Promise<AssetSet | null> {
@@ -31,8 +32,8 @@ async function loadSet(file: string): Promise<AssetSet | null> {
 
 /** Every scenery GLB, fetched in parallel. Never rejects: missing sets are null. */
 export async function loadSceneryAssets(): Promise<SceneryAssets> {
-  const [lifts] = await Promise.all([loadSet('lifts.glb')])
-  return { lifts }
+  const [lifts, buildings] = await Promise.all([loadSet('lifts.glb'), loadSet('buildings.glb')])
+  return { lifts, buildings }
 }
 
 /** A placed copy of an asset; meshes keep their own materials (shared with other copies). */
