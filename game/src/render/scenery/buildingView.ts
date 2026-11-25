@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import type { Building } from '../../world/buildings'
 import { HERO_BUILDINGS } from '../../world/corrections'
 import { pointInRing } from '../../world/resort'
+import { placeAsset, type AssetSet } from './sceneryAssets'
 
 // Village tones from the aerial photo: timber browns, barn red, grey board, tan stucco.
 const WALLS = ['#8a6243', '#6b4a33', '#7a8088', '#8c3b2b', '#c2a684', '#5f4636'].map((c) => new THREE.Color(c))
@@ -22,16 +23,33 @@ export function isHeroBuilding(name: string | null | undefined): boolean {
   return Boolean(name && HERO_BUILDINGS.has(name))
 }
 
+/** Hero buildings modelled in Blender (buildings.glb), by OSM name. */
+const MODELLED: Record<string, string> = { 'Gunbarrel Saloon': 'gunbarrel', 'Apex Mountain Inn': 'apex_inn' }
+
 /**
  * Buildings as near (windowed) and far (shell) meshes. Collision stays on the
- * world index; this only swaps draws by camera distance.
+ * world index; this only swaps draws by camera distance. With `models`, hero
+ * buildings are the hand-built ones instead of shells: each model's origin is
+ * its footprint centroid on the lowest ground under it (tools/blender/build_buildings.py).
  */
-export function createBuildingView(buildings: Building[]) {
+export function createBuildingView(buildings: Building[], models: AssetSet | null = null) {
   const group = new THREE.Group()
   group.name = 'buildings'
-  const near = buildMesh(buildings, true)
-  const far = buildMesh(buildings, false)
-  group.add(near.mesh, far.mesh)
+  const placed: THREE.Object3D[] = []
+  const shells = buildings.filter((building) => {
+    const asset = building.name ? MODELLED[building.name] : undefined
+    const model = asset && models ? placeAsset(models, asset) : null
+    if (!model) return true
+    const [x, z] = centroid(building.ring)
+    // `base` is 0.6 m below the lowest ground under the footprint.
+    model.position.set(x, building.base + 0.6, z)
+    model.name = asset!
+    placed.push(model)
+    return false
+  })
+  const near = buildMesh(shells, true)
+  const far = buildMesh(shells, false)
+  group.add(near.mesh, far.mesh, ...placed)
   near.mesh.visible = true
   far.mesh.visible = false
 

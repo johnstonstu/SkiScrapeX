@@ -40,6 +40,7 @@ import { createTrickFeed } from './app/tricks'
 import { buildParkMenu, buildRunMenu, renderTrailDetail, syncTrailListSelection } from './app/menus'
 import { createTrailMap, type TrailSelection } from './ui/trailMap'
 import { buildApexStage } from './app/apexStage'
+import { loadSceneryAssets, type SceneryAssets } from './render/scenery/sceneryAssets'
 import type { Stage } from './app/stage'
 import { VERSION } from './app/version'
 import { createFrameWatch } from './app/adaptive'
@@ -323,12 +324,16 @@ async function boot() {
   } else {
     try {
       const base = `${import.meta.env.BASE_URL}data/`
-      const world = await loadWorld(base, (message) => {
-        ui.status.textContent = message
-        setTitleStatus(ui.titleScreen, message)
-      })
+      // Hand-modelled scenery loads alongside the world data; it never rejects.
+      const [world, scenery] = await Promise.all([
+        loadWorld(base, (message) => {
+          ui.status.textContent = message
+          setTitleStatus(ui.titleScreen, message)
+        }),
+        loadSceneryAssets(),
+      ])
       perf.phase('loadWorld')
-      startApex(world)
+      startApex(world, scenery)
       perf.phase('startApex')
       await warmShaders()
       perf.phase('shaders')
@@ -354,10 +359,10 @@ async function boot() {
   requestAnimationFrame(frame)
 }
 
-function startApex(world: World) {
+function startApex(world: World, scenery?: SceneryAssets) {
   ui.status.textContent = 'Building the village…'
   scene.add(apexRoot)
-  const apex = buildApexStage(world, apexRoot, lighting, { quality, viewDistance: settings.viewDistance, ski: SKI_MODELS[outfit.model], phase: perf.phase })
+  const apex = buildApexStage(world, apexRoot, lighting, { quality, viewDistance: settings.viewDistance, ski: SKI_MODELS[outfit.model], phase: perf.phase, scenery })
   stage = apex.stage
   stage.env.assist = settings.landingAssist
   stageReady = true
@@ -1135,7 +1140,7 @@ function stepDeepSnow(dt: number, ground: SurfaceSample | null) {
   }
   deep.stamper.step(dt)
   deep.patch?.update(skier.x, skier.z)
-  effects.setRibbons(!deep.patch?.mesh.visible)
+  effects.setDeepSnowPatch(Boolean(deep.patch?.mesh.visible))
 }
 
 /** Move the rider along the lift. Hold tuck to fast-forward. */

@@ -168,6 +168,14 @@ export class SkiTracks {
   private hasPaint = false;
   private paintX = 0;
   private paintZ = 0;
+  /** Where each ski last painted the stamp (left, right). */
+  private skiPaint = [0, 0, 0, 0];
+  /**
+   * When the deep-snow patch is drawing real trenches, ribbon samples taken in
+   * loose snow fade out (they would float over the trench); on firm snow the
+   * ribbons still draw the two carve lines.
+   */
+  deepSnowPatch = false;
   private ribbonReady = false;
   private ribbonX = 0;
   private ribbonZ = 0;
@@ -315,10 +323,19 @@ export class SkiTracks {
     if (!this.placed || jumped) this.placeWindow(x, z);
     else this.recenter(x, z);
 
-    if (this.stampEnabled && this.hasPaint && !jumped) {
-      const radius = 0.55 + skid * 0.9 + powder * 0.36;
-      this.paintSegment(this.paintX, this.paintZ, x, z, radius, 0.55 + carving * 0.45);
-    }
+    // One groove per ski (one for a board), a ski's width apart; a skid smears them
+    // into one wide scrape, and loose snow widens them.
+    const skis = this.stance > 0.01 ? [-0.5, 0.5] : [0];
+    const radius = Math.max(this.skiWidth * 0.9, 0.12) + skid * 0.75 + powder * 0.3;
+    skis.forEach((offset, i) => {
+      const sx = x + frame.lx * offset * this.stance;
+      const sz = z + frame.lz * offset * this.stance;
+      if (this.stampEnabled && this.hasPaint && !jumped) {
+        this.paintSegment(this.skiPaint[i * 2], this.skiPaint[i * 2 + 1], sx, sz, radius, 0.55 + carving * 0.45);
+      }
+      this.skiPaint[i * 2] = sx;
+      this.skiPaint[i * 2 + 1] = sz;
+    });
     this.paintX = x;
     this.paintZ = z;
     this.hasPaint = true;
@@ -545,7 +562,8 @@ export class SkiTracks {
     const ageFade = Math.max(0, 1 - sample.age / life);
     const along = this.count <= 1 ? 1 : index / (this.count - 1);
     const capFade = smoothstep(0, 0.16, along);
-    return ageFade * capFade;
+    const trench = this.deepSnowPatch ? 1 - smoothstep(0.12, 0.35, sample.powder) : 1;
+    return ageFade * capFade * trench;
   }
 
   private halfWidth(sample: Sample): number {

@@ -31,6 +31,7 @@ import { createRoadView } from '../render/scenery/roadView'
 import { createSignView } from '../render/scenery/signView'
 import { createParkView } from '../render/scenery/parkView'
 import { mergeStatic } from '../render/mergeStatic'
+import type { SceneryAssets } from '../render/scenery/sceneryAssets'
 import type { Lighting } from '../render/lighting'
 import type { SkiModelSpec } from '../ui/riderPanel'
 import { KEYS, readJson, writeJson } from './storage'
@@ -56,7 +57,7 @@ export function buildApexStage(
   world: World,
   scene: THREE.Object3D,
   lighting: Lighting,
-  options: { quality: QualityProfile; viewDistance: number; ski: SkiModelSpec; phase?: (name: string) => void },
+  options: { quality: QualityProfile; viewDistance: number; ski: SkiModelSpec; phase?: (name: string) => void; scenery?: SceneryAssets },
 ): ApexStage {
   const { grid, resort, canopy } = world
   const { quality } = options
@@ -114,7 +115,7 @@ export function buildApexStage(
   scene.add(forestView.object)
 
   options.phase?.('apex: forest view')
-  const lifts = createLiftView(resort.lifts, grid.heightAt)
+  const lifts = createLiftView(resort.lifts, grid.heightAt, options.scenery?.lifts ?? null)
   lifts.object.traverse((child) => (child.castShadow = true))
   mergeStatic(lifts.object, (object) => Boolean(object.userData.hood))
   scene.add(lifts.object)
@@ -122,7 +123,7 @@ export function buildApexStage(
   const shells = buildBuildings(resort.buildings, grid.heightAt, canopy ? { grid, canopy } : undefined)
   const hutFootprint = shells.find((b) => b.id === SUMMIT_HUT_FOOTPRINT)?.ring ?? null
   const buildings = shells.filter((b) => b.id !== SUMMIT_HUT_FOOTPRINT)
-  const buildingView = createBuildingView(buildings)
+  const buildingView = createBuildingView(buildings, options.scenery?.buildings ?? null)
   scene.add(buildingView.object)
   options.phase?.('apex: terrain, forest, lifts, buildings')
 
