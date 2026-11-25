@@ -34,6 +34,8 @@ export const RUN_NAMES: Record<string, string> = {
   'Upper Wishbone': 'Wishbone',
   'Lower Wishbone': 'Wishbone',
   "Hang'em High": "Hang 'em High",
+  // OSM's unnamed-looking "Glades" way is the line through Any Which Way Glades (research handoff).
+  Glades: 'Any Which Way Glades',
 }
 
 /**
@@ -89,13 +91,35 @@ export const RUN_SPLITS: { name: string; at: [number, number]; upper: string; lo
 /**
  * How runs are kept where OSM says otherwise. Source: Stu (2026-11-24): West Bank
  * is "a really fun kind of mogul run right underneath the chairlift", The Pit a
- * big-mountain run with a cliff at the top and a rock band in the middle.
+ * big-mountain run with a cliff at the top and a rock band in the middle. The
+ * rest are from the frames in the Apex research handoff (run-profiles.json,
+ * `surfaceObserved` and `mogulsObserved`), which are snapshots of single days:
+ * grooming at Apex changes day to day, so these are the usual state, not a rule.
  */
-export const RUN_STYLE: Record<string, { groomed?: boolean; moguls?: boolean; halfWidth?: number }> = {
+export const RUN_STYLE: Record<string, { groomed?: boolean; moguls?: boolean; chop?: boolean; packed?: boolean; halfWidth?: number }> = {
   // Mogul lanes need room; the LiDAR clearing under Quickdraw is wide.
   'West Bank': { groomed: false, moguls: true, halfWidth: 15 },
   // A wide big-mountain face, room to ski around the drops.
   'The Pit': { groomed: false, halfWidth: 22 },
+  // Moguls seen in frames. Half widths are the LiDAR median open width halved,
+  // less a little for the summer-to-winter edge, so the mogul lanes fit.
+  // Sunbowl: "wide open bowl, ungroomed with moguls throughout" (66 m open).
+  Sunbowl: { groomed: false, moguls: true, halfWidth: 26 },
+  // Make My Day: "ungroomed steep slope with soft moguls", one run wide (33 m open).
+  'Make My Day': { groomed: false, moguls: true, halfWidth: 14 },
+  // Old Mill: ungroomed with moguls in both clips (70 m open).
+  'Old Mill': { groomed: false, moguls: true, halfWidth: 22 },
+  // Gunbarrel: already a mogul run in OSM; a narrow corridor (22 m open).
+  Gunbarrel: { groomed: false, moguls: true },
+  // K2: "narrow ungroomed line" with moguls (61 m open, tight at the top).
+  K2: { groomed: false, moguls: true, halfWidth: 18 },
+  // Ungroomed in the Romagnoli powder-day clips: soft bumps and chop, no corduroy.
+  Crusher: { groomed: false, chop: true },
+  Hanks: { groomed: false, chop: true },
+  // "Packed/skier-tracked rather than freshly groomed" (Oviatt).
+  "Grandmother's Trail": { packed: true },
+  // A narrow cut (23 m open in the LiDAR); the blue-run default of 40 m cut into its trees.
+  'Dawdler 1': { halfWidth: 11.5 },
 }
 
 /** Display names for OSM building names with typos or abbreviations. */

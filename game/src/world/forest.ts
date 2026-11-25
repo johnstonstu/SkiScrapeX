@@ -1,6 +1,7 @@
 import type { TerrainGrid } from './terrainGrid'
 import { nearestOnPolyline, pointAlong, polylineLength, runHalfWidth, type Resort } from './resort'
 import { isClear, type Canopy, type SurfaceField } from './surface'
+import { buildGladeField } from './glades'
 
 export interface Tree {
   x: number
@@ -109,6 +110,7 @@ export function plantForest(
   const spacing = new Map<number, Tree[]>()
   const spacingKey = (x: number, z: number) => x * 65536 + z
   const liftLines = resort.lifts.map((lift) => lift.line)
+  const glades = buildGladeField(resort.runs, grid)
   // Coarse 16 m cells near a lift line; only trees in them get the exact clearance test.
   const LIFT_CELL = 16
   const liftCols = Math.ceil(grid.width / LIFT_CELL) + 1
@@ -154,6 +156,9 @@ export function plantForest(
           : Species.Fir
         : pickSpecies(ground.height + origin, height, random()),
     }
+    // Glades: open lanes down the fall line between clumps (world/glades.ts). Checked after
+    // the random draws above so the forest outside the glades plants exactly as before.
+    if (!edgeSapling && !glades.keep(x, z)) return
     const ix = Math.floor(x / TRUNK_SPACING), iz = Math.floor(z / TRUNK_SPACING)
     for (let dz = -1; dz <= 1; dz++) {
       for (let dx = -1; dx <= 1; dx++) {

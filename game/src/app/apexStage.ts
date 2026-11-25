@@ -18,10 +18,12 @@ import { indexTrunks, plantApronForest, plantForest } from '../world/forest'
 import { buildBuildings, indexBuildings, type Building } from '../world/buildings'
 import { buildVillage } from '../world/village'
 import { buildParkOverlay, LAYOUTS, parkOnRun, parkSitesFromLines, placeFeatures, type ParkOverlay, type ParkSite } from '../world/park'
-import { pointAlong } from '../world/resort'
+import { pointAlong, runHalfWidth } from '../world/resort'
+import { summitFence, toothTuskSignpost } from '../world/landmarks'
+import { createLandmarkView } from '../render/scenery/landmarkView'
 import { createSurfaceSampler } from '../world/snow'
 import { createTerrainView } from '../render/terrain/terrainView'
-import { createMogulView } from '../render/terrain/mogulView'
+import { createMogulView, MOGUL_DETAIL } from '../render/terrain/mogulView'
 import { createApronView } from '../render/terrain/apronView'
 import { createForestView } from '../render/scenery/forestView'
 import { createLiftView } from '../render/scenery/liftView'
@@ -89,7 +91,9 @@ export function buildApexStage(
   const nearRock = (x: number, z: number) => outcrops.some((o) => (x - o.x) ** 2 + (z - o.z) ** 2 < (o.width / 2 + 4) ** 2 + (o.depth + 4) ** 2)
   const moguls = buildMoguls(grid, resort.runs, surface, nearRock)
   const cliffs = buildCliffs(outcrops, moguls.sampleTerrain)
-  scene.add(terrain.mesh, createMogulView(moguls, terrain.material), createCliffView(outcrops, grid.heightAt))
+  // Moguls and chop: drawn near the camera only, coarser on Low (the physics keeps every bump).
+  const mogulView = createMogulView(moguls, terrain.material, MOGUL_DETAIL[quality.level])
+  scene.add(terrain.mesh, mogulView.object, createCliffView(outcrops, grid.heightAt))
   options.phase?.('apex: moguls')
   const apron = buildApron(grid, world.horizon)
   scene.add(createApronView(apron, lighting).mesh)
@@ -178,6 +182,15 @@ export function buildApexStage(
     const ring: [number, number][] = [[tower.x - r, tower.z - r], [tower.x + r, tower.z - r], [tower.x + r, tower.z + r], [tower.x - r, tower.z + r]]
     solid.push({ id: `telecom-${solid.length}`, name: 'Telecom tower', kind: 'hut', ring, base: 0, eaves: 0, roof: null, palette: 0 })
   }
+  // Summit snow fence and the Tooth/Tusk signpost (Rise & Alpine video); both are solid.
+  const fences = quickdraw ? summitFence(grid, quickdraw.top, resort.runs, resort.lifts.map((l) => l.line), runHalfWidth, nearRock) : []
+  const signpost = toothTuskSignpost(resort.runs.find((run) => run.name === 'Tooth Tusk'), grid)
+  const landmarks = createLandmarkView(fences, signpost, grid.heightAt)
+  scene.add(landmarks.object)
+  for (const line of fences) {
+    for (let i = 1; i < line.length; i++) solid.push(wallSolid(`fence-${solid.length}`, line[i - 1], line[i], 0.4))
+  }
+  if (signpost) solid.push(wallSolid('signpost', [signpost.x - 0.1, signpost.z], [signpost.x + 0.1, signpost.z], 0.2))
   let lastFlagTime = performance.now()
 
   // Park features sit on top of the LiDAR ground; rebuilt when a layout changes.
@@ -239,6 +252,8 @@ export function buildApexStage(
     snowDeform: { stamper, patch: snowPatch },
     update(camera) {
       terrain.update(camera.x, camera.z)
+      mogulView.update(camera)
+      landmarks.update(camera)
       forestView.update(camera)
       buildingView.update(camera)
       villageView.update(camera)
@@ -274,4 +289,12 @@ function centroid(ring: [number, number][]): [number, number] {
   let x = 0, z = 0
   for (const [px, pz] of ring) ((x += px), (z += pz))
   return [x / ring.length, z / ring.length]
+}
+
+/** A thin solid along a wall or fence from `a` to `b`, `half` metres either side. */
+function wallSolid(id: string, a: [number, number], b: [number, number], half: number): Building {
+  const length = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
+  const nx = (-(b[1] - a[1]) / length) * half, nz = ((b[0] - a[0]) / length) * half
+  const ring: [number, number][] = [[a[0] + nx, a[1] + nz], [b[0] + nx, b[1] + nz], [b[0] - nx, b[1] - nz], [a[0] - nx, a[1] - nz]]
+  return { id, name: null, kind: 'fence', ring, base: 0, eaves: 0, roof: null, palette: 0 }
 }

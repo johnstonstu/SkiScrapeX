@@ -14,6 +14,12 @@ export interface Run {
   /** Ungroomed when OSM says mogul / backcountry / freeride, or difficulty is freeride. */
   wooded?: boolean
   moguls?: boolean
+  /** Ungroomed chop: lower, looser bumps than a mogul field (corrections RUN_STYLE). */
+  chop?: boolean
+  /** Packed and skier-tracked rather than freshly groomed: groomed snow without the corduroy. */
+  packed?: boolean
+  /** A gladed area (world/glades.ts): trees are thinned into lanes, not cleared. */
+  glade?: boolean
   groomed: boolean
   /** Known half width in metres, overriding the guess from difficulty (see corrections RUN_STYLE). */
   halfWidth?: number
