@@ -11,6 +11,7 @@ import { headingFor, resortFromFeatures } from '../src/world/resort'
 import { progressAlong } from '../src/world/challenges'
 import { steerToward } from '../src/app/race'
 import { loadDiskGrid } from './diskGrid'
+import { applyCorrections } from '../src/world/corrections'
 
 const DATA = 'public/data/'
 const hasData = existsSync(`${DATA}features.json`) && existsSync(`${DATA}heights.f32`)
@@ -135,11 +136,13 @@ describe('judging jumps', () => {
 describe.skipIf(!hasData)('mogul comp and aerials on the real map', () => {
   const grid = loadDiskGrid(DATA)
   const resort = resortFromFeatures(JSON.parse(readFileSync(`${DATA}features.json`, 'utf8')), grid.heightAt)
+  // The game renames, merges and splits runs on load; events must find them by those names.
+  applyCorrections(resort)
 
   it("the comp lane lies along Kristi's steady pitch", () => {
     const course = buildEventCourse(resort, EVENTS.find((e) => e.format === 'moguls')!)
     const mc = course.moguls!
-    const kristis = resort.runs.find((r) => r.name === "Kristi's")!.parts[0]
+    const kristis = resort.runs.find((r) => r.name === "Kristi's Run")!.parts[0]
     for (let s = 0; s <= mc.length; s += 10) {
       const [x, z] = lanePoint(mc, s, 0)
       expect(progressAlong(x, z, kristis).off).toBeLessThan(8)

@@ -181,7 +181,7 @@ export const EVENTS: EventDef[] = [
       "Kristi's has hosted FIS Nor-Am and Canada Cup moguls since 2008: a steady pitch, a top air and a bottom air, seven judges.",
     rules: 'Tap left or right on each bump and your skier holds the line. Hit the beat to speed up. Trick off both airs. Three misses in a row and you are out.',
     format: 'moguls',
-    legs: [{ run: "Kristi's" }],
+    legs: [{ run: "Kristi's Run" }],
     // The straight, steady lower pitch (about 21 degrees), 220 m like the real comp course.
     startTrim: 150,
     straight: 220,

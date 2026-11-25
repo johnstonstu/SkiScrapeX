@@ -541,7 +541,11 @@ function spawn(keepCamera = false) {
   gearDrops.clear()
   skier.missingSkis = false
   skier.missingPoles = false
-  if (!keepCamera) rig.snap()
+  if (!keepCamera) {
+    // A lift's held shot (arrival or boarding) must not outlive the ride: starting an event from a chair left the camera behind.
+    rig.releaseShot()
+    rig.snap()
+  }
   if (challenge.kind !== 'free') {
     const best = goals?.progress.bests[challenge.id]
     const score = challenge.kind === 'park' || (challenge.kind === 'event' && ['moguls', 'aerials'].includes(challenge.course.def.format))

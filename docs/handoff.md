@@ -55,11 +55,36 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 
 ## Apex events
 
-- Events are defined as data in `game/src/world/events.ts` (`EVENTS`): course legs stitched from real run lines, gates (`downhill` on the line, `gs` alternating either side), the radar trap and split clocks as shares of the course, a crash rule, the pace bot's speed cap and what stands at the finish. History and sources are in `docs/review/apex-events/game-event-ideas.md`.
-- An event is a `kind: 'event'` challenge (`app/session.ts`): a missed gate disqualifies (no time penalty), `bailIsDnf` ends the run on a crash, Match Your Time runs twice and scores the gap. Medal times come from the pace bot at the event's own cap, except Match Your Time, which has fixed targets.
-- The props (`render/scenery/eventView.ts`: start house and wand, gates, split and radar boards, safety nets, finish arch and fencing, crowd, parked cars, timing hut) are built in `goals.activate` only when that event starts and removed when it ends. Free ski never has them.
-- Gates are skipped on sharp bends (`maxBend`). `tests/events.test.ts` races every event on the real map with a line-following racer and checks it finishes clean, so a gate a careful racer cannot make fails the test.
-- With `?test`, `window.__game.startEvent('shoot-the-chute')` starts an event directly.
+- Events are defined as data in `game/src/world/events.ts` (`EVENTS`). Each one has:
+  - course legs stitched from run lines, by their names after `applyCorrections` (Kristi's is "Kristi's Run"), or a park with `park: true`;
+  - gates: `downhill` on the line, or `gs` and `slalom` alternating either side;
+  - the radar trap and split clocks;
+  - a crash rule, the pace bot's speed cap, and what stands at the finish.
+- History and sources are in `docs/review/apex-events/game-event-ideas.md`.
+- Formats:
+  - `race`: one run.
+  - `twoRun`: combined time.
+  - `match`: the gap between two runs.
+  - `moguls` and `aerials`: judged, on points.
+- An event is a `kind: 'event'` challenge (`app/session.ts`). A missed gate disqualifies; there is no time penalty. Race events start the clock at GO (`session.startClock`).
+- The race system lives in three places:
+  - `app/race.ts`: the start gate, gate grades, the line assist and speed kicks. Pure.
+  - `app/raceDirector.ts`: drives them from the frame loop.
+  - `app/ghost.ts`: best-run ghosts, stored in localStorage as `skiscrapex.ghost.<id>`.
+- The line assist only pulls a turn the player already commits to. `aimGate` switches to the next gate 4 m early.
+- Moguls:
+  - `world/mogulCourse.ts` builds the lane, the zipper bumps, the turns (one per bump) and two air ramps.
+  - `app/moguls.ts` is the rhythm state machine and autopilot.
+  - `app/compDirector.ts` turns steering into taps and overrides the skier's steer, tuck and brake on the snow, leaving the air to the player.
+  - The bumps go into the terrain through `stage.setEventTerrain` (a `bumpField` from `world/moguls.ts`) and come out when the event ends.
+- Aerials use `stage.eventLayout('Aerial Site', 'aerial')`, which is not saved. `app/judging.ts` has the DD and form maths.
+- The props (`render/scenery/eventView.ts`) are built in `goals.activate` only when that event starts, and removed when it ends:
+  - start house and wand, gates, split and radar boards, nets;
+  - finish arch and fencing, the crowd, parked cars, the timing hut;
+  - the ghost and the mogul mesh.
+  - Free ski never has them.
+- Tests: `tests/events.test.ts` races every gated event on the real map with a key-tapping racer plus the assist. `tests/moguls.test.ts` runs the comp with perfect taps (no crash, top speed, air off both ramps) and the Aerial Site kickers.
+- With `?test`, `window.__game.startEvent('kristis-moguls')` starts an event directly (dismiss the title screen first).
 
 ## URL parameters
 

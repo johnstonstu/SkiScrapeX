@@ -57,7 +57,7 @@ Expensive shader work goes behind a define (like `SNOW_DETAIL`). Expensive geome
 
 - [x] 0.9.18, pass A: south-face runs, Wildside names and Wildly Easy, Upper/Lower splits, Wishbone merge, Grandmother's blue, Chaser, neutral names for unknown traces.
 - [ ] Pass B: thin trees in the four glade polygons and label them; moguls on Sunbowl, Make My Day, Old Mill, Gunbarrel, K2; ungroomed Crusher and Hanks, packed Grandmother's; landmarks (summit orange slat fence, Tooth/Tusk signpost, padded lift towers); a test of run widths and pitches against `run-profiles.json`.
-- [x] Events: Shoot the Chute and the Mars downhill (`docs/review/apex-events/game-event-ideas.md`), plus the Teck Open GS on Old Mill and Match Your Time on Maverick. Next candidates from the same doc: Torchlight Parade (needs night), Dummy Downhill, Boardercross heats against AI.
+- [x] Events: Shoot the Chute and the Mars downhill (`docs/review/apex-events/game-event-ideas.md`), plus the Apex Slalom, Teck Open GS, Kristi's Moguls (tap-to-turn rhythm), Aerials and Match Your Time, with a shared race system (start gate, gate grades, line assist, ghosts). Next candidates from the same doc: dual moguls against a ghost, Torchlight Parade (needs night), Dummy Downhill, Boardercross heats against AI.
 - [ ] Distant forest: apron tree density (the LiDAR ring is sparser than our cover already), with the performance pass.
 
 ### Queued (from Stu's scenery-blender playtest, 2026-11-25)

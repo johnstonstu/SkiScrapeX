@@ -7,6 +7,7 @@ import { progressAlong } from '../src/world/challenges'
 import { EVENTS, buildEventCourse, matchDelta, paceRoute, raceGates, stitch, type EventCourse, type EventDef } from '../src/world/events'
 import { headingFor, pointAlong, polylineLength, resortFromFeatures, type Point2, type Resort } from '../src/world/resort'
 import { loadDiskGrid } from './diskGrid'
+import { applyCorrections } from '../src/world/corrections'
 
 const DATA = 'public/data/'
 const hasData = existsSync(`${DATA}features.json`) && existsSync(`${DATA}heights.f32`)
@@ -129,6 +130,8 @@ describe('event rules on a straight test course', () => {
 describe.skipIf(!hasData)('Apex events on the real map', () => {
   const grid = loadDiskGrid(DATA)
   const resort: Resort = resortFromFeatures(JSON.parse(readFileSync(`${DATA}features.json`, 'utf8')), grid.heightAt)
+  // The game renames, merges and splits runs on load; events must find them by those names.
+  applyCorrections(resort)
   const courses = new Map(EVENTS.map((def) => [def.id, buildEventCourse(resort, def)]))
   const SUMMIT: Point2 = [1554, 1551]
   const OLD_UPPER_LOT: Point2 = [1479, 506]
