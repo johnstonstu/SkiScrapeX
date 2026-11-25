@@ -138,8 +138,8 @@ describe.skipIf(!hasData)('Apex events on the real map', () => {
     for (const course of courses.values()) {
       const [sx, sz] = course.line[0]
       const [ex, ez] = course.line[course.line.length - 1]
-      expect(grid.heightAt(sx, sz) - grid.heightAt(ex, ez), course.def.id).toBeGreaterThan(150)
-      for (let i = 1; i < course.line.length; i++) expect(near(course.line[i], course.line[i - 1]), course.def.id).toBeLessThan(200)
+      expect(grid.heightAt(sx, sz) - grid.heightAt(ex, ez), course.def.id).toBeGreaterThan(course.def.format === 'race' ? 150 : 40)
+      if (!course.def.straight) for (let i = 1; i < course.line.length; i++) expect(near(course.line[i], course.line[i - 1]), course.def.id).toBeLessThan(200)
     }
   })
 

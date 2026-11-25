@@ -1,7 +1,8 @@
 import * as THREE from 'three'
-import { pointOnMogul, type buildMoguls } from '../../world/moguls'
+import { pointOnMogul, type Mogul } from '../../world/moguls'
+import type { SampleTerrain } from '../../sim'
 
-export function createMogulView(field: ReturnType<typeof buildMoguls>, material: THREE.Material) {
+export function createMogulView(field: { bumps: readonly Mogul[]; sampleTerrain: SampleTerrain }, material: THREE.Material) {
   const positions: number[] = [], normals: number[] = [], indices: number[] = []
   for (const bump of field.bumps) {
     const start = positions.length / 3

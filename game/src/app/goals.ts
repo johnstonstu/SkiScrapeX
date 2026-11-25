@@ -25,6 +25,8 @@ import {
 } from '../world/challenges'
 import { createGatesView, createNuggetsView } from '../render/scenery/goalsView'
 import { createEventView, type EventView } from '../render/scenery/eventView'
+import { createMogulView } from '../render/terrain/mogulView'
+import { bumpField } from '../world/moguls'
 import { EVENTS, buildEventCourse, matchDelta, paceRoute, type EventCourse } from '../world/events'
 import { UNLOCKS, awardMedal, readProgress, recordBest, skiedRuns, unlockedIds, writeProgress } from './progress'
 import { createTargetBook } from './targets'
@@ -51,6 +53,8 @@ function slalomLine(line: Point2[], gates: Gate[]): Point2[] {
 }
 
 const NUGGET_RADIUS = 2.6
+/** The park the aerials event uses, switched to its aerial layout while it runs. */
+const AERIAL_SITE = 'Aerial Site'
 
 export function createGoals(options: {
   world: World
@@ -218,9 +222,16 @@ export function createGoals(options: {
         scene.remove(eventView.object)
         eventView.dispose()
         eventView = null
+        // Take the event's own terrain and park layout away again.
+        stage.setEventTerrain?.(null)
+        stage.eventLayout?.(AERIAL_SITE, null)
       }
       if (wanted && !eventView) {
+        // The comp's bumps go into the terrain first, so the props and the bump mesh sit on them.
+        if (wanted.moguls) stage.setEventTerrain?.(bumpField(wanted.moguls.bumps).apply)
+        if (wanted.def.format === 'aerials') stage.eventLayout?.(AERIAL_SITE, 'aerial')
         eventView = createEventView(wanted, surfaceHeight)
+        if (wanted.moguls && stage.snow) eventView.addOwned(createMogulView({ bumps: wanted.moguls.bumps, sampleTerrain: stage.slope.sampleTerrain }, stage.snow))
         scene.add(eventView.object)
       }
       if (challenge.kind === 'slalom') {
@@ -306,7 +317,8 @@ export function createGoals(options: {
       const challenge = session.challenge
       if (challenge.kind === 'free') throw new Error('free skiing has no result')
       const before = unlocked()
-      const score = challenge.kind === 'park'
+      // Parks, mogul comps and aerials are judged on points (higher is better); the rest on time.
+      const score = challenge.kind === 'park' || (challenge.kind === 'event' && ['moguls', 'aerials'].includes(challenge.course.def.format))
       const match = challenge.kind === 'event' && challenge.course.def.format === 'match' && challenge.firstRun !== undefined
       const combined = challenge.kind === 'event' && challenge.course.def.format === 'twoRun' && challenge.firstRun !== undefined
       const first = challenge.kind === 'event' ? challenge.firstRun ?? 0 : 0
@@ -351,7 +363,7 @@ export function createGoals(options: {
         if (def.benchmark?.seconds) lines.push([def.benchmark.label, formatTime(def.benchmark.seconds)])
       }
       if (challenge.kind === 'park') lines.unshift(['Time', formatTime(stats.time)])
-      else if (points > 0) lines.push(['Trick points', points.toLocaleString()])
+      else if (points > 0 && !score) lines.push(['Trick points', points.toLocaleString()])
       const title =
         challenge.kind === 'park'
           ? `${challenge.site.name} · score attack`
@@ -417,7 +429,7 @@ export function createGoals(options: {
         story: course.def.story,
         rules: course.def.rules,
         targets: eventTargets(course, false),
-        score: false,
+        score: ['moguls', 'aerials'].includes(course.def.format),
         start: () => start(this.event(course)),
       }))
       return {

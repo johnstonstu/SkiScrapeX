@@ -8,6 +8,8 @@
  */
 import { headingFor, pointAlong, polylineLength, type Point2, type Resort, type Run } from './resort'
 import { mainLine, trimLine, type Gate, type MedalTargets } from './challenges'
+import { buildMogulCourse, type MogulCourse } from './mogulCourse'
+import { parkSitesFromLines } from './park'
 
 export type EventFormat =
   /** Fastest clock wins; missed gates (if any) disqualify. */
@@ -35,6 +37,8 @@ export interface EventDef {
   legs: Leg[]
   /** Metres to drop off the top of the stitched line (to start clear of a lift terminal). */
   startTrim?: number
+  /** Replace the course with a straight lane this long from its start (the mogul comp). */
+  straight?: number
   gates:
     | { kind: 'none' }
     | {
@@ -70,7 +74,9 @@ export interface EventDef {
 
 /** A run, cut from the vertex nearest `from` to the vertex nearest `to` (either may be omitted). */
 export interface Leg {
+  /** A run name, or with `park: true` a terrain park name (Aerial Site). */
   run: string
+  park?: boolean
   from?: Point2
   to?: Point2
 }
@@ -168,6 +174,47 @@ export const EVENTS: EventDef[] = [
     finish: { crowd: 35, cars: 0, hut: true, banner: 'APEX SKI CLUB GS' },
   },
   {
+    id: 'kristis-moguls',
+    name: "Kristi's Moguls",
+    where: "Kristi's Run, the Nor-Am mogul course",
+    story:
+      "Kristi's has hosted FIS Nor-Am and Canada Cup moguls since 2008: a steady pitch, a top air and a bottom air, seven judges.",
+    rules: 'Tap left or right on each bump and your skier holds the line. Hit the beat to speed up. Trick off both airs. Three misses in a row and you are out.',
+    format: 'moguls',
+    legs: [{ run: "Kristi's" }],
+    // The straight, steady lower pitch (about 21 degrees), 220 m like the real comp course.
+    startTrim: 150,
+    straight: 220,
+    gates: { kind: 'none' },
+    trap: null,
+    splits: [],
+    bailIsDnf: false,
+    corridor: 18,
+    paceCap: 11,
+    // Points out of 100 (higher is better).
+    fixedTargets: { gold: 80, silver: 65, bronze: 45 },
+    finish: { crowd: 60, cars: 0, hut: false, banner: 'APEX MOGUL CLASSIC' },
+  },
+  {
+    id: 'apex-aerials',
+    name: 'Aerials',
+    where: "The Aerial Site beside Kristi's",
+    story:
+      'Apex hosted FIS Freestyle World Cup aerials in 2006 and 2007 at the Aerial Site, the same kicker that launches the Dummy Downhill on closing day.',
+    rules: 'Hit the kickers and throw your best. Your two best jumps count: degree of difficulty (flips, spins, a grab) times form (the landing).',
+    format: 'aerials',
+    legs: [{ run: 'Aerial Site', park: true }],
+    gates: { kind: 'none' },
+    trap: null,
+    splits: [],
+    bailIsDnf: false,
+    corridor: 45,
+    paceCap: 11,
+    // Points (higher is better): two clean backflips are about 25, a perfect backflip and a cork about 33.
+    fixedTargets: { gold: 30, silver: 22, bronze: 14 },
+    finish: { crowd: 70, cars: 0, hut: false, banner: 'APEX AERIALS' },
+  },
+  {
     id: 'match-your-time',
     name: 'Match Your Time',
     where: 'Maverick',
@@ -203,9 +250,16 @@ function nearestIndex(line: Point2[], [x, z]: Point2): number {
 export function stitch(resort: Resort, legs: Leg[]): Point2[] {
   const out: Point2[] = []
   for (const leg of legs) {
-    const run: Run | undefined = resort.runs.find((r) => r.name === leg.run)
-    if (!run) throw new Error(`Event leg ${leg.run} is not in the resort`)
-    const line = mainLine(run)
+    let line: Point2[]
+    if (leg.park) {
+      const site = parkSitesFromLines(resort.parks).find((p) => p.name === leg.run)
+      if (!site) throw new Error(`Event park ${leg.run} is not in the resort`)
+      line = site.line
+    } else {
+      const run: Run | undefined = resort.runs.find((r) => r.name === leg.run)
+      if (!run) throw new Error(`Event leg ${leg.run} is not in the resort`)
+      line = mainLine(run)
+    }
     const a = leg.from ? nearestIndex(line, leg.from) : 0
     const b = leg.to ? nearestIndex(line, leg.to) : line.length - 1
     if (b <= a) throw new Error(`Event leg ${leg.run} runs backwards (${a} to ${b})`)
@@ -272,11 +326,15 @@ export interface EventCourse {
   trap: [number, number] | null
   /** Split clocks, metres along the line. */
   splits: number[]
+  /** The mogul comp's lane, bumps, turns and airs. */
+  moguls?: MogulCourse
 }
 
 export function buildEventCourse(resort: Resort, def: EventDef): EventCourse {
-  const line = trimLine(stitch(resort, def.legs), def.startTrim ?? 0)
+  const stitched = trimLine(stitch(resort, def.legs), def.startTrim ?? 0)
+  const line: Point2[] = def.straight ? [stitched[0], pointAlong(stitched, def.straight)] : stitched
   const length = polylineLength(line)
+  const moguls = def.format === 'moguls' ? buildMogulCourse(line[0], line[line.length - 1]) : undefined
   return {
     def,
     line,
@@ -284,6 +342,7 @@ export function buildEventCourse(resort: Resort, def: EventDef): EventCourse {
     gates: def.gates.kind === 'none' ? [] : raceGates(line, def.gates),
     trap: def.trap ? [def.trap[0] * length, def.trap[1] * length] : null,
     splits: def.splits.map((share) => share * length),
+    moguls,
   }
 }
 

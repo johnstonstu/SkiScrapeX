@@ -65,6 +65,7 @@ export function buildApexStage(
   // Prospector is the blue run beside Claim Jumper (trace L2), with its own park.
   const prospectorRun = resort.runs.find((run) => run.name === 'Prospector' && run.kind === 'line')
   if (prospectorRun) parkSites.push(parkOnRun('Prospector', prospectorRun.parts[0], grid.heightAt))
+  const defaultLayouts = new Map(parkSites.map((site) => [site.name, site.layout]))
   const savedLayouts = readJson<Record<string, string>>(KEYS.parkLayouts, {})
   for (const site of parkSites) if (savedLayouts[site.name]) site.layout = savedLayouts[site.name]
   const surface = buildSurface(
@@ -182,6 +183,8 @@ export function buildApexStage(
 
   // Park features sit on top of the LiDAR ground; rebuilt when a layout changes.
   let overlay!: ParkOverlay
+  /** An event's own terrain (the mogul comp), laid over everything while it runs. */
+  let eventLayer: Parameters<NonNullable<Stage['setEventTerrain']>>[0] = null
   let parkView: ReturnType<typeof createParkView> | null = null
   let stage: Stage | null = null
   const rebuildParks = () => {
@@ -222,7 +225,10 @@ export function buildApexStage(
     originZ: 0,
     visualStep: grid.step,
     spawn: world.course.spawn,
-    sampleTerrain: (x, z) => overlay.sampleTerrain(x, z),
+    sampleTerrain: (x, z) => {
+      const base = overlay.sampleTerrain(x, z)
+      return base && eventLayer ? eventLayer(base, x, z) : base
+    },
     sampleSurface,
   }
   stage = {
@@ -237,6 +243,17 @@ export function buildApexStage(
     features: () => overlay.features,
     env: { sampleSurface, rails: overlay.rails, assist: true, ski: options.ski },
     snowDeform: { stamper, patch: snowPatch },
+    setEventTerrain(layer) {
+      eventLayer = layer
+    },
+    eventLayout(siteName, layout) {
+      const site = parkSites.find((s) => s.name === siteName)
+      if (!site) return
+      const next = layout ?? savedLayouts[siteName] ?? defaultLayouts.get(siteName) ?? site.layout
+      if (next === site.layout) return
+      site.layout = next
+      rebuildParks()
+    },
     update(camera) {
       terrain.update(camera.x, camera.z)
       forestView.update(camera)

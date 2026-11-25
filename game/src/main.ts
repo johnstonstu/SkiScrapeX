@@ -52,6 +52,7 @@ import { lowerAutoCap, readAutoCap } from './app/autoCap'
 import { showGraphicsProblem } from './app/graphicsFail'
 import { createSession, type Challenge, type SessionEvent } from './app/session'
 import { createRaceDirector } from './app/raceDirector'
+import { createCompDirector } from './app/compDirector'
 import { createRaceHud } from './ui/raceHud'
 import { createGoals, type Goals } from './app/goals'
 import { renderChallenges, renderResults, renderTitle, setTitleStatus } from './ui/goalsPanels'
@@ -156,6 +157,7 @@ effects.setBoard(outfit.model === 'snowboard')
 const tricks = createTrickFeed(ui.trick)
 const raceHud = createRaceHud()
 const race = createRaceDirector({ hud: raceHud, show: (title, detail, kind) => tricks.show(title, detail, kind), assistOn: () => settings.raceAssist })
+const comp = createCompDirector({ hud: raceHud, show: (title, detail, kind) => tricks.show(title, detail, kind), onOut: () => endChallenge('Out of the line: three misses in a row') })
 const coach = createCoach(ui.coach, () => (controls.gamepad ? 'pad' : mobile ? 'touch' : 'keys'), { onExit: () => (tutorialLine = null), toTop: (message) => transition(message, 1.1, spawn) })
 /** The bunny-hill line while the tutorial runs: reaching its end puts you back at the top. */
 let tutorialLine: Point2[] | null = null
@@ -529,6 +531,7 @@ function spawn(keepCamera = false) {
   clock.accumulator = 0
   session = createSession(challenge)
   race.begin(challenge, session)
+  comp.begin(challenge)
   goals?.resetGates()
   tricks.resetTotal()
   effects.clear()
@@ -541,7 +544,7 @@ function spawn(keepCamera = false) {
   if (!keepCamera) rig.snap()
   if (challenge.kind !== 'free') {
     const best = goals?.progress.bests[challenge.id]
-    const score = challenge.kind === 'park'
+    const score = challenge.kind === 'park' || (challenge.kind === 'event' && ['moguls', 'aerials'].includes(challenge.course.def.format))
     ui.title.textContent =
       challenge.kind === 'park'
         ? `${challenge.site.name} · score attack`
@@ -594,6 +597,7 @@ function setFreeSki() {
   goals?.activate(challenge)
   session = createSession(challenge)
   race.end()
+  comp.end()
 }
 
 function openPanel(panel: HTMLElement) {
@@ -708,7 +712,10 @@ function endChallenge(failed: string | null) {
   if (!goals || challenge.kind === 'free') return
   session.abandon()
   const finished = challenge
-  const result = goals.finish(session, tricks.total, failed)
+  const judged = comp.score(session.stats.time)
+  const result = goals.finish(session, judged ? judged.total : tricks.total, failed)
+  if (judged && !failed) result.lines.unshift(...judged.lines)
+  comp.end()
   race.finished(result.improved && !failed)
   if (finished.kind === 'event' && finished.gates.length && !failed) {
     const g = race.grades
@@ -1075,13 +1082,14 @@ function tick(dt: number, frameMs: number) {
       pause = null
       done()
     }
-  } else if ((race.input(input, skier, dt), race.holding)) {
+  } else if ((race.input(input, skier, dt), comp.input(input, skier, race.holding), race.holding)) {
     // Held in the start gate until GO.
   } else {
     perf.begin()
     steps = advance(clock, skier, input, stage.slope.sampleTerrain, dt, stage.env, stage.trunks ? checkTreeContact : undefined)
     perf.lap('sim')
     if (tricks.onTrick(skier.trick) && skier.trick?.kind === 'air') {
+      comp.onTrick(skier.trick)
       rig.landingImpulse(skier.trick)
       haptics.landing(skier.trick)
     }

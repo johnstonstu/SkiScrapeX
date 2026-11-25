@@ -294,6 +294,11 @@ export function createEventView(course: EventCourse, heightAt: HeightAt) {
       gatesView?.update(camera)
       pose(skier)
     },
+    /** Add a mesh the view owns: its geometry is disposed with the view (its material is shared, so kept). */
+    addOwned(mesh: THREE.Mesh) {
+      group.add(mesh)
+      disposables.push(mesh.geometry)
+    },
     /** Place the ghost (skier heading convention: 0 faces +Z, positive to the right), or hide it. */
     setGhost(pose: { x: number; y: number; z: number; heading: number } | null) {
       ghost.visible = Boolean(pose)
