@@ -136,6 +136,7 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - Modest Saloon + Inn hero massing (gable/snow/porch/board) without a photo rebuild (0.9.12).
 - Edge saplings inside clear corridors + summit wind-scour ice/rock above ~2100 m ASL (0.9.13).
 - Terrain blending (0.9.14): wind-exposure field drives summit crust and rock (shader and sim), organic patch edges, outcrop slope rock, corduroy cross-fade at run seams. Not yet seen on a real GPU by Stu; steep cliff outcrops not screenshot-checked.
+- Summit, towers and windows (0.9.15): windows on all building LODs, Billy Goat Hut on its OSM footprint (other summit shells dropped in `world/corrections.ts`), telecom towers on Beaconsfield and Apex Mountain (`world/telecom.ts`).
 - Tuck drag raised in 0.8.11 (0.42 m²); re-check equilibrium on Gunbarrel / Grandfather's after a playtest.
 - Buildings are shells from OSM footprints with guessed heights. Only 10 of 147 have tagged storeys. No interiors, decks or props yet.
 - Roads are stamped as packed snow; there are no cars, parking lots or village props.

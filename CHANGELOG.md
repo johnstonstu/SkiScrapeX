@@ -2,7 +2,19 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
-## 0.9.14 (unreleased): Terrain blending
+## 0.9.15 (unreleased): Summit, towers and windows
+
+### Fixed
+
+- Windows on every building again. Since 0.9.4 the far level of detail had none, and it was picked by distance to the village centre, so the summit hut and outlying buildings never showed windows.
+- One building on the summit: the Billy Goat Hut now sits on its OSM footprint, and the duplicate shells around it are gone.
+- Peak names no longer hang overhead behind the HUD when you stand on the summit (hidden within 150 m).
+
+### Added
+
+- Telecom towers on both peaks: a lattice tower and a monopole with equipment cabinets on the south side of the Beaconsfield summit (solid), and an antenna farm (two lattice towers, a monopole, cabinets) on Apex Mountain to the south. One merged draw call.
+
+## 0.9.14 (2026-11-24): Terrain blending
 
 ### Changed
 

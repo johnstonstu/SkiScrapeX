@@ -52,6 +52,7 @@ export function buildVillage(
   buildings: Building[],
   lifts: Lift[],
   seed = 7331,
+  hutFootprint: Point2[] | null = null,
 ): Village {
   const random = makeRandom(seed)
   const lots = canopy ? findLots(grid, canopy, roads, runs, buildings) : []
@@ -61,7 +62,7 @@ export function buildVillage(
     lots: lots.map((lot) => ({ cells: lot.cells.length, centre: lot.centre })),
     cars,
     decks: buildings.flatMap((b) => deckFor(b, grid) ?? []),
-    hut: placeHut(lifts, runs, grid),
+    hut: placeHut(lifts, runs, grid, hutFootprint),
   }
 }
 
@@ -263,10 +264,15 @@ export function deckFor(building: Building, grid: TerrainGrid): Deck | null {
 }
 
 /** The Billy Goat Hut: beside the top of Quickdraw, off the lift line and the runs. */
-export function placeHut(lifts: Lift[], runs: Run[], grid: TerrainGrid): Hut | null {
+export function placeHut(lifts: Lift[], runs: Run[], grid: TerrainGrid, footprint: Point2[] | null = null): Hut | null {
   const lift = lifts.find((l) => /quickdraw/i.test(l.name))
   if (!lift) return null
   const [tx, tz] = lift.top
+  // The real hut's OSM footprint wins over a guessed spot. Door faces the lift top.
+  if (footprint && footprint.length >= 3) {
+    const [x, z] = centroid(footprint)
+    return { x, z, heading: Math.atan2(-(tx - x), tz - z) }
+  }
   const [bx, bz] = lift.bottom
   const len = Math.hypot(tx - bx, tz - bz)
   const ux = (tx - bx) / len, uz = (tz - bz) / len
