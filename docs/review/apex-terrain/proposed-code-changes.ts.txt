@@ -1,0 +1,34 @@
+// PROPOSAL ONLY - not applied. Apex terrain handoff 2026-11-24. Review before pasting.
+// Shapes match game/src/world/runOverlay.ts (OverlayRun) and corrections.ts. Coordinates: game metres [x east, z south].
+
+// 1) runOverlay.ts - rename existing traces (geometry unchanged):
+//   W3: name 'Jackpot'   // confidence medium-low
+//   W4: name 'Gun Slinger'   // confidence medium-low
+//   W5: name 'ShootOut'   // confidence medium-low
+//   W6: name 'Showdown'   // confidence medium-low
+//   L3: name 'Chaser'   // confidence low
+
+// 2) runOverlay.ts - new APPROXIMATE runs to append to OVERLAY_RUNS (LiDAR fall-line / least-cost drafts):
+  { ref: 'P-TB', name: 'Toilet Bowl', difficulty: 'advanced', groomed: false, pitch: 29.3, length: 315, drop: 177, points: [[1725, 2054], [1747, 2051], [1808, 2010], [1854, 1971], [1884, 1957], [1932, 1949], [1967, 1952], [1991, 1950], [2008, 1956]] }, // APPROXIMATE, low-medium
+  { ref: 'P-EW1', name: 'Essendale Ward 1', difficulty: 'advanced', groomed: false, pitch: 30.9, length: 289, drop: 173, points: [[1758, 2076], [1790, 2074], [1822, 2044], [1859, 2015], [1895, 1996], [1927, 1984], [1962, 1962], [1988, 1953], [2010, 1957]] }, // APPROXIMATE, low
+  { ref: 'P-EW2', name: 'Essendale Ward 2', difficulty: 'advanced', groomed: false, pitch: 31.6, length: 253, drop: 156, points: [[1812, 2103], [1823, 2106], [1829, 2104], [1846, 2084], [1910, 2037], [1965, 1987], [2003, 1961], [2012, 1960]] }, // APPROXIMATE, low
+  { ref: 'P-TT', name: 'Tooth Tusk', difficulty: 'expert', groomed: false, pitch: 36.1, length: 202, drop: 147, points: [[1926, 2139], [1942, 2136], [1953, 2131], [1987, 2095], [2060, 2040], [2073, 2034], [2091, 2034]] }, // APPROXIMATE, low-medium
+  { ref: 'P-SS', name: 'Sweet Sue', difficulty: 'expert', groomed: false, pitch: 34.8, length: 159, drop: 111, points: [[2041, 2173], [2049, 2172], [2054, 2166], [2070, 2128], [2101, 2076], [2112, 2052], [2123, 2042]] }, // APPROXIMATE, low
+  { ref: 'P-WE', name: 'Wildly Easy', difficulty: 'intermediate', groomed: true, pitch: 10.6, length: 294, drop: 55, points: [[2160, 2187], [2161, 2202], [2125, 2212], [2101, 2236], [2031, 2284], [2032, 2290], [2023, 2301], [2010, 2355], [1996, 2379], [1998, 2384], [1986, 2391]] }, // APPROXIMATE, medium
+
+// 3) corrections.ts - RUN_NAMES additions:
+//   'Upper Wishbone': 'Wishbone',
+//   'Lower Wishbone': 'Wishbone',
+//   (DIFFICULTY_FIXES 'Upper Wishbone' -> 'intermediate' then needs to key on the new name or run before the rename)
+
+// 4) corrections.ts - DIFFICULTY_FIXES additions:
+//   "Grandmother's Trail": 'intermediate',   // OSM way has no piste:difficulty; official list + both maps: blue
+//   'Easy Rider': 'easy' only if the game's 'novice' is not intended as the green-circle class (official list: easy)
+
+// 5) Splits (needs a small helper that cuts one OSM run into two Run objects at a distance along the line; see proposed-splits-merges.geojson for exact points):
+//   Gambit -> Upper Gambit [0-582 m] / Lower Gambit [582 m-end]   (split at Greenhorn's Traverse crossing, game ~(2740,1255))
+//   Spruce Hollow -> Upper [0-244 m] / Lower [244 m-end]           (split at Greenhorn's Traverse crossing, game ~(2649,891))
+//   Hang'em High -> Upper [0-1140 m] / Lower [1140 m-end]          (split at Bob's Run junction, game ~(2623,2138))
+
+// 6) Glade areas (Any Which Way Glades, Granny's Glades, Fools Gold, Hidden Gold) are polygons in proposed-unmapped-runs.geojson (properties.gamePolygon).
+//    Suggested use: thin forest.ts tree placement inside them (e.g. cap cover at the polygon's measured treeCover) and label them on the map; they are not run lines.
