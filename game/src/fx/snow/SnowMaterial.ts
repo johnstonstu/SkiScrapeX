@@ -179,6 +179,20 @@ float valueNoise(vec2 p) {
   return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
+// Value noise on a rotated, warped domain. Thresholding plain value noise leaves
+// blobs lined up with the world axes, which reads as tiles; this does not.
+const mat2 ROT_A = mat2(0.8, -0.6, 0.6, 0.8);
+const mat2 ROT_B = mat2(0.28, 0.96, -0.96, 0.28);
+float patchFbm(vec2 p) {
+#ifdef SNOW_DETAIL
+  vec2 w = p + (vec2(valueNoise(ROT_B * p * 0.02), valueNoise(ROT_B * p * 0.02 + 5.2)) - 0.5) * 24.0;
+  return valueNoise(ROT_A * w * 0.045) * 0.5 + valueNoise(ROT_B * w * 0.13 + 11.0) * 0.3 + valueNoise(ROT_A * ROT_B * w * 0.41 + 29.0) * 0.2;
+#else
+  // Low graphics: two octaves, no warp.
+  return valueNoise(ROT_A * p * 0.045) * 0.5 + valueNoise(ROT_B * p * 0.13 + 11.0) * 0.3 + 0.1;
+#endif
+}
+
 void main() {
   if (vHoleable > 0.5 && uHasDetail > 0.5) {
     vec2 cellUv = (vWorld.xz - uDetailMaskRect.xy) / uDetailMaskRect.zw;
@@ -190,8 +204,6 @@ void main() {
   vec3 H = normalize(L + V);
 
   float slopeDeg = degrees(acos(clamp(N.y, 0.0, 1.0)));
-  float slopeRock = smoothstep(uSlopeStart, max(uSlopeFull, uSlopeStart + 0.5), slopeDeg);
-  slopeRock *= uSlopeRockEnabled;
 
   float id = 0.0;
   vec2 groom = uGroomDir;
@@ -223,7 +235,34 @@ void main() {
   }
   float rockMask = 1.0 - step(0.5, abs(id - 3.0));
   float tree = 1.0 - step(0.5, abs(id - 4.0));
-  float rockMix = max(rockMask, slopeRock);
+
+  // Canopy cover (r), loose snow depth (g) and wind exposure (b), linear filtered at 5 m.
+  vec2 cuv = (vWorld.xz - uCanopyOrigin) / max(uCanopySize, vec2(1.0));
+  vec4 canopyTex = texture2D(uCanopy, clamp(cuv, 0.0, 1.0)) * uHasCanopy;
+  vec2 snowpack = canopyTex.rg;
+
+  // Patch edges: fractal noise breaks the smooth 5 m fields into ragged, organic shapes,
+  // so crust, rock and snow interlock instead of following texels.
+  float patchNoise = patchFbm(vWorld.xz);
+  float patchJitter = patchNoise - 0.5;
+
+  // Summit wind-scour off-piste: crust first, rock through it on the most exposed ridges.
+  // Thresholds match SCOUR (crust 0.35, rock 0.62) in world/exposure.ts so the skis feel what the eye sees.
+  float scourable = 1.0 - groomed;
+  float exposure = canopyTex.b + patchJitter * 0.3;
+  float crust = smoothstep(0.32, 0.38, exposure) * scourable;
+  // Rock breaks through as clusters of boulders on gentle ground and as slabs on steeper ground.
+  float rockBreak = valueNoise(ROT_B * vWorld.xz * 0.38 + 7.0) * 0.65 + valueNoise(ROT_A * vWorld.xz * 1.3 + 2.0) * 0.35;
+  float rockSteep = smoothstep(14.0, 34.0, slopeDeg);
+  float scourRockZone = smoothstep(0.585, 0.655, exposure + (rockBreak - 0.5) * 0.2) * scourable;
+  float scourRock = scourRockZone * smoothstep(0.44, 0.54, rockBreak + rockSteep * 0.35);
+  ice = max(ice, crust);
+  powder *= 1.0 - crust;
+
+  // Steep faces: rock in ragged outcrops with snow between them, not one smooth fade.
+  float slopeShare = smoothstep(uSlopeStart, max(uSlopeFull, uSlopeStart + 0.5), slopeDeg + patchJitter * 14.0);
+  float slopeRock = smoothstep(0.3, 0.7, slopeShare + patchJitter * 0.45) * uSlopeRockEnabled;
+  float rockMix = max(max(rockMask, scourRock), slopeRock);
   float snowMask = 1.0 - rockMix;
 
   vec2 tuv = (vWorld.xz - uTrackOrigin) / max(uTrackSize, 1.0);
@@ -240,11 +279,21 @@ void main() {
 
   vec3 snow = uSnowColor * mix(0.93, 1.02, grain) * mix(0.97, 1.03, field);
   vec3 powderCol = uPowderColor * mix(0.9, 1.08, puff);
-  vec3 iceCol = uIceColor * mix(0.97, 1.02, grain);
+  // Wind crust: grey-white with a cold cast; glazed patches read a little bluer.
+  float glaze = smoothstep(0.62, 0.82, valueNoise(ROT_A * vWorld.xz * 0.19 + 41.0)) * ice;
+  vec3 iceCol = uIceColor * mix(0.95, 1.02, grain) * mix(0.97, 1.02, field);
+  iceCol = mix(iceCol, uIceColor * vec3(0.86, 0.93, 1.0), glaze * 0.7);
+  // Small stones and grit show through the crust around the outcrops.
+  float grit = step(0.93, hash12(floor(vWorld.xz * 2.5))) * scourRockZone * (1.0 - smoothstep(12.0, 40.0, length(cameraPosition - vWorld)));
+  iceCol = mix(iceCol, uRockDark * 1.2, grit * 0.6);
   float strata = valueNoise(vec2(vWorld.y * 0.42, vWorld.x * 0.04 + vWorld.z * 0.015));
   float cracks = smoothstep(0.55, 0.82, valueNoise(vWorld.xz * 0.11 + vWorld.y * 0.18));
   vec3 rockCol = mix(uRockDark, uRockColor, strata);
   rockCol *= mix(1.0, 0.68, cracks);
+  // Snow sits on flatter ledges and in the cracks, so outcrops look dusted, not painted on.
+  float ledge = smoothstep(0.6, 0.9, N.y) * smoothstep(0.3, 0.7, valueNoise(ROT_B * vWorld.xz * 0.6 + 3.0));
+  float dusting = max(ledge * 0.85, cracks * 0.4 * smoothstep(0.4, 0.8, N.y));
+  rockCol = mix(rockCol, uSnowColor * 0.9, dusting);
   float canopy = valueNoise(vWorld.xz * 0.23);
   vec3 treeCol = uTreeColor * mix(0.62, 1.0, canopy);
 
@@ -260,8 +309,6 @@ void main() {
   albedo = mix(albedo, treeCol, tree);
 
   // Smooth canopy cover: snow in the forest sits in shade and collects debris.
-  vec2 cuv = (vWorld.xz - uCanopyOrigin) / max(uCanopySize, vec2(1.0));
-  vec2 snowpack = texture2D(uCanopy, clamp(cuv, 0.0, 1.0)).rg * uHasCanopy;
   float canopyShade = snowpack.r * (1.0 - groomed * uHasMask);
   // Apex supplies visual depth in green. An apron or standalone slope has no depth field.
   float loose = mix(0.5, smoothstep(0.14, 0.86, snowpack.g), step(0.01, snowpack.g));
@@ -288,8 +335,37 @@ void main() {
   float worn = 0.0;
 #endif
   float cordMask = groomed * snowMask * step(0.0001, uCordDepth) * aa * (1.0 - broken) * (1.0 - 0.75 * worn);
+  float cordJitter = phase - dot(vWorld.xz, perp) * freq;
   float wave = sin(phase) * 0.78 + sin(phase * 0.5 + 1.3) * 0.22;
-  vec3 Np = N + vec3(perp.x, 0.0, perp.y) * (cos(phase) * freq * uCordDepth * cordMask);
+  vec2 tilt = perp * cos(phase);
+  if (uHasMask > 0.5 && uMaskEnabled > 0.5 && cordMask > 0.0) {
+    // Where runs with different grooming directions meet, cross-fade the corduroy of the
+    // four nearest mask texels (seam wobbled by noise) instead of switching per texel.
+    vec2 maskRes = vec2(textureSize(uMask, 0));
+    vec2 seam = (vec2(valueNoise(ROT_A * vWorld.xz * 0.21), valueNoise(ROT_B * vWorld.xz * 0.21 + 3.7)) - 0.5) * 1.6;
+    vec2 st = maskUv * maskRes - 0.5 + seam;
+    vec2 cell = floor(st);
+    vec2 f = smoothstep(0.15, 0.85, fract(st));
+    float total = 0.0;
+    float waveSum = 0.0;
+    vec2 tiltSum = vec2(0.0);
+    for (int k = 0; k < 4; k++) {
+      vec2 o = vec2(float(k - (k / 2) * 2), float(k / 2));
+      vec4 m = texture2D(uMask, clamp((cell + o + 0.5) / maskRes, 0.0, 1.0));
+      float mid = floor(m.r * 255.0 / 32.0 + 0.5);
+      float w = mix(1.0 - f.x, f.x, o.x) * mix(1.0 - f.y, f.y, o.y);
+      w *= (mid < 0.5 || mid > 4.5) ? 1.0 : 0.001;
+      float a = m.g * 6.28318530718;
+      vec2 p2 = vec2(-sin(a), cos(a));
+      float ph = dot(vWorld.xz, p2) * freq + cordJitter;
+      waveSum += w * (sin(ph) * 0.78 + sin(ph * 0.5 + 1.3) * 0.22);
+      tiltSum += w * p2 * cos(ph);
+      total += w;
+    }
+    wave = waveSum / max(total, 1e-4);
+    tilt = tiltSum / max(total, 1e-4);
+  }
+  vec3 Np = N + vec3(tilt.x, 0.0, tilt.y) * (freq * uCordDepth * cordMask);
   albedo *= mix(1.0, mix(0.88, 1.0, wave * 0.5 + 0.5), cordMask);
 
   // Low wind ripples break up open powder; tracks and shelter flatten them.
@@ -298,6 +374,13 @@ void main() {
   float drift = powder * snowMask * (1.0 - canopyShade) * (1.0 - broken) * mix(0.55, 1.45, loose);
   drift *= (1.0 - smoothstep(0.6, 2.2, fwidth(driftPhase))) * smoothstep(0.25, 0.75, field);
   Np -= vec3(wind.x, 0.0, wind.y) * (0.095 * cos(driftPhase) * drift);
+  // Sastrugi on the crust: wind-carved ridges that run with the wind and wander along their length.
+  vec2 windPerp = vec2(-wind.y, wind.x);
+  float sasPhase = dot(vWorld.xz, windPerp) * 1.4 + valueNoise(vec2(dot(vWorld.xz, windPerp) * 0.3, dot(vWorld.xz, wind) * 0.06)) * 7.0;
+  float sasAA = 1.0 - smoothstep(0.6, 2.2, fwidth(sasPhase));
+  float sastrugi = ice * snowMask * (1.0 - broken) * sasAA * (1.0 - glaze * 0.6);
+  Np -= vec3(windPerp.x, 0.0, windPerp.y) * (0.13 * cos(sasPhase) * sastrugi);
+  albedo *= mix(1.0, mix(0.95, 1.02, sin(sasPhase) * 0.5 + 0.5), sastrugi);
 
   // A skied path breaks the corduroy and settles into a soft trench.
   albedo = mix(albedo, albedo * vec3(0.78, 0.84, 0.9), broken * snowMask);
@@ -323,7 +406,7 @@ void main() {
 
   float wrap = mix(0.34, 0.12, rockMix);
   wrap = mix(wrap, 0.52, powder);
-  wrap = mix(wrap, 0.08, ice);
+  wrap = mix(wrap, 0.2, ice);
   // Sun shadow from the scene's directional light, when the renderer has shadows on.
   float sunShadow = 1.0;
   #if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 0
@@ -339,11 +422,11 @@ void main() {
   shadeTint = mix(shadeTint, vec3(1.0), rockMix);
 
   float shininess = mix(32.0, 10.0, powder);
-  shininess = mix(shininess, 140.0, ice);
+  shininess = mix(shininess, 56.0, ice);
   shininess = mix(shininess, 6.0, rockMix);
   float ndh = clamp(dot(Np, H), 0.0, 1.0);
   float spec = pow(ndh, shininess) * mix(0.14, 0.03, powder);
-  spec = mix(spec, pow(ndh, 160.0) * 0.7, ice);
+  spec = mix(spec, pow(ndh, 56.0) * 0.2 + pow(ndh, 180.0) * 0.55 * glaze, ice);
   spec *= 1.0 - rockMix * 0.85;
   spec *= 1.0 - tree * 0.45;
 
@@ -418,9 +501,9 @@ export class SnowMaterial extends ShaderMaterial {
     const uniforms: SnowUniforms = {
       uSnowColor: { value: new Color('#e7eef3') },
       uPowderColor: { value: new Color('#f4efe2') },
-      uIceColor: { value: new Color('#9dc6da') },
-      uRockColor: { value: new Color('#7a7064') },
-      uRockDark: { value: new Color('#3f3a34') },
+      uIceColor: { value: new Color('#d9e3ea') },
+      uRockColor: { value: new Color('#77756f') },
+      uRockDark: { value: new Color('#3a3936') },
       uTreeColor: { value: new Color('#6d848c') },
       uSunDirection: { value: sun },
       uSunColor: { value: new Color(options.sunColor ?? '#ffe6c2') },

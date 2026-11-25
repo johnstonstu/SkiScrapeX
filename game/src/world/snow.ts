@@ -1,5 +1,6 @@
-import { SURFACES, blendSurface, type SampleSurface } from '../sim'
+import { SURFACES, blendSurface, type SampleSurface, type SurfaceParams } from '../sim'
 import type { TerrainGrid } from './terrainGrid'
+import { exposureAt, scourShares } from './exposure'
 import { surfaceAt, SurfaceId, type Canopy, type SurfaceField } from './surface'
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x))
@@ -55,20 +56,27 @@ export function createSurfaceSampler(
       case SurfaceId.park:
         return SURFACES.park
       case SurfaceId.ice:
-      case SurfaceId.rock:
         return SURFACES.ice
+      case SurfaceId.rock:
+        return SURFACES.rock
       default: {
         const shelter = canopy ? shelterFromCover(canopyCover(grid, canopy, x, z)) : 0
         const drift = driftAt(x, z)
         const base = blendSurface(SURFACES.powder, SURFACES.forest, shelter)
         const depth = depthFromDrift(drift, shelter)
         const packedBump = options.onMogul?.(x, z)
-        return {
+        const snow: SurfaceParams = {
           ...base,
           kind: shelter >= 0.5 ? 'forest' : 'powder',
           depth: depth * fresh * (packedBump ? 0.48 : 1),
           vPlane: mix(6.2 + 2.2 * drift, 6.1, shelter),
         }
+        if (!field.exposure) return snow
+        // Summit wind-scour: powder thins to crust, then rock shows through.
+        const { crust, rock } = scourShares(exposureAt(field.exposure, x, z))
+        if (crust <= 0) return snow
+        const crusted = { ...blendSurface(snow, SURFACES.ice, crust), kind: crust >= 0.5 ? 'ice' as const : snow.kind }
+        return rock > 0 ? { ...blendSurface(crusted, SURFACES.rock, rock), kind: rock >= 0.5 ? 'rock' as const : crusted.kind } : crusted
       }
     }
   }

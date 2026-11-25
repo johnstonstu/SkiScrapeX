@@ -2,6 +2,17 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.14 (unreleased): Terrain blending
+
+### Changed
+
+- Summit wind-scour follows the terrain instead of a noise pattern above 2100 m: a wind-exposure field (`world/exposure.ts`) from ridge shape, slope, aspect to the prevailing wind, elevation (fading in from 2040 to 2150 m) and tree cover. Ridges and windward faces scour; plateaus, hollows and lee slopes keep their snow.
+- Crust and rock blend per pixel with warped, rotated noise, so patches have organic edges instead of 2.5 m square texels. Rock breaks through as boulder clusters on gentle ground and as slabs on steeper ground, dusted with snow on ledges and in cracks.
+- Wind crust replaces the flat blue ice: grey-white with sastrugi ridges, glazed patches and grit near outcrops.
+- Steep-slope rock shows as ragged outcrops instead of a smooth fade.
+- Corduroy cross-fades where runs with different grooming directions meet, instead of switching in 2.5 m steps.
+- Skiing: the sim reads the same exposure field, so crust skis like ice and exposed rock is a new slow, chattery `rock` surface. New coach tips for both.
+
 ## 0.9.13 (2026-11-24): Edge saplings and summit wind-scour
 
 ### Changed

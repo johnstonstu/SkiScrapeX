@@ -1,4 +1,5 @@
 import type { TerrainGrid } from './terrainGrid'
+import type { ExposureField } from './exposure'
 import { nearestOnPolyline, pointInRing, runHalfWidth, type Resort } from './resort'
 
 /** Same ids as `fx/snow/mask.ts`. Kept here so the world module has no Three.js import. */
@@ -21,6 +22,8 @@ export interface SurfaceField {
   /** 1 on a mapped run, road or building lot. Trees stay off these texels. */
   runNameAt(x: number, z: number): string
   clear: Uint8Array
+  /** Wind exposure over the grid (summit crust and rock on off-piste snow), if built. */
+  exposure: ExposureField | null
 }
 
 const TAU = Math.PI * 2
@@ -36,7 +39,7 @@ export function buildSurface(
   resort: Resort,
   texel = 2.5,
   parks: { name?: string; line: [number, number][]; halfWidth: number }[] = [],
-  options: { originElevation?: number } = {},
+  options: { exposure?: ExposureField } = {},
 ): SurfaceField {
   const width = Math.ceil(grid.width / texel)
   const height = Math.ceil(grid.depth / texel)
@@ -130,22 +133,6 @@ export function buildSurface(
     })
   }
 
-  // Summit wind-scour: ice and rock poke through powder above ~2100 m ASL (review #10).
-  const origin = options.originElevation ?? 1600
-  for (let row = 0; row < height; row++) {
-    for (let col = 0; col < width; col++) {
-      const i = row * width + col
-      if (surface[i] !== SurfaceId.powder) continue
-      const x = (col + 0.5) * texel
-      const z = (row + 0.5) * texel
-      const h = grid.heightAt(x, z)
-      if (!Number.isFinite(h) || h + origin < 2100) continue
-      const n = edgeNoise(x * 1.4, z * 1.4)
-      if (n > 0.45) surface[i] = SurfaceId.rock
-      else if (n > 0.1) surface[i] = SurfaceId.ice
-    }
-  }
-
   for (let i = 0; i < count; i++) {
     const turns = (((heading[i] / TAU) % 1) + 1) % 1
     mask[i * 4] = surface[i] * 32
@@ -157,7 +144,7 @@ export function buildSurface(
     if (col < 0 || row < 0 || col >= width || row >= height) return names[0]
     return names[locations[row * width + col]]
   }
-  return { width, height, texel, mask, clear, runNameAt }
+  return { width, height, texel, mask, clear, runNameAt, exposure: options.exposure ?? null }
 }
 
 export function surfaceAt(field: SurfaceField, x: number, z: number): number {
