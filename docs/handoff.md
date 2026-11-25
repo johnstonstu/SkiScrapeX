@@ -42,6 +42,8 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 - The joints come from `tools/blender/rig_rest.json`. If you move a joint or change the bind pose in `skierModel.ts`, regenerate it with `UPDATE_RIG_REST=1 npx vitest run tests/riderRest.test.ts` in `game/`, then rebuild the GLB. `tests/riderAsset.test.ts` fails if the GLB and the rig drift apart.
 - In the game, `render/rider/riderSkin.ts` binds each garment to the rig's own bones (matched by name), so `skierView.ts` animates it unchanged. The code-built rider is the fallback while the GLB loads, if it fails, and in unit tests.
 - To add a style: add an entry to `GARMENTS` (shape) and the `masks` and `fabric_detail` functions (colour regions and normal detail), rebuild, then add the style to the lists in `riderSkin.ts` and the rider panel.
+- To review a change without a GPU, render an outfit in a skiing stance from four sides after `build_all` in the same namespace: `exec(open(r"<repo>/tools/blender/review_rider.py").read(), ns); ns["review"]({"jacket": "shell", "pants": "baggy", "gloves": "mitt", "headwear": "helmet"}, r"<out.png>", closeup=False)`. It shades garments the way the game does (mask colours, normal map, AO).
+- Rider lab: `?snow` starts each rider snow-covered (crash patches and powder up the legs) so the snow shader can be checked; it fades as it would in game.
 
 ## URL parameters
 

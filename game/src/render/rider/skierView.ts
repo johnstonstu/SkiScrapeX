@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { PHYSICS, fallLineHeading, skiFrame, type SkiInput, type SkiState, type SurfaceSample } from '../../sim'
 import { ANKLE_IN_SKI, BOARD_BINDINGS, BOARD_BOOT_HEIGHT, FORE_ARM, SHIN_LENGTH, THIGH_LENGTH, UPPER_ARM, buildRider, type RiderLook } from './skierModel'
 import { Spring } from './spring'
+import { RiderSnow } from './riderSnow'
 import { DOUBLE_POLE_CYCLE, doublePolePose } from './doublePole'
 import { applyCrashPose } from './skierCrashPose'
 import { applySitPose } from './skierLiftPose'
@@ -44,6 +45,8 @@ export function createSkierView(): {
   /** Hide the head and torso so a first-person camera sees only hands, poles and skis. */
   setFirstPerson: (on: boolean) => void
   setColours: (look: RiderLook) => void
+  /** Snow stuck to the clothes (read-only; for tests and tuning). */
+  snow: RiderSnow
 } {
   const rig = buildRider()
   // The skinned body loads in the browser; tests and `?noskin` keep the code-built one.
@@ -90,12 +93,13 @@ export function createSkierView(): {
   /** Arms flare on landing; decays via spring. */
   const armFlare = new Spring()
   /** Loose gear (drawstrings, pom, pack, hood) lagging the body's acceleration. */
-  const dangleX = new Spring()
-  const dangleZ = new Spring()
-  const dangleY = new Spring()
+  const packBounce = new Spring()
+  const snow = new RiderSnow()
+  const rawAccel = new THREE.Vector3()
+  const velocity = new THREE.Vector3()
   const lastVelocity = new THREE.Vector3()
   const accel = new THREE.Vector3()
-  const qLocal = new THREE.Quaternion()
+  const bodyUp = new THREE.Vector3()
   let grabBlend = 0
   let lastGrab: string | null = null
   let wasAir = false
@@ -251,6 +255,7 @@ export function createSkierView(): {
 
   return {
     object: root,
+    snow,
     eye: rig.eye,
     setFirstPerson: rig.setFirstPerson,
     setColours: rig.setColours,
@@ -289,14 +294,17 @@ export function createSkierView(): {
       const side = clothSide.step(wind * (-edgePull * 0.038 + Math.sin(state.time * 17) * 0.013), dt, 3.4, 0.66)
       const back = clothBack.step(-wind * (0.033 + Math.sin(state.time * 22) * 0.012), dt, 4.1, 0.58)
       rig.poseCloth(side, back)
-      // Body acceleration in the rider's frame; clamped so a respawn does not fling the gear.
-      accel.set(state.vx, state.vy, state.vz).sub(lastVelocity).divideScalar(Math.max(dt, 1e-3))
+      // Body acceleration (world), lightly smoothed against the fixed-step sim's frame jitter
+      // and clamped so a respawn does not fling the cloth.
+      rawAccel.set(state.vx, state.vy, state.vz).sub(lastVelocity).divideScalar(Math.max(dt, 1e-3)).clampLength(0, 25)
       lastVelocity.set(state.vx, state.vy, state.vz)
-      accel.clampLength(0, 25).applyQuaternion(qLocal.copy(root.quaternion).invert())
-      dangleX.step(-accel.x * 0.012, dt, 1.3, 0.22)
-      dangleZ.step(-accel.z * 0.012, dt, 1.3, 0.22)
-      dangleY.step(-accel.y * 0.0012, dt, 2.4, 0.3)
-      rig.poseDangles(dangleX.x, dangleZ.x, dangleY.x, wind, state.time)
+      accel.lerp(rawAccel, ease(25, dt))
+      velocity.set(state.vx, state.vy, state.vz)
+      rig.stepCloth(accel, velocity, dt)
+      snow.step(state, dt)
+      rig.setWeather(state.time, Math.min(1, state.speed / 20), snow)
+      packBounce.step(-accel.dot(bodyUp.set(0, 1, 0).applyQuaternion(root.quaternion)) * 0.0012, dt, 2.4, 0.3)
+      rig.bouncePack(packBounce.x)
 
       const nextMode: Mode = pose === 'sit' ? 'sit' : pose === 'stand' ? 'stand' : crashed ? 'crash' : rail ? 'rail' : 'ski'
       if (nextMode !== mode) startFade(nextMode)
@@ -345,6 +353,7 @@ export function createSkierView(): {
           scratch: v1,
         })
         applyFade(dt)
+        rig.applyCloth()
         return
       }
       if (crashed) {
@@ -362,6 +371,7 @@ export function createSkierView(): {
           fitLegs,
         })
         applyFade(dt)
+        rig.applyCloth()
         return
       }
 
@@ -760,6 +770,7 @@ export function createSkierView(): {
         }
       }
       applyFade(dt)
+      rig.applyCloth()
     },
   }
 }

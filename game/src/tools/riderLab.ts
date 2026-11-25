@@ -138,6 +138,13 @@ function runPoses() {
     view.setColours(outfit)
     view.object.traverse((o) => (o.castShadow = true))
     scene.add(view.object)
+    // `?snow` starts the rider as after a crash in powder (it fades as it would in game).
+    if (params.has('snow')) {
+      view.snow.crash = 1
+      view.snow.side.set(0.3, 0.35, 1).normalize()
+      view.snow.legAmount = 1
+      view.snow.legHeight = 0.4
+    }
     const state = createSkiState({ x: (i - (shown.length - 1) / 2) * spacing, y: 0, z: 0, heading: (Number(params.get('h') ?? 0) * Math.PI) / 180 })
     return { pose, view, state }
   })

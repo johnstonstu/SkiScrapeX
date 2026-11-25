@@ -14,6 +14,8 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { applyTextureBudget } from '../textureBudget'
 import { makeBoardBoot, makeSkiBoot } from './riderBoot'
 import { jacketGeometry, fabricWeave } from './riderCloth'
+import { ClothPhysics } from './clothPhysics'
+import type { RiderSnow } from './riderSnow'
 import { createRiderSkin, loadRiderAsset, type GarmentColours, type GloveStyle, type Headwear, type JacketStyle, type PantsStyle, type RiderSkin } from './riderSkin'
 
 /** Binding centres and boot yaw in the snowboard's local frame. */
@@ -618,6 +620,17 @@ export function buildRider() {
   }
 
   let skin: RiderSkin | null = null
+  /** Kept so a skin that loads later starts with the current wind and snow. */
+  let lastWeather: { time: number; wind: number; snow: RiderSnow } | null = null
+  const down = new THREE.Vector3(0, -1, 0)
+  const cloth = new ClothPhysics([
+    // Hem panels: stiff-ish fabric, limited so they cannot swing through the legs.
+    { bone: hemFront, axis: down, follow: 0.55, maxAngle: 0.75, hz: 1.6, zeta: 0.35, drag: 0.5, flutter: 0.08 },
+    { bone: hemBack, axis: down, follow: 0.65, maxAngle: 0.9, hz: 1.5, zeta: 0.3, drag: 0.6, flutter: 0.1 },
+    { bone: hoodBone, axis: down, follow: 0.18, maxAngle: 0.35, hz: 1.8, zeta: 0.4, drag: 0.3 },
+    ...cords.map((bone) => ({ bone, axis: down, follow: 0.9, maxAngle: 1.3, hz: 1.2, zeta: 0.18, drag: 0.9, flutter: 0.25 })),
+    { bone: pomBone, axis: new THREE.Vector3(0, 1, 0), follow: 0.55, maxAngle: 0.8, hz: 2.2, zeta: 0.25, drag: 0.4, upright: true },
+  ])
   let lastLook: RiderLook | null = null
   const hideProcedural = () => {
     if (skin) for (const part of proceduralBody) part.visible = false
@@ -632,7 +645,7 @@ export function buildRider() {
       pants: { base: look.pants, accent: pantsPatch, trim: dark },
       gloves: { base: '#17191d', accent, trim: '#4b5058' },
       gloves_pipe: { base: '#2b2f36', accent: '#7a6450', trim: dark },
-      head_face: { base: look.gaiter ?? '#59606b', accent: '#e2b08a', trim: dark },
+      head_face: { base: look.gaiter ?? '#59606b', accent: '#e2b08a', trim: '#3b2a20' },
       head_goggles: { base: '#15181c', accent: '#15181c', trim: accent },
       head_helmet: { base: look.helmet, accent: look.helmet, trim: '#15181c' },
       head_beanie: { base: look.helmet, accent, trim: dark },
@@ -647,7 +660,7 @@ export function buildRider() {
     hideProcedural()
   }
 
-  return {
+  const rigApi = {
     root, mat, skis, blades, boardGroup, body, hips, spine, chest, head, eye, legs, arms, bones,
     withRestPose,
     poseCloth(side: number, back: number) {
@@ -657,26 +670,32 @@ export function buildRider() {
       hemBand.position.z = back * 0.72
       hood.rotation.x = hoodPitch + back * 2
       hood.rotation.y = side * 2
-      // Skinned body: the hem panels swing about their bones (hanging down -Y,
-      // +X rotation lifts the hem backward, +Z swings it to the rider's left).
-      hemFront.rotation.set(-back * 5, 0, side * 5)
-      hemBack.rotation.set(-back * 7, 0, side * 5)
-      hoodBone.rotation.set(-back * 3, side * 2, 0)
     },
-    /**
-     * Loose things that swing on their own: drawstrings and the beanie pom
-     * as pendulums, the pack and hood bouncing. `swingX` is sideways and
-     * `swingZ` fore and aft (radians), `bounce` vertical (metres), `wind` 0..1.
-     */
-    poseDangles(swingX: number, swingZ: number, bounce: number, wind: number, time: number) {
-      const flutter = wind * Math.sin(time * 23) * 0.12
-      for (const [i, cord] of cords.entries()) {
-        cord.rotation.set(swingZ * 1.4 + wind * 0.5 + flutter, 0, swingX * 1.4 + (i ? -1 : 1) * wind * 0.08)
-      }
-      pomBone.rotation.set(-swingZ * 1.1 - wind * 0.35 + bounce * 6, 0, -swingX * 1.1 + flutter * 0.5)
+    /** Swing the skinned body's loose cloth; call before posing, `applyCloth` after. */
+    stepCloth(acceleration: THREE.Vector3, velocity: THREE.Vector3, dt: number) {
+      cloth.step(acceleration, velocity, dt)
+    },
+    /** Wind (0..1), time and snow for the skinned garments; does nothing on the code-built rider. */
+    setWeather(time: number, wind: number, snow: RiderSnow) {
+      lastWeather = { time, wind, snow }
+      if (!skin) return
+      const w = skin.weather
+      w.uTime.value = time
+      w.uWind.value = wind
+      w.uSnowCrash.value = snow.crash
+      w.uSnowSide.value.copy(snow.side)
+      w.uSnowLegHeight.value = snow.legHeight
+      w.uSnowLegAmount.value = snow.legAmount
+    },
+    /** The pack bounces with vertical acceleration (metres of give, from a spring). */
+    bouncePack(bounce: number) {
       packBone.position.y = 0.3 - CHEST_Y + bounce * 0.4
       packBone.rotation.x = -bounce * 3
-      hoodBone.rotation.x += bounce * 4
+    },
+    /** After the body is posed: point the cloth bones along their swing. */
+    applyCloth() {
+      root.updateMatrixWorld(true)
+      cloth.apply()
     },
     get boarding() {
       return boarding
@@ -691,6 +710,7 @@ export function buildRider() {
         skin = createRiderSkin(asset, root, bones, withRestPose)
         skin.setFirstPerson(firstPerson)
         if (lastLook) applySkin(lastLook)
+        if (lastWeather) rigApi.setWeather(lastWeather.time, lastWeather.wind, lastWeather.snow)
         hideProcedural()
       })
     },
@@ -763,4 +783,5 @@ export function buildRider() {
       applySkin(look)
     },
   }
+  return rigApi
 }

@@ -299,6 +299,19 @@ def cylinder(r0, r1, h, seg=16, caps=True):
     return bm
 
 
+def surface_grid(nu, nv, fn, thickness=0.0):
+    """A surface from fn(u in -1..1, v in -1..1) -> game point, optionally solidified."""
+    bm = bmesh.new()
+    rows = [[bm.verts.new(fn(-1 + 2 * i / nu, -1 + 2 * j / nv)) for j in range(nv + 1)] for i in range(nu + 1)]
+    for i in range(nu):
+        for j in range(nv):
+            bm.faces.new((rows[i][j], rows[i + 1][j], rows[i + 1][j + 1], rows[i][j + 1]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    if thickness:
+        bmesh.ops.solidify(bm, geom=list(bm.faces), thickness=thickness)
+    return bm
+
+
 def lathe(profile, seg=16, sx=1.0, sz=1.0):
     """Surface of revolution about game Y from (radius, y) pairs, bottom to top."""
     bm = bmesh.new()
@@ -415,8 +428,9 @@ def jacket(spec):
     rows += [
         (1.6, (cx * 0.98, cz * 0.98)),
         (1.68, (cx * 0.78, cz * 0.86)),
-        (1.74, (spec["collar"][0], spec["collar"][0] * 0.95)),
-        (spec["collar"][1], (spec["collar"][0] * 0.94, spec["collar"][0] * 0.9)),
+        (1.74, (spec["collar"][0], spec["collar"][0])),
+        # Subdivision rounds the end of the tube down by a few centimetres; aim above the top.
+        (spec["collar"][1] + 0.045, (spec["collar"][0] * 0.97, spec["collar"][0] * 0.97)),
     ]
     ids = g.chain([((0, y, -0.005), r) for y, r in rows])
     branch = ids[[r[0] for r in rows].index(1.6)]
@@ -424,8 +438,11 @@ def jacket(spec):
         g.chain(arm_points(side, sizes=spec["sleeve"]), branch)
     parts = Parts()
     me = g.mesh(subdiv=2)
+    radial(me, torso_sculpt(spec))
     if spec.get("shape"):
         radial(me, spec["shape"])
+    open_collar(me, spec["collar"][1])
+    dip_hem(me, hem, spec.get("hem_dip", 0.035))
     parts.add_mesh(me, {"bones": TORSO_BONES + ["hem_F", "hem_B"], "hem": hem})
     if spec.get("hood"):
         add_hood(parts, *spec["hood"])
@@ -439,22 +456,110 @@ def jacket(spec):
     return parts
 
 
+def gauss(x, mu, sigma):
+    return math.exp(-(((x - mu) / sigma) ** 2))
+
+
+def torso_sculpt(spec):
+    """Chest, shoulder blades and a waist on the torso tube, so it stops reading as a can."""
+    pinch = spec.get("pinch", 0.008)
+
+    def fn(p, bone, t, out):
+        if bone not in ("hips", "spine", "chest"):
+            # Sleeves: a little extra at the deltoid and the elbow, slimmer at the wrist.
+            if bone.startswith("upperarm"):
+                return 0.008 * gauss(t, 0.15, 0.2)
+            return -0.004 * sstep(0.5, 1.0, t)
+        h = 0.0
+        h += 0.014 * gauss(p.y, 1.47, 0.09) * max(0.0, out.z) ** 1.5      # chest
+        h += 0.012 * gauss(p.y, 1.55, 0.08) * max(0.0, -out.z)             # shoulder blades
+        h -= pinch * gauss(p.y, 1.2, 0.09) * abs(out.x)                    # waist
+        h += 0.006 * gauss(p.y, 1.06, 0.06) * max(0.0, -out.z)             # seat drape
+        # Sloping shoulders: pull the top of the torso in toward the neck at the sides.
+        h -= 0.025 * sstep(1.62, 1.7, p.y) * sstep(1.79, 1.73, p.y) * abs(out.x) * sstep(0.05, 0.16, abs(p.x))
+        return h
+    return fn
+
+
+def pants_sculpt(p, bone, t, out):
+    """Seat, a fuller front thigh, a kneecap and a slimmer ankle."""
+    h = 0.0
+    if bone in ("hips", "spine"):
+        h += 0.016 * gauss(p.y, 1.04, 0.07) * max(0.0, -out.z)
+    elif bone.startswith("thigh"):
+        h += 0.012 * gauss(t, 0.05, 0.2) * max(0.0, -out.z)    # seat carries onto the thigh
+        h += 0.008 * gauss(t, 0.45, 0.25) * max(0.0, out.z)    # quads
+        h += 0.008 * gauss(t, 0.97, 0.08) * max(0.0, out.z)    # kneecap
+    elif bone.startswith("shin"):
+        h += 0.006 * gauss(t, 0.35, 0.2) * max(0.0, -out.z)    # calf
+    return h
+
+
+def open_collar(me, top):
+    """
+    The Skin modifier caps the collar. Open it and turn the edge in, so the collar
+    is a funnel with a lip the gaiter sits in, not a lid around the neck.
+    """
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.normal_update()
+    # The real top after subdivision, rather than the node height.
+    top = max(b2g(v.co).y for v in bm.verts if abs(b2g(v.co).x) < 0.2)
+    cap = [f for f in bm.faces if b2g(f.calc_center_median()).y > top - 0.02 and b2g(f.normal).y > 0.5 and abs(b2g(f.calc_center_median()).x) < 0.2]
+    bmesh.ops.delete(bm, geom=cap, context="FACES")
+    rim = [e for e in bm.edges if e.is_boundary and b2g(e.verts[0].co).y > top - 0.05]
+    if rim:
+        made = bmesh.ops.extrude_edge_only(bm, edges=rim)
+        centre = Vector((0, 0, 0))
+        new = [v for v in made["geom"] if isinstance(v, bmesh.types.BMVert)]
+        for v in new:
+            centre += v.co
+        centre /= max(1, len(new))
+        for v in new:
+            g = b2g(v.co)
+            c = b2g(centre)
+            inward = Vector((c.x - g.x, 0, c.z - g.z))
+            if inward.length > 1e-6:
+                inward.normalize()
+            v.co = g2b(g + inward * 0.012 + Vector((0, -0.05, 0)))
+    bm.normal_update()
+    bm.to_mesh(me)
+    bm.free()
+
+
+def dip_hem(me, hem, dip):
+    """Jackets hang lower at the back than the front."""
+    for v in me.vertices:
+        p = b2g(v.co)
+        if p.y > hem + 0.12 or abs(p.x) > 0.3:
+            continue
+        k = sstep(hem + 0.12, hem, p.y)
+        back = sstep(0.04, -0.1, p.z)
+        front = sstep(-0.02, 0.12, p.z)
+        p.y += k * (-dip * back + dip * 0.3 * front)
+        v.co = g2b(p)
+
+
 def add_hood(parts, size, depth, pitch):
-    """A hood folded down onto the shoulders: a thick, rolled bowl behind the neck."""
-    bm = sphere(1.0, 24, 14)
-    # Keep the back two thirds so it opens toward the neck instead of ringing it.
-    shell(bm, lambda c: c.z < 0.35 and c.y > -0.55)
-    bmesh.ops.solidify(bm, geom=list(bm.faces), thickness=0.25)
-    base = J["hood"]
-    rot = Matrix.Rotation(pitch, 3, "X")
+    """
+    A hood folded down: a thick flap that wraps the back of the neck and lies on
+    the upper back, longest at the centre, with a rolled top edge. `size` scales
+    its spread, `depth` how far it sits off the back, `pitch` is unused (kept for
+    the style table).
+    """
+    k = size / 0.12
+    neck = J["hood"] + Vector((0, 0.0, 0.1))  # the hood bone sits behind the neck; wrap round the neck axis
 
-    def place(p):
-        q = Vector((p.x * size * 1.25, p.y * size * 0.62, p.z * size * 0.8 * depth))
-        if q.y < 0:
-            q.y *= 0.55
-        return base + rot @ q + Vector((0, -0.01, -0.01))
+    def point(u, v):
+        t = (v + 1) / 2                      # 0 at the rolled top edge, 1 at the bottom of the flap
+        phi = math.pi + u * 1.35             # round the back of the neck
+        top = 1.83
+        bottom = 1.63 + 0.09 * u * u          # shorter at the sides
+        y = top + (bottom - top) * t
+        r = 0.122 + 0.05 * t * k + 0.018 * math.sin(math.pi * min(1.0, t * 1.6)) * depth - 0.03 * sstep(0.55, 1.0, t)
+        return Vector((neck.x + r * 1.05 * math.sin(phi), y, neck.z + r * math.cos(phi) - 0.01))
 
-    parts.add_bm(bm, {"bones": ["hood", "chest"], "rigid": "hood"}, place)
+    parts.add_bm(surface_grid(18, 6, point, thickness=-0.02), {"bones": ["hood", "chest"], "rigid": "hood"})
 
 
 def pants(spec):
@@ -477,6 +582,7 @@ def pants(spec):
         ], crotch)
     parts = Parts()
     me = g.mesh(subdiv=2)
+    radial(me, pants_sculpt)
     if spec.get("shape"):
         radial(me, spec["shape"])
     parts.add_mesh(me, {"bones": LEG_BONES})
@@ -541,8 +647,9 @@ def head_part(kind):
         parts.add_bm(skull, rigid, place)
         # Neck gaiter pulled up over the nose to just under the goggles.
         # Wide where it tucks into the collar, slack folds round the neck, snug over the chin and nose.
-        profile = [(0.112, -0.08), (0.1, -0.05), (0.086, -0.015), (0.09, 0.02), (0.086, 0.04), (0.097, 0.07), (0.1, 0.095), (0.094, 0.108), (0.05, 0.113), (0.001, 0.114)]
-        gaiter = lathe(profile, 24, sx=0.97, sz=1.08)
+        # Slim below the chin so high collars sit outside it.
+        profile = [(0.084, -0.08), (0.082, -0.05), (0.08, -0.015), (0.084, 0.02), (0.084, 0.04), (0.095, 0.07), (0.1, 0.095), (0.094, 0.108), (0.05, 0.113), (0.001, 0.114)]
+        gaiter = lathe(profile, 24, sx=0.97, sz=1.04)
         for v in gaiter.verts:
             # The chin pushes the front forward; the back of the neck stays slim.
             front = max(0.0, v.co.z) / 0.1
@@ -554,7 +661,8 @@ def head_part(kind):
         parts.add_bm(nose, rigid, place)
     elif kind == "helmet":
         dome = sphere(0.134, 28, 16)
-        shell(dome, lambda c: c.y > -0.045 * 1 and not (c.z > 0.07 and c.y < 0.035))
+        # Brim level with the top of the goggles at the front, sweeping down over the ears.
+        shell(dome, lambda c: c.y > lerp(0.032, -0.045, sstep(0.75, 1.4, math.atan2(abs(c.x), c.z))))
         for v in dome.verts:
             v.co = Vector((v.co.x, v.co.y * 1.0, v.co.z * 1.1))
         for v in dome.verts:
@@ -565,13 +673,13 @@ def head_part(kind):
         for s in (1, -1):
             ear = sphere(1.0, 12, 8)
             for v in ear.verts:
-                v.co = Vector((v.co.x * 0.018 + s * 0.13, v.co.y * 0.045 + 0.125, v.co.z * 0.043 - 0.012))
+                v.co = Vector((v.co.x * 0.012 + s * 0.127, v.co.y * 0.045 + 0.12, v.co.z * 0.043 - 0.012))
             parts.add_bm(ear, rigid, place)
     elif kind == "beanie":
         cap = sphere(0.124, 24, 14)
         shell(cap, lambda c: c.y > -0.02)
         for v in cap.verts:
-            v.co = Vector((v.co.x * 1.0, v.co.y * 1.18 + 0.15, v.co.z * 1.06))
+            v.co = Vector((v.co.x * 1.02, v.co.y * 1.0 + 0.15, v.co.z * 1.07))
         bmesh.ops.solidify(cap, geom=list(cap.faces), thickness=-0.01)
         parts.add_bm(cap, rigid, place)
         cuff = cylinder(0.129, 0.131, 0.055, seg=24, caps=False)
@@ -601,27 +709,24 @@ def head_part(kind):
             v.co.y += 0.29
         parts.add_bm(button, rigid, place)
     elif kind == "goggles":
-        band = cylinder(0.124, 0.12, 0.066, seg=36, caps=False)
-        shell(band, lambda c: c.z > 0.0)
-        for v in band.verts:
-            x, y, z = v.co
-            bridge = math.exp(-((x / 0.026) ** 2))
-            temple = min(1, abs(x) / 0.11) ** 6
-            v.co = Vector((x, y * (1 - temple * 0.25) + bridge * max(0, -y) * 0.45 + 0.155, z * 1.1 + 0.004))
-        bmesh.ops.solidify(band, geom=list(band.faces), thickness=0.012)
-        parts.add_bm(band, rigid, place)
-        lens = cylinder(0.128, 0.124, 0.05, seg=36, caps=False)
-        shell(lens, lambda c: c.z > 0.03)
-        for v in lens.verts:
-            x, y, z = v.co
-            bridge = math.exp(-((x / 0.026) ** 2))
-            temple = min(1, abs(x) / 0.1) ** 6
-            v.co = Vector((x, y * (1 - temple * 0.25) + bridge * max(0, -y) * 0.45 + 0.155, z * 1.1 + 0.012))
+        # A frame wrapped round the face: tall at the middle with a nose cut-out,
+        # tapering to rounded ends at the temples; lens set into it; strap round the back.
+        reach = 1.22
+
+        def goggle_point(a, v, grow=0.0, inset=1.0):
+            a *= inset
+            t = abs(a) / reach
+            half = 0.037 * (1 - 0.3 * t * t) * math.sqrt(max(0.0, 1 - t ** 8)) * inset
+            bottom = -half + 0.024 * math.exp(-((a / 0.2) ** 2))
+            y = 0.157 + bottom + (half - bottom) * (v + 1) / 2
+            r = 0.128 + grow
+            return Vector((r * math.sin(a), y, r * 1.1 * math.cos(a) - 0.004))
+
+        parts.add_bm(surface_grid(30, 4, lambda u, v: goggle_point(u * reach, v), thickness=-0.013), rigid, place)
+        lens = surface_grid(26, 3, lambda u, v: goggle_point(u * reach, v * 0.8, grow=0.016, inset=0.92))
         parts.add_bm(lens, {"bones": ["head"], "rigid": "head", "material": "lens"}, place)
-        strap = cylinder(0.14, 0.14, 0.036, seg=28, caps=False)
-        shell(strap, lambda c: c.z < 0.02)
-        for v in strap.verts:
-            v.co = Vector((v.co.x, v.co.y + 0.16, v.co.z * 1.1))
+        end_a = reach * 0.97
+        strap = surface_grid(22, 1, lambda u, v: Vector((0.137 * math.sin(math.pi + (math.pi - end_a) * u), 0.158 + v * 0.017, 0.152 * math.cos(math.pi + (math.pi - end_a) * u))), thickness=0.003)
         parts.add_bm(strap, rigid, place)
     return parts
 
@@ -654,11 +759,11 @@ def baggy_pants(p, bone, t, out):
 
 GARMENTS = {
     # Jackets
-    "jacket_shell": dict(kind="jacket", tex=1024, spec=dict(hem=1.0, waist=(0.205, 0.15), chest=(0.215, 0.158), collar=(0.108, 1.81), sleeve=(0.088, 0.077, 0.07, 0.066), hood=(0.115, 1.0, -0.4))),
+    "jacket_shell": dict(kind="jacket", tex=1024, spec=dict(hem=1.0, waist=(0.205, 0.15), chest=(0.215, 0.158), collar=(0.118, 1.875), sleeve=(0.088, 0.077, 0.07, 0.066), hood=(0.115, 1.0, -0.4))),
     "jacket_parkrat": dict(kind="jacket", tex=1024, spec=dict(hem=0.8, hem_k=1.05, waist=(0.235, 0.172), chest=(0.235, 0.17), collar=(0.112, 1.79), sleeve=(0.098, 0.09, 0.085, 0.08), hood=(0.13, 1.15, -0.25), shape=flare_hem(0.02))),
-    "jacket_racer": dict(kind="jacket", tex=1024, spec=dict(hem=1.06, waist=(0.182, 0.13), chest=(0.198, 0.142), collar=(0.098, 1.83), sleeve=(0.074, 0.064, 0.058, 0.055))),
+    "jacket_racer": dict(kind="jacket", tex=1024, spec=dict(hem=1.06, waist=(0.182, 0.13), chest=(0.198, 0.142), collar=(0.118, 1.88), sleeve=(0.074, 0.064, 0.058, 0.055))),
     "jacket_hoodie": dict(kind="jacket", tex=1024, spec=dict(hem=0.98, hem_k=0.94, waist=(0.212, 0.155), chest=(0.218, 0.158), collar=(0.105, 1.78), sleeve=(0.09, 0.082, 0.075, 0.062), hood=(0.128, 1.1, -0.3), cords=True)),
-    "jacket_puffer": dict(kind="jacket", tex=1024, spec=dict(hem=1.02, waist=(0.215, 0.16), chest=(0.225, 0.168), collar=(0.112, 1.82), sleeve=(0.094, 0.084, 0.078, 0.07), shape=puff(0.085, 0.012))),
+    "jacket_puffer": dict(kind="jacket", tex=1024, spec=dict(hem=1.02, waist=(0.215, 0.16), chest=(0.225, 0.168), collar=(0.122, 1.865), sleeve=(0.094, 0.084, 0.078, 0.07), shape=puff(0.085, 0.012))),
     # Pants
     "pants_baggy": dict(kind="pants", tex=1024, spec=dict(waist=(0.19, 0.145), leg=(0.118, 0.108, 0.1, 0.098, 0.106), shape=baggy_pants)),
     "pants_slim": dict(kind="pants", tex=1024, spec=dict(waist=(0.175, 0.13), leg=(0.1, 0.09, 0.083, 0.08, 0.084))),
@@ -715,21 +820,43 @@ def fabric_detail(name, p, n, piece):
     h = 0.0
     if kind in ("jacket", "pants"):
         # Soft draping folds and fine creases.
-        h += 0.0022 * fbm(p, 9.0, 2) + 0.0006 * noise.noise(p * 70.0)
-        # Concertina rings at elbows, knees and the waist, sharper on the inside of the bend.
-        for joint, reach, freq in (("forearm_L", 0.09, 70), ("forearm_R", 0.09, 70), ("shin_L", 0.1, 60), ("shin_R", 0.1, 60)):
+        h += 0.0032 * fbm(p, 8.0, 2) + 0.0007 * noise.noise(p * 70.0)
+        # Concertina rings at elbows and knees, deepest on the inside of the bend.
+        for joint, reach, freq, inside in (("forearm_L", 0.1, 75, 1), ("forearm_R", 0.1, 75, 1), ("shin_L", 0.11, 62, -1), ("shin_R", 0.11, 62, -1)):
             d = (p - J[joint]).length
-            if d < reach * 1.6:
+            if d < reach * 1.7:
                 m = math.exp(-((d / reach) ** 2))
-                h += 0.0035 * m * math.sin(d * freq + 3 * noise.noise(p * 12.0))
+                bend = 0.6 + 0.6 * max(0.0, inside * n.z)
+                h += 0.005 * m * bend * math.sin(d * freq + 3 * noise.noise(p * 12.0))
+        # Fabric hangs: long vertical folds that wander with noise.
+        if kind == "jacket" and p.y < 1.4:
+            a = math.atan2(p.x, p.z)
+            hang = sstep(1.4, 1.1, p.y)
+            h += 0.0022 * hang * math.sin(a * 9 + 2.5 * noise.noise(p * 6.0))
+        if kind == "jacket":
+            # Compression creases where the jacket bunches over the hips.
+            h += 0.003 * gauss(p.y, 1.18, 0.05) * math.sin(p.y * 140 + 3 * noise.noise(p * 10.0)) * min(1.0, abs(n.x) * 1.5 + 0.3)
         if kind == "pants":
             # Bunched fabric over the boots.
             for s in ("L", "R"):
                 d = (p - ankle(s)).length
                 if d < 0.25:
                     h += 0.004 * sstep(0.25, 0.08, d) * math.sin(p.y * 90 + 4 * noise.noise(p * 15.0))
-            # Inseam and outseam, knee darts and a waistband.
+            # Inseam and outseam, knee panels and a waistband.
             h += groove(abs(p.y - 1.15), 0.002, 0.0012)
+            if name in ("pants_baggy", "pants_slim"):
+                w, hh = (0.07, 0.12) if name == "pants_baggy" else (0.06, 0.1)
+                for s in ("L", "R"):
+                    k = J["shin_" + s]
+                    if p.z > k.z + 0.03:
+                        d = math.sqrt(((p.x - k.x) / w) ** 2 + ((p.y - k.y - 0.02) / hh) ** 2)
+                        h += groove(abs(d - 1.0) * w, 0.0018, 0.0016) + 0.0012 * sstep(1.0, 0.9, d)
+            # Long folds down the legs, deeper on baggy pants.
+            for s in ("L", "R"):
+                if p.y < 1.0 and (p.x > 0) == (s == "L"):
+                    d, t, foot = seg_param(p, "thigh_" + s) if p.y > J["shin_" + s].y else seg_param(p, "shin_" + s)
+                    a = math.atan2(p.x - foot.x, p.z - foot.z)
+                    h += (0.0025 if name == "pants_baggy" else 0.0012) * math.sin(a * 6 + 2 * noise.noise(p * 5.0))
             for s, sx in (("L", 1), ("R", -1)):
                 if p.y < 1.0:
                     d, t, foot = seg_param(p, "thigh_" + s) if p.y > J["shin_" + s].y else seg_param(p, "shin_" + s)
@@ -834,6 +961,16 @@ def fabric_detail(name, p, n, piece):
 
 # ---- Masks (R accent, G trim) in game space, vectorised over texels -----------------------
 
+def knee_panels(P, w, h):
+    """Articulated knee panels: tall rounded patches on the front of each knee."""
+    out = np.zeros(len(P))
+    for s in ("L", "R"):
+        k = J["shin_" + s]
+        d = np.sqrt(((P[:, 0] - k.x) / w) ** 2 + ((P[:, 1] - k.y - 0.02) / h) ** 2)
+        out = np.maximum(out, smoothstep(1.03, 0.97, d) * (P[:, 2] > k.z + 0.03))
+    return out
+
+
 def masks(name, P):
     """P: (N, 3) game-space positions. Returns accent, trim in 0..1."""
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
@@ -860,9 +997,10 @@ def masks(name, P):
             accent = np.maximum.reduce([yoke, shoulders, collar, hemband, cuffs])
             trim = smoothstep(0.006, 0.004, np.abs(x)) * (z > 0) * (y > hem + 0.035) * (y < 1.8)
         elif name == "jacket_parkrat":
-            # Tall-tee: contrast hood and cuffs, a chest stripe.
-            stripe = smoothstep(0.025 + e, 0.025 - e, np.abs(y - 1.42)) * torso
-            accent = np.maximum.reduce([stripe, cuffs, collar])
+            # Tall-tee: contrast hood, cuffs and a small chest patch.
+            hood = near(J["hood"] + Vector((0, 0.0, -0.03)), 0.15) * (z < -0.04) * (y > 1.71) * smoothstep(0.17, 0.15, np.abs(x))
+            patch = (z > 0.05) * smoothstep(0.035 + e, 0.035 - e, np.abs(x + 0.09)) * smoothstep(0.022 + e, 0.022 - e, np.abs(y - 1.5))
+            accent = np.maximum.reduce([hood, cuffs, collar, patch])
             trim = smoothstep(0.005, 0.003, np.abs(x)) * (z > 0) * (y > 1.5) * (y < 1.8)
         elif name == "jacket_racer":
             side_panel = smoothstep(0.0, 0.004, np.abs(x) - (0.13 + 0.05 * np.sin((y - 1.0) * 4))) * torso
@@ -884,9 +1022,9 @@ def masks(name, P):
                 sx = 1 if side == "L" else -1
                 pocket = (sx * x > abs(c.x)) * smoothstep(0.075, 0.07, np.abs(y - c.y)) * smoothstep(0.065, 0.06, np.abs(z - c.z))
                 accent = np.maximum(accent, pocket)
-            accent = np.maximum(accent, np.maximum(near(J["shin_L"] + Vector((0, 0, 0.09)), 0.07), near(J["shin_R"] + Vector((0, 0, 0.09)), 0.07)))
+            accent = np.maximum(accent, 0.55 * knee_panels(P, 0.07, 0.12))
         elif name == "pants_slim":
-            accent = np.maximum(near(J["shin_L"] + Vector((0, 0, 0.08)), 0.06), near(J["shin_R"] + Vector((0, 0, 0.08)), 0.06))
+            accent = 0.5 * knee_panels(P, 0.06, 0.1)
             accent = np.maximum(accent, smoothstep(0.24, 0.2, y) * 1.0)  # cuff guards
         elif name == "pants_race":
             # Contrast outer stripe and padded shins.
@@ -912,9 +1050,11 @@ def masks(name, P):
         part = GARMENTS[name]["spec"]
         hy = J["head"].y
         if part == "face":
-            # Skin above the gaiter, gaiter base colour below.
-            accent = smoothstep(hy + 0.111, hy + 0.115, y)
-            accent = np.maximum(accent, near(J["head"] + Vector((0, 0.115, 0.1)), 0.028))
+            # Skin above the gaiter at the front, hair round the back; gaiter colour below.
+            above = smoothstep(hy + 0.111, hy + 0.115, y)
+            front = smoothstep(0.02, 0.05, z)
+            accent = np.maximum(above * front, near(J["head"] + Vector((0, 0.115, 0.1)), 0.028))
+            trim = above * (1 - front)
         elif part == "helmet":
             trim = np.maximum(smoothstep(0.03, 0.02, np.abs(y - (hy + 0.125))) * (np.abs(x) > 0.11), smoothstep(hy + 0.125, hy + 0.12, y))
             trim = np.maximum(trim, ((y > hy + 0.28) * (np.abs(z) < 0.06) * (np.minimum.reduce([np.abs(x + 0.045), np.abs(x), np.abs(x - 0.045)]) < 0.008)) * 1.0)
@@ -925,7 +1065,7 @@ def masks(name, P):
             accent = (z > 0.1) * (y < hy + 0.2) * 1.0
             trim = near(J["head"] + Vector((0, 0.29, 0)), 0.02)
         elif part == "goggles":
-            trim = (z < 0.03) * 1.0  # strap uses trim slot (game sets it to the accent colour)
+            trim = smoothstep(0.02, -0.01, z)  # the strap round the back takes the trim (accent) colour
     return np.clip(accent, 0, 1), np.clip(trim, 0, 1)
 
 
@@ -966,6 +1106,24 @@ def make_high(obj):
     bm.to_mesh(hi.data)
     bm.free()
     return hi
+
+
+def without_nobake(obj):
+    """A copy of the low mesh minus the pieces flagged nobake."""
+    copy = obj.copy()
+    copy.data = obj.data.copy()
+    copy.name = obj.name + "_occ"
+    link(copy)
+    bm = bmesh.new()
+    bm.from_mesh(copy.data)
+    tag = bm.verts.layers.int.get("piece")
+    pieces = json.loads(obj["pieces"])
+    if tag:
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if pieces[v[tag]].get("nobake")], context="VERTS")
+    bm.to_mesh(copy.data)
+    bm.free()
+    copy.hide_render = False
+    return copy
 
 
 def bake_image(name, size, float_buffer=False):
@@ -1018,14 +1176,21 @@ def bake(obj, name, size):
     mesh = hi.data
     bpy.data.objects.remove(hi, do_unlink=True)
     bpy.data.meshes.remove(mesh)
-    # Ambient occlusion on the low mesh alone.
+    # Ambient occlusion from an undetailed copy without the nobake pieces, so the
+    # drawstrings cast no shadow on the chest. (Baking it from the displaced copy
+    # starts rays inside the folds and blots the map.)
+    occluder = without_nobake(obj)
     ao = bake_image(name + "_ao", size)
     bake_material(obj, ao)
-    select_only(obj)
+    bake_material(occluder, bake_image(name + "_tmp", 8))
+    select_only(occluder, obj, active=obj)
     scene.cycles.samples = 96
     scene.world = scene.world or bpy.data.worlds.new("RiderWorld")
     scene.world.light_settings.distance = 0.2
-    bpy.ops.object.bake(type="AO", margin=8)
+    bpy.ops.object.bake(type="AO", use_selected_to_active=True, cage_extrusion=0.002, max_ray_distance=0.004, margin=8)
+    mesh = occluder.data
+    bpy.data.objects.remove(occluder, do_unlink=True)
+    bpy.data.meshes.remove(mesh)
     # Position, to evaluate the colour masks per texel.
     pos = bake_image(name + "_pos", size, float_buffer=True)
     bake_material(obj, pos, emit="position")

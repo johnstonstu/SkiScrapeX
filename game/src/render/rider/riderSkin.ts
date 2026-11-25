@@ -10,6 +10,7 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { applyTextureBudget } from '../textureBudget'
+import { createGarmentMaterial, createRiderWeather, type GarmentSurface, type RiderWeather } from './garmentMaterial'
 
 export type JacketStyle = 'shell' | 'parkrat' | 'racer' | 'hoodie' | 'puffer'
 export type PantsStyle = 'baggy' | 'slim' | 'race'
@@ -84,45 +85,19 @@ export interface GarmentColours {
   trim: THREE.ColorRepresentation
 }
 
-const SURFACE: Record<string, { roughness: number; metalness?: number; normal?: number }> = {
-  jacket_racer: { roughness: 0.45 },
-  jacket_puffer: { roughness: 0.5 },
-  jacket_shell: { roughness: 0.68 },
-  head_helmet: { roughness: 0.32, metalness: 0.05 },
-  head_goggles: { roughness: 0.55 },
-  head_face: { roughness: 0.75 },
-}
-
-/** A standard material that colours from the mask; programs are shared by every garment. */
-function garmentMaterial(source: GarmentSource) {
-  const surface = SURFACE[source.name] ?? { roughness: 0.82 }
-  const material = new THREE.MeshStandardMaterial({
-    map: source.mask,
-    normalMap: source.normal,
-    normalScale: source.normalScale.clone().multiplyScalar(surface.normal ?? 1),
-    roughness: surface.roughness,
-    metalness: surface.metalness ?? 0,
-  })
-  const uniforms = {
-    uBase: { value: new THREE.Color() },
-    uAccent: { value: new THREE.Color() },
-    uTrim: { value: new THREE.Color() },
-  }
-  material.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, uniforms)
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uBase;\nuniform vec3 uAccent;\nuniform vec3 uTrim;')
-      .replace(
-        '#include <map_fragment>',
-        `#ifdef USE_MAP
-          vec4 garmentMask = texture2D( map, vMapUv );
-          vec3 garmentColour = mix( mix( uBase, uAccent, garmentMask.r ), uTrim, garmentMask.g );
-          diffuseColor.rgb *= garmentColour * garmentMask.b;
-        #endif`,
-      )
-  }
-  material.customProgramCacheKey = () => 'rider-garment'
-  return { material, uniforms }
+/** Surface and looseness per garment (see GarmentSurface); anything missing gets cloth defaults. */
+const SURFACE: Record<string, GarmentSurface> = {
+  jacket_shell: { roughness: 0.66, sheen: 0.2, loose: 0.004, band: [1.0, 1.3], sleeve: 0.5 },
+  jacket_parkrat: { roughness: 0.82, loose: 0.008, band: [0.8, 1.25], sleeve: 1 },
+  jacket_racer: { roughness: 0.42, sheen: 0.12, loose: 0.0008, band: [1.06, 1.2] },
+  jacket_hoodie: { roughness: 0.86, loose: 0.004, band: [0.98, 1.25], sleeve: 0.6 },
+  jacket_puffer: { roughness: 0.48, sheen: 0.18, loose: 0.002, band: [1.02, 1.2], sleeve: 0.3 },
+  pants_baggy: { roughness: 0.82, loose: 0.007, band: [0.25, 0.95] },
+  pants_slim: { roughness: 0.8, loose: 0.003, band: [0.25, 0.7] },
+  pants_race: { roughness: 0.6, sheen: 0.15 },
+  head_helmet: { roughness: 0.3, metalness: 0.05, sheen: 0 },
+  head_goggles: { roughness: 0.5, sheen: 0.05 },
+  head_face: { roughness: 0.78, sheen: 0.25 },
 }
 
 function lensMaterial() {
@@ -133,6 +108,8 @@ export interface RiderSkin {
   /** Show one garment per category and colour them. */
   apply(choice: { jacket: JacketStyle; pants: PantsStyle; gloves: GloveStyle; headwear: Headwear }, colours: Record<string, GarmentColours>): void
   setFirstPerson(on: boolean): void
+  /** Wind, time and snow for this rider's garments. */
+  readonly weather: RiderWeather
 }
 
 /**
@@ -146,7 +123,8 @@ export function createRiderSkin(
   withRestPose: (fn: () => void) => void,
 ): RiderSkin {
   const meshes = new Map<string, THREE.SkinnedMesh[]>()
-  const uniforms = new Map<string, ReturnType<typeof garmentMaterial>['uniforms']>()
+  const uniforms = new Map<string, ReturnType<typeof createGarmentMaterial>['uniforms']>()
+  const weather = createRiderWeather()
   withRestPose(() => {
     for (const [name, sources] of asset.garments) {
       const list: THREE.SkinnedMesh[] = []
@@ -154,7 +132,7 @@ export function createRiderSkin(
         let material: THREE.Material
         if (source.lens) material = lensMaterial()
         else {
-          const made = garmentMaterial(source)
+          const made = createGarmentMaterial(source, SURFACE[source.name] ?? { roughness: 0.82 }, weather)
           material = made.material
           uniforms.set(name, made.uniforms)
         }
@@ -190,6 +168,7 @@ export function createRiderSkin(
   }
 
   return {
+    weather,
     apply(choice, colours) {
       shown = new Set([
         `jacket_${choice.jacket}`, `pants_${choice.pants}`, `gloves_${choice.gloves}`,
