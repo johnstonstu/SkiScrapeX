@@ -14,6 +14,9 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { applyTextureBudget } from '../textureBudget'
 import { makeBoardBoot, makeSkiBoot } from './riderBoot'
 import { jacketGeometry, fabricWeave } from './riderCloth'
+import { ClothPhysics } from './clothPhysics'
+import type { RiderSnow } from './riderSnow'
+import { createRiderSkin, loadRiderAsset, type GarmentColours, type GloveStyle, type Headwear, type JacketStyle, type PantsStyle, type RiderSkin } from './riderSkin'
 
 /** Binding centres and boot yaw in the snowboard's local frame. */
 export const BOARD_BINDINGS = [
@@ -30,7 +33,10 @@ export interface RiderLook {
   model?: string
   /** Baggy freeride kit or a slimmer race fit. */
   fit?: 'baggy' | 'slim'
-  headwear?: 'helmet' | 'beanie'
+  headwear?: Headwear
+  jacketStyle?: JacketStyle
+  pantsStyle?: PantsStyle
+  gloves?: GloveStyle
   /** Neck gaiter / face buff colour. */
   gaiter?: string
   /** Jacket yoke and hem colour; a darker jacket shade when unset. */
@@ -162,8 +168,8 @@ export const CHEST_Y = 0.26
 
 export interface Leg {
   ski: THREE.Group
-  thigh: THREE.Group
-  knee: THREE.Group
+  thigh: THREE.Bone
+  knee: THREE.Bone
   upper: THREE.Mesh
   shin: THREE.Mesh
   side: number
@@ -171,17 +177,35 @@ export interface Leg {
 
 export interface Arm {
   side: number
-  shoulder: THREE.Group
-  elbow: THREE.Group
-  hand: THREE.Group
+  shoulder: THREE.Bone
+  elbow: THREE.Bone
+  hand: THREE.Bone
   pole: THREE.Group
   sleeve: THREE.Mesh
 }
 
 export type RiderRig = ReturnType<typeof buildRider>
 
+/**
+ * Bind pose for the skinned body (tools/blender/build_rider.py builds the
+ * mesh around the same joints): legs straight and a little apart, arms in an
+ * A-pose so the sleeves clear the torso. Rotations are about Z, per side
+ * (+1 left, -1 right).
+ */
+export const REST_HIP_HEIGHT = 1.14
+export const REST_ARM_SPREAD = 0.6
+export const REST_LEG_SPREAD = 0.06
+
 export function buildRider() {
   const root = new THREE.Group()
+  /** Every named joint, so skinned meshes from the GLB can bind by name. */
+  const bones: Record<string, THREE.Bone> = {}
+  const bone = (name: string) => {
+    const b = new THREE.Bone()
+    b.name = name
+    bones[name] = b
+    return b
+  }
   const m = (color: number | string, roughness = 0.75, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness })
   const mat = {
     skiBase: m(0x1d2a36, 0.35, 0.2),
@@ -331,7 +355,7 @@ export function buildRider() {
   // ---- Body -----------------------------------------------------------------
   const body = new THREE.Group()
   root.add(body)
-  const hips = new THREE.Group()
+  const hips = bone('hips')
   body.add(hips)
   const pelvis = rounded(0.36, 0.24, 0.27, 0.1, mat.pants)
   pelvis.position.y = -0.02
@@ -342,10 +366,10 @@ export function buildRider() {
 
   const legs: Leg[] = skis.map((ski, index) => {
     const side = index === 0 ? 1 : -1
-    const thigh = new THREE.Group()
+    const thigh = bone(`thigh_${side === 1 ? 'L' : 'R'}`)
     thigh.position.set(side * 0.11, -0.06, 0)
     const upper = limb(0.1, 0.088, THIGH_LENGTH, mat.pants, 0.014)
-    const knee = new THREE.Group()
+    const knee = bone(`shin_${side === 1 ? 'L' : 'R'}`)
     knee.position.y = -THIGH_LENGTH
     const joint = sphere(0.088, mat.pants, 12, 8)
     // Articulated knee panel: a flat, shaped patch rather than a lump.
@@ -364,12 +388,29 @@ export function buildRider() {
   })
 
   // Lower back: the jacket's waist and hem. Chest: shoulders, yoke, hood and pack.
-  const spine = new THREE.Bone()
+  const spine = bone('spine')
   spine.position.y = SPINE_Y
   hips.add(spine)
-  const chest = new THREE.Bone()
+  const chest = bone('chest')
   chest.position.y = CHEST_Y
   spine.add(chest)
+  // Leaf bones for cloth that swings on its own: the hem front and back, the
+  // hood, hoodie drawstrings, the backpack and a beanie pom (added with the head).
+  const hemFront = bone('hem_F')
+  hemFront.position.set(0, -0.1, 0.13)
+  const hemBack = bone('hem_B')
+  hemBack.position.set(0, -0.1, -0.13)
+  spine.add(hemFront, hemBack)
+  const hoodBone = bone('hood')
+  hoodBone.position.set(0, 0.54 - CHEST_Y, -0.1)
+  const packBone = bone('pack')
+  packBone.position.set(0, 0.3 - CHEST_Y, -0.17)
+  const cords = [1, -1].map((s) => {
+    const cord = bone(`cord_${s === 1 ? 'L' : 'R'}`)
+    cord.position.set(s * 0.045, 0.56 - CHEST_Y, 0.15)
+    return cord
+  })
+  chest.add(hoodBone, packBone, ...cords)
 
   const jacket = new THREE.SkinnedMesh(jacketGeometry(true).geometry, mat.jacket)
   jacket.name = 'jacket-hem'
@@ -420,9 +461,11 @@ export function buildRider() {
     backpack.add(strap)
   }
   backpack.visible = false
-  chest.add(backpack)
+  // The pack hangs off its own bone so it can bounce; parts stay in chest space.
+  backpack.position.set(0, CHEST_Y - 0.3, 0.17)
+  packBone.add(backpack)
 
-  const head = new THREE.Group()
+  const head = bone('head')
   head.position.y = 0.62 - CHEST_Y
   chest.add(head)
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.09, 0.12, 12), mat.gaiter)
@@ -482,6 +525,9 @@ export function buildRider() {
   gStrap.scale.set(1, 1, 1.1)
   goggles.add(gFrame, lens, gStrap)
   goggles.position.y = 0.155
+  const pomBone = bone('pom')
+  pomBone.position.y = 0.3
+  head.add(pomBone)
   for (const part of [gFrame, lens, gStrap]) (part.material as THREE.Material).side = THREE.DoubleSide
   head.add(neck, skull, buff, helmet, beanie, goggles)
   const eye = new THREE.Object3D()
@@ -490,7 +536,7 @@ export function buildRider() {
 
   const shoulderCaps: THREE.Mesh[] = []
   const arms: Arm[] = [1, -1].map((side) => {
-    const shoulder = new THREE.Group()
+    const shoulder = bone(`upperarm_${side === 1 ? 'L' : 'R'}`)
     shoulder.position.set(side * 0.215, 0.47 - CHEST_Y, -0.01)
     // Rounded deltoid so the sleeve meets the jacket without a seam gap.
     const cap = sphere(0.088, mat.jacket, 12, 8)
@@ -499,11 +545,11 @@ export function buildRider() {
     chest.add(cap)
     shoulderCaps.push(cap)
     const sleeve = limb(0.08, 0.068, UPPER_ARM, mat.jacket, 0.012)
-    const elbow = new THREE.Group()
+    const elbow = bone(`forearm_${side === 1 ? 'L' : 'R'}`)
     elbow.position.y = -UPPER_ARM
     const elbowJoint = sphere(0.068, mat.jacket, 10, 8)
     const fore = limb(0.068, 0.066, FORE_ARM - 0.06, mat.jacket, 0.006, 0.014)
-    const hand = new THREE.Group()
+    const hand = bone(`hand_${side === 1 ? 'L' : 'R'}`)
     hand.position.y = -FORE_ARM
     const gauntlet = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.05, 0.07, 10), mat.glove)
     gauntlet.position.y = 0.03
@@ -538,8 +584,85 @@ export function buildRider() {
   let firstPerson = false
   let boarding = false
 
-  return {
-    root, mat, skis, blades, boardGroup, body, hips, spine, chest, head, eye, legs, arms,
+  // The code-built body is the fallback; once rider.glb loads, skinned garments replace it.
+  const poles = new Set<THREE.Object3D>(arms.map((arm) => arm.pole))
+  const proceduralBody: THREE.Mesh[] = []
+  const collect = (object: THREE.Object3D) => {
+    if (poles.has(object) || object === backpack) return
+    if ((object as THREE.Mesh).isMesh) proceduralBody.push(object as THREE.Mesh)
+    for (const child of object.children) collect(child)
+  }
+  collect(hips)
+  /** Run `fn` with the skeleton in the bind pose, then put the current pose back. */
+  const withRestPose = (fn: () => void) => {
+    const all = [body, ...Object.values(bones)]
+    const saved = all.map((o) => [o.position.clone(), o.quaternion.clone(), o.scale.clone()] as const)
+    body.position.set(0, 0, 0)
+    body.quaternion.identity()
+    for (const b of Object.values(bones)) {
+      b.quaternion.identity()
+      b.scale.set(1, 1, 1)
+    }
+    hips.position.set(0, REST_HIP_HEIGHT, 0)
+    for (const leg of legs) leg.thigh.rotation.set(0, 0, leg.side * REST_LEG_SPREAD)
+    for (const arm of arms) arm.shoulder.rotation.set(0, 0, arm.side * REST_ARM_SPREAD)
+    root.updateMatrixWorld(true)
+    try {
+      fn()
+    } finally {
+      all.forEach((o, i) => {
+        o.position.copy(saved[i][0])
+        o.quaternion.copy(saved[i][1])
+        o.scale.copy(saved[i][2])
+      })
+      root.updateMatrixWorld(true)
+    }
+  }
+
+  let skin: RiderSkin | null = null
+  /** Kept so a skin that loads later starts with the current wind and snow. */
+  let lastWeather: { time: number; wind: number; snow: RiderSnow } | null = null
+  const down = new THREE.Vector3(0, -1, 0)
+  const cloth = new ClothPhysics([
+    // Hem panels: stiff-ish fabric, limited so they cannot swing through the legs.
+    { bone: hemFront, axis: down, follow: 0.55, maxAngle: 0.75, hz: 1.6, zeta: 0.35, drag: 0.5, flutter: 0.08 },
+    { bone: hemBack, axis: down, follow: 0.65, maxAngle: 0.9, hz: 1.5, zeta: 0.3, drag: 0.6, flutter: 0.1 },
+    { bone: hoodBone, axis: down, follow: 0.18, maxAngle: 0.35, hz: 1.8, zeta: 0.4, drag: 0.3 },
+    ...cords.map((bone) => ({ bone, axis: down, follow: 0.9, maxAngle: 1.3, hz: 1.2, zeta: 0.18, drag: 0.9, flutter: 0.25 })),
+    { bone: pomBone, axis: new THREE.Vector3(0, 1, 0), follow: 0.55, maxAngle: 0.8, hz: 2.2, zeta: 0.25, drag: 0.4, upright: true },
+  ])
+  let lastLook: RiderLook | null = null
+  const hideProcedural = () => {
+    if (skin) for (const part of proceduralBody) part.visible = false
+  }
+  const applySkin = (look: RiderLook) => {
+    if (!skin) return
+    const accent = look.jacketAccent ?? '#' + new THREE.Color(look.jacket).multiplyScalar(0.6).getHexString()
+    const pantsPatch = '#' + new THREE.Color(look.pants).multiplyScalar(0.72).getHexString()
+    const dark = '#1b1f24'
+    const colours: Record<string, GarmentColours> = {
+      jacket: { base: look.jacket, accent, trim: dark },
+      pants: { base: look.pants, accent: pantsPatch, trim: dark },
+      gloves: { base: '#17191d', accent, trim: '#4b5058' },
+      gloves_pipe: { base: '#2b2f36', accent: '#7a6450', trim: dark },
+      head_face: { base: look.gaiter ?? '#59606b', accent: '#e2b08a', trim: '#3b2a20' },
+      head_goggles: { base: '#15181c', accent: '#15181c', trim: accent },
+      head_helmet: { base: look.helmet, accent: look.helmet, trim: '#15181c' },
+      head_beanie: { base: look.helmet, accent, trim: dark },
+      head_cap: { base: look.helmet, accent, trim: accent },
+    }
+    skin.apply({
+      jacket: look.jacketStyle ?? 'shell',
+      pants: look.pantsStyle ?? (look.fit === 'slim' ? 'slim' : 'baggy'),
+      gloves: look.gloves ?? 'mitt',
+      headwear: look.headwear ?? 'helmet',
+    }, colours)
+    hideProcedural()
+  }
+
+  const rigApi = {
+    root, mat, skis, blades, boardGroup, body, hips, spine, chest, head, eye, legs, arms, bones,
+    withRestPose,
     poseCloth(side: number, back: number) {
       jacket.morphTargetInfluences![0] = side / 0.1
       jacket.morphTargetInfluences![1] = back / 0.1
@@ -548,8 +671,48 @@ export function buildRider() {
       hood.rotation.x = hoodPitch + back * 2
       hood.rotation.y = side * 2
     },
+    /** Swing the skinned body's loose cloth; call before posing, `applyCloth` after. */
+    stepCloth(acceleration: THREE.Vector3, velocity: THREE.Vector3, dt: number) {
+      cloth.step(acceleration, velocity, dt)
+    },
+    /** Wind (0..1), time and snow for the skinned garments; does nothing on the code-built rider. */
+    setWeather(time: number, wind: number, snow: RiderSnow) {
+      lastWeather = { time, wind, snow }
+      if (!skin) return
+      const w = skin.weather
+      w.uTime.value = time
+      w.uWind.value = wind
+      w.uSnowCrash.value = snow.crash
+      w.uSnowSide.value.copy(snow.side)
+      w.uSnowLegHeight.value = snow.legHeight
+      w.uSnowLegAmount.value = snow.legAmount
+    },
+    /** The pack bounces with vertical acceleration (metres of give, from a spring). */
+    bouncePack(bounce: number) {
+      packBone.position.y = 0.3 - CHEST_Y + bounce * 0.4
+      packBone.rotation.x = -bounce * 3
+    },
+    /** After the body is posed: point the cloth bones along their swing. */
+    applyCloth() {
+      root.updateMatrixWorld(true)
+      cloth.apply()
+    },
     get boarding() {
       return boarding
+    },
+    /** True once the skinned body from rider.glb has replaced the code-built one. */
+    get skinned() {
+      return skin !== null
+    },
+    /** Load rider.glb and swap it in; the code-built body stays if loading fails. */
+    loadSkin() {
+      return loadRiderAsset().then((asset) => {
+        skin = createRiderSkin(asset, root, bones, withRestPose)
+        skin.setFirstPerson(firstPerson)
+        if (lastLook) applySkin(lastLook)
+        if (lastWeather) rigApi.setWeather(lastWeather.time, lastWeather.wind, lastWeather.snow)
+        hideProcedural()
+      })
     },
     setFirstPerson(on: boolean) {
       firstPerson = on
@@ -559,11 +722,14 @@ export function buildRider() {
         helmet.visible = !beanie.userData.on
         beanie.visible = Boolean(beanie.userData.on)
       }
+      skin?.setFirstPerson(on)
+      hideProcedural()
     },
     get firstPerson() {
       return firstPerson
     },
     setColours(look: RiderLook) {
+      lastLook = look
       mat.jacket.color.set(look.jacket)
       if (look.jacketAccent) mat.jacketPanel.color.set(look.jacketAccent)
       else mat.jacketPanel.color.copy(mat.jacket.color).multiplyScalar(0.6)
@@ -584,7 +750,7 @@ export function buildRider() {
       }
       mat.skiTop.needsUpdate = true
       mat.gaiter.color.set(look.gaiter ?? '#59606b')
-      const baggy = (look.fit ?? 'baggy') === 'baggy'
+      const baggy = (look.pantsStyle ?? look.fit ?? 'baggy') === 'baggy'
       const shape = jacketGeometry(baggy)
       jacket.geometry.dispose()
       jacket.geometry = shape.geometry
@@ -614,6 +780,8 @@ export function buildRider() {
         const width = look.model === 'powder' ? 1.26 : look.model === 'park' ? 1.06 : 1
         blade.scale.set(width, 1, look.model === 'park' ? 0.94 : 1)
       }
+      applySkin(look)
     },
   }
+  return rigApi
 }

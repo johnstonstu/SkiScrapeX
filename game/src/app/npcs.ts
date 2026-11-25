@@ -8,6 +8,7 @@
 import * as THREE from 'three'
 import { FIXED_DT, beginCrash, createSkiState, stepSkier, type SampleTerrain, type SkiEnv, type SkiInput, type SkiState } from '../sim'
 import { createSkierView, SKI_GRAPHICS } from '../render/rider/skierView'
+import { GLOVE_STYLES, JACKET_STYLES } from '../render/rider/riderSkin'
 import { PALETTE } from '../ui/riderPanel'
 import { headingFor, pointAlong, polylineLength, type Point2 } from '../world/resort'
 import { makeRandom } from '../world/forest'
@@ -110,8 +111,10 @@ export function createNpcs(
       skis: pick(PALETTE),
       skiAccent: pick(PALETTE),
       skiGraphic: pick(SKI_GRAPHICS.slice(0, 6)),
-      fit: random() < 0.6 ? 'baggy' : 'slim',
-      headwear: random() < 0.75 ? 'helmet' : 'beanie',
+      jacketStyle: pick(JACKET_STYLES),
+      pantsStyle: random() < 0.55 ? 'baggy' : random() < 0.8 ? 'slim' : 'race',
+      gloves: pick(GLOVE_STYLES),
+      headwear: random() < 0.65 ? 'helmet' : random() < 0.6 ? 'beanie' : 'cap',
       backpack: random() < 0.2,
       // About a quarter of the hill rides a board.
       model: random() < 0.25 ? 'snowboard' : 'allMountain',

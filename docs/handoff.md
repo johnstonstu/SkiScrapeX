@@ -33,6 +33,17 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 
 - `rider.html?pose=tuck,carve-left` shows only those poses; add `&anim` to play them.
 - `rider.html?sim` runs the real sim through linked turns behind the follow camera (`pitch`, `period`, `cap` km/h, `fov`, `style=tight`); `window.__step(frames)` steps it frame by frame for review screenshots.
+- Outfit URL keys: `jacketStyle` (shell, parkrat, racer, hoodie, puffer), `pantsStyle` (baggy, slim, race), `gloves` (mitt, glove, pipe), `headwear` (helmet, beanie, cap), colours as hex without `#`. `cx`, `cy`, `cz` and `ty` move the camera for close-ups. `default` ignores the saved outfit; `noskin` shows the old code-built rider.
+
+## Rider model (Blender)
+
+- The rider's body is `game/public/models/rider.glb`, built by `tools/blender/build_rider.py`. The script makes an armature on the game's bind pose, every garment style as one skinned mesh, bakes a normal map (from a displaced high-detail copy: folds, seams, zips, quilting, knit) and a mask (R accent, G trim, B ambient occlusion), and exports the GLB. It runs in its own scene and takes about a minute.
+- Rebuild from the Blender MCP or Blender's Python console: `ns = {"REPO": r"<repo>"}; exec(open(r"<repo>/tools/blender/build_rider.py").read(), ns); ns["build_all"]()`. From a shell: `blender --background --python tools/blender/build_rider.py -- <repo>`.
+- The joints come from `tools/blender/rig_rest.json`. If you move a joint or change the bind pose in `skierModel.ts`, regenerate it with `UPDATE_RIG_REST=1 npx vitest run tests/riderRest.test.ts` in `game/`, then rebuild the GLB. `tests/riderAsset.test.ts` fails if the GLB and the rig drift apart.
+- In the game, `render/rider/riderSkin.ts` binds each garment to the rig's own bones (matched by name), so `skierView.ts` animates it unchanged. The code-built rider is the fallback while the GLB loads, if it fails, and in unit tests.
+- To add a style: add an entry to `GARMENTS` (shape) and the `masks` and `fabric_detail` functions (colour regions and normal detail), rebuild, then add the style to the lists in `riderSkin.ts` and the rider panel.
+- To review a change without a GPU, render an outfit in a skiing stance from four sides after `build_all` in the same namespace: `exec(open(r"<repo>/tools/blender/review_rider.py").read(), ns); ns["review"]({"jacket": "shell", "pants": "baggy", "gloves": "mitt", "headwear": "helmet"}, r"<out.png>", closeup=False)`. It shades garments the way the game does (mask colours, normal map, AO).
+- Rider lab: `?snow` starts each rider snow-covered (crash patches and powder up the legs) so the snow shader can be checked; it fades as it would in game.
 
 ## URL parameters
 

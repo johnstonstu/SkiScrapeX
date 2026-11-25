@@ -137,3 +137,81 @@ it('pulls the jacket hem back at speed and lets it settle when stopped', () => {
   update(0)
   expect(hem.morphTargetInfluences?.[1]).toBeCloseTo(0, 3)
 })
+
+it('swings drawstrings when the skier stops hard, then lets them hang straight down', () => {
+  const view = createSkierView()
+  const state = createSkiState({ x: 0, z: 0, heading: 0 })
+  const cord = view.object.getObjectByName('cord_L')!
+  const pom = view.object.getObjectByName('pom')!
+  const q = new THREE.Quaternion()
+  /** Angle of a bone's axis from world vertical (down for a cord, up for the pom). */
+  const tilt = (bone: THREE.Object3D, axis: THREE.Vector3, vertical: THREE.Vector3) =>
+    axis.clone().applyQuaternion(bone.getWorldQuaternion(q)).angleTo(vertical)
+  const cordTilt = () => tilt(cord, new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, -1, 0))
+  const run = (frames: number, vz: number, input = idle) => {
+    let peak = 0
+    for (let frame = 0; frame < frames; frame++) {
+      state.time += 1 / 60
+      state.vz = vz
+      state.speed = Math.abs(vz)
+      view.update(state, input, ground, 'ski', 1 / 60)
+      peak = Math.max(peak, cordTilt())
+    }
+    return peak
+  }
+  run(120, 12)
+  // Hockey stop: 12 m/s to rest in a quarter of a second.
+  for (const vz of [9, 6, 3, 0]) run(4, vz)
+  expect(run(40, 0)).toBeGreaterThan(0.15)
+  run(400, 0)
+  expect(cordTilt()).toBeLessThan(0.12)
+  // In a deep tuck at speed the chest pitches forward, but the cords follow gravity and the
+  // airflow (streaming back), not the chest, and the pom stays up.
+  run(420, 12, { ...idle, tuck: true })
+  const airflow = new THREE.Vector3(0, -9.81, -12 * 0.9).normalize()
+  expect(tilt(cord, new THREE.Vector3(0, -1, 0), airflow)).toBeLessThan(0.35)
+  expect(tilt(pom, new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 1, 0))).toBeLessThan(1.0)
+})
+
+it('lets the jacket hem float up in the air and fall back on landing', () => {
+  const view = createSkierView()
+  const state = createSkiState({ x: 0, z: 0, heading: 0 })
+  const hem = view.object.getObjectByName('hem_B')!
+  const q = new THREE.Quaternion()
+  /** How far the back hem points up out of hanging straight down (radians). */
+  const lift = () => new THREE.Vector3(0, -1, 0).applyQuaternion(hem.getWorldQuaternion(q)).angleTo(new THREE.Vector3(0, -1, 0))
+  for (let i = 0; i < 120; i++) {
+    state.time += 1 / 60
+    view.update(state, idle, ground, 'ski', 1 / 60)
+  }
+  const standing = lift()
+  // Off a kicker: half a second of free fall.
+  state.grounded = false
+  state.air = { time: 0, spin: 0, spinRate: 0, flip: 0, flipRate: 0, grab: null, grabTime: 0, timeToLand: 1, predictedFrom: 0, cork: 0, corkTime: 0 }
+  state.vy = 2
+  let peak = 0
+  for (let i = 0; i < 40; i++) {
+    state.time += 1 / 60
+    state.vy -= 9.81 / 60
+    state.air.time += 1 / 60
+    view.update(state, idle, null, 'ski', 1 / 60)
+    peak = Math.max(peak, lift())
+  }
+  expect(peak).toBeGreaterThan(standing + 0.3)
+  state.grounded = true
+  state.air = null
+  state.vy = 0
+  for (let i = 0; i < 300; i++) {
+    state.time += 1 / 60
+    view.update(state, idle, ground, 'ski', 1 / 60)
+  }
+  expect(lift()).toBeLessThan(standing + 0.1)
+})
+
+it('binds every joint the skinned body uses to a named bone in the rig', () => {
+  const view = createSkierView()
+  for (const name of ['hips', 'spine', 'chest', 'head', 'thigh_L', 'shin_R', 'upperarm_L', 'forearm_R', 'hand_L', 'hem_F', 'hem_B', 'hood', 'pack', 'pom', 'cord_L', 'cord_R']) {
+    const bone = view.object.getObjectByName(name) as THREE.Bone | undefined
+    expect(bone?.isBone, name).toBe(true)
+  }
+})

@@ -111,10 +111,10 @@ snow.receiveShadow = true
 scene.add(snow)
 
 const outfit = params.has('default') ? { ...DEFAULT_OUTFIT } : readOutfit()
-for (const key of ['fit', 'headwear', 'jacket', 'pants', 'helmet', 'skis', 'gaiter', 'model', 'jacketAccent', 'skiGraphic', 'skiAccent', 'backpack'] as const) {
+for (const key of ['jacketStyle', 'pantsStyle', 'gloves', 'headwear', 'jacket', 'pants', 'helmet', 'skis', 'gaiter', 'model', 'jacketAccent', 'skiGraphic', 'skiAccent', 'backpack'] as const) {
   const value = params.get(key)
   if (!value) continue
-  const word = ['fit', 'headwear', 'model', 'skiGraphic'].includes(key)
+  const word = ['jacketStyle', 'pantsStyle', 'gloves', 'headwear', 'model', 'skiGraphic'].includes(key)
   ;(outfit as unknown as Record<string, string | boolean>)[key] = key === 'backpack' ? value === 'true' : word ? value : `#${value}`
 }
 // `?pose=tuck,carve-left` shows only those poses (label slugs), for close-ups.
@@ -138,6 +138,13 @@ function runPoses() {
     view.setColours(outfit)
     view.object.traverse((o) => (o.castShadow = true))
     scene.add(view.object)
+    // `?snow` starts the rider as after a crash in powder (it fades as it would in game).
+    if (params.has('snow')) {
+      view.snow.crash = 1
+      view.snow.side.set(0.3, 0.35, 1).normalize()
+      view.snow.legAmount = 1
+      view.snow.legHeight = 0.4
+    }
     const state = createSkiState({ x: (i - (shown.length - 1) / 2) * spacing, y: 0, z: 0, heading: (Number(params.get('h') ?? 0) * Math.PI) / 180 })
     return { pose, view, state }
   })

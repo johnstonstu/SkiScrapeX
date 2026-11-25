@@ -2,6 +2,21 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.20 (2026-11-24): A rider built in Blender, with jacket styles
+
+### Added
+
+- The rider's body is a skinned model built in Blender (`tools/blender/build_rider.py`, exported to `game/public/models/rider.glb`), bound to the same joints the animation already drives, so carving, tucks, grabs, rails, crashes and lift poses all carry over. Fabric has baked folds, seams, zips, stitching, quilting and knit, plus soft ambient occlusion; every palette colour still works through a colour mask.
+- Styles in Rider & gear: jackets (shell, park rat tall-tee, racer, hoodie, puffer), pants (baggy, slim, race), gloves (mitts, gloves, pipe gloves) and headwear (helmet, beanie, cap). Other skiers on the hill pick random styles.
+- Cloth physics: the jacket hem, folded hood, hoodie drawstrings and beanie pom swing toward the apparent gravity the rider feels plus the airflow, so they hang straight down in a tuck, stream back at speed, swing forward on a hard stop and float up in the air. Loose fabric (hems, cuffs, baggy legs) ripples in the wind at speed. The backpack bounces. Wrists bend toward the poles.
+- Snow sticks to the clothes: a crash packs it on in patches on the side that hit (more for a harder fall), and skiing deep powder cakes the legs from the boots up, higher in deeper snow. Crash snow fades over about a minute, faster at speed; leg snow clears about 25 seconds after leaving the powder. `rider.html?snow` shows it.
+- Two look passes on the model, reviewed from all sides in Blender renders (`tools/blender/review_rider.py`): high funnel collars on the shell, racer and puffer; chest, shoulder blades, sloping shoulders and a waist on the torso; a back hem that hangs lower; seat, thighs and kneecaps on the pants with stitched knee panels; framed goggles with a nose cut-out and a strap; a smoother helmet brim; a folded hood lying on the back; a snugger gaiter; hair under beanies and caps; deeper folds at the elbows, knees and hips; a soft fabric sheen and shinier zips.
+
+### Changed
+
+- Each rider draws 31 meshes and about 15k triangles instead of 75 and 21.3k. The old code-built rider stays as a fallback while the model loads, if it fails to load, and with `?noskin`.
+- The Fit choice (baggy or slim) became the Pants style; saved outfits carry over.
+
 ## 0.9.19 (2026-11-24): Deep snow that keeps up, quieter poles
 
 ### Fixed
