@@ -96,15 +96,19 @@ export function createTerrainView(
   groomTexture.needsUpdate = true
   material.setGroomTexture(groomTexture)
 
-  // Store shade and depth together so the shader can read both with its existing lookup.
-  const pack = new Uint8Array(grid.columns * grid.rows * 2)
-  for (let i = 0; i < pack.length / 2; i++) {
+  // Shade, loose depth and wind exposure share one linear lookup (RGBA: cover, depth, exposure).
+  const exposure = surface.exposure
+  const sameShape = exposure && exposure.columns === grid.columns && exposure.rows === grid.rows
+  const pack = new Uint8Array(grid.columns * grid.rows * 4)
+  for (let i = 0; i < grid.columns * grid.rows; i++) {
     const cover = canopy?.cover[i] ?? 0
     const depth = looseSnowDepth((i % grid.columns) * grid.step, Math.floor(i / grid.columns) * grid.step, cover)
-    pack[i * 2] = Math.round(Math.min(1, cover * 1.2) * 255)
-    pack[i * 2 + 1] = Math.round(depth / MAX_LOOSE_SNOW_DEPTH * 255)
+    pack[i * 4] = Math.round(Math.min(1, cover * 1.2) * 255)
+    pack[i * 4 + 1] = Math.round(depth / MAX_LOOSE_SNOW_DEPTH * 255)
+    pack[i * 4 + 2] = sameShape ? Math.round(exposure.values[i] * 255) : 0
+    pack[i * 4 + 3] = 255
   }
-  const canopyTexture = new THREE.DataTexture(pack, grid.columns, grid.rows, THREE.RGFormat, THREE.UnsignedByteType)
+  const canopyTexture = new THREE.DataTexture(pack, grid.columns, grid.rows, THREE.RGBAFormat, THREE.UnsignedByteType)
   canopyTexture.colorSpace = THREE.NoColorSpace
   canopyTexture.magFilter = THREE.LinearFilter
   canopyTexture.minFilter = THREE.LinearFilter

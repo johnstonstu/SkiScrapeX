@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import type { Slope } from '../sim'
 import type { World } from '../world/loadWorld'
 import { buildSurface, type SurfaceField } from '../world/surface'
+import { buildExposure } from '../world/exposure'
 import { buildMoguls } from '../world/moguls'
 import { buildApron } from '../world/apron'
 import { indexTrunks, plantApronForest, plantForest } from '../world/forest'
@@ -65,7 +66,7 @@ export function buildApexStage(
       // Multi-lane parks need room for side-by-side features.
       halfWidth: ['Claim Jumper', 'Okanagan Park', 'Prospector'].includes(site.name) ? 28 : 16,
     })),
-    { originElevation: world.manifest.originElevation },
+    { exposure: buildExposure(grid, { originElevation: world.manifest.originElevation, cover: canopy?.cover }) },
   )
   options.phase?.('apex: surface')
   const terrain = createTerrainView(grid, surface, canopy, lighting, quality.terrain)

@@ -20,7 +20,8 @@ Updated 2026-11-24 for v0.9.0 (overnight 0.8.13–0.9.0 on Pages). Older measure
 | `src/world/buildings.ts` | OSM footprints to shells: storeys from tags or building type, stacked from the high side of the lot, gable roof for box-like footprints, flat snowy roof otherwise. Footprint index for collisions. |
 | `src/world/forest.ts` | Trees from canopy cover and height per 5 m cell (procedural scatter if canopy is missing). Off runs, 9 m clear of lift lines, under 40°. Trunk index for collisions. |
 | `src/world/park.ts` | Park feature library (four tabletop sizes, step-down, rollers, box, flat, down and flat-down rails) as analytic height overlays and rail polylines; six swappable layouts placed along the OSM park lines. Lip and landing angles are absolute and adjusted for the slope. |
-| `src/world/snow.ts` | Surface sampler for the sim: groomed runs, parks, open powder (0.35 m) off-piste, heavier shallower snow under canopy. |
+| `src/world/snow.ts` | Surface sampler for the sim: groomed runs, parks, open powder (0.35 m) off-piste, heavier shallower snow under canopy, wind crust and rock from `world/exposure.ts`. |
+| `src/world/exposure.ts` | Wind exposure per 5 m sample (ridges, windward faces, elevation, tree cover); thresholds shared by the snow shader and the sim. |
 | `src/world/apron.ts` | Procedural land around the crop: matches the crop edge, blends into rolling ridges over 1.6 km, extends 5 km. Trees out to 1.8 km. Purely visual; the skier still stops at the crop edge. |
 | `src/render/terrain/`, `scenery/`, `rider/` | Terrain mesh with the snow shader (5 m for the whole crop; 2 m tiles within 220 m of the camera, exact inside 140 m and morphing to the 5 m surface beyond, with the 5 m mesh cut out under them; 90/150 m on touch devices), instanced trees with distance LOD (dissolve near the camera), lifts with moving chairs and ride paths, buildings with a shader window grid, trail-head and building signs, sky with clouds, the rider (`rider/skierView.ts`, see the rider notes below). Sun shadows from trees, buildings, lifts and the skier in a 220 m box that follows the skier (snow shader reads the shadow map; `?noshadows` turns them off). |
 | `src/fx/` | Snow shader, spray, snowfall and ski tracks (moved from the former `labs/snow-fx`). |
@@ -134,6 +135,7 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - Ragged run edges + deeper mogul crests with cast shadows (0.9.11).
 - Modest Saloon + Inn hero massing (gable/snow/porch/board) without a photo rebuild (0.9.12).
 - Edge saplings inside clear corridors + summit wind-scour ice/rock above ~2100 m ASL (0.9.13).
+- Terrain blending (0.9.14): wind-exposure field drives summit crust and rock (shader and sim), organic patch edges, outcrop slope rock, corduroy cross-fade at run seams. Not yet seen on a real GPU by Stu; steep cliff outcrops not screenshot-checked.
 - Tuck drag raised in 0.8.11 (0.42 m²); re-check equilibrium on Gunbarrel / Grandfather's after a playtest.
 - Buildings are shells from OSM footprints with guessed heights. Only 10 of 147 have tagged storeys. No interiors, decks or props yet.
 - Roads are stamped as packed snow; there are no cars, parking lots or village props.

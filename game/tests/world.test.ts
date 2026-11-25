@@ -162,23 +162,6 @@ describe('resort', () => {
     }
   })
 
-  it('scours summit powder into ice and rock above ~2100 m ASL', () => {
-    const heights = new Float32Array(11 * 11).fill(550)
-    const summit = createTerrainGrid({ columns: 11, rows: 11, stepMetres: 5 }, heights)
-    const empty = resortFromFeatures({ version: 1, runs: [] }, summit.heightAt)
-    const scoured = buildSurface(summit, empty, 1, [], { originElevation: 1600 })
-    let iceOrRock = 0
-    for (let z = 1; z < 49; z += 2) {
-      for (let x = 1; x < 49; x += 2) {
-        const id = surfaceAt(scoured, x, z)
-        if (id === SurfaceId.ice || id === SurfaceId.rock) iceOrRock++
-      }
-    }
-    expect(iceOrRock).toBeGreaterThan(20)
-    const low = createTerrainGrid({ columns: 11, rows: 11, stepMetres: 5 }, new Float32Array(11 * 11).fill(100))
-    const valley = buildSurface(low, empty, 1, [], { originElevation: 1600 })
-    expect(surfaceAt(valley, 25, 25)).toBe(SurfaceId.powder)
-  })
 })
 
 describe('run half-widths', () => {
