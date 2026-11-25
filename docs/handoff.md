@@ -69,10 +69,17 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 
 Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
 
+## Music
+
+- `src/player/musicState.ts` picks the mood (pure, thresholds in `MUSIC_TUNING`); `musicClock.ts` is the bar scheduler; `musicScore.ts` the key, progression, patterns and the per-mood stem mix (`MOOD_MIX`); `musicVoices.ts` the synths; `music.ts` the Web Audio graph, track player and settings glue.
+- `window.skiMusic()` returns the current source, mood, wanted mood, the mood of the last scheduled bar, intensity, key and tempo, track and AudioContext state. Use it with `?at=` and `?park=` to check the mood changes (ambient when standing, drive at about `?at=1906,1512,233` held in a tuck, freestyle on `?park=p`). The in-app browser runs at about one frame a second, so moods change slower there than in play.
+- To add tracks, see `game/public/audio/music/README.md`. Credit each in `game/THIRD_PARTY_NOTICES.md`.
+
 ## Where to tune
 
 - Ski physics: `PHYSICS` in `src/sim/constants.ts`, surfaces in `src/sim/surface.ts`.
 - Freestyle: `FREESTYLE` in `src/sim/freestyle.ts`, kicker and rail specs in `src/world/park.ts`.
+- Music: `MUSIC_TUNING` in `src/player/musicState.ts` (when moods change), `MOOD_MIX` and the patterns in `src/player/musicScore.ts` (how they sound).
 - Medal targets: the pace bot in `src/world/challenges.ts` (times) and `parkTargets` (park scores).
 - Apex facts the OSM data gets wrong: `src/world/corrections.ts`; traced runs: `src/world/runOverlay.ts`. Sources are in `docs/apex-sources.md` and `docs/run-names.md`.
 - Visual gaps from comparing v0.8.0 with real Apex footage are listed in [docs/review/apex-visual-improvements.md](review/apex-visual-improvements.md), with the captures beside it. That list is a proposal for triage. It is not a scheduled milestone, and the items are not implemented, apart from the `features.json` pipeline fix described above.
