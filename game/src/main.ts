@@ -1140,7 +1140,7 @@ function stepDeepSnow(dt: number, ground: SurfaceSample | null) {
   }
   deep.stamper.step(dt)
   deep.patch?.update(skier.x, skier.z)
-  effects.setRibbons(!deep.patch?.mesh.visible)
+  effects.setDeepSnowPatch(Boolean(deep.patch?.mesh.visible))
 }
 
 /** Move the rider along the lift. Hold tuck to fast-forward. */

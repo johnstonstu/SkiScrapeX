@@ -60,6 +60,11 @@ Expensive shader work goes behind a define (like `SNOW_DETAIL`). Expensive geome
 - [ ] Events: Shoot the Chute and the Mars downhill (`docs/review/apex-events/game-event-ideas.md`).
 - [ ] Distant forest: apron tree density (the LiDAR ring is sparser than our cover already), with the performance pass.
 
+### Queued (from Stu's scenery-blender playtest, 2026-11-25)
+
+- [x] Groomer tracks: two clean carve lines, one per ski, instead of the single track drawn now. Deep snow trenches are behaving well, leave them.
+- [x] Blender rider: ankles look broken when turning. Fix ankle and boot weighting or the turn pose so the shin angulates into the boot instead of the joint folding.
+
 ### Next up (from Stu's 0.9.16 playtest, 2026-11-24)
 
 - [x] 0.9.17: instant deep-snow trenches, chair arrival on free ski, arrival camera, T-bar and carpet unloads, carpet on the ground, window flicker, Aerial Site, Prospector park on L2, Claim Jumper XL line, pole push vs tuck, gravity-relative lean.

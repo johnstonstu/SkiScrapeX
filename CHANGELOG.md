@@ -13,6 +13,11 @@ SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor 
 - The Gunbarrel Saloon is modelled on its OSM footprint: brown board-and-batten walls, two glazed front gables with log trusses, a porch, the log-railed deck with picnic tables facing the slope, string lights, the round GUNBARREL sign, a flag and a stone chimney (`tools/blender/build_buildings.py`).
 - The Apex Mountain Inn is modelled too: ochre lap siding over a stone base, framed windows on four storeys, staggered timber balconies, cross gables over the wings, chimneys.
 
+### Fixed
+
+- Groomer tracks are two clean carve lines, one per ski, instead of one wide track: the snow stamp paints a groove under each ski (a skid still smears them into one scrape), and on Medium and High the crisp ribbons now show on firm snow, fading only where the deep-snow trenches are (Stu's playtest).
+- The Blender rider's ankles no longer fold sideways in turns: each knee aims up its boot cuff, so the shin rolls onto the edge with the boot and the knee angulates into the turn (Stu's playtest).
+
 ### Changed
 
 - Scenery models load alongside the world data; the code-built lifts and building shells stay as the fallback.

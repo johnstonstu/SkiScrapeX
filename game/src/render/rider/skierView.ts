@@ -20,6 +20,8 @@ const smooth = (t: number) => t * t * (3 - 2 * t)
 /** Turn pole plant: where the tip strikes (metres ahead of the boots) and how long the reach takes. */
 const PLANT_AHEAD = 0.75
 const PLANT_REACH = 0.12
+/** Boot cuff direction in the ski's frame: up with 15° of forward lean (ski boots are built leaning). */
+export const BOOT_CUFF = new THREE.Vector3(0, Math.cos(0.26), Math.sin(0.26))
 /** How far the wrist bends toward the pole shaft (0 rigid, 1 fully in line). */
 const WRIST_FOLLOW = 0.35
 
@@ -186,14 +188,20 @@ export function createSkierView(): {
   const ankle = new THREE.Vector3()
   const kneeHint = new THREE.Vector3()
   const hipsInverse = new THREE.Matrix4()
+  const cuffKnee = new THREE.Vector3()
+  const midLeg = new THREE.Vector3()
   const fitLegs = () => {
     root.updateMatrixWorld(true)
     hipsInverse.copy(hips.matrixWorld).invert()
     for (const leg of legs) {
       ankle.copy(ANKLE_IN_SKI).applyQuaternion(leg.ski.quaternion).add(leg.ski.position)
+      // A ski boot's cuff is stiff: the shin runs up it, leaning forward over the tip and
+      // rolling with the ski onto its edge. Aim the knee one shin length up the cuff, so the
+      // leg angulates into the boot instead of folding sideways at the ankle.
+      cuffKnee.copy(BOOT_CUFF).applyQuaternion(leg.ski.quaternion).multiplyScalar(SHIN_LENGTH).add(ankle)
       rootToLocal(hips, ankle, ankle)
-      // Knees point over the ski tips.
-      kneeHint.set(0, 0, 1).applyQuaternion(leg.ski.quaternion).transformDirection(root.matrixWorld).transformDirection(hipsInverse)
+      rootToLocal(hips, cuffKnee, cuffKnee)
+      kneeHint.copy(cuffKnee).sub(midLeg.copy(leg.thigh.position).add(ankle).multiplyScalar(0.5))
       solve(leg.thigh, leg.knee, ankle, THIGH_LENGTH, SHIN_LENGTH, kneeHint)
     }
   }

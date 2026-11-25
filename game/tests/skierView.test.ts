@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
 import { createSkiState, type SkiInput } from '../src/sim'
 import { DEFAULT_OUTFIT } from '../src/ui/riderPanel'
-import { Spring, createSkierView } from '../src/render/rider/skierView'
+import { BOOT_CUFF, Spring, createSkierView } from '../src/render/rider/skierView'
 
 const idle: SkiInput = { steer: 0, brake: 0, tuck: false }
 const ground = { height: 0, normal: { x: 0, y: 1, z: 0 } } as never
@@ -213,5 +213,31 @@ it('binds every joint the skinned body uses to a named bone in the rig', () => {
   for (const name of ['hips', 'spine', 'chest', 'head', 'thigh_L', 'shin_R', 'upperarm_L', 'forearm_R', 'hand_L', 'hem_F', 'hem_B', 'hood', 'pack', 'pom', 'cord_L', 'cord_R']) {
     const bone = view.object.getObjectByName(name) as THREE.Bone | undefined
     expect(bone?.isBone, name).toBe(true)
+  }
+})
+
+it('keeps each shin running up its boot cuff in a deep carve, so the ankle does not fold sideways', () => {
+  const view = createSkierView()
+  const state = createSkiState({ x: 0, z: 0, heading: 0 })
+  state.speed = 14
+  for (let i = 0; i < 90; i++) {
+    state.time += 1 / 60
+    state.edgeAngle = 0.75
+    state.carveLoad = 2
+    state.carveRadius = 12
+    view.update(state, { ...idle, steer: 1 }, ground, 'ski', 1 / 60)
+  }
+  view.object.updateMatrixWorld(true)
+  const q = new THREE.Quaternion()
+  const boots: THREE.Object3D[] = []
+  view.object.traverse((o) => o.name === 'ski-boot' && boots.push(o))
+  for (const name of ['shin_L', 'shin_R']) {
+    const shin = view.object.getObjectByName(name)!
+    // Up the shin, from the ankle toward the knee.
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(shin.getWorldQuaternion(q))
+    const foot = shin.getWorldPosition(new THREE.Vector3()).addScaledVector(up, -0.42)
+    const boot = boots.reduce((a, b) => (a.getWorldPosition(new THREE.Vector3()).distanceTo(foot) < b.getWorldPosition(new THREE.Vector3()).distanceTo(foot) ? a : b))
+    const cuff = BOOT_CUFF.clone().applyQuaternion(boot.parent!.getWorldQuaternion(q))
+    expect(up.angleTo(cuff), name).toBeLessThan(0.3)
   }
 })

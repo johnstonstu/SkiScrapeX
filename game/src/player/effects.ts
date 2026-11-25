@@ -49,10 +49,11 @@ export function createSnowEffects(
     },
     /**
      * Ribbon tracks sit just above the snow surface. Where the deep-snow patch
-     * draws real trenches they would float over them, so they hide there.
+     * draws real trenches they would float over them, so they fade out in loose
+     * snow; on groomers they still draw two clean carve lines.
      */
-    setRibbons(on: boolean) {
-      tracks.object.visible = on
+    setDeepSnowPatch(active: boolean) {
+      tracks.deepSnowPatch = active
     },
     clear() {
       wasAirborne = false
