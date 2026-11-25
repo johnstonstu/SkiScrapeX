@@ -9,7 +9,8 @@ import { polylineLength, runHalfWidth, type Point2, type Run } from '../world/re
 import {
   FINISH_RADIUS,
   GATE_PENALTY,
-  gateCrossing,
+  GATE_HALF_WIDTH,
+  gateLateral,
   progressAlong,
   type Gate,
   type MedalTargets,
@@ -47,7 +48,8 @@ export interface RunStats {
 }
 
 export type SessionEvent =
-  | { type: 'gate'; result: 'pass' | 'miss'; index: number; total: number }
+  /** `lateral` is where across the gate it was crossed (null when it was skipped), `skid` the skis' skid then. */
+  | { type: 'gate'; result: 'pass' | 'miss'; index: number; total: number; lateral: number | null; skid: number }
   | { type: 'finish' }
   | { type: 'offCourse' }
   | { type: 'split'; index: number; time: number }
@@ -68,6 +70,8 @@ export function createSession(challenge: Challenge) {
   const trap = challenge.kind === 'event' ? challenge.course.trap : null
   const splitAt = challenge.kind === 'event' ? challenge.course.splits : []
   let inTrap = false
+  // Race events start the clock at GO from the start gate, not on the first movement.
+  const waitForGo = challenge.kind === 'event' && challenge.course.def.format !== 'aerials'
   let timing = false
   let finished = false
   let lastX = NaN
@@ -93,6 +97,10 @@ export function createSession(challenge: Challenge) {
     get nextGate() {
       return nextGate
     },
+    /** GO from the start gate: the clock runs from now. */
+    startClock() {
+      timing = true
+    },
     /** Stop the clock and the rules: the attempt has ended some other way (a crash). */
     abandon() {
       finished = true
@@ -101,7 +109,7 @@ export function createSession(challenge: Challenge) {
     step(skier: SkiState, dt: number): SessionEvent[] {
       const events: SessionEvent[] = []
       if (finished) return events
-      if (!timing && skier.speed > 1) timing = true
+      if (!timing && !waitForGo && skier.speed > 1) timing = true
       if (timing) stats.time += dt
       if (Number.isFinite(lastX)) {
         stats.distance += Math.hypot(skier.x - lastX, skier.z - lastZ)
@@ -132,7 +140,8 @@ export function createSession(challenge: Challenge) {
           const gates = challenge.gates
           while (nextGate < gates.length) {
             const gate = gates[nextGate]
-            let result = gateCrossing(lastX, lastZ, skier.x, skier.z, gate)
+            const lateral = gateLateral(lastX, lastZ, skier.x, skier.z, gate)
+            let result: 'pass' | 'miss' | null = lateral === null ? null : Math.abs(lateral) <= (gate.halfWidth ?? GATE_HALF_WIDTH) ? 'pass' : 'miss'
             // Skipped wide or crossed some other way: once well past the gate, it is missed.
             if (!result && s > gate.s + 12) result = 'miss'
             if (!result) break
@@ -141,7 +150,7 @@ export function createSession(challenge: Challenge) {
               stats.gatesMissed++
               if (challenge.kind === 'slalom') stats.penalty += GATE_PENALTY
             }
-            events.push({ type: 'gate', result, index: nextGate, total: gates.length })
+            events.push({ type: 'gate', result, index: nextGate, total: gates.length, lateral, skid: skier.skid })
             nextGate++
             // Race rules: a missed gate is a disqualification, not a time penalty.
             if (result === 'miss' && challenge.kind === 'event') {

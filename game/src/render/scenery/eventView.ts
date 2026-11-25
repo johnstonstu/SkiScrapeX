@@ -251,6 +251,15 @@ export function createEventView(course: EventCourse, heightAt: HeightAt) {
     sign(finishS + 4, 18, 'TIMING', '#1b1f24', '#ffffff')
   }
 
+  // The ghost of the best run: the crowd figure in see-through ice blue.
+  const ghostMaterial = keep(new THREE.MeshLambertMaterial({ color: 0x9fe8ff, emissive: 0x2a8fb8, emissiveIntensity: 0.6, transparent: true, opacity: 0.45, depthWrite: false }))
+  const ghostSkis = keep(new THREE.BoxGeometry(0.5, 0.05, 1.8).translate(0, 0.03, 0))
+  const ghost = new THREE.Group()
+  ghost.name = 'ghost'
+  for (const geometry of [body, legs, head, ghostSkis]) ghost.add(new THREE.Mesh(geometry, ghostMaterial))
+  ghost.visible = false
+  group.add(ghost)
+
   const matrix = new THREE.Matrix4()
   const position = new THREE.Vector3()
   const quaternion = new THREE.Quaternion()
@@ -284,6 +293,14 @@ export function createEventView(course: EventCourse, heightAt: HeightAt) {
       time += dt
       gatesView?.update(camera)
       pose(skier)
+    },
+    /** Place the ghost (skier heading convention: 0 faces +Z, positive to the right), or hide it. */
+    setGhost(pose: { x: number; y: number; z: number; heading: number } | null) {
+      ghost.visible = Boolean(pose)
+      if (!pose) return
+      ghost.position.set(pose.x, pose.y, pose.z)
+      // Forward is (-sin h, cos h), so the yaw that turns +Z to face it is -h.
+      ghost.rotation.y = -pose.heading
     },
     mark(index: number, result: 'pass' | 'miss') {
       gatesView?.mark(index, result)

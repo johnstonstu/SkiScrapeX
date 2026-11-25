@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { FIXED_DT, createSkiState, stepSkier, type SampleTerrain } from '../src/sim'
 import { createSession, type Challenge } from '../src/app/session'
+import { aimGate, assistSteer, gateAim, steerToward } from '../src/app/race'
 import { progressAlong } from '../src/world/challenges'
 import { EVENTS, buildEventCourse, matchDelta, paceRoute, raceGates, stitch, type EventCourse, type EventDef } from '../src/world/events'
 import { headingFor, pointAlong, polylineLength, resortFromFeatures, type Point2, type Resort } from '../src/world/resort'
@@ -16,23 +17,34 @@ function eventChallenge(course: EventCourse, firstRun?: number): Extract<Challen
 }
 
 /**
- * Race the course like a tidy racer (steer at the point 12 m ahead along the
- * race line, tuck under the cap) while the session applies the event's rules. Returns
- * every session event and the session.
+ * Race the course with a keyboard-style racer: before each gate it presses
+ * full left or right toward the gate (no fine steering), and the racing line
+ * assist does the rest, as for a player. Without gates it steers at the
+ * point 12 m along the line. Returns every session event and the session.
  */
-function race(course: EventCourse, terrain: SampleTerrain, cap: number) {
+function race(course: EventCourse, terrain: SampleTerrain, cap: number, assisted = true) {
   const session = createSession(eventChallenge(course))
+  session.startClock() // GO from the start gate
   const route = paceRoute(course)
+  const offset = course.def.gates.kind === 'none' ? 0 : course.def.gates.offset
   const [x0, z0] = route[0]
   const s = createSkiState({ x: x0, z: z0, heading: headingFor(route[1][0] - x0, route[1][1] - z0) })
   s.y = terrain(x0, z0)!.height
   const events: ReturnType<typeof session.step> = []
   for (let t = 0; t < 400 && !session.finished; t += FIXED_DT) {
-    // Aim at the point 12 m further along the route than the nearest point on it.
-    const [tx, tz] = pointAlong(route, progressAlong(s.x, s.z, route).s + 12)
-    const want = headingFor(tx - s.x, tz - s.z)
-    const error = Math.atan2(Math.sin(want - s.heading), Math.cos(want - s.heading))
-    stepSkier(s, { steer: s.grounded ? Math.max(-1, Math.min(1, error * 2.5)) : 0, brake: s.speed > cap ? 0.7 : 0, tuck: s.speed < cap * 0.7 }, terrain, FIXED_DT)
+    const ahead = progressAlong(s.x, s.z, course.line).s
+    const gate = aimGate(course.gates, session.nextGate, ahead)
+    let steer: number
+    if (gate) {
+      const [ax, az] = gateAim(gate, offset)
+      const ideal = steerToward(s, ax, az)
+      const tap = Math.abs(ideal) > 0.08 ? Math.sign(ideal) : 0
+      steer = assisted ? assistSteer(tap, ideal) : tap
+    } else {
+      const [tx, tz] = pointAlong(course.line, ahead + 12)
+      steer = steerToward(s, tx, tz)
+    }
+    stepSkier(s, { steer: s.grounded ? steer : 0, brake: s.speed > cap ? 0.7 : 0, tuck: s.speed < cap * 0.7 }, terrain, FIXED_DT)
     events.push(...session.step(s, FIXED_DT))
   }
   return { session, events }
@@ -63,6 +75,7 @@ describe('event rules on a straight test course', () => {
 
   it('fires splits in order, clocks the radar once on the way out, then finishes', () => {
     const session = createSession(eventChallenge(course))
+    session.startClock() // GO from the start gate
     const seen: string[] = []
     let trapSpeed = 0
     for (let z = 0; z <= 600; z += 0.5) {
@@ -83,6 +96,7 @@ describe('event rules on a straight test course', () => {
 
   it('a missed race gate disqualifies at once instead of adding time', () => {
     const session = createSession(eventChallenge(course))
+    session.startClock() // GO from the start gate
     const types: string[] = []
     // On the line until 80 m, then 9 m to the side: outside the first gate's 6 m half width.
     for (let z = 0; z <= 600 && !session.finished; z += 0.5) for (const e of session.step(at(z, 20, z > 80 ? 9 : 0), 0.02)) types.push(e.type)
@@ -94,6 +108,7 @@ describe('event rules on a straight test course', () => {
 
   it('abandon stops the clock and the rules (a crash in a speed event)', () => {
     const session = createSession(eventChallenge(course))
+    session.startClock() // GO from the start gate
     for (let z = 0; z < 100; z += 0.5) session.step(at(z, 20), 0.02)
     session.abandon()
     const time = session.stats.time
@@ -144,8 +159,8 @@ describe.skipIf(!hasData)('Apex events on the real map', () => {
     expect(trapGrade).toBeGreaterThan(courseGrade * 1.3)
   })
 
-  it('Mars Downhill: summit start, splits at the top and bottom of Gunbarrel, finish at the old upper lot', () => {
-    const mars = courses.get('mars-downhill')!
+  it('Apex Downhill: summit start, splits at the top and bottom of Gunbarrel, finish at the old upper lot', () => {
+    const mars = courses.get('apex-downhill')!
     expect(near(mars.line[0], SUMMIT)).toBeLessThan(45)
     expect(near(mars.line[mars.line.length - 1], OLD_UPPER_LOT)).toBeLessThan(10)
     const top = progressAlong(1076, 1182, mars.line).s
@@ -179,7 +194,7 @@ describe.skipIf(!hasData)('Apex events on the real map', () => {
 
   it('a racer on the pace line finishes every race event clean: all gates, all splits, the radar', () => {
     for (const course of courses.values()) {
-      if (course.def.format !== 'race') continue
+      if (course.def.format !== 'race' && course.def.format !== 'twoRun') continue
       const { session, events } = race(course, grid.sampleTerrain, course.def.paceCap)
       const types = events.map((e) => e.type)
       expect(types, course.def.id).toContain('finish')

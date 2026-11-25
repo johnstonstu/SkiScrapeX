@@ -353,3 +353,16 @@ body:has(#coach:not([hidden])) #help { display: none; }
 .touch #coach { top: calc(max(3.9rem, env(safe-area-inset-top) + 3.2rem) + 9.6rem); padding: 0.5rem 0.75rem 0.55rem; }
 .touch #coach h3 { font-size: 0.95rem; }
 .touch #coach p { font-size: 0.85rem; }
+
+/* Competition overlays: start countdown and the mogul beat strip. */
+#race-count { position: fixed; z-index: 3; top: 30%; left: 50%; transform: translate(-50%, -50%); font: 900 5.5rem/1 system-ui, sans-serif; color: #fff; text-shadow: 0 4px 18px rgba(0, 0, 0, 0.55); pointer-events: none; animation: race-pop 0.9s ease-out; }
+#race-count.go { color: #6be38a; }
+#race-count.warn { color: #ff6b5b; font-size: 3rem; }
+@keyframes race-pop { from { transform: translate(-50%, -50%) scale(1.6); opacity: 0; } 25% { opacity: 1; } to { transform: translate(-50%, -50%) scale(1); } }
+#beat-strip { position: fixed; z-index: 2; bottom: 4.2rem; left: 50%; transform: translateX(-50%); width: 15rem; height: 4.4rem; pointer-events: none; }
+#beat-strip .beat-cues { position: absolute; left: 0; top: 0.4rem; display: flex; gap: 0.6rem; align-items: center; }
+#beat-strip .cue { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%; background: rgba(19, 38, 55, 0.72); color: #cfe3f3; font-size: 1.2rem; opacity: 0.55; }
+#beat-strip .cue.now { opacity: 1; background: rgba(19, 38, 55, 0.9); color: #ffe27a; font-size: 1.45rem; }
+#beat-strip .beat-ring { position: absolute; left: 1.3rem; top: 1.7rem; width: 2.6rem; height: 2.6rem; border: 3px solid rgba(255, 255, 255, 0.85); border-radius: 50%; transform: translate(-50%, -50%); }
+#beat-strip .beat-ring.hot { border-color: #6be38a; box-shadow: 0 0 12px #6be38a; }
+#beat-strip .beat-meta { position: absolute; left: 0; bottom: 0; font-size: 0.78rem; color: #edf6ff; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); }

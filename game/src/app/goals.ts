@@ -21,6 +21,7 @@ import {
   runLengths,
   type Gate,
   type Medal,
+  type MedalTargets,
 } from '../world/challenges'
 import { createGatesView, createNuggetsView } from '../render/scenery/goalsView'
 import { createEventView, type EventView } from '../render/scenery/eventView'
@@ -91,6 +92,13 @@ export function createGoals(options: {
     line: paceRoute(course),
     cap: course.def.paceCap,
   })
+  /** Medal targets for an event: fixed ones, or the pace bot's (doubled for two-run combined time). */
+  const eventTargets = (course: EventCourse, ensure: boolean): MedalTargets | null | undefined => {
+    if (course.def.fixedTargets) return course.def.fixedTargets
+    const one = ensure ? book.ensure(eventPace(course)) : book.get(`event:${course.def.id}`)
+    if (!one || course.def.format !== 'twoRun') return one
+    return { gold: one.gold * 2, silver: one.silver * 2, bronze: one.bronze * 2 }
+  }
   const book = createTargetBook(
     [
       ...events.filter((course) => !course.def.fixedTargets).map(eventPace),
@@ -152,7 +160,7 @@ export function createGoals(options: {
     event(course: EventCourse, firstRun?: number): Challenge {
       const { def } = course
       const run: Run = { id: `event:${def.id}`, name: def.name, difficulty: null, groomed: true, kind: 'line', parts: [course.line] }
-      const targets = def.fixedTargets ?? book.ensure(eventPace(course))
+      const targets = eventTargets(course, true) ?? null
       return { kind: 'event', id: `event:${def.id}`, course, run, line: course.line, gates: course.gates, targets, firstRun }
     },
     /** An event by its id (`shoot-the-chute`), or null when this map lacks it. */
@@ -228,6 +236,10 @@ export function createGoals(options: {
       gatesView?.mark(index, result)
       eventView?.mark(index, result)
     },
+    /** Show the ghost of the best run at this pose (or hide it). */
+    setGhost(pose: { x: number; y: number; z: number; heading: number } | null) {
+      eventView?.setGhost(pose)
+    },
     /** Keep the fastest time at each split of an event, for the split deltas next time. */
     recordSplits(id: string, splits: number[]) {
       splits.forEach((time, i) => recordBest(progress, `${id}:split${i + 1}`, time, true))
@@ -296,7 +308,9 @@ export function createGoals(options: {
       const before = unlocked()
       const score = challenge.kind === 'park'
       const match = challenge.kind === 'event' && challenge.course.def.format === 'match' && challenge.firstRun !== undefined
-      const value = score ? points : match && challenge.kind === 'event' ? matchDelta(challenge.firstRun!, session.total) : session.total
+      const combined = challenge.kind === 'event' && challenge.course.def.format === 'twoRun' && challenge.firstRun !== undefined
+      const first = challenge.kind === 'event' ? challenge.firstRun ?? 0 : 0
+      const value = score ? points : match ? matchDelta(first, session.total) : combined ? first + session.total : session.total
       const { stats } = session
       progress.totals.runs++
       progress.totals.vertical += stats.vertical
@@ -321,7 +335,7 @@ export function createGoals(options: {
       if (challenge.kind === 'event') {
         const { def } = challenge.course
         const head: [string, string][] = []
-        if (match) head.push(['Run 1', formatTime(challenge.firstRun!)], ['Run 2', formatTime(session.total)])
+        if (match || combined) head.push(['Run 1', formatTime(challenge.firstRun!)], ['Run 2', formatTime(session.total)])
         if (challenge.gates.length) head.push(['Gates', `${stats.gatesPassed}/${challenge.gates.length}`])
         stats.splits.forEach((time, i) => head.push([`Split ${i + 1}`, formatTime(time)]))
         if (challenge.course.trap && stats.trapSpeed > 0) {
@@ -345,7 +359,9 @@ export function createGoals(options: {
             ? `${challenge.run.name} slalom`
             : match
               ? `${challenge.run.name} · difference`
-              : challenge.run.name
+              : combined
+                ? `${challenge.run.name} · combined`
+                : challenge.run.name
       return {
         title,
         value,
@@ -400,7 +416,7 @@ export function createGoals(options: {
         detail: course.def.where,
         story: course.def.story,
         rules: course.def.rules,
-        targets: course.def.fixedTargets ?? book.get(`event:${course.def.id}`),
+        targets: eventTargets(course, false),
         score: false,
         start: () => start(this.event(course)),
       }))

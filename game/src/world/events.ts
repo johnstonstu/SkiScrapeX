@@ -12,8 +12,14 @@ import { mainLine, trimLine, type Gate, type MedalTargets } from './challenges'
 export type EventFormat =
   /** Fastest clock wins; missed gates (if any) disqualify. */
   | 'race'
+  /** Two runs, fastest combined time wins (slalom). */
+  | 'twoRun'
   /** Two runs: the first sets a time, the second tries to match it. */
   | 'match'
+  /** Mogul comp: tap to turn, judged on turns, air and speed. */
+  | 'moguls'
+  /** Aerials: the best two jumps, difficulty times form. */
+  | 'aerials'
 
 export interface EventDef {
   id: string
@@ -32,7 +38,7 @@ export interface EventDef {
   gates:
     | { kind: 'none' }
     | {
-        kind: 'downhill' | 'gs'
+        kind: 'downhill' | 'gs' | 'slalom'
         /** First gate, metres along the course; then one every `spacing` until `endGap` before the finish. */
         start: number
         spacing: number
@@ -96,11 +102,11 @@ export const EVENTS: EventDef[] = [
     benchmark: { label: 'Eric Pehota', kmh: 151 },
   },
   {
-    id: 'mars-downhill',
-    name: 'Mars Downhill',
+    id: 'apex-downhill',
+    name: 'Apex Downhill',
     where: 'Summit start house, down Gunbarrel to the old upper lot',
     story:
-      'The Mars Canadian Junior Championships (2004) and Mars BC Cup (2005) ran speed events on the FIS Gunbarrel downhill: 532 m of drop, winners near 1:20.',
+      'The FIS Gunbarrel downhill hosted Nor-Am and Canada Cup speed races from 1998 to 2013, the Mars Canadian Junior Championships in 2004 and the Mars BC Cup in 2005: 532 m of drop, winners near 1:20.',
     rules: 'Pass every gate or you are disqualified. Two split clocks and a speed trap at the bottom of Gunbarrel. A crash is a DNF.',
     format: 'race',
     legs: [
@@ -123,6 +129,26 @@ export const EVENTS: EventDef[] = [
     benchmark: { label: 'Conrad Pridy (FIS, 2,002 m course)', seconds: 79.52 },
   },
   {
+    id: 'apex-slalom',
+    name: 'Apex Slalom',
+    where: 'Okanagan Run, off the T-Bar',
+    story:
+      'The Teck Okanagan Zone races run a "slalom factory" off the T-Bar: six lanes and about 800 race runs a weekend on Okanagan Run.',
+    rules: 'Two runs, combined time. Tight gates: carve close to each turning pole for speed. A missed gate is a disqualification.',
+    format: 'twoRun',
+    legs: [{ run: 'Okanagan Run' }],
+    // Clear of the T-Bar top.
+    startTrim: 30,
+    gates: { kind: 'slalom', start: 30, spacing: 14, offset: 2.5, halfWidth: 4, endGap: 30, maxBend: 25 },
+    // A key-tapping racer with the line assist clears every gate from 9 to 13 m/s, with any lead from 3 to 5 m (tests/events.test.ts).
+    trap: null,
+    splits: [0.5],
+    bailIsDnf: false,
+    corridor: 25,
+    paceCap: 12,
+    finish: { crowd: 45, cars: 0, hut: true, banner: 'APEX SLALOM' },
+  },
+  {
     id: 'teck-gs',
     name: 'Teck Open GS',
     where: 'Old Mill, finishing at the Ski Club timing hut',
@@ -137,8 +163,8 @@ export const EVENTS: EventDef[] = [
     splits: [0.5],
     bailIsDnf: false,
     corridor: 30,
-    // The test racer makes every gate clean at 12 m/s (43 km/h); faster, the sim's turns swing it out of the gates.
-    paceCap: 12,
+    // A key-tapping racer with the line assist clears every gate up to 18 m/s; the pace bot sets times at 16.
+    paceCap: 16,
     finish: { crowd: 35, cars: 0, hut: true, banner: 'APEX SKI CLUB GS' },
   },
   {

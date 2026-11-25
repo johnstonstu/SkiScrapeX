@@ -51,6 +51,8 @@ import { QUALITY, createSettingsPanel, lighterQuality, readSettings, resolveQual
 import { lowerAutoCap, readAutoCap } from './app/autoCap'
 import { showGraphicsProblem } from './app/graphicsFail'
 import { createSession, type Challenge, type SessionEvent } from './app/session'
+import { createRaceDirector } from './app/raceDirector'
+import { createRaceHud } from './ui/raceHud'
 import { createGoals, type Goals } from './app/goals'
 import { renderChallenges, renderResults, renderTitle, setTitleStatus } from './ui/goalsPanels'
 import { GATE_PENALTY, progressAlong } from './world/challenges'
@@ -152,6 +154,8 @@ const gearDrops = createGearDrops(scene)
 const effects = createSnowEffects(scene, lighting, pixelRatio, quality)
 effects.setBoard(outfit.model === 'snowboard')
 const tricks = createTrickFeed(ui.trick)
+const raceHud = createRaceHud()
+const race = createRaceDirector({ hud: raceHud, show: (title, detail, kind) => tricks.show(title, detail, kind), assistOn: () => settings.raceAssist })
 const coach = createCoach(ui.coach, () => (controls.gamepad ? 'pad' : mobile ? 'touch' : 'keys'), { onExit: () => (tutorialLine = null), toTop: (message) => transition(message, 1.1, spawn) })
 /** The bunny-hill line while the tutorial runs: reaching its end puts you back at the top. */
 let tutorialLine: Point2[] | null = null
@@ -524,6 +528,7 @@ function spawn(keepCamera = false) {
   else skier = createSkier(stage.slope)
   clock.accumulator = 0
   session = createSession(challenge)
+  race.begin(challenge, session)
   goals?.resetGates()
   tricks.resetTotal()
   effects.clear()
@@ -588,6 +593,7 @@ function setFreeSki() {
   challenge = { kind: 'free' }
   goals?.activate(challenge)
   session = createSession(challenge)
+  race.end()
 }
 
 function openPanel(panel: HTMLElement) {
@@ -613,8 +619,9 @@ function openChallenges() {
 function eventTitle(event: Extract<Challenge, { kind: 'event' }>, passed: number): string {
   const { def } = event.course
   if (def.format === 'match') return event.firstRun === undefined ? `${def.name} · run 1 sets the time` : `${def.name} · run 2 · match ${formatTime(event.firstRun)}`
-  if (!event.gates.length) return def.name
-  return `${def.name} · ${passed < event.gates.length ? `gate ${passed + 1}/${event.gates.length}` : 'to the finish'}`
+  const run = def.format === 'twoRun' ? ` · run ${event.firstRun === undefined ? 1 : 2}` : ''
+  if (!event.gates.length) return `${def.name}${run}`
+  return `${def.name}${run} · ${passed < event.gates.length ? `gate ${passed + 1}/${event.gates.length}` : 'to the finish'}`
 }
 
 function onSessionEvent(event: SessionEvent) {
@@ -622,6 +629,7 @@ function onSessionEvent(event: SessionEvent) {
     const current = challenge
     if (event.type === 'gate') {
       goals?.markGate(event.index, event.result)
+      race.onGate(event, skier)
       ui.title.textContent = eventTitle(current, event.index + 1)
       return
     }
@@ -639,12 +647,13 @@ function onSessionEvent(event: SessionEvent) {
       endChallenge(`Disqualified: missed gate ${event.gate + 1}`)
       return
     }
-    if (event.type === 'finish' && current.course.def.format === 'match' && current.firstRun === undefined && goals) {
-      // Run one only sets the time to match: back to the start for run two.
+    const twoRuns = current.course.def.format === 'match' || current.course.def.format === 'twoRun'
+    if (event.type === 'finish' && twoRuns && current.firstRun === undefined && goals) {
+      // Run one: back to the start for run two (to match it, or to add to it).
       const first = session.total
       const next = goals.event(current.course, first)
       transition(`Run 1: ${formatTime(first)}
-Now match it`, 2, () => startChallenge(next))
+${current.course.def.format === 'match' ? 'Now match it' : 'Run 2'}`, 2, () => startChallenge(next))
       return
     }
     if (event.type === 'finish') {
@@ -700,6 +709,12 @@ function endChallenge(failed: string | null) {
   session.abandon()
   const finished = challenge
   const result = goals.finish(session, tricks.total, failed)
+  race.finished(result.improved && !failed)
+  if (finished.kind === 'event' && finished.gates.length && !failed) {
+    const g = race.grades
+    result.lines.push(['Tight / clean / skidded gates', `${g.tight} / ${g.clean} / ${g.skid}`])
+  }
+  race.end()
   if (finished.kind === 'park') {
     const { perfect, clean, railMetres, bestName } = tricks.stats
     result.lines.push(['Perfect / clean landings', `${perfect} / ${clean}`], ['Rail and box distance', `${railMetres.toFixed(1)} m`])
@@ -1060,6 +1075,8 @@ function tick(dt: number, frameMs: number) {
       pause = null
       done()
     }
+  } else if ((race.input(input, skier, dt), race.holding)) {
+    // Held in the start gate until GO.
   } else {
     perf.begin()
     steps = advance(clock, skier, input, stage.slope.sampleTerrain, dt, stage.env, stage.trunks ? checkTreeContact : undefined)
@@ -1077,6 +1094,7 @@ function tick(dt: number, frameMs: number) {
     }
     if (skier.mode !== 'crashed') crashShown = false
     for (const event of session.step(skier, dt)) onSessionEvent(event)
+    race.record(skier)
     coach.update(skier, input, dt)
     coachTips()
     checkEvents()
@@ -1092,6 +1110,7 @@ function tick(dt: number, frameMs: number) {
       }
     }
   }
+  goals?.setGhost(race.ghost())
   if (goals && !pause) {
     const found = goals.frame(skier, dt, Boolean(ride), camera.position)
     if (found) {

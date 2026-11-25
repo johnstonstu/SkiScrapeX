@@ -29,6 +29,8 @@ export interface Settings {
   landingAssist: boolean
   /** Other skiers on the hill. */
   npcs: boolean
+  /** Race events: steering toward the next gate is pulled onto the racing line. */
+  raceAssist: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -45,6 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
   landingRing: true,
   landingAssist: true,
   npcs: true,
+  raceAssist: true,
 }
 
 export function readSettings(): Settings {
@@ -277,6 +280,7 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
     chips('Other skiers', 'npcs', [[true, 'On'], [false, 'Off']])
     chips('Landing marker', 'landingRing', [[true, 'On'], [false, 'Off']])
     chips('Landing assist', 'landingAssist', [[true, 'On'], [false, 'Off']], 'lines up rotation near touchdown')
+    chips('Racing line assist', 'raceAssist', [[true, 'On'], [false, 'Off']], 'steer toward a gate and it helps you carve round the pole')
     const reset = document.createElement('button')
     reset.type = 'button'
     reset.className = 'reset'
