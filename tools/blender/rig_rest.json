@@ -1,0 +1,191 @@
+[
+  {
+    "name": "hips",
+    "parent": null,
+    "head": [
+      0,
+      1.14,
+      0
+    ]
+  },
+  {
+    "name": "thigh_L",
+    "parent": "hips",
+    "head": [
+      0.11,
+      1.08,
+      0
+    ]
+  },
+  {
+    "name": "shin_L",
+    "parent": "thigh_L",
+    "head": [
+      0.1358,
+      0.6508,
+      0
+    ]
+  },
+  {
+    "name": "thigh_R",
+    "parent": "hips",
+    "head": [
+      -0.11,
+      1.08,
+      0
+    ]
+  },
+  {
+    "name": "shin_R",
+    "parent": "thigh_R",
+    "head": [
+      -0.1358,
+      0.6508,
+      0
+    ]
+  },
+  {
+    "name": "spine",
+    "parent": "hips",
+    "head": [
+      0,
+      1.21,
+      0
+    ]
+  },
+  {
+    "name": "chest",
+    "parent": "spine",
+    "head": [
+      0,
+      1.47,
+      0
+    ]
+  },
+  {
+    "name": "hem_F",
+    "parent": "spine",
+    "head": [
+      0,
+      1.11,
+      0.13
+    ]
+  },
+  {
+    "name": "hem_B",
+    "parent": "spine",
+    "head": [
+      0,
+      1.11,
+      -0.13
+    ]
+  },
+  {
+    "name": "hood",
+    "parent": "chest",
+    "head": [
+      0,
+      1.75,
+      -0.1
+    ]
+  },
+  {
+    "name": "pack",
+    "parent": "chest",
+    "head": [
+      0,
+      1.51,
+      -0.17
+    ]
+  },
+  {
+    "name": "cord_L",
+    "parent": "chest",
+    "head": [
+      0.045,
+      1.77,
+      0.15
+    ]
+  },
+  {
+    "name": "cord_R",
+    "parent": "chest",
+    "head": [
+      -0.045,
+      1.77,
+      0.15
+    ]
+  },
+  {
+    "name": "head",
+    "parent": "chest",
+    "head": [
+      0,
+      1.83,
+      0
+    ]
+  },
+  {
+    "name": "pom",
+    "parent": "head",
+    "head": [
+      0,
+      2.13,
+      0
+    ]
+  },
+  {
+    "name": "upperarm_L",
+    "parent": "chest",
+    "head": [
+      0.215,
+      1.68,
+      -0.01
+    ]
+  },
+  {
+    "name": "forearm_L",
+    "parent": "upperarm_L",
+    "head": [
+      0.3787,
+      1.4407,
+      -0.01
+    ]
+  },
+  {
+    "name": "hand_L",
+    "parent": "forearm_L",
+    "head": [
+      0.5312,
+      1.2178,
+      -0.01
+    ]
+  },
+  {
+    "name": "upperarm_R",
+    "parent": "chest",
+    "head": [
+      -0.215,
+      1.68,
+      -0.01
+    ]
+  },
+  {
+    "name": "forearm_R",
+    "parent": "upperarm_R",
+    "head": [
+      -0.3787,
+      1.4407,
+      -0.01
+    ]
+  },
+  {
+    "name": "hand_R",
+    "parent": "forearm_R",
+    "head": [
+      -0.5312,
+      1.2178,
+      -0.01
+    ]
+  }
+]

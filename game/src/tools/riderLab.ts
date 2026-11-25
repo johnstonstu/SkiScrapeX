@@ -111,10 +111,10 @@ snow.receiveShadow = true
 scene.add(snow)
 
 const outfit = params.has('default') ? { ...DEFAULT_OUTFIT } : readOutfit()
-for (const key of ['fit', 'headwear', 'jacket', 'pants', 'helmet', 'skis', 'gaiter', 'model', 'jacketAccent', 'skiGraphic', 'skiAccent', 'backpack'] as const) {
+for (const key of ['jacketStyle', 'pantsStyle', 'gloves', 'headwear', 'jacket', 'pants', 'helmet', 'skis', 'gaiter', 'model', 'jacketAccent', 'skiGraphic', 'skiAccent', 'backpack'] as const) {
   const value = params.get(key)
   if (!value) continue
-  const word = ['fit', 'headwear', 'model', 'skiGraphic'].includes(key)
+  const word = ['jacketStyle', 'pantsStyle', 'gloves', 'headwear', 'model', 'skiGraphic'].includes(key)
   ;(outfit as unknown as Record<string, string | boolean>)[key] = key === 'backpack' ? value === 'true' : word ? value : `#${value}`
 }
 // `?pose=tuck,carve-left` shows only those poses (label slugs), for close-ups.

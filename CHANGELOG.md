@@ -2,6 +2,19 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.20 (2026-11-24): A rider built in Blender, with jacket styles
+
+### Added
+
+- The rider's body is a skinned model built in Blender (`tools/blender/build_rider.py`, exported to `game/public/models/rider.glb`), bound to the same joints the animation already drives, so carving, tucks, grabs, rails, crashes and lift poses all carry over. Fabric has baked folds, seams, zips, stitching, quilting and knit, plus soft ambient occlusion; every palette colour still works through a colour mask.
+- Styles in Rider & gear: jackets (shell, park rat tall-tee, racer, hoodie, puffer), pants (baggy, slim, race), gloves (mitts, gloves, pipe gloves) and headwear (helmet, beanie, cap). Other skiers on the hill pick random styles.
+- Loose gear moves on its own: the jacket hem front and back, the hood, hoodie drawstrings, the beanie pom and the backpack swing and bounce with the rider's acceleration. Wrists bend toward the poles.
+
+### Changed
+
+- Each rider draws 31 meshes and about 14.5k triangles instead of 75 and 21.3k. The old code-built rider stays as a fallback while the model loads, if it fails to load, and with `?noskin`.
+- The Fit choice (baggy or slim) became the Pants style; saved outfits carry over.
+
 ## 0.9.19 (2026-11-24): Deep snow that keeps up, quieter poles
 
 ### Fixed

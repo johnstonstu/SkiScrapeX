@@ -1,6 +1,7 @@
 import { SKI_GRAPHICS, type SkiGraphic } from '../render/rider/skierView'
 import { KEYS, readJson, writeJson } from '../app/storage'
 import { createRiderPreview } from './riderPreview'
+import type { GloveStyle, Headwear, JacketStyle, PantsStyle } from '../render/rider/riderSkin'
 
 /** Rider customization: colours, kit and ski model. */
 export type SkiModel = 'allMountain' | 'park' | 'powder' | 'snowboard'
@@ -13,8 +14,10 @@ export interface Outfit {
   /** Neck gaiter colour. */
   gaiter: string
   model: SkiModel
-  fit: 'baggy' | 'slim'
-  headwear: 'helmet' | 'beanie'
+  jacketStyle: JacketStyle
+  pantsStyle: PantsStyle
+  gloves: GloveStyle
+  headwear: Headwear
   jacketAccent: string
   skiGraphic: SkiGraphic
   skiAccent: string
@@ -39,10 +42,15 @@ const REWARD_GRAPHICS: Record<string, string> = { topo: 'graphic:topo', nugget: 
 
 export const PALETTE = ['#d42a2f', '#f2b705', '#2f7fe0', '#2e9e4a', '#7b3fbf', '#ff7a2a', '#1b1f24', '#f2f5f8', '#27313f', '#8a6243', '#e85d9b', '#3fc7c7']
 
-export const DEFAULT_OUTFIT: Outfit = { jacket: '#d42a2f', pants: '#27313f', helmet: '#f2f5f8', skis: '#f2b705', gaiter: '#59606b', model: 'allMountain', fit: 'baggy', headwear: 'helmet', jacketAccent: '#8f1c20', skiGraphic: 'stripes', skiAccent: '#1b1f24', backpack: false }
+export const DEFAULT_OUTFIT: Outfit = { jacket: '#d42a2f', pants: '#27313f', helmet: '#f2f5f8', skis: '#f2b705', gaiter: '#59606b', model: 'allMountain', jacketStyle: 'shell', pantsStyle: 'baggy', gloves: 'mitt', headwear: 'helmet', jacketAccent: '#8f1c20', skiGraphic: 'stripes', skiAccent: '#1b1f24', backpack: false }
 
 export function readOutfit(): Outfit {
-  return readJson<Outfit>(KEYS.outfit, { ...DEFAULT_OUTFIT })
+  // Saves from before 0.9.20 have `fit` (baggy or slim) instead of garment styles.
+  const saved = readJson<Partial<Outfit> & { fit?: 'baggy' | 'slim' }>(KEYS.outfit, {})
+  const outfit: Outfit & { fit?: string } = { ...DEFAULT_OUTFIT, ...saved }
+  if (!saved.pantsStyle && saved.fit === 'slim') outfit.pantsStyle = 'slim'
+  delete outfit.fit
+  return outfit
 }
 
 export function writeOutfit(outfit: Outfit): void {
@@ -91,7 +99,7 @@ export function createStylePanel(
       ['jacket', 'Jacket'],
       ['jacketAccent', 'Jacket panels'],
       ['pants', 'Pants'],
-      ['helmet', 'Helmet or beanie'],
+      ['helmet', 'Helmet, beanie or cap'],
       ['gaiter', 'Neck gaiter'],
       ['skis', 'Skis'],
       ['skiAccent', 'Ski graphic colour'],
@@ -144,8 +152,10 @@ export function createStylePanel(
     }
     host.append(models)
     const toggles: [string, keyof Outfit, [string, string][]][] = [
-      ['Fit', 'fit', [['baggy', 'Baggy'], ['slim', 'Slim']]],
-      ['Head', 'headwear', [['helmet', 'Helmet'], ['beanie', 'Beanie']]],
+      ['Jacket style', 'jacketStyle', [['shell', 'Shell'], ['parkrat', 'Park rat'], ['racer', 'Racer'], ['hoodie', 'Hoodie'], ['puffer', 'Puffer']]],
+      ['Pants', 'pantsStyle', [['baggy', 'Baggy'], ['slim', 'Slim'], ['race', 'Race']]],
+      ['Gloves', 'gloves', [['mitt', 'Mitts'], ['glove', 'Gloves'], ['pipe', 'Pipe gloves']]],
+      ['Head', 'headwear', [['helmet', 'Helmet'], ['beanie', 'Beanie'], ['cap', 'Cap']]],
       ['Pack', 'backpack', [['false', 'None'], ['true', 'Backpack']]],
       ['Ski graphic', 'skiGraphic', SKI_GRAPHICS.map((g) => [g, g[0].toUpperCase() + g.slice(1)] as [string, string])],
     ]

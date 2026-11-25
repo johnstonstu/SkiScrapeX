@@ -19,6 +19,8 @@ const smooth = (t: number) => t * t * (3 - 2 * t)
 /** Turn pole plant: where the tip strikes (metres ahead of the boots) and how long the reach takes. */
 const PLANT_AHEAD = 0.75
 const PLANT_REACH = 0.12
+/** How far the wrist bends toward the pole shaft (0 rigid, 1 fully in line). */
+const WRIST_FOLLOW = 0.35
 
 /** Discrete poses that crossfade into each other instead of snapping. */
 type Mode = 'ski' | 'rail' | 'crash' | 'sit' | 'stand'
@@ -44,6 +46,10 @@ export function createSkierView(): {
   setColours: (look: RiderLook) => void
 } {
   const rig = buildRider()
+  // The skinned body loads in the browser; tests and `?noskin` keep the code-built one.
+  if (typeof window !== 'undefined' && !new URLSearchParams(window.location.search).has('noskin')) {
+    rig.loadSkin().catch((error: unknown) => console.error('Rider model failed to load; keeping the code-built rider.', error))
+  }
   const { root, skis, boardGroup, body, hips, spine, chest, head, legs, arms } = rig
 
   // ---- Working state --------------------------------------------------------
@@ -83,6 +89,13 @@ export function createSkierView(): {
   const plantBite = new Spring()
   /** Arms flare on landing; decays via spring. */
   const armFlare = new Spring()
+  /** Loose gear (drawstrings, pom, pack, hood) lagging the body's acceleration. */
+  const dangleX = new Spring()
+  const dangleZ = new Spring()
+  const dangleY = new Spring()
+  const lastVelocity = new THREE.Vector3()
+  const accel = new THREE.Vector3()
+  const qLocal = new THREE.Quaternion()
   let grabBlend = 0
   let lastGrab: string | null = null
   let wasAir = false
@@ -185,6 +198,7 @@ export function createSkierView(): {
   const elbowHint = new THREE.Vector3()
   const tip = new THREE.Vector3()
   const handWorld = new THREE.Vector3()
+  const qWrist = new THREE.Quaternion()
   /** Hand target in chest space (or root space when `inRoot`), pole tip in root space. */
   const placeArm = (index: number, hand: THREE.Vector3, poleTip: THREE.Vector3, inRoot = false) => {
     const arm = arms[index]
@@ -205,7 +219,11 @@ export function createSkierView(): {
     // shorten the pole to reach it instead (it reads as the pole angling in).
     arm.pole.scale.y = THREE.MathUtils.clamp(tip.length() / POLE_REACH, 0.72, 1)
     arm.hand.getWorldQuaternion(qInv).invert()
-    arm.pole.quaternion.setFromUnitVectors(down, tip.applyQuaternion(qInv).normalize())
+    tip.applyQuaternion(qInv).normalize()
+    // The wrist bends part of the way toward the pole, so the grip follows the shaft.
+    qWrist.setFromUnitVectors(down, tip)
+    arm.hand.quaternion.identity().slerp(qWrist, WRIST_FOLLOW)
+    arm.pole.quaternion.setFromUnitVectors(down, tip.applyQuaternion(qInv.copy(arm.hand.quaternion).invert()))
   }
 
   /** Keep both boots attached to the board through the pose. */
@@ -271,6 +289,14 @@ export function createSkierView(): {
       const side = clothSide.step(wind * (-edgePull * 0.038 + Math.sin(state.time * 17) * 0.013), dt, 3.4, 0.66)
       const back = clothBack.step(-wind * (0.033 + Math.sin(state.time * 22) * 0.012), dt, 4.1, 0.58)
       rig.poseCloth(side, back)
+      // Body acceleration in the rider's frame; clamped so a respawn does not fling the gear.
+      accel.set(state.vx, state.vy, state.vz).sub(lastVelocity).divideScalar(Math.max(dt, 1e-3))
+      lastVelocity.set(state.vx, state.vy, state.vz)
+      accel.clampLength(0, 25).applyQuaternion(qLocal.copy(root.quaternion).invert())
+      dangleX.step(-accel.x * 0.012, dt, 1.3, 0.22)
+      dangleZ.step(-accel.z * 0.012, dt, 1.3, 0.22)
+      dangleY.step(-accel.y * 0.0012, dt, 2.4, 0.3)
+      rig.poseDangles(dangleX.x, dangleZ.x, dangleY.x, wind, state.time)
 
       const nextMode: Mode = pose === 'sit' ? 'sit' : pose === 'stand' ? 'stand' : crashed ? 'crash' : rail ? 'rail' : 'ski'
       if (nextMode !== mode) startFade(nextMode)

@@ -137,3 +137,36 @@ it('pulls the jacket hem back at speed and lets it settle when stopped', () => {
   update(0)
   expect(hem.morphTargetInfluences?.[1]).toBeCloseTo(0, 3)
 })
+
+it('swings drawstrings and the pom when the skier stops hard, then lets them hang still', () => {
+  const view = createSkierView()
+  const state = createSkiState({ x: 0, z: 0, heading: 0 })
+  const pom = view.object.getObjectByName('pom')!
+  const cord = view.object.getObjectByName('cord_L')!
+  const swing = () => Math.hypot(pom.rotation.x, pom.rotation.z) + Math.hypot(cord.rotation.x, cord.rotation.z)
+  const run = (frames: number, vz: number) => {
+    let peak = 0
+    for (let frame = 0; frame < frames; frame++) {
+      state.time += 1 / 60
+      state.vz = vz
+      state.speed = Math.abs(vz)
+      view.update(state, idle, ground, 'ski', 1 / 60)
+      peak = Math.max(peak, swing())
+    }
+    return peak
+  }
+  run(120, 12)
+  // Hockey stop: 12 m/s to rest in a quarter of a second.
+  for (const vz of [9, 6, 3, 0]) run(4, vz)
+  expect(run(40, 0)).toBeGreaterThan(0.15)
+  run(400, 0)
+  expect(swing()).toBeLessThan(0.01)
+})
+
+it('binds every joint the skinned body uses to a named bone in the rig', () => {
+  const view = createSkierView()
+  for (const name of ['hips', 'spine', 'chest', 'head', 'thigh_L', 'shin_R', 'upperarm_L', 'forearm_R', 'hand_L', 'hem_F', 'hem_B', 'hood', 'pack', 'pom', 'cord_L', 'cord_R']) {
+    const bone = view.object.getObjectByName(name) as THREE.Bone | undefined
+    expect(bone?.isBone, name).toBe(true)
+  }
+})
