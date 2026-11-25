@@ -44,6 +44,19 @@
 | `run-sheets/*.jpg` + `index.json` | 90 sheets: LiDAR plan view, slope profile, stats, up to 6 frame grabs with source and timestamp | JPG |
 | `cc-photos/` | Contact sheet of 17 CC Flickr photos (not run-identified) + ATTRIBUTION.json | JPG/JSON |
 
+## Video analysis
+
+A full watch of Rise & Alpine's Apex video (YouTube `An8kSTvZv_k`) is in [apex-video/ANALYSIS.md](apex-video/ANALYSIS.md), with chapter timings in `apex-video/chapters.json` and batch notes in `apex-video/notes/`. Same status as the rest of this handoff: a proposal to review, not an applied change.
+
+- **Altitude tree biome:** ordinary snowy conifers lower down, rime-encased snow ghosts near the summit and ridges, spaced wider up top.
+- **Atmosphere:** summit fog that clears lower down, plus a valley cloud inversion seen from Ridge Run and the groomers.
+- **Audio by surface:** zipper and carve plus wind on groomers, scrape and chop on blacks, rhythmic thuds in moguls, a muffled swoosh in powder, rock scrape on thin cover.
+- **Traffic bumps:** irregular bumps under the lifts.
+- **Landmarks:** summit lattice radio tower, orange slat fence, Tooth/Tusk wooden signpost, and padded lift towers close to the run edges.
+- **Shoot the Chute:** a gentle approach, then a blind rollover. A speed trap just past that rollover is the natural max-speed moment. Finish at the upper parking lot run-out (from Stu). The video does not show the run-out, so use the LiDAR profile for it.
+
+Corrections from the full watch: the chapter titled "gromit" is Mini Colorado (on-screen label). The game only has it as placeholder L12, so this is reference footage for that trace. The "mogul team Alberta" chapter has no mogul course, only kids at the T-bar base.
+
 ## Confidence and caveats
 
 - **APPROXIMATE geometry:** the south-face lines come from trail-map *order* (Sweet Sue, Tooth/Tusk, Essendale, Toilet Bowl, Crusher, left to right) projected onto LiDAR fall lines. The art is not to scale, so the exact lines may be off by one or two gullies. Wildly Easy is a least-cost path. The Wildside names rely on inset order matching the existing traces. Chaser (L3) is a guess from neighbours and pitch.
