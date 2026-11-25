@@ -90,6 +90,10 @@ const vertexShader = /* glsl */ `
 #include <shadowmap_pars_vertex>
 varying vec3 vWorld;
 varying vec3 vNormal;
+// The snow surface's own slope, without ski trenches: rock and scour read this.
+varying vec3 vGround;
+// Trench (negative) or berm (positive) offset under this point, metres; 0 off the patch.
+varying float vDeform;
 varying float vHoleable;
 varying float vTerrain;
 // x: detail chunk vertex (morphs toward aBase), y: coarse terrain (cut where detail draws).
@@ -112,6 +116,8 @@ void main() {
   vec4 worldPosition = modelMatrix * vec4(p, 1.0);
   vWorld = worldPosition.xyz;
   vNormal = mat3(modelMatrix) * n;
+  vGround = vNormal;
+  vDeform = 0.0;
   vec3 transformedNormal = normalMatrix * n;
   #include <shadowmap_vertex>
   gl_Position = projectionMatrix * viewMatrix * worldPosition;
@@ -130,6 +136,10 @@ export const snowPatchVertexShader = /* glsl */ `
 #include <shadowmap_pars_vertex>
 varying vec3 vWorld;
 varying vec3 vNormal;
+// The snow surface's own slope, without ski trenches: rock and scour read this.
+varying vec3 vGround;
+// Trench (negative) or berm (positive) offset under this point, metres; 0 off the patch.
+varying float vDeform;
 varying float vHoleable;
 varying float vTerrain;
 uniform sampler2D uHeights;
@@ -169,6 +179,7 @@ float surface(vec2 p) {
 void main() {
   vec2 p = uPatchOrigin + position.xz;
   float h = surface(p);
+  vDeform = offsetAt(p);
   float e = 0.12;
   vec3 n = normalize(vec3(surface(p - vec2(e, 0.0)) - surface(p + vec2(e, 0.0)), 2.0 * e, surface(p - vec2(0.0, e)) - surface(p + vec2(0.0, e))));
   vHoleable = 0.0;
@@ -176,6 +187,7 @@ void main() {
   vec4 worldPosition = vec4(p.x, h, p.y, 1.0);
   vWorld = worldPosition.xyz;
   vNormal = n;
+  vGround = normalize(vec3(ground(p - vec2(0.5, 0.0)) - ground(p + vec2(0.5, 0.0)), 1.0, ground(p - vec2(0.0, 0.5)) - ground(p + vec2(0.0, 0.5))));
   vec3 transformedNormal = (viewMatrix * vec4(n, 0.0)).xyz;
   #include <shadowmap_vertex>
   gl_Position = projectionMatrix * viewMatrix * worldPosition;
@@ -189,6 +201,10 @@ const fragmentShader = /* glsl */ `
 #include <shadowmap_pars_fragment>
 varying vec3 vWorld;
 varying vec3 vNormal;
+// The snow surface's own slope, without ski trenches: rock and scour read this.
+varying vec3 vGround;
+// Trench (negative) or berm (positive) offset under this point, metres; 0 off the patch.
+varying float vDeform;
 varying float vHoleable;
 varying float vTerrain;
 uniform vec2 uPatchCentre;
@@ -282,7 +298,8 @@ void main() {
   vec3 L = normalize(uSunDirection);
   vec3 H = normalize(L + V);
 
-  float slopeDeg = degrees(acos(clamp(N.y, 0.0, 1.0)));
+  // Steep-rock and outcrop rules use the ground's slope: trench walls are snow, not cliffs.
+  float slopeDeg = degrees(acos(clamp(normalize(vGround).y, 0.0, 1.0)));
 
   float id = 0.0;
   vec2 groom = uGroomDir;
@@ -461,6 +478,11 @@ void main() {
   Np -= vec3(windPerp.x, 0.0, windPerp.y) * (0.13 * cos(sasPhase) * sastrugi);
   albedo *= mix(1.0, mix(0.95, 1.02, sin(sasPhase) * 0.5 + 0.5), sastrugi);
 
+  // Ski trenches sit in their own soft blue shade, and the pushed-up berms catch a little more light.
+  float trench = 1.0 - smoothstep(-0.14, -0.015, vDeform);
+  float berm = smoothstep(0.01, 0.06, vDeform);
+  albedo *= mix(vec3(1.0), vec3(0.84, 0.89, 0.97), trench * snowMask);
+  albedo *= 1.0 + 0.04 * berm * snowMask;
   // A skied path breaks the corduroy and settles into a soft trench.
   albedo = mix(albedo, albedo * vec3(0.78, 0.84, 0.9), broken * snowMask);
   vec2 grad = vec2(depX - dep, depZ - dep) / max(metresPerTexel, 0.001);

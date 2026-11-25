@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { addRowRanges } from '../../fx/rowUpload'
 import { snowPatchVertexShader, type SnowMaterial } from '../../fx/snow/SnowMaterial'
 import { DEFORM_RANGE, type SnowDeform } from '../../world/snowDeform'
 import type { TerrainGrid } from '../../world/terrainGrid'
@@ -105,7 +106,7 @@ export function createSnowPatchView(grid: TerrainGrid, deform: SnowDeform, terra
         deformTexture.clearUpdateRanges()
       } else {
         encodeRows(dirty.min, dirty.max)
-        deformTexture.addUpdateRange(dirty.min * n * 4, (dirty.max - dirty.min + 1) * n * 4)
+        addRowRanges(deformTexture, dirty.min, dirty.max, n)
       }
       deformTexture.needsUpdate = true
     },

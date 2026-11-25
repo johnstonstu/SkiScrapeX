@@ -47,6 +47,13 @@ export function createSnowEffects(
       tracks.setSun(lighting.sunDirection, linearSun, linearSky)
       tracks.setFog(lighting.fogDensity, new THREE.Vector3(lighting.fogColor.r, lighting.fogColor.g, lighting.fogColor.b))
     },
+    /**
+     * Ribbon tracks sit just above the snow surface. Where the deep-snow patch
+     * draws real trenches they would float over them, so they hide there.
+     */
+    setRibbons(on: boolean) {
+      tracks.object.visible = on
+    },
     clear() {
       wasAirborne = false
       descent = 0
