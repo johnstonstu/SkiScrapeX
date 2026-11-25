@@ -106,7 +106,7 @@ const lighting = createLighting()
 const scene = new THREE.Scene()
 if (params.has('perf')) Object.assign(window, { __scene: scene })
 // `?test`: handles for the headless smoke test.
-if (params.has('test')) Object.assign(window, { __game: { scene, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals }, get npcs() { return npcs }, get snowDeform() { return stage.snowDeform } } })
+if (params.has('test')) Object.assign(window, { __game: { scene, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals }, get npcs() { return npcs }, get snowDeform() { return stage.snowDeform }, startEvent(id: string) { const next = goals?.eventById(id); if (next) startChallenge(next); return Boolean(next) } } })
 const sun = addSceneLights(scene, lighting, quality.shadowRange)
 sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize)
 const sky = createSky(lighting)
@@ -542,7 +542,9 @@ function spawn(keepCamera = false) {
         ? `${challenge.site.name} · score attack`
         : challenge.kind === 'slalom'
           ? `${challenge.run.name} · slalom · gate 1/${challenge.gates.length}`
-          : `${challenge.run.name} · timed run`
+          : challenge.kind === 'event'
+            ? eventTitle(challenge, 0)
+            : `${challenge.run.name} · timed run`
     ui.best.textContent = best === undefined ? '–' : score ? `${best.toLocaleString()}` : formatTime(best)
   } else if (course?.startRun) {
     const best = bests[course.startRun.name]
@@ -607,7 +609,50 @@ function openChallenges() {
   openPanel(ui.challenges)
 }
 
+/** HUD title during an event: its name, then the next gate or which run of two. */
+function eventTitle(event: Extract<Challenge, { kind: 'event' }>, passed: number): string {
+  const { def } = event.course
+  if (def.format === 'match') return event.firstRun === undefined ? `${def.name} · run 1 sets the time` : `${def.name} · run 2 · match ${formatTime(event.firstRun)}`
+  if (!event.gates.length) return def.name
+  return `${def.name} · ${passed < event.gates.length ? `gate ${passed + 1}/${event.gates.length}` : 'to the finish'}`
+}
+
 function onSessionEvent(event: SessionEvent) {
+  if (challenge.kind === 'event') {
+    const current = challenge
+    if (event.type === 'gate') {
+      goals?.markGate(event.index, event.result)
+      ui.title.textContent = eventTitle(current, event.index + 1)
+      return
+    }
+    if (event.type === 'split') {
+      const best = goals?.progress.bests[`${current.id}:split${event.index + 1}`]
+      const delta = best === undefined ? '' : ` · ${event.time <= best ? '-' : '+'}${Math.abs(event.time - best).toFixed(2)}`
+      tricks.show(`Split ${event.index + 1}`, `${formatTime(event.time)}${delta}`, 'bank')
+      return
+    }
+    if (event.type === 'trap') {
+      tricks.show('Radar', `${Math.round(event.speed * 3.6)} km/h`, 'bank')
+      return
+    }
+    if (event.type === 'disqualified') {
+      endChallenge(`Disqualified: missed gate ${event.gate + 1}`)
+      return
+    }
+    if (event.type === 'finish' && current.course.def.format === 'match' && current.firstRun === undefined && goals) {
+      // Run one only sets the time to match: back to the start for run two.
+      const first = session.total
+      const next = goals.event(current.course, first)
+      transition(`Run 1: ${formatTime(first)}
+Now match it`, 2, () => startChallenge(next))
+      return
+    }
+    if (event.type === 'finish') {
+      goals?.recordSplits(current.id, session.stats.splits)
+      endChallenge(null)
+    } else if (event.type === 'offCourse') endChallenge('Left the course')
+    return
+  }
   if (event.type === 'gate') {
     goals?.markGate(event.index, event.result)
     if (event.result === 'miss') tricks.show('Missed gate', `+${GATE_PENALTY} s`, 'crash')
@@ -652,6 +697,7 @@ function coachTips() {
 let resultsNext: (() => void) | null = null
 function endChallenge(failed: string | null) {
   if (!goals || challenge.kind === 'free') return
+  session.abandon()
   const finished = challenge
   const result = goals.finish(session, tricks.total, failed)
   if (finished.kind === 'park') {
@@ -666,7 +712,7 @@ function endChallenge(failed: string | null) {
     setFreeSki()
   }
   renderResults(ui.results, result, {
-    retry: () => startChallenge(finished),
+    retry: () => startChallenge(finished.kind === 'event' && goals ? goals.event(finished.course) : finished),
     next: resultsNext,
     nextLabel: 'Keep skiing',
     challenges: () => {
@@ -1026,6 +1072,8 @@ function tick(dt: number, frameMs: number) {
     if (skier.mode === 'crashed' && !crashShown) {
       crashShown = true
       tricks.drop()
+      // Speed events: a fall between start and finish is a DNF, as in a real race.
+      if (challenge.kind === 'event' && challenge.course.def.bailIsDnf && session.timing && !session.finished) endChallenge('Crashed: DNF')
     }
     if (skier.mode !== 'crashed') crashShown = false
     for (const event of session.step(skier, dt)) onSessionEvent(event)

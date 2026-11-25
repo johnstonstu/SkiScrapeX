@@ -4,7 +4,8 @@ import { UNLOCKS, medalCounts, type Progress } from '../app/progress'
 import { MEDALS, type Medal, type MedalTargets } from '../world/challenges'
 
 /** Run difficulty symbol, coloured by the existing `.easy .symbol` style rules. */
-const symbol = (kind: string) => `<span class="dif ${kind}"><span class="symbol${kind === 'park' ? ' park-symbol' : ''}"></span></span>`
+const symbol = (kind: string) =>
+  kind === 'event' ? '<span class="dif event"><span class="event-symbol">🏁</span></span>' : `<span class="dif ${kind}"><span class="symbol${kind === 'park' ? ' park-symbol' : ''}"></span></span>`
 
 const MEDAL_LABEL: Record<Medal, string> = { gold: 'Gold', silver: 'Silver', bronze: 'Bronze' }
 
@@ -68,6 +69,9 @@ export interface ChallengeRow {
   /** Difficulty class for the run symbol, or 'park'. */
   symbol: string
   detail?: string
+  /** Events: a line of history and the rules. */
+  story?: string
+  rules?: string
   /** undefined while the pace bot is still working. */
   targets: MedalTargets | null | undefined
   score: boolean
@@ -76,6 +80,7 @@ export interface ChallengeRow {
 
 export interface ChallengeData {
   summary: Summary
+  events: ChallengeRow[]
   timed: ChallengeRow[]
   slalom: ChallengeRow[]
   park: ChallengeRow[]
@@ -112,9 +117,16 @@ export function renderChallenges(panel: HTMLElement, data: ChallengeData, progre
       )
       item.disabled = row.targets === null
       block.append(item)
+      if (row.story || row.rules) {
+        const about = document.createElement('p')
+        about.className = 'event-about'
+        about.innerHTML = `${row.story ? escapeHtml(row.story) : ''}${row.rules ? ` <strong>${escapeHtml(row.rules)}</strong>` : ''}`
+        block.append(about)
+      }
     }
     panel.append(block)
   }
+  if (data.events.length) section('Apex events', 'Races from Apex history. The course, gates and crowd appear only while you race it.', data.events)
   section('Slalom', 'Ski between each pair of poles. A missed gate costs 3 s.', data.slalom)
   section('Park score attack', 'Bank as many points as you can before the bottom of the park.', data.park)
   section('Timed runs', 'Start at the top of the run and race to the bottom.', data.timed)

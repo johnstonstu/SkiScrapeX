@@ -120,8 +120,8 @@ export function* paceBot(
 }
 
 /** Run the pace bot to the end in one go. */
-export function paceBotSync(line: Point2[], terrain: SampleTerrain, env: SkiEnv): number | null {
-  const bot = paceBot(line, terrain, env, BOT_SPEED_CAP, 420, Infinity)
+export function paceBotSync(line: Point2[], terrain: SampleTerrain, env: SkiEnv, cap = BOT_SPEED_CAP): number | null {
+  const bot = paceBot(line, terrain, env, cap, 420, Infinity)
   let step = bot.next()
   while (!step.done) step = bot.next()
   return step.value
@@ -166,6 +166,8 @@ export interface Gate {
   side: -1 | 1
   /** Distance along the line, metres. */
   s: number
+  /** Pole spacing either side of the centre; GATE_HALF_WIDTH when unset. */
+  halfWidth?: number
 }
 
 /** Pole spacing either side of the gate centre. */
@@ -210,7 +212,7 @@ export function gateCrossing(px: number, pz: number, x: number, z: number, gate:
   const cx = px + (x - px) * t - gate.x
   const cz = pz + (z - pz) * t - gate.z
   const lateral = cx * gate.dirZ - cz * gate.dirX
-  return Math.abs(lateral) <= GATE_HALF_WIDTH ? 'pass' : 'miss'
+  return Math.abs(lateral) <= (gate.halfWidth ?? GATE_HALF_WIDTH) ? 'pass' : 'miss'
 }
 
 /** Distance along a polyline of the nearest point, and how far off the line the point is. */

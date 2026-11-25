@@ -2,6 +2,17 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## Unreleased: Apex race events
+
+### Added
+
+- Apex events, a new section at the top of Challenges, each with a line of real history and its rules. The course, gates, crowd and props appear only while you race that event, never in free ski.
+  - **Shoot the Chute**: from the summit down the Chute to the old upper parking lot, no gates, a radar on the steep lower pitch, and a crash is a DNF. The crowd and parked cars line the finish, as in Stu's local lore. Eric Pehota's 151 km/h is the benchmark.
+  - **Mars Downhill**: from the summit start house to the bottom of Gunbarrel and on to the old upper lot. It has downhill gates with orange safety netting on the Gunbarrel pitch, two split clocks (top and bottom of Gunbarrel) and a speed trap. A missed gate disqualifies and a crash is a DNF.
+  - **Teck Open GS**: red and blue giant slalom gates down Old Mill to the timing hut, with a missed gate disqualifying.
+  - **Match Your Time** (the 50th anniversary race): ski Maverick twice. The score is the difference between the two runs.
+- Split pop-ups show the time and the gap to your best split. The radar shows your speed through the trap, and your fastest trap speed is kept per event.
+
 ## 0.9.21 (2026-11-25): Lifts and the Gunbarrel modelled from photos
 
 ### Added

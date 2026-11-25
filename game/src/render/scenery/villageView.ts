@@ -179,7 +179,7 @@ function colourise(geometry: THREE.BufferGeometry, colour: THREE.Color) {
 }
 
 /** Car facing +Z: painted lower body and pillars, and an unpainted set (glass, tyres, lights, snow on the roof). */
-function carParts(length: number, width: number, height: number, cabin: number, pickup = false) {
+export function carParts(length: number, width: number, height: number, cabin: number, pickup = false) {
   const painted: THREE.BufferGeometry[] = []
   const plain: THREE.BufferGeometry[] = []
   const white = new THREE.Color(1, 1, 1)

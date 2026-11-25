@@ -12,24 +12,30 @@ const MISSED = new THREE.Color(0x56595e)
  * Slalom gates: two poles and a banner between them, red and blue in turn.
  * A passed gate turns green, a missed one grey.
  */
-export function createGatesView(gates: Gate[], heightAt: HeightAt) {
+export function createGatesView(gates: Gate[], heightAt: HeightAt, colours: number[] = GATE_COLOURS) {
   const group = new THREE.Group()
   group.name = 'slalom'
   // Race-sized: stubby poles read as nothing at 40 m, so these are thick, tall and bright.
   const poleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2.3, 8)
   poleGeometry.translate(0, 1.15, 0)
-  const bannerGeometry = new THREE.PlaneGeometry(GATE_HALF_WIDTH * 2, 0.9)
+  const bannerGeometries = new Map<number, THREE.PlaneGeometry>()
+  const bannerFor = (half: number) => {
+    let geometry = bannerGeometries.get(half)
+    if (!geometry) bannerGeometries.set(half, (geometry = new THREE.PlaneGeometry(half * 2, 0.9)))
+    return geometry
+  }
   const banners: THREE.MeshLambertMaterial[] = []
   /** Per gate: its materials and centre, for fading as the camera passes through. */
   const fades: { materials: THREE.MeshLambertMaterial[]; centre: THREE.Vector3 }[] = []
   gates.forEach((gate, i) => {
-    const colour = GATE_COLOURS[i % 2]
+    const colour = colours[i % colours.length]
+    const half = gate.halfWidth ?? GATE_HALF_WIDTH
     const pole = new THREE.MeshLambertMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.25 })
     const banner = new THREE.MeshLambertMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.3, side: THREE.DoubleSide })
     banners.push(banner)
     // Poles either side across the direction of travel.
-    const px = gate.dirZ * GATE_HALF_WIDTH
-    const pz = -gate.dirX * GATE_HALF_WIDTH
+    const px = gate.dirZ * half
+    const pz = -gate.dirX * half
     const ends: [number, number][] = [
       [gate.x + px, gate.z + pz],
       [gate.x - px, gate.z - pz],
@@ -41,7 +47,7 @@ export function createGatesView(gates: Gate[], heightAt: HeightAt) {
       mesh.castShadow = true
       group.add(mesh)
     }
-    const flag = new THREE.Mesh(bannerGeometry, banner)
+    const flag = new THREE.Mesh(bannerFor(half), banner)
     flag.position.set(gate.x, (heights[0] + heights[1]) / 2 + 1.5, gate.z)
     flag.rotation.y = Math.atan2(gate.dirX, gate.dirZ)
     group.add(flag)
@@ -70,13 +76,13 @@ export function createGatesView(gates: Gate[], heightAt: HeightAt) {
     },
     reset() {
       banners.forEach((material, i) => {
-        material.color.setHex(GATE_COLOURS[i % 2])
-        material.emissive.setHex(GATE_COLOURS[i % 2])
+        material.color.setHex(colours[i % colours.length])
+        material.emissive.setHex(colours[i % colours.length])
       })
     },
     dispose() {
       poleGeometry.dispose()
-      bannerGeometry.dispose()
+      for (const geometry of bannerGeometries.values()) geometry.dispose()
       group.traverse((object) => {
         const material = (object as THREE.Mesh).material as THREE.Material | undefined
         material?.dispose()

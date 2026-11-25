@@ -53,6 +53,14 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 - Review renders: after a build, `exec(open(r"<repo>/tools/blender/review_scenery.py").read(), ns); ns["review_asset"]("gunbarrel", r"<out.png>", distance=58, height=14, target_height=4)`. They cull back faces like the game, so an inward-facing wall shows up as missing.
 - Keep metalness low on scenery materials: the game has no environment reflections, so strongly metallic surfaces render black.
 
+## Apex events
+
+- Events are defined as data in `game/src/world/events.ts` (`EVENTS`): course legs stitched from real run lines, gates (`downhill` on the line, `gs` alternating either side), the radar trap and split clocks as shares of the course, a crash rule, the pace bot's speed cap and what stands at the finish. History and sources are in `docs/review/apex-events/game-event-ideas.md`.
+- An event is a `kind: 'event'` challenge (`app/session.ts`): a missed gate disqualifies (no time penalty), `bailIsDnf` ends the run on a crash, Match Your Time runs twice and scores the gap. Medal times come from the pace bot at the event's own cap, except Match Your Time, which has fixed targets.
+- The props (`render/scenery/eventView.ts`: start house and wand, gates, split and radar boards, safety nets, finish arch and fencing, crowd, parked cars, timing hut) are built in `goals.activate` only when that event starts and removed when it ends. Free ski never has them.
+- Gates are skipped on sharp bends (`maxBend`). `tests/events.test.ts` races every event on the real map with a line-following racer and checks it finishes clean, so a gate a careful racer cannot make fails the test.
+- With `?test`, `window.__game.startEvent('shoot-the-chute')` starts an event directly.
+
 ## URL parameters
 
 | Parameter | Effect |
@@ -64,7 +72,7 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 | `?ride=quickdraw` | Start on a lift |
 | `?park=claim` | Start at a terrain park |
 | `?perf` | Load-phase and frame timing on `window.__perf` |
-| `?test` | Smoke-test handles on `window.__game` (scene, skier, challenge, goals, NPCs, deformable snow) |
+| `?test` | Smoke-test handles on `window.__game` (scene, skier, challenge, goals, NPCs, deformable snow, `startEvent(id)`) |
 | `?quality=low\|medium\|high` | Try a graphics level for one load without saving it (the deep-snow patch needs Medium or High) |
 
 Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
