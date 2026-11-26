@@ -16,7 +16,7 @@ import { makeBoardBoot, makeSkiBoot } from './riderBoot'
 import { jacketGeometry, fabricWeave } from './riderCloth'
 import { ClothPhysics } from './clothPhysics'
 import type { RiderSnow } from './riderSnow'
-import { createRiderSkin, loadRiderAsset, type GarmentColours, type GloveStyle, type Headwear, type JacketStyle, type PantsStyle, type RiderSkin } from './riderSkin'
+import { createRiderSkin, loadRiderAsset, type GarmentColours, type GloveStyle, type Headwear, type JacketStyle, type PantsStyle, type RiderAsset, type RiderSkin } from './riderSkin'
 
 /** Binding centres and boot yaw in the snowboard's local frame. */
 export const BOARD_BINDINGS = [
@@ -706,15 +706,17 @@ export function buildRider() {
     get skinned() {
       return skin !== null
     },
+    /** Swap in the skinned body from an already loaded rider asset. */
+    attachSkin(asset: RiderAsset) {
+      skin = createRiderSkin(asset, root, bones, withRestPose)
+      skin.setFirstPerson(firstPerson)
+      if (lastLook) applySkin(lastLook)
+      if (lastWeather) rigApi.setWeather(lastWeather.time, lastWeather.wind, lastWeather.snow)
+      hideProcedural()
+    },
     /** Load rider.glb and swap it in; the code-built body stays if loading fails. */
     loadSkin() {
-      return loadRiderAsset().then((asset) => {
-        skin = createRiderSkin(asset, root, bones, withRestPose)
-        skin.setFirstPerson(firstPerson)
-        if (lastLook) applySkin(lastLook)
-        if (lastWeather) rigApi.setWeather(lastWeather.time, lastWeather.wind, lastWeather.snow)
-        hideProcedural()
-      })
+      return loadRiderAsset().then((asset) => rigApi.attachSkin(asset))
     },
     setFirstPerson(on: boolean) {
       firstPerson = on

@@ -10,7 +10,7 @@ export function applySitPose(args: {
   head: THREE.Object3D
   skis: THREE.Object3D[]
   placeBoard: (x: number, y: number, z: number, edge: number, yaw?: number, pitch?: number) => void
-  placeArm: (hand: number, handPos: THREE.Vector3, tip: THREE.Vector3, skipPole?: boolean) => void
+  placeArm: (hand: number, handPos: THREE.Vector3, tip: THREE.Vector3, inRoot?: boolean, floor?: number) => void
   fitLegs: () => void
   scratch: THREE.Vector3
 }) {
