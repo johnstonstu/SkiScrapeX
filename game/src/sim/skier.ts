@@ -88,6 +88,8 @@ export interface SkiEnv {
   assist?: boolean
   /** Ski model: sidecut radius (m) and base area relative to the default skis. */
   ski?: { sidecutRadius: number; floatScale: number }
+  /** A judged comp (moguls, aerials): every air off a feature is scored, even a short straight one. */
+  judgedAirs?: boolean
 }
 
 export interface SkiState {
@@ -342,7 +344,8 @@ function stepGround(
   const steerMag = Math.abs(steer)
   const edgeMag = braking ? Math.max(steerMag, PHYSICS.brakeEdge * brake) : steerMag
   const edgeSign = steerMag > PHYSICS.steerDeadzone ? Math.sign(steer) : braking ? brakeSide : 0
-  let edgeTarget = (edgeSign * edgeMag * Math.min(PHYSICS.maxEdgeDeg, surface.maxEdgeDeg) * Math.PI) / 180
+  const edgeCap = Math.min(PHYSICS.maxEdgeDeg, surface.maxEdgeDeg, directionalSteering && !braking ? keyboardEdgeCap(speed) : Infinity)
+  let edgeTarget = (edgeSign * edgeMag * edgeCap * Math.PI) / 180
   if (edgeSign === 0 && speed > 0.5) {
     // Stick centred across the hill: stand on the uphill edges, as a skier
     // does without thinking, so a traverse holds instead of side-slipping.
@@ -503,7 +506,8 @@ function stepGround(
 
   if (brake > 0) {
     const mag = Math.hypot(along, across)
-    const cut = PHYSICS.brakeDecel * brake * dt
+    // Pressing the skis into the snow: less of it on a steep pitch, where gravity also pulls along.
+    const cut = PHYSICS.brakeDecel * brake * Math.max(n.y, 0) * dt
     if (mag <= cut) {
       along = 0
       across = 0
@@ -677,8 +681,9 @@ function stepAir(
   if (grade === 'crash' && powderCushion) grade = 'sketchy'
   // Soften the normal hit a little even on graded landings so big drops absorb through the legs.
   const powderKeep = powderCushion ? 0.88 + 0.08 * Math.min(1, state.surface.depth / 0.4) : 1
+  // The legs soak up the first part of the impact on a short hop; only a hard slap costs speed.
   const keep = hop
-    ? clamp(1 - Math.max(0, -dot(velocity, n)) / PHYSICS.landingSoften, 0.6, 1)
+    ? clamp(1 - Math.max(0, -dot(velocity, n) - PHYSICS.hopAbsorb) / PHYSICS.landingSoften, 0.6, 1)
     : landing.keep <= 0 && grade === 'crash'
       ? 0
       : Math.max(0, (landing.keep > 0 ? landing.keep : 0.72) * powderKeep * (1 - Math.min(0.15, landing.efh * 0.018)))
@@ -697,16 +702,18 @@ function stepAir(
   if (grade === 'crash') {
     crash(state)
   }
-  if (!hop) finishAir(state, grade, landing.switchLanding, landing.efh)
+  // A comp counts every air off its features; free skiing ignores small hops.
+  const judged = Boolean(env.judgedAirs) && air.time > JUDGED_AIR_MIN
+  if (!hop || judged) finishAir(state, grade, landing.switchLanding, landing.efh, judged)
   else state.air = null
 }
 
 /** Score the air that just ended and publish it as a trick event. */
-function finishAir(state: SkiState, grade: TrickEvent['grade'], switchLanding: boolean, efh = 0): void {
+function finishAir(state: SkiState, grade: TrickEvent['grade'], switchLanding: boolean, efh = 0, judged = false): void {
   const air = state.air
   state.air = null
   if (!air) return
-  const tricky = air.time > 0.5 || Math.abs(air.spin) > 2.5 || Math.abs(air.flip) > 3 || air.grabTime > 0.3
+  const tricky = judged || air.time > 0.5 || Math.abs(air.spin) > 2.5 || Math.abs(air.flip) > 3 || air.grabTime > 0.3
   if (!tricky) return
   const spinDeg = Math.round(Math.abs(air.spin) / Math.PI) * 180
   const flips = Math.round(Math.abs(air.flip) / (Math.PI * 2))
@@ -943,6 +950,16 @@ export function edgeGrip(normalAccel: number, edgeRad: number, braking: boolean,
   const mu = Math.min(Math.tan(Math.min(edge + angulation, 1.3)) + 0.2, latMax)
   const grip = normalAccel * mu
   return braking ? grip * PHYSICS.brakeGripScale : grip
+}
+
+/** Shortest air a judged comp scores, seconds (a mogul crest is less). */
+export const JUDGED_AIR_MIN = 0.25
+
+/** The most edge keyboard steering asks for at this speed (m/s), degrees. */
+export function keyboardEdgeCap(speed: number): number {
+  const [from, to] = PHYSICS.keyEdgeFadeKmh
+  const t = clamp((speed * 3.6 - from) / (to - from), 0, 1)
+  return PHYSICS.maxEdgeDeg + (PHYSICS.keyEdgeHighDeg - PHYSICS.maxEdgeDeg) * t
 }
 
 /**

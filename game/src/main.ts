@@ -579,6 +579,8 @@ function startPark(site: ParkSite) {
 /** `keepCamera`: coming off a lift, ease the camera from its arrival shot instead of cutting. */
 function spawn(keepCamera = false) {
   stage.env.turnModel = turnModel
+  // Judged comps score every air off their features, even a short straight one.
+  stage.env.judgedAirs = challenge.kind === 'event' && !isRaceFormat(challenge.course.def.format)
   ride = null
   ui.ride.hidden = true
   if (course) stage.slope.spawn = course.spawn

@@ -111,7 +111,7 @@ export function* paceBot(
     const want = headingFor(line[k][0] - s.x, line[k][1] - s.z)
     const error = Math.atan2(Math.sin(want - s.heading), Math.cos(want - s.heading))
     const steer = s.grounded ? Math.max(-1, Math.min(1, error * 2.5)) : 0
-    stepSkier(s, { steer, brake: s.speed > cap ? 0.7 : 0, tuck: s.speed < cap * 0.7 }, terrain, FIXED_DT, env)
+    stepSkier(s, { steer, brake: s.speed > cap ? 1 : 0, tuck: s.speed < cap * 0.7 }, terrain, FIXED_DT, env)
     if (s.offMap) return null
     if (Math.hypot(ex - s.x, ez - s.z) < FINISH_RADIUS) return t
     if (++steps % stepsPerYield === 0) yield

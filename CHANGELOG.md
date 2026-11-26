@@ -2,6 +2,23 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.31 (2026-11-25): Physics tuning
+
+Physics fixes from the 2026-11-25 playtest, measured with the new lab in `game/tuning/physlab.test.ts`.
+
+### Changed
+
+- **Faster tuck.** The tuck had more drag than a real one, so a straight run topped out at 134 km/h on 25° and the Chute's 151 km/h Pehota benchmark was out of reach. It now tops out near 160 km/h on 25° (120 km/h on 15°).
+- **Edging takes time.** The edge rolled from flat to 50° in about 0.19 s, so a 200 ms key tap reached the full edge and washed out. It now takes about 0.28 s.
+- **Keyboard edge by speed.** Keys are all or nothing, so keyboard steering now asks for the full edge up to 60 km/h, easing to 32° at 110 km/h. A tap at speed holds an arc instead of washing out. A stick or touch can still ask for the full edge.
+- **Real hockey stops.** Stops were about 1.5 to 1.9 g and the same on every slope. They are now 0.64 to 0.83 g and take longer on steeps: from 50 km/h, 1.8 s on 10° and 2.2 s on 30°.
+- **Softer short landings.** The legs soak up the first 2.5 m/s of a short hop's impact, so a clean little air no longer costs a big chunk of speed.
+
+### Fixed
+
+- **Steering at low frame rates.** A key tap was read once per frame and held for the whole frame, so the same tap turned about 12 times as far at 5 fps as at 60 fps. Keys now ramp on their real press and release times, so a tap turns the same at any frame rate.
+- **Moguls comp airs.** A straight air off the top or bottom kicker shorter than 0.5 s scored nothing. In the moguls comp and aerials, every air over 0.25 s is now judged.
+
 ## 0.9.30 (2026-11-25): Race day fixes
 
 Fixes from the 2026-11-25 playtest of the events.
