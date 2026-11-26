@@ -2,7 +2,7 @@ import type { Action } from './input'
 
 export type MenuCommand = 'up' | 'down' | 'left' | 'right' | 'accept' | 'back'
 
-const shortcuts: Record<number, Action> = { 9: 'pause', 8: 'runs', 4: 'camera', 1: 'skip', 13: 'map', 12: 'style', 15: 'reset' }
+const shortcuts: Record<number, Action> = { 9: 'pause', 8: 'runs', 4: 'camera', 1: 'skip', 13: 'map', 12: 'style', 14: 'prevTrack', 15: 'nextTrack', 11: 'player' }
 
 type VibrationActuator = { playEffect(type: 'dual-rumble', params: {
   startDelay: number

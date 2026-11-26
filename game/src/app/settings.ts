@@ -19,8 +19,12 @@ export interface Settings {
   volume: number
   /** Adaptive music on or off. */
   music: boolean
-  /** Procedural stems made in the browser, or the open-licence tracks in `public/audio/music/`. */
-  musicSource: 'procedural' | 'tracks'
+  /** Procedural stems made in the browser, the adaptive instrumentals, or the radio songs (`public/audio/music/`). */
+  musicSource: 'procedural' | 'tracks' | 'radio'
+  /** Synced lyrics on screen while a song with lyrics plays. */
+  lyrics: boolean
+  /** Which songs the radio plays. */
+  radioMix: 'all' | 'vocal' | 'instrumental'
   /** 0 to 1, on top of the Sound button. */
   musicVolume: number
   /** Follow-camera field of view, degrees. */
@@ -48,6 +52,8 @@ export const DEFAULT_SETTINGS: Settings = {
   volume: 0.8,
   music: true,
   musicSource: 'procedural',
+  lyrics: true,
+  radioMix: 'all',
   musicVolume: 0.6,
   fov: 58,
   cameraShake: true,
@@ -65,7 +71,9 @@ export function readSettings(): Settings {
   const stored = settings.shadows as unknown
   if (stored === true) settings.shadows = 'auto'
   if (stored === false) settings.shadows = 'off'
-  if (settings.musicSource !== 'procedural' && settings.musicSource !== 'tracks') settings.musicSource = 'procedural'
+  if (!['procedural', 'tracks', 'radio'].includes(settings.musicSource)) settings.musicSource = 'procedural'
+  if (typeof settings.lyrics !== 'boolean') settings.lyrics = DEFAULT_SETTINGS.lyrics
+  if (!['all', 'vocal', 'instrumental'].includes(settings.radioMix)) settings.radioMix = DEFAULT_SETTINGS.radioMix
   if (typeof settings.musicVolume !== 'number' || !Number.isFinite(settings.musicVolume)) settings.musicVolume = DEFAULT_SETTINGS.musicVolume
   if (!settings.weather || !['clear', 'snow', 'storm', 'flat'].includes(settings.weather)) settings.weather = 'snow'
   return settings
@@ -305,7 +313,9 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
     slider('Volume', 'volume', 0, 1, 0.05, percent)
     chips('Music', 'music', [[true, 'On'], [false, 'Off']], 'Follows how you ski: calm on lifts, driving on steeps, punchy in the park')
     if (settings.music) {
-      chips('Music source', 'musicSource', [['procedural', 'Procedural'], ['tracks', 'Tracks']], 'Tracks play procedural music until some are installed')
+      chips('Music source', 'musicSource', [['procedural', 'Procedural'], ['tracks', 'Tracks'], ['radio', 'Radio']], 'Radio plays Chair 9 FM songs; P opens the player')
+      if (settings.musicSource === 'radio') chips('Radio songs', 'radioMix', [['all', 'Shuffle all'], ['vocal', 'Sing-along'], ['instrumental', 'Instrumental']])
+      chips('Lyrics', 'lyrics', [[true, 'On'], [false, 'Off']], 'Sing-along lines on screen, by your head on lifts. Also on the player')
       slider('Music volume', 'musicVolume', 0, 1, 0.05, percent)
     }
     heading('Assists')

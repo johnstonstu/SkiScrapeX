@@ -2,6 +2,21 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.28 (2026-11-25): Chair 9 FM
+
+### Changed
+
+- **Controller:** D-pad right no longer restarts the run (use Pause, Restart); D-pad left and right now skip songs.
+
+### Added
+
+- **Radio.** A new music source with six joke songs about skiing (a sea shanty about a yard sale, T-bar blues, a power ballad for the singles line, flat-light pop punk, an après polka and a dubstep igloo party) and two instrumentals, shuffled with no repeats. Play everything, only the sing-along songs, or only the instrumentals.
+- **Pocket player.** Press P (or the ♪ button, or R3 on a controller) to pull out a little MP3 player with the song, artist, progress, previous, play/pause, next, the playlist, a Lyrics button and a song list to pick any song in the game. `[` and `]`, or D-pad left and right, skip songs with it closed. Songs pause while a menu is open.
+- **Sing-along lyrics.** The words fill in time with the song, low on screen while skiing and in a bubble by the rider's head on lifts. Turn them off on the player or in Settings, Sound.
+- **Free songs.** Three CC0 tracks from OpenGameArt on the radio: Black Diamond (drum and bass made for a snowboarding game) and Funked Up by Joth, and Happy Synths by 3xBlast.
+- **Synth songs.** Four named songs from the procedural music (Corduroy, Tree Well, Bluebird, Night Groom), each its own key and tempo, in the song list and skipped through with next and previous when the synth plays.
+- **Tracks** now has two instrumentals: a calm one for lifts and cruising, a driving one for steeps and the park.
+
 ## 0.9.27 (2026-11-25): Rider legs in turns and pushes
 
 ### Fixed

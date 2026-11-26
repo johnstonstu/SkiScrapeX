@@ -1,18 +1,12 @@
 import { createBarScheduler, type BarScheduler } from './musicClock'
 import { composeStep, createMusicSession, MOOD_MIX, MUSIC_LAYERS, type MusicLayer, type MusicSession } from './musicScore'
 import { createMusicTracker, type MusicInput, type MusicMood } from './musicState'
+import { createTrackPlayer, readManifest, type MusicTrack, type NowPlaying, type TrackPlayer } from './musicTracks'
+import { libraryOf, songsFor, SYNTH_SONGS, type LibraryEntry, type MusicSource, type RadioMix } from './musicLibrary'
 import { createVoiceKit, type VoiceKit } from './musicVoices'
 
-export type MusicSource = 'procedural' | 'tracks'
-
-/** One entry of `public/audio/music/tracks.json`. */
-export interface MusicTrack {
-  file: string
-  title: string
-  author: string
-  licence: string
-  url: string
-}
+export type { MusicTrack, NowPlaying } from './musicTracks'
+export { libraryOf, RADIO_MIXES, songsFor, SYNTH_SONGS, type LibraryEntry, type MusicSource, type RadioMix } from './musicLibrary'
 
 const MANIFEST_URL = 'audio/music/tracks.json'
 
@@ -26,7 +20,7 @@ const TRACK_SHAPE: Record<MusicMood, { cutoff: number; level: number }> = {
 
 export interface MusicStatus {
   source: MusicSource | 'off'
-  /** What is actually playing (tracks fall back to procedural when none are installed). */
+  /** What is actually playing (tracks and radio fall back to procedural when none are installed). */
   playing: MusicSource | 'none'
   mood: MusicMood
   wanted: MusicMood
@@ -37,37 +31,49 @@ export interface MusicStatus {
   track: string | null
   /** Seconds into the current track while it plays, else null. */
   trackTime: number | null
+  paused: boolean
   contextState: AudioContextState | 'none'
 }
 
 /**
  * Adaptive music. The tracker picks a mood from the game every frame; the
  * bar scheduler, pumped from a timer but timed by the audio clock, plays the
- * matching stems and cross-fades their levels from the next bar line. Its own
- * AudioContext, unlocked by the first gesture, suspended while the tab is hidden.
+ * matching stems and cross-fades their levels from the next bar line. Bundled
+ * tracks and the radio play through `musicTracks.ts`. Its own AudioContext,
+ * unlocked by the first gesture, suspended while the tab is hidden.
  */
-export function createMusic(options: { enabled: boolean; source: MusicSource; volume: number; muted: boolean }) {
-  let { enabled, source, volume, muted } = options
+export function createMusic(options: { enabled: boolean; source: MusicSource; mix: RadioMix; volume: number; muted: boolean }) {
+  let { enabled, source, mix, volume, muted } = options
   let ctx: AudioContext | undefined
-  let out: GainNode, duckGain: GainNode, tone: BiquadFilterNode, bus: GainNode, send: GainNode
+  let out: GainNode, duckGain: GainNode, tone: BiquadFilterNode, bus: GainNode, send: GainNode, delay: DelayNode
   const layers = {} as Record<MusicLayer, GainNode>
   let kit: VoiceKit | undefined
   let scheduler: BarScheduler | null = null
   let timer = 0
-  const session: MusicSession = createMusicSession((Math.random() * 2 ** 32) >>> 0)
+  let session: MusicSession = createMusicSession((Math.random() * 2 ** 32) >>> 0)
   const tracker = createMusicTracker('ambient')
   let barMood: MusicMood = 'ambient'
-  let tracks: MusicTrack[] | null = null
-  let trackIndex = 0
-  let audioEl: HTMLAudioElement | null = null
+  let manifest: MusicTrack[] | null = null
   let manifestTried = false
+  let player: TrackPlayer | null = null
+  let paused = false
+  /** A file picked from the list, played once the list it is in is loaded. */
+  let pendingFile: string | null = null
+  /** Title of a named synth song, while one plays. */
+  let synthTitle: string | null = null
+  /** Songs hold while a menu is open, so the lyrics pick up where they left off. */
+  let menuHeld = false
+  const listeners = new Set<() => void>()
+  const changed = () => listeners.forEach((fn) => fn())
 
+  const listFor = (s: MusicSource) => songsFor(manifest ?? [], s, mix)
   const playing = (): MusicSource | 'none' => {
     if (!enabled || !ctx) return 'none'
-    if (source === 'tracks' && tracks && tracks.length > 0) return 'tracks'
-    return source === 'tracks' && !manifestTried ? 'none' : 'procedural'
+    if (source === 'procedural') return 'procedural'
+    if (!manifestTried) return 'none'
+    return listFor(source).length > 0 ? source : 'procedural'
   }
-  const level = () => (enabled && !muted ? volume * 0.5 : 0)
+  const level = () => (enabled && !muted && !paused ? volume * 0.5 : 0)
   const applyLevel = () => {
     if (ctx) out.gain.setTargetAtTime(level(), ctx.currentTime, 0.08)
   }
@@ -86,7 +92,7 @@ export function createMusic(options: { enabled: boolean; source: MusicSource; vo
     bus = c.createGain()
     bus.connect(tone).connect(comp).connect(duckGain).connect(out).connect(c.destination)
     // A dotted-eighth echo on the arp and stabs.
-    const delay = c.createDelay(2)
+    delay = c.createDelay(2)
     delay.delayTime.value = (60 / session.bpm) * 0.75
     const feedback = c.createGain()
     feedback.gain.value = 0.32
@@ -103,10 +109,11 @@ export function createMusic(options: { enabled: boolean; source: MusicSource; vo
       layers[layer] = g
     }
     kit = createVoiceKit(c)
+    player = createTrackPlayer(c, bus, changed)
   }
 
   const pump = () => {
-    if (!ctx || !kit || ctx.state !== 'running') return
+    if (!ctx || !kit || ctx.state !== 'running' || paused) return
     if (playing() !== 'procedural') return
     if (!scheduler) scheduler = createBarScheduler({ bpm: session.bpm, start: ctx.currentTime + 0.1, mood: tracker.mood })
     scheduler.request(tracker.mood)
@@ -125,12 +132,12 @@ export function createMusic(options: { enabled: boolean; source: MusicSource; vo
     if (manifestTried) return
     void fetch(MANIFEST_URL)
       .then((res) => (res.ok ? res.json() : { tracks: [] }))
-      .then((json: { tracks?: MusicTrack[] }) => {
-        tracks = Array.isArray(json.tracks) ? json.tracks.filter((t) => t && typeof t.file === 'string') : []
+      .then((json: unknown) => {
+        manifest = readManifest(json)
       })
       .catch((error: unknown) => {
         console.warn('Music: could not read the track list, playing procedural music instead.', error)
-        tracks = []
+        manifest = []
       })
       .finally(() => {
         manifestTried = true
@@ -138,35 +145,32 @@ export function createMusic(options: { enabled: boolean; source: MusicSource; vo
       })
   }
 
-  const playTrack = () => {
-    if (!ctx || !tracks || tracks.length === 0) return
-    if (!audioEl) {
-      audioEl = new Audio()
-      audioEl.preload = 'none'
-      ctx.createMediaElementSource(audioEl).connect(bus)
-      audioEl.addEventListener('ended', () => {
-        trackIndex = (trackIndex + 1) % tracks!.length
-        playTrack()
-      })
-      audioEl.addEventListener('error', () => console.warn(`Music: could not play ${audioEl?.src}`))
-    }
-    const track = tracks[trackIndex % tracks.length]
-    const url = `audio/music/${track.file}`
-    if (!audioEl.src.endsWith(url)) audioEl.src = url
-    void audioEl.play().catch((error: unknown) => console.warn('Music: track playback was refused.', error))
+  /** New key and tempo for the procedural music (its "next song"). */
+  const reroll = (seed = (Math.random() * 2 ** 32) >>> 0, title: string | null = null) => {
+    synthTitle = title
+    session = createMusicSession(seed)
+    scheduler = null
+    if (ctx) delay.delayTime.setTargetAtTime((60 / session.bpm) * 0.75, ctx.currentTime, 0.05)
+    changed()
   }
 
   /** Start or stop the procedural stems and the track player to match the settings. */
   const syncSource = () => {
-    if (!ctx) return
-    if (enabled && source === 'tracks' && !manifestTried) loadManifest()
+    if (!ctx || !player) return
+    if (enabled && source !== 'procedural' && !manifestTried) loadManifest()
     const now = playing()
-    if (now === 'tracks') {
+    if (now === 'tracks' || now === 'radio') {
       for (const layer of MUSIC_LAYERS) layers[layer].gain.setTargetAtTime(0, ctx.currentTime, 0.2)
       scheduler = null
-      playTrack()
+      player.setList(listFor(now))
+      if (pendingFile && manifestTried) {
+        player.select(pendingFile)
+        pendingFile = null
+      }
+      player.setPaused(paused || menuHeld)
+      player.setActive(true)
     } else {
-      audioEl?.pause()
+      player.setActive(false)
       if (now === 'none') scheduler = null
     }
     if (enabled && !timer) timer = window.setInterval(pump, 25)
@@ -176,6 +180,7 @@ export function createMusic(options: { enabled: boolean; source: MusicSource; vo
       scheduler = null
     }
     applyLevel()
+    changed()
   }
 
   const unlock = () => {
@@ -192,13 +197,22 @@ export function createMusic(options: { enabled: boolean; source: MusicSource; vo
   document.addEventListener('visibilitychange', () => {
     if (!ctx) return
     if (document.hidden) {
-      audioEl?.pause()
+      player?.suspend()
       void ctx.suspend().catch(() => {})
     } else {
       // Browsers may refuse this without a gesture; then the next key or tap resumes it.
       void ctx.resume().then(syncSource, () => {})
     }
   })
+
+  /** Step through the named synth songs. */
+  const nextSynth = (step: number) => {
+    const at = SYNTH_SONGS.findIndex((s) => s.title === synthTitle)
+    const next = SYNTH_SONGS[(at + step + SYNTH_SONGS.length) % SYNTH_SONGS.length]
+    reroll(next.seed, next.title)
+  }
+
+  const onTracks = () => playing() === 'tracks' || playing() === 'radio'
 
   return {
     setEnabled(value: boolean) {
@@ -210,6 +224,16 @@ export function createMusic(options: { enabled: boolean; source: MusicSource; vo
       source = value
       syncSource()
     },
+    get source() {
+      return source
+    },
+    setMix(value: RadioMix) {
+      mix = value
+      syncSource()
+    },
+    get mix() {
+      return mix
+    },
     setVolume(value: number) {
       volume = Math.max(0, Math.min(1, value))
       applyLevel()
@@ -218,6 +242,59 @@ export function createMusic(options: { enabled: boolean; source: MusicSource; vo
       muted = value
       if (!muted) unlock()
       applyLevel()
+    },
+    /** The song list, loading it if needed. */
+    library(): LibraryEntry[] | null {
+      if (!manifestTried) {
+        loadManifest()
+        return null
+      }
+      return libraryOf(manifest ?? [])
+    },
+    /** Play a file from the list; switch source and mix first so the file is in the playing list. */
+    playFile(file: string) {
+      unlock()
+      pendingFile = file
+      syncSource()
+    },
+    /** Play a named synth song (switch the source to procedural first). */
+    playSynth(seed: number) {
+      unlock()
+      const song = SYNTH_SONGS.find((s) => s.seed === seed)
+      reroll(seed, song?.title ?? null)
+    },
+    next() {
+      unlock()
+      if (onTracks()) player?.next()
+      else if (playing() === 'procedural') nextSynth(1)
+    },
+    prev() {
+      unlock()
+      if (onTracks()) player?.prev()
+      else if (playing() === 'procedural') nextSynth(-1)
+    },
+    togglePause() {
+      unlock()
+      paused = !paused
+      player?.setPaused(paused || menuHeld)
+      applyLevel()
+      changed()
+    },
+    /** Called whenever the song, source or pause state changes. */
+    onChange(fn: () => void) {
+      listeners.add(fn)
+      return () => listeners.delete(fn)
+    },
+    /** What the player screen shows. Procedural music reports its session as the title. */
+    nowPlaying(): (NowPlaying & { source: MusicSource | 'none' }) | null {
+      const now = playing()
+      if (now === 'none') return null
+      if (now === 'procedural') {
+        const n = SYNTH_SONGS.findIndex((s) => s.title === synthTitle)
+        return { source: now, file: null, title: synthTitle ?? session.name, artist: synthTitle ? `Synth · ${session.name}` : 'Synth', number: n + 1, count: n >= 0 ? SYNTH_SONGS.length : 1, time: 0, duration: 0, paused, lyrics: null }
+      }
+      const np = player?.nowPlaying()
+      return np ? { ...np, source: now } : null
     },
     /** Duck under a crash or hard impact: `amount` 0..1. */
     duck(amount: number) {
@@ -231,9 +308,19 @@ export function createMusic(options: { enabled: boolean; source: MusicSource; vo
     /** Per frame: pick the mood and shape the sound. */
     update(input: MusicInput) {
       tracker.update(input)
+      if (input.menu !== menuHeld) {
+        menuHeld = input.menu
+        player?.setPaused(paused || menuHeld)
+      }
       if (!ctx) return
       const t = ctx.currentTime
-      if (playing() === 'tracks') {
+      const now = playing()
+      player?.setMood(tracker.mood)
+      if (now === 'radio') {
+        // The radio plays flat so the vocals stay clear.
+        tone.frequency.setTargetAtTime(20000, t, 0.4)
+        bus.gain.setTargetAtTime(1, t, 0.4)
+      } else if (now === 'tracks') {
         const shape = TRACK_SHAPE[tracker.mood]
         tone.frequency.setTargetAtTime(shape.cutoff, t, 0.6)
         bus.gain.setTargetAtTime(shape.level, t, 0.6)
@@ -245,6 +332,7 @@ export function createMusic(options: { enabled: boolean; source: MusicSource; vo
       }
     },
     status(): MusicStatus {
+      const np = onTracks() ? player?.nowPlaying() : null
       return {
         source: enabled ? source : 'off',
         playing: playing(),
@@ -253,10 +341,13 @@ export function createMusic(options: { enabled: boolean; source: MusicSource; vo
         barMood,
         intensity: Math.round(tracker.intensity * 100) / 100,
         session: session.name,
-        track: playing() === 'tracks' && tracks ? tracks[trackIndex % tracks.length].title : null,
-        trackTime: audioEl && !audioEl.paused ? Math.round(audioEl.currentTime * 10) / 10 : null,
+        track: np?.title ?? null,
+        trackTime: np && !np.paused ? Math.round(np.time * 10) / 10 : null,
+        paused,
         contextState: ctx ? ctx.state : 'none',
       }
     },
   }
 }
+
+export type Music = ReturnType<typeof createMusic>

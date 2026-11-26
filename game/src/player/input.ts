@@ -23,7 +23,7 @@ export interface Controls {
   dispose(): void
 }
 
-export type Action = 'reset' | 'camera' | 'debug' | 'map' | 'runs' | 'skip' | 'style' | 'settings' | 'challenges' | 'title' | 'pause' | `slope${number}`
+export type Action = 'reset' | 'camera' | 'debug' | 'map' | 'runs' | 'skip' | 'style' | 'settings' | 'challenges' | 'title' | 'pause' | 'player' | 'prevTrack' | 'nextTrack' | `slope${number}`
 
 /** Full stick deflection, CSS pixels (position control: offset maps straight to edge). */
 const STICK_RANGE_PX = 60
@@ -54,6 +54,9 @@ export function createControls(root: HTMLElement): Controls {
     KeyO: 'style',
     KeyG: 'settings',
     KeyH: 'challenges',
+    KeyP: 'player',
+    BracketLeft: 'prevTrack',
+    BracketRight: 'nextTrack',
     Enter: 'skip',
     Escape: 'pause',
   }

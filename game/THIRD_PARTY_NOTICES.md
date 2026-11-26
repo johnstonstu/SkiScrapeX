@@ -51,4 +51,12 @@ The kinematic stepper in `src/sim/skier.ts` is original.
 
 The procedural music (`src/player/music*.ts`) is original and generated in the browser.
 
-No recorded tracks are bundled yet. The Tracks music source reads `public/audio/music/tracks.json`, which is empty, so it plays the procedural music. Each track added there must be CC0 or CC-BY, verified on its own page, and credited here with its title, author, page URL and licence. See `public/audio/music/README.md`.
+The bundled songs in `public/audio/music/` (First Chair, Cold Smoke and the six Chair 9 FM radio songs: Yard Sale, T-Bar Blues, Singles Line, Flat Light, Boots Still On, Igloo Party) were generated for this project with ElevenLabs Music v2.5 through Higgsfield in November 2026. The lyrics and prompts are original to SkiScrapex. The artist names are made up for the in-game radio.
+
+**Licence:** checked by the maintainer on 2026-11-25 against Higgsfield's help center ("Who owns my generations and can I use them commercially?"): the user owns the outputs and may use them commercially. Higgsfield keeps a broad licence to them under its terms, and outputs are not exclusive. These audio files are not covered by the MIT licence of the code: reuse them under Higgsfield's terms, not as open-licensed music. Other recorded tracks added later must be CC0 or CC-BY, verified on their own page, and credited here. See `public/audio/music/README.md`.
+
+CC0 tracks from OpenGameArt, each licence checked on its own page on 2026-11-25 and re-encoded to 112 kbps MP3 in `public/audio/music/cc0/`. CC0 needs no credit; it is given anyway.
+
+- "Black Diamond" by Joth, CC0 1.0, https://opengameart.org/content/black-diamond
+- "Happy synths loop with slight christmas feeling" (shown as "Happy Synths") by 3xBlast, CC0 1.0, https://opengameart.org/content/happy-synths-loop-with-slight-christmas-feeling
+- "Funked Up" by Joth, CC0 1.0, https://opengameart.org/content/funked-up
