@@ -199,4 +199,15 @@ describe('snowboarder in real turns', () => {
       expect(Math.abs(mean(side.map((f) => f.chestLean)))).toBeLessThan(Math.abs(mean(side.map((f) => f.legLean))))
     }
   })
+
+  it('draws the board legs a little short of the physics lean, never past it', () => {
+    // At the full physics lean the legs peaked at 55° against 48° of physics (the
+    // stance adds its own tilt about the edge), which read as too intense.
+    const deep = frames.filter((f) => f.time > 5 && Math.abs(f.physLean) > 20)
+    const share = mean(deep.map((f) => f.legLean / f.physLean))
+    expect(share).toBeGreaterThan(0.72)
+    expect(share).toBeLessThan(0.86)
+    const peak = (k: 'legLean' | 'physLean') => Math.max(...deep.map((f) => Math.abs(f[k])))
+    expect(peak('legLean')).toBeLessThan(peak('physLean'))
+  })
 })

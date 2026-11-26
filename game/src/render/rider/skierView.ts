@@ -70,6 +70,14 @@ const BOARD_TORSO_TOE = 0.3
 const BOARD_TORSO_HEEL = 0.45
 /** Lowest a board rider's hand goes, metres above the snow (root space). */
 const BOARD_HAND_FLOOR = 0.14
+/**
+ * Board: share of the physics lean drawn, and its spring (Hz). The full lean read
+ * as too intense on the board (Stu, 2026-11-26): the legs peaked 7° past the
+ * physics. At 0.8 they peak just under it; it also settles a little softer
+ * than the skier.
+ */
+export const BOARD_LEAN = 0.8
+const BOARD_INCLINE_HZ = 4
 
 /**
  * Share of the lean the upper body tilts back toward the outside ski: a little
@@ -707,9 +715,9 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         ? THREE.MathUtils.clamp((CROSSOVER_HOLD - Math.abs(edge)) / (CROSSOVER_HOLD - CROSSOVER_EDGE), 0, 1)
         : 1
       const lean = Math.abs(pathLean * crossing) > Math.abs(edgeLean) ? pathLean * crossing : edgeLean
-      const wantIncline = skiing ? lean - slopeRoll * 0.8 : 0
+      const wantIncline = skiing ? lean * (boarding ? BOARD_LEAN : 1) - slopeRoll * 0.8 : 0
       // Fast and near critically damped: the lean follows the physics with little lag.
-      incline.step(wantIncline, dt, INCLINE_HZ, 0.9)
+      incline.step(wantIncline, dt, boarding ? BOARD_INCLINE_HZ : INCLINE_HZ, 0.9)
 
       // Steer flip plants first (hand leads the turn); edge flip still unweights the legs.
       const edgeSign = Math.abs(edge) > 0.12 ? Math.sign(edge) : 0
