@@ -30,11 +30,16 @@ export interface Summary {
 
 function summaryHtml({ progress, skied, runCount, nuggetCount }: Summary): string {
   const counts = medalCounts(progress)
+  const tile = (value: string, label: string) => `<span class="stat"><b>${value}</b><small>${label}</small></span>`
   return (
-    `<span>${medalBadge('gold')}${counts.gold} ${medalBadge('silver')}${counts.silver} ${medalBadge('bronze')}${counts.bronze}</span>` +
-    `<span>Runs skied ${skied}/${runCount}</span><span>Nuggets ${progress.nuggets.length}/${nuggetCount}</span>`
+    tile(`${medalBadge('gold')}${counts.gold} ${medalBadge('silver')}${counts.silver} ${medalBadge('bronze')}${counts.bronze}`, 'Medals') +
+    tile(`${skied}<em>/${runCount}</em>`, 'Runs skied') +
+    tile(`${progress.nuggets.length}<em>/${nuggetCount}</em>`, 'Gold nuggets')
   )
 }
+
+/** A title menu entry: a big label with a short line under it. */
+const menuItem = (label: string, detail: string) => `<span><span class="mi-label">${label}</span><small>${detail}</small></span>`
 
 export function renderTitle(
   panel: HTMLElement,
@@ -44,17 +49,26 @@ export function renderTitle(
   learnFirst = false,
 ): void {
   panel.innerHTML =
-    '<div class="title-card"><h1>SkiScrapex</h1><p class="sub">Apex Mountain Resort, Penticton BC</p>' +
-    `<p class="title-status">${ready ? '' : 'Loading the mountain…'}</p><div class="title-buttons"></div>` +
-    `<p class="title-summary">${summary ? summaryHtml(summary) : ''}</p></div>`
+    '<div class="title-card"><p class="title-eyebrow eyebrow">Apex Mountain Resort · Penticton, BC</p>' +
+    '<h1>Ski<b>Scrape</b>x</h1>' +
+    `<p class="title-status">${ready ? '' : 'Loading the mountain…'}</p><nav class="title-buttons" aria-label="Main menu"></nav>` +
+    `<div class="title-summary">${summary ? summaryHtml(summary) : ''}</div></div>` +
+    '<p class="title-hint" aria-hidden="true"><span><kbd>↑</kbd> <kbd>↓</kbd> or <kbd>Tab</kbd> choose</span><span><kbd>Enter</kbd> select</span></p>'
   const buttons = panel.querySelector('.title-buttons')!
-  // First visit: the tutorial leads. Afterwards it is a small link under the buttons.
-  const play = button(summary && summary.progress.totals.runs > 0 ? 'Continue' : 'Free ski', actions.play, learnFirst ? '' : 'primary')
-  const learn = button(learnFirst ? 'Learn to ski' : 'Tutorial', actions.learn, learnFirst ? 'primary' : 'link')
-  const challenges = button('Challenges', actions.challenges)
+  const returning = Boolean(summary && summary.progress.totals.runs > 0)
+  // First visit: the tutorial leads. Afterwards it is a small entry under the others.
+  const play = button(menuItem(returning ? 'Continue' : 'Free ski', 'Drop in and ski anywhere on the mountain'), actions.play, learnFirst ? '' : 'primary')
+  const learn = button(
+    learnFirst ? menuItem('Learn to ski', 'A short lesson by the Magic Carpet') : '<span><span class="mi-label">Tutorial</span></span>',
+    actions.learn,
+    learnFirst ? 'primary' : 'link',
+  )
+  const challenges = button(menuItem('Challenges', 'Apex events, slalom, park scores and nuggets'), actions.challenges)
+  const rider = button(menuItem('Rider', 'Outfit, skis or snowboard'), actions.rider)
+  const settings = button(menuItem('Settings', 'Graphics, camera, sound and assists'), actions.settings)
   play.disabled = challenges.disabled = learn.disabled = !ready
-  if (learnFirst) buttons.append(learn, play, challenges, button('Rider', actions.rider), button('Settings', actions.settings))
-  else buttons.append(play, challenges, button('Rider', actions.rider), button('Settings', actions.settings), learn)
+  if (learnFirst) buttons.append(learn, play, challenges, rider, settings)
+  else buttons.append(play, challenges, rider, settings, learn)
   if (ready) (learnFirst ? learn : play).focus()
 }
 
@@ -98,8 +112,8 @@ function targetText(row: ChallengeRow): string {
 export function renderChallenges(panel: HTMLElement, data: ChallengeData, progress: Progress, close: () => void): void {
   panel.innerHTML =
     '<header><div><h2>Challenges</h2><p class="menu-lead">Timed runs, parks, slalom and the mountain checklist.</p></div>' +
-    '<button type="button" class="close" aria-label="Close">✕</button></header>' +
-    `<p class="title-summary">${summaryHtml(data.summary)}</p>`
+    '<button type="button" class="close" aria-label="Close"><kbd>Esc</kbd><span>Back</span></button></header>' +
+    `<div class="title-summary">${summaryHtml(data.summary)}</div>`
   panel.querySelector('.close')!.addEventListener('click', close)
   const section = (title: string, note: string, rows: ChallengeRow[]) => {
     const block = document.createElement('section')

@@ -121,7 +121,7 @@ export function createCoach(card: HTMLElement, mode: () => InputMode, actions: {
     const step = STEPS[index]
     card.className = 'coach lesson'
     card.innerHTML =
-      `<p class="coach-count">Lesson ${index + 1} of ${STEPS.length}</p>` +
+      `<p class="coach-count">Lesson ${index + 1} of ${STEPS.length}<span class="coach-progress" style="--p: ${((index / STEPS.length) * 100).toFixed(0)}%"></span></p>` +
       `<h3>${escapeHtml(step.title)}</h3><p>${step.text[mode()]}</p>` +
       '<div class="coach-buttons"><button type="button" class="skip">Skip tutorial</button></div>'
     card.querySelector('.skip')!.addEventListener('click', () => finish(true))

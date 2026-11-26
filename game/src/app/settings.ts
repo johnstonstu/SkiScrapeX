@@ -215,8 +215,14 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
   const render = () => {
     panel.innerHTML =
       '<header><div><h2>Settings</h2><p class="menu-lead">Graphics, camera, sound and assists.</p></div>' +
-      '<button type="button" class="close" aria-label="Close">✕</button></header>'
+      '<button type="button" class="close" aria-label="Close"><kbd>Esc</kbd><span>Back</span></button></header>'
     panel.querySelector('.close')!.addEventListener('click', () => (panel.hidden = true))
+    const heading = (title: string) => {
+      const element = document.createElement('h3')
+      element.className = 'settings-section'
+      element.textContent = title
+      panel.append(element)
+    }
     const row = (title: string, note = '') => {
       const element = document.createElement('div')
       element.className = 'style-row settings-row'
@@ -253,9 +259,12 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
       input.setAttribute('aria-label', title)
       const value = document.createElement('output')
       value.textContent = format(settings[key])
+      const fill = () => input.style.setProperty('--fill', `${((Number(input.value) - min) / (max - min)) * 100}%`)
+      fill()
       input.addEventListener('input', () => {
         settings[key] = Number(input.value)
         value.textContent = format(settings[key])
+        fill()
         onChange(settings, key)
       })
       const wrap = document.createElement('div')
@@ -265,7 +274,8 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
     }
     const percent = (v: number) => `${Math.round(v * 100)}%`
     const pending = (settings.quality === 'auto' ? null : settings.quality) !== null && settings.quality !== appliedQuality
-    chips('Graphics', 'quality', [['auto', 'Auto'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']], `now ${appliedQuality}${settings.quality === 'auto' && autoReason ? `, for ${autoReason}` : ''}`)
+    heading('Graphics')
+    chips('Quality', 'quality', [['auto', 'Auto'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']], `now ${appliedQuality}${settings.quality === 'auto' && autoReason ? `, for ${autoReason}` : ''}`)
     if (pending) {
       const reload = document.createElement('button')
       reload.type = 'button'
@@ -276,27 +286,32 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
     }
     chips('Shadows', 'shadows', [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], 'Auto is off on Low graphics')
     slider('View distance', 'viewDistance', 0.6, 1.4, 0.05, percent)
-    slider('Steering sensitivity', 'steering', 0.5, 1.5, 0.05, percent)
-    chips('Flip controls (up and down)', 'invertPitch', [[false, 'Normal'], [true, 'Inverted']])
-    slider('Camera field of view', 'fov', 48, 75, 1, (v) => `${v}°`)
-    chips('Camera follow', 'cameraStyle', [['steady', 'Steady'], ['tight', 'Tight']], 'steady looks down the hill, tight turns with the skis')
-    chips('Camera shake & rumble', 'cameraShake', [[true, 'On'], [false, 'Off']])
+    heading('Mountain')
     chips('Weather', 'weather', [
       ['clear', 'Bluebird'],
       ['snow', 'Light snow'],
       ['storm', 'Storm'],
       ['flat', 'Flat light'],
     ])
+    chips('Other skiers', 'npcs', [[true, 'On'], [false, 'Off']])
+    heading('Camera')
+    slider('Field of view', 'fov', 48, 75, 1, (v) => `${v}°`)
+    chips('Camera follow', 'cameraStyle', [['steady', 'Steady'], ['tight', 'Tight']], 'Steady looks down the hill, tight turns with the skis')
+    chips('Camera shake & rumble', 'cameraShake', [[true, 'On'], [false, 'Off']])
+    heading('Controls')
+    slider('Steering sensitivity', 'steering', 0.5, 1.5, 0.05, percent)
+    chips('Flip controls (up and down)', 'invertPitch', [[false, 'Normal'], [true, 'Inverted']])
+    heading('Sound')
     slider('Volume', 'volume', 0, 1, 0.05, percent)
-    chips('Music', 'music', [[true, 'On'], [false, 'Off']], 'follows how you ski: calm on lifts, driving on steeps, punchy in the park')
+    chips('Music', 'music', [[true, 'On'], [false, 'Off']], 'Follows how you ski: calm on lifts, driving on steeps, punchy in the park')
     if (settings.music) {
-      chips('Music source', 'musicSource', [['procedural', 'Procedural'], ['tracks', 'Tracks']], 'tracks play procedural music until some are installed')
+      chips('Music source', 'musicSource', [['procedural', 'Procedural'], ['tracks', 'Tracks']], 'Tracks play procedural music until some are installed')
       slider('Music volume', 'musicVolume', 0, 1, 0.05, percent)
     }
-    chips('Other skiers', 'npcs', [[true, 'On'], [false, 'Off']])
+    heading('Assists')
     chips('Landing marker', 'landingRing', [[true, 'On'], [false, 'Off']])
-    chips('Landing assist', 'landingAssist', [[true, 'On'], [false, 'Off']], 'lines up rotation near touchdown')
-    chips('Racing line assist', 'raceAssist', [[true, 'On'], [false, 'Off']], 'steer toward a gate and it helps you carve round the pole')
+    chips('Landing assist', 'landingAssist', [[true, 'On'], [false, 'Off']], 'Lines up rotation near touchdown')
+    chips('Racing line assist', 'raceAssist', [[true, 'On'], [false, 'Off']], 'Steer toward a gate and it helps you carve round the pole')
     const reset = document.createElement('button')
     reset.type = 'button'
     reset.className = 'reset'

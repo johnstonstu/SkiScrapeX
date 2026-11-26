@@ -38,11 +38,17 @@ export function createTrickFeed(element: HTMLElement) {
   let timer = 0
   const combo = { tricks: [] as string[], counted: 0, multiplier: 1, points: 0, groundTime: 0, total: 0 }
   const stats = { perfect: 0, clean: 0, railMetres: 0, bestName: '', bestPoints: 0 }
-  const show = (title: string, detail: string, kind: string) => {
-    element.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span>`
+  /** Pop a card: title, a small grade line, then points and the combo multiplier. */
+  const show = (title: string, detail: string, kind: string, points = '', multiplier = 1) => {
+    element.innerHTML =
+      `<strong>${escapeHtml(title)}</strong><span class="trick-detail">${escapeHtml(detail)}</span>` +
+      (points ? `<span class="trick-points">${escapeHtml(points)}${multiplier > 1 ? `<span class="trick-combo">×${multiplier}</span>` : ''}</span>` : '')
+    // Restart the entry animation for every new card.
+    element.className = ''
+    void element.offsetWidth
     element.className = `on ${kind}`
     window.clearTimeout(timer)
-    timer = window.setTimeout(() => (element.className = ''), 2200)
+    timer = window.setTimeout(() => (element.className = `out ${kind}`), 2200)
   }
   const drop = () => {
     combo.tricks = []
@@ -88,7 +94,7 @@ export function createTrickFeed(element: HTMLElement) {
       const grade = trick.kind === 'rail'
         ? (trick.grade === 'sketchy' ? 'Slipped off' : 'Clean exit')
         : trick.grade === 'perfect' ? 'Perfect landing' : trick.grade === 'sketchy' ? 'Sketchy landing' : 'Clean landing'
-      show(trick.name, `${grade} · +${points}${combo.multiplier > 1 ? ` · combo ×${combo.multiplier}` : ''}`, trick.grade)
+      show(trick.name, grade, trick.grade, `+${points.toLocaleString()}`, combo.multiplier)
       return true
     },
     /** Call every step with whether the skier is on the snow (not air, not rail). */
@@ -98,7 +104,7 @@ export function createTrickFeed(element: HTMLElement) {
       if (combo.groundTime > 3) {
         const banked = combo.points * combo.multiplier
         combo.total += banked
-        show(combo.multiplier > 1 ? `Combo ×${combo.multiplier}` : 'Landed', `+${banked} · ${combo.total.toLocaleString()} total`, 'bank')
+        show(combo.multiplier > 1 ? `Combo ×${combo.multiplier}` : 'Banked', `${combo.total.toLocaleString()} total`, 'bank', `+${banked.toLocaleString()}`)
         drop()
       }
     },

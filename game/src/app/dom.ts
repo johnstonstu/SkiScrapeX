@@ -7,6 +7,7 @@ export function getUi() {
     status: $('#status'),
     title: $('#run-name'),
     speed: $('#speed'),
+    speedo: $('#speedo'),
     time: $('#time'),
     best: $('#best'),
     debug: $('#debug'),

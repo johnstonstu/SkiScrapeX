@@ -1,0 +1,382 @@
+/*
+ * In-game HUD and moment-to-moment feedback. No backdrop blur here: these
+ * sit over the 3D view every frame, so they use dark gradients for contrast.
+ */
+#hud, #buttons, #debug, #map-panel, #status, #help, #credits, #speedo { position: fixed; z-index: 2; }
+
+/* Top left: where you are and the clock. Unboxed, with a soft scrim behind. */
+#hud {
+  top: var(--safe-t);
+  left: var(--safe-l);
+  max-width: min(30rem, calc(100vw - 12rem));
+  padding: 0.2rem 2.5rem 1.4rem 0.1rem;
+  background: radial-gradient(ellipse at 0% 0%, rgba(6, 16, 26, 0.68), rgba(6, 16, 26, 0.34) 45%, transparent 72%);
+  text-shadow: 0 0 2px rgba(4, 12, 20, 0.35), 0 1px 10px rgba(4, 12, 20, 0.6);
+  pointer-events: none;
+}
+#hud button { pointer-events: auto; }
+#run-name {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.readouts { display: flex; gap: 1.4rem; }
+.readouts div { display: flex; flex-direction: column-reverse; }
+.readouts span { font-size: 1.55rem; font-weight: 400; line-height: 1.05; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.readouts small { font-size: 0.62rem; font-weight: 650; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.readouts .readout-best span { color: var(--muted); }
+
+.hud-version { display: block; margin-top: 0.45rem; font: 500 0.6rem var(--mono); opacity: 0.45; }
+.weather-cue { margin: 0.4rem 0 0; font-size: 0.72rem; color: var(--warn); }
+
+.slopes { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.6rem; }
+.slopes button {
+  border: 1px solid var(--line); border-radius: 999px; padding: 0.25rem 0.7rem;
+  background: var(--glass); color: var(--text); font: 600 0.75rem var(--font); cursor: pointer; text-shadow: none;
+}
+.slopes button[aria-pressed="true"] { background: var(--snow); color: var(--ink); }
+
+/* Bottom left: speed. Big light numeral and a thin bar to 100 km/h. */
+#speedo {
+  left: var(--safe-l);
+  bottom: calc(var(--safe-b) + 1rem);
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: end;
+  column-gap: 0.45rem;
+  padding: 1.6rem 3rem 0.2rem 0.2rem;
+  background: radial-gradient(ellipse at 0% 100%, rgba(6, 16, 26, 0.7), rgba(6, 16, 26, 0.35) 50%, transparent 75%);
+  text-shadow: 0 0 2px rgba(4, 12, 20, 0.35), 0 2px 14px rgba(4, 12, 20, 0.55);
+  pointer-events: none;
+  --speed: 0;
+}
+#speed {
+  font-size: 4.4rem;
+  font-weight: 250;
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+#speedo small { padding-bottom: 0.35rem; font-size: 0.7rem; font-weight: 650; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+#speedo .speed-bar {
+  grid-column: 1 / -1;
+  position: relative;
+  width: 9.5rem;
+  height: 3px;
+  margin-top: 0.6rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+#speedo .speed-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  transform: scaleX(var(--speed));
+  background: linear-gradient(90deg, var(--snow) 55%, var(--accent));
+  transition: transform 120ms linear;
+}
+
+/* Top right: pause. */
+#buttons { top: var(--safe-t); right: var(--safe-r); display: flex; gap: 0.4rem; }
+#btn-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.6rem;
+  padding: 0 0.7rem 0 0.8rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(8, 18, 28, 0.42);
+  color: var(--text);
+  font: 650 0.8rem var(--font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease);
+}
+#btn-menu:hover { background: rgba(8, 18, 28, 0.65); }
+.pause-glyph { display: inline-flex; gap: 3px; }
+.pause-glyph::before, .pause-glyph::after { content: ""; width: 3px; height: 11px; border-radius: 1px; background: currentColor; }
+.touch #btn-menu kbd { display: none; }
+.touch #btn-menu { min-height: 2.8rem; }
+
+#pause-menu[hidden], body:has(#runs:not([hidden]), #style:not([hidden]), #settings:not([hidden]), #challenges:not([hidden]), #results:not([hidden]), #title-screen:not([hidden])) #pause-menu { display: none; }
+.paused #touch { visibility: hidden; }
+.paused :is(#hint, #coach, #trick, #speedo, #help) { display: none; }
+
+#debug {
+  top: 7.5rem; left: var(--safe-l);
+  margin: 0; padding: 0.55rem 0.75rem; border-radius: var(--radius-sm);
+  background: var(--glass-strong); font: 0.7rem/1.45 var(--mono); white-space: pre;
+}
+
+/* Resort map. */
+#map-panel {
+  right: var(--safe-r);
+  bottom: calc(var(--safe-b) + 1rem);
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: rgba(8, 18, 28, 0.62);
+  box-shadow: 0 10px 30px rgba(2, 8, 14, 0.35);
+}
+#minimap { display: block; cursor: crosshair; }
+#map-location {
+  max-width: 168px;
+  padding: 0.4rem 0.65rem 0.45rem;
+  font: 600 0.78rem/1.2 var(--font);
+  border-top: 1px solid var(--line);
+}
+.map-hover-tip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  background: var(--glass-strong);
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  font: 600 0.76rem/1.2 var(--font);
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+#map-panel:has(.map-hover-tip) { overflow: visible; }
+.map-hover-tip--hud { font-size: 0.72rem; }
+.touch #map-panel { top: calc(var(--safe-t) + 3.4rem); bottom: auto; transform: scale(0.8); transform-origin: top right; }
+
+/* Loading and status pill. */
+#status {
+  left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0;
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.65rem 1.15rem; border-radius: 999px;
+  background: var(--glass-strong); border: 1px solid var(--line);
+  font-size: 0.88rem; font-weight: 500;
+  animation: fade-in var(--slow) var(--ease);
+}
+#status::before {
+  content: ""; width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25); border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+#status:empty { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+body:has(#title-screen:not([hidden])) #status { display: none; }
+
+/* Shown when WebGL is unavailable or the graphics chip resets. */
+.graphics-problem {
+  position: fixed; z-index: 20; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  max-width: min(28rem, calc(100vw - 2rem)); padding: 1.3rem 1.4rem; border-radius: var(--radius);
+  background: var(--glass-strong); border: 1px solid var(--line-strong); color: var(--text);
+  box-shadow: var(--shadow); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+}
+.graphics-problem strong { display: block; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.4rem; }
+.graphics-problem p { margin: 0 0 1rem; line-height: 1.45; color: var(--muted); }
+
+/* Controls hint. Desktop: bottom centre, fades back once you have read it. */
+#help {
+  left: 50%; bottom: calc(var(--safe-b) + 0.6rem); transform: translateX(-50%); margin: 0;
+  padding: 0.4rem 0.85rem; border-radius: 999px; background: rgba(8, 18, 28, 0.45);
+  font-size: 0.76rem; color: var(--muted); white-space: nowrap;
+  animation: settle 1.2s 10s var(--ease) forwards;
+}
+@keyframes settle { to { opacity: 0.35; } }
+#help kbd { margin: 0 0.12em; }
+#help b { color: var(--text); }
+.touch #help { pointer-events: none; bottom: auto; top: calc(var(--safe-t) + 14.5rem); max-width: calc(100vw - 2rem); white-space: normal; text-align: center; font-size: 0.72rem; border-radius: var(--radius-sm); animation: fade-out 1s 8s forwards; }
+@keyframes fade-out { to { opacity: 0; visibility: hidden; } }
+body:has(#ride:not([hidden])) #help, body:has(#coach:not([hidden])) #help, .touch:has(#hint:not([hidden])) #help { display: none; }
+
+#credits {
+  left: 0; right: 0; bottom: 0; margin: 0; padding: 0.15rem 0.6rem calc(0.15rem + env(safe-area-inset-bottom));
+  font-size: 0.6rem; color: rgba(20, 36, 50, 0.7); text-align: center; pointer-events: none;
+}
+#credits a { color: inherit; pointer-events: auto; }
+#credits:empty { display: none; }
+body:has(#title-screen:not([hidden])) #credits { color: var(--faint); }
+
+/* Transitions between runs and lifts: a soft dark wash and a title card. */
+#fade {
+  position: fixed; inset: 0; z-index: 5; display: grid; place-items: center;
+  background: rgba(5, 13, 21, 0); pointer-events: none; transition: background 0.35s var(--ease);
+}
+#fade p {
+  margin: 0; opacity: 0; transform: translateY(8px);
+  transition: opacity 0.35s var(--ease), transform 0.45s var(--ease);
+  font-size: clamp(1.6rem, 4vw, 2.6rem); font-weight: 250; letter-spacing: -0.02em; text-align: center; white-space: pre-line; line-height: 1.25;
+}
+#fade p::first-line { font-weight: 600; }
+#fade.on { background: rgba(5, 13, 21, 0.72); }
+#fade.on p { opacity: 1; transform: none; }
+
+/* Touch controls. */
+#touch { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+#touch .steer-zone { position: absolute; left: 0; top: 25%; bottom: 0; width: 62%; pointer-events: auto; touch-action: none; }
+#touch .base, #touch .thumb { position: fixed; border-radius: 50%; transform: translate(-50%, -50%); opacity: 0; pointer-events: none; transition: opacity 120ms; }
+#touch .base { width: 8rem; height: 8rem; border: 1.5px solid rgba(255, 255, 255, 0.45); background: radial-gradient(circle, rgba(8, 18, 28, 0.05), rgba(8, 18, 28, 0.28)); }
+#touch .thumb { width: 3.4rem; height: 3.4rem; background: rgba(255, 255, 255, 0.85); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); }
+#touch .base.on, #touch .thumb.on { opacity: 1; }
+#touch .hold {
+  position: absolute; right: max(1rem, env(safe-area-inset-right)); width: 5.2rem; height: 5.2rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.55); border-radius: 50%; pointer-events: auto; touch-action: none;
+  font: 650 0.8rem var(--font); letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text); background: rgba(8, 18, 28, 0.35);
+  transition: background 90ms, transform 90ms;
+}
+#touch .hold.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); transform: scale(0.94); }
+#touch .jump { bottom: calc(2.8rem + env(safe-area-inset-bottom)); }
+#touch .grab { bottom: calc(9.3rem + env(safe-area-inset-bottom)); right: calc(max(1rem, env(safe-area-inset-right)) + 2.4rem); width: 4.2rem; height: 4.2rem; font-size: 0.7rem; }
+
+/* Lift ride banner. */
+#ride {
+  position: fixed; z-index: 4; left: 50%; bottom: calc(var(--safe-b) + 1.2rem); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 1rem; padding: 0.4rem 0.4rem 0.4rem 1.1rem;
+  background: rgba(8, 18, 28, 0.62); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap;
+  font-size: 0.86rem; font-weight: 500; animation: rise-in var(--slow) var(--ease);
+}
+#ride button {
+  border: 0; border-radius: 999px; padding: 0.5rem 1rem; background: var(--snow); color: var(--ink);
+  font: 650 0.8rem var(--font); letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+}
+#ride button:hover { background: var(--accent); color: var(--accent-ink); }
+
+/* Run summary card at the bottom of a lift. */
+#run-card {
+  position: fixed; z-index: 3; left: 50%; bottom: calc(var(--safe-b) + 4.6rem); transform: translateX(-50%);
+  min-width: 17rem; padding: 0.75rem 1.2rem 0.8rem; text-align: center; white-space: nowrap;
+  background: rgba(8, 18, 28, 0.62); border: 1px solid var(--line); border-radius: var(--radius);
+  animation: rise-in var(--slow) var(--ease);
+}
+#run-card strong { font-weight: 650; }
+#run-card .run-card-time { display: block; margin: 0.1rem 0 0.35rem; font-size: 2rem; font-weight: 250; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+#run-card .run-card-time em { font-style: normal; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-left: 0.4rem; vertical-align: 0.5em; }
+#run-card .run-card-stats { display: flex; justify-content: center; gap: 1.1rem; font-size: 0.72rem; color: var(--muted); }
+#run-card .run-card-stats b { display: block; font-size: 0.95rem; font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* Trick feed: big light name, grade, points and a combo pill. */
+#trick {
+  position: fixed; z-index: 4; left: 50%; top: 24%; transform: translateX(-50%);
+  display: grid; justify-items: center; gap: 0.15rem; text-align: center;
+  width: max-content;
+  max-width: 94vw;
+  padding: 1.4rem clamp(1.2rem, 8vw, 3.5rem);
+  opacity: 0; pointer-events: none; text-shadow: 0 0 2px rgba(4, 12, 20, 0.4), 0 2px 16px rgba(4, 12, 20, 0.65);
+  background: radial-gradient(ellipse at center, rgba(6, 16, 26, 0.55), rgba(6, 16, 26, 0.25) 50%, transparent 72%);
+}
+#trick.on { opacity: 1; animation: trick-in 0.42s var(--ease); }
+#trick.out { opacity: 0; transition: opacity 0.4s var(--ease); }
+@keyframes trick-in { 0% { opacity: 0; transform: translate(-50%, 14px) scale(0.92); } 60% { transform: translate(-50%, -2px) scale(1.02); } 100% { opacity: 1; transform: translateX(-50%); } }
+#trick strong { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 400; letter-spacing: -0.02em; line-height: 1.05; }
+#trick .trick-detail { white-space: nowrap; padding: 0.15rem 0.6rem; border-radius: 999px; background: rgba(8, 18, 28, 0.6); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text); text-shadow: none; }
+#trick .trick-points { display: inline-flex; align-items: center; gap: 0.45rem; margin-top: 0.2rem; font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+#trick .trick-combo { padding: 0.1rem 0.55rem; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 0.8rem; font-weight: 750; text-shadow: none; }
+#trick.perfect .trick-detail { color: var(--good); }
+#trick.sketchy .trick-detail { color: var(--warn); }
+#trick.crash strong { color: var(--bad); }
+#trick.bank strong { color: var(--gold); font-weight: 400; }
+#trick.bank .trick-points { color: var(--gold); font-size: 1.4rem; }
+
+/* Coaching card: tutorial lessons and one-time tips. Never eats steering touches. */
+#coach {
+  position: fixed; z-index: 4; left: 50%; top: calc(var(--safe-t) + 4.8rem); transform: translateX(-50%);
+  width: min(25rem, calc(100vw - 1.5rem)); padding: 0.85rem 1rem 0.9rem;
+  background: rgba(8, 18, 28, 0.72); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(2, 8, 14, 0.3);
+  pointer-events: none; animation: rise-in var(--slow) var(--ease);
+  transition: border-color 0.2s, background 0.2s;
+}
+#coach button { pointer-events: auto; }
+#coach h3 { margin: 0 0 0.25rem; font-size: 1.05rem; font-weight: 600; }
+#coach p { margin: 0; font-size: 0.88rem; line-height: 1.45; color: var(--muted); }
+#coach p kbd { color: var(--text); }
+#coach .coach-count { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.45rem; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+#coach .coach-progress { flex: 1; height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+#coach .coach-progress::after { content: ""; display: block; height: 100%; width: var(--p, 0%); background: var(--accent); transition: width 0.4s var(--ease); }
+#coach.tip { border-left: 3px solid var(--accent); }
+#coach.tip h3::before { content: "Tip · "; color: var(--accent); font-weight: 700; }
+#coach.passed { border-color: var(--good); background: rgba(20, 70, 46, 0.78); }
+.coach-buttons { display: flex; gap: 0.4rem; justify-content: flex-end; margin-top: 0.7rem; }
+.coach-buttons button { min-height: 2.1rem; padding: 0.3rem 0.9rem; font-size: 0.8rem; }
+.coach-buttons .skip { background: none; border-color: transparent; color: var(--faint); }
+.coach-buttons .skip:hover { color: var(--text); background: var(--glass-hover); }
+.touch #coach { top: calc(var(--safe-t) + 12.5rem); padding: 0.6rem 0.8rem 0.65rem; }
+.touch #coach h3 { font-size: 0.95rem; }
+.touch #coach p { font-size: 0.82rem; }
+
+/* Terrain park cue: next feature, speed window or rail balance. */
+#hint.park-cue {
+  --cue-tone: var(--good);
+  position: fixed; z-index: 3; left: 50%; transform: translateX(-50%);
+  top: var(--safe-t);
+  width: min(18rem, calc(100vw - 2rem));
+  pointer-events: none;
+  padding: 0.55rem 0.8rem 0.75rem;
+  background: rgba(8, 18, 28, 0.6); border: 1px solid var(--line); border-radius: var(--radius);
+}
+#hint[data-tone="caution"] { --cue-tone: var(--warn); }
+#hint[data-tone="danger"] { --cue-tone: var(--bad); }
+.park-cue-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 0.35rem 0.65rem; }
+.park-cue-heading:first-child { font-size: 0.62rem; font-weight: 650; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.park-cue-title { font-size: 0.98rem; font-weight: 600; }
+.park-cue-status { color: var(--cue-tone); font-size: 0.78rem; font-weight: 650; text-align: right; }
+.park-cue-gauge { position: relative; height: 4px; margin: 0.55rem 0 0; background: rgba(255, 255, 255, 0.16); border-radius: 4px; }
+.park-cue-gauge::before, .park-cue-gauge::after { content: ""; position: absolute; }
+.park-cue-gauge::before { inset: 0 auto 0 var(--band-start, 35%); width: var(--band-width, 30%); border-radius: inherit; background: var(--cue-tone); opacity: 0.75; }
+.park-cue-gauge::after { left: var(--cursor, 50%); top: -4px; width: 4px; height: 12px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 1.5px rgba(8, 18, 28, 0.7); transform: translateX(-50%); transition: left 80ms linear; }
+#hint[data-kind="rail"] .park-cue-gauge::before { left: 39%; width: 22%; }
+
+/* Competition overlays: start countdown and the mogul beat strip. */
+#race-count {
+  position: fixed; z-index: 3; top: 32%; left: 50%; transform: translate(-50%, -50%);
+  font: 200 7rem/1 var(--font); letter-spacing: -0.04em; color: #fff; text-shadow: 0 6px 30px rgba(4, 12, 20, 0.5);
+  pointer-events: none; animation: race-pop 0.9s var(--ease);
+}
+#race-count.go { color: var(--accent); font-weight: 300; }
+#race-count.warn { color: var(--bad); font-size: 2.6rem; font-weight: 500; letter-spacing: 0; }
+@keyframes race-pop { from { transform: translate(-50%, -50%) scale(1.5); opacity: 0; } 25% { opacity: 1; } to { transform: translate(-50%, -50%) scale(1); } }
+#beat-strip { position: fixed; z-index: 2; bottom: calc(var(--safe-b) + 4rem); left: 50%; transform: translateX(-50%); width: 15rem; height: 4.6rem; pointer-events: none; }
+#beat-strip .beat-cues { position: absolute; left: 0; top: 0.4rem; display: flex; gap: 0.6rem; align-items: center; }
+#beat-strip .cue { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%; background: rgba(8, 18, 28, 0.5); border: 1px solid var(--line); color: var(--muted); font-size: 1.1rem; opacity: 0.6; }
+#beat-strip .cue.now { opacity: 1; background: rgba(8, 18, 28, 0.75); color: var(--accent); font-size: 1.35rem; }
+#beat-strip .beat-ring { position: absolute; left: 1.3rem; top: 1.7rem; width: 2.6rem; height: 2.6rem; border: 2px solid rgba(255, 255, 255, 0.85); border-radius: 50%; transform: translate(-50%, -50%); }
+#beat-strip .beat-ring.hot { border-color: var(--good); box-shadow: 0 0 14px var(--good); }
+#beat-strip .beat-meta { position: absolute; left: 0; bottom: 0; font-size: 0.7rem; font-weight: 650; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6); }
+
+/* The title screen stands alone: nothing in-game behind it. */
+body:has(#title-screen:not([hidden])) :is(#hud, #buttons, #map-panel, #help, #touch, #hint, #run-card, #coach, #speedo) { display: none; }
+
+/* Phones. */
+.touch .hud-version { display: none; }
+.touch #speedo { bottom: auto; top: calc(var(--safe-t) + 4.6rem); padding: 0.6rem 2rem 0.6rem 0.1rem; background: radial-gradient(ellipse at 0% 50%, rgba(6, 16, 26, 0.45), transparent 70%); }
+.touch #speed { font-size: 2.6rem; }
+.touch #speedo .speed-bar { width: 6rem; margin-top: 0.35rem; }
+
+@media (max-width: 760px) {
+  #trick { top: 28%; }
+  #hint.park-cue { top: calc(var(--safe-t) + 4.4rem); }
+}
+@media (max-width: 540px) and (orientation: portrait) {
+  .touch #hud { max-width: calc(100vw - 9rem); }
+  .touch .readouts { gap: 0.9rem; }
+  .touch .readouts span { font-size: 1.15rem; }
+  .touch #run-name { font-size: 0.82rem; }
+  .touch #hint.park-cue { left: var(--safe-l); transform: none; top: calc(var(--safe-t) + 8.6rem); width: min(15rem, calc(100vw - 11rem)); }
+  .touch .park-cue-title { font-size: 0.84rem; }
+  .touch:has(#coach:not([hidden])) #trick { top: max(40%, 18rem); }
+}
+@media (max-height: 480px) and (orientation: landscape) {
+  #hint.park-cue { top: var(--safe-t); width: min(14rem, 38vw); padding: 0.4rem 0.55rem 0.55rem; }
+  .park-cue-title { font-size: 0.8rem; }
+  #speed { font-size: 3rem; }
+  .touch #speedo { top: calc(var(--safe-t) + 4.4rem); padding-block: 0.2rem; }
+  .touch #speed { font-size: 2.2rem; }
+  .touch #map-panel { transform: scale(0.6); }
+  .touch #help { top: var(--safe-t); max-width: 46vw; }
+  .touch #coach { top: calc(var(--safe-t) + 0.4rem); width: min(21rem, 44vw); }
+}

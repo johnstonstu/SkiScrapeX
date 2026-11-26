@@ -6,10 +6,9 @@
  */
 import { buildDemoPark } from './app/demoPark'
 import * as THREE from 'three'
-import './style.css'
-import './pause.css'
-import './presentation.css'
-import './menu.css'
+import './ui/theme.css'
+import './ui/hud.css'
+import './ui/menus.css'
 import { PHYSICS, PRESETS, advance, beginCrash, createClock, createPreset, createSkier, landingSpot, resetSkier, skiFrame, type SkiState, type SurfaceSample } from './sim'
 import { createSkierView, type SkierPose } from './render/rider/skierView'
 import { createLandingMarker } from './render/rider/landingMarker'
@@ -70,6 +69,8 @@ const params = new URLSearchParams(location.search)
 const turnModel = (params.get('turns') ?? params.get('turn')) === 'wide' ? 'wide' : 'classic'
 const perf = createPerfProbe(params.has('perf'))
 const ui = getUi()
+/** Last speed shown in the HUD, so the readout and bar only change when it does. */
+let shownKmh = -1
 ui.version.textContent = `v${VERSION}`
 ui.hudVersion.textContent = `v${VERSION}`
 
@@ -111,7 +112,7 @@ const lighting = createLighting()
 const scene = new THREE.Scene()
 if (params.has('perf')) Object.assign(window, { __scene: scene })
 // `?test`: handles for the headless smoke test.
-if (params.has('test')) Object.assign(window, { __game: { scene, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals }, get npcs() { return npcs }, get snowDeform() { return stage.snowDeform }, startEvent(id: string) { const next = goals?.eventById(id); if (next) startChallenge(next); return Boolean(next) } } })
+if (params.has('test')) Object.assign(window, { __game: { scene, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals }, get npcs() { return npcs }, get snowDeform() { return stage.snowDeform }, get tricks() { return tricks }, startEvent(id: string) { const next = goals?.eventById(id); if (next) startChallenge(next); return Boolean(next) } } })
 const sun = addSceneLights(scene, lighting, quality.shadowRange)
 sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize)
 const sky = createSky(lighting)
@@ -765,8 +766,17 @@ function showRunCard(name: string, time: number, record: boolean) {
   const { stats } = session
   const points = tricks.total
   ui.runCard.innerHTML =
-    `<strong>${escapeHtml(name)}</strong> ${formatTime(time)}${record ? ' · best!' : ''}` +
-    `<span>Top ${Math.round(stats.topSpeed * 3.6)} km/h · ${Math.round(stats.distance)} m · ${Math.round(stats.vertical)} m vertical${points ? ` · ${points.toLocaleString()} pts` : ''}</span>`
+    `<strong>${escapeHtml(name)}</strong>` +
+    `<span class="run-card-time">${formatTime(time)}${record ? '<em>Best</em>' : ''}</span>` +
+    '<span class="run-card-stats">' +
+    `<span><b>${Math.round(stats.topSpeed * 3.6)}</b>km/h top</span>` +
+    `<span><b>${Math.round(stats.distance)}</b>m skied</span>` +
+    `<span><b>${Math.round(stats.vertical)}</b>m vertical</span>` +
+    (points ? `<span><b>${points.toLocaleString()}</b>points</span>` : '') +
+    '</span>'
+  // Replay the entry animation when a new card replaces one still showing.
+  ui.runCard.hidden = true
+  void ui.runCard.offsetWidth
   ui.runCard.hidden = false
   window.clearTimeout(runCardTimer)
   runCardTimer = window.setTimeout(() => (ui.runCard.hidden = true), 8000)
@@ -1441,7 +1451,12 @@ function checkEvents() {
 }
 
 function updateHud(frameMs: number, steps: number) {
-  ui.speed.textContent = `${Math.round(skier.speed * 3.6)}`
+  const kmh = Math.round(skier.speed * 3.6)
+  if (kmh !== shownKmh) {
+    shownKmh = kmh
+    ui.speed.textContent = `${kmh}`
+    ui.speedo.style.setProperty('--speed', Math.min(1, kmh / 100).toFixed(2))
+  }
   parkHud.update(skier, stage.features(), !ride && !pause, stage.env.rails ?? [])
   ui.time.textContent = formatTime(session.total)
   if (!ui.debug.hidden) {
