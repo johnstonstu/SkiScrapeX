@@ -6,7 +6,8 @@
  * `?sim` instead runs the real ski sim through linked turns on a steady
  * slope behind the follow camera (`pitch`, `period` seconds per turn pair,
  * `cap` km/h). `window.__step(frames)` advances it frame by frame, for
- * reviewing turn transitions.
+ * reviewing turn transitions. `cam=back|front|side` puts a close camera on
+ * the rider instead of the follow camera.
  */
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
@@ -193,6 +194,9 @@ function runSim() {
   rig.setStyle(params.get('style') === 'tight' ? 'tight' : 'steady')
   rig.setFov(Number(params.get('fov') ?? 58))
   const note = document.querySelector('#note')!
+  // `?cam=back|front|side` (and `dist` metres) swaps the follow camera for a close one.
+  const closeCam = params.get('cam')
+  const camDist = Number(params.get('dist') ?? 3.2)
   let time = 0
   let acc = 0
   const step = () => {
@@ -213,6 +217,15 @@ function runSim() {
     const ground = slope.sampleTerrain(state.x, state.z)
     view.update(state, input, ground, 'ski', 1 / 60)
     rig.update(state, slope.sampleTerrain, 1 / 60)
+    if (closeCam) {
+      // A close camera fixed to the travel direction, for judging the pose.
+      const h = Math.hypot(state.vx, state.vz)
+      const fx = h > 0.5 ? state.vx / h : -Math.sin(state.heading)
+      const fz = h > 0.5 ? state.vz / h : Math.cos(state.heading)
+      const [along, across] = closeCam === 'front' ? [1, 0] : closeCam === 'side' ? [0, 1] : [-1, 0]
+      camera.position.set(state.x + (fx * along - fz * across) * camDist, state.y + 1.1, state.z + (fz * along + fx * across) * camDist)
+      camera.lookAt(state.x, state.y + 0.75, state.z)
+    }
     sun.position.set(state.x, state.y, state.z).addScaledVector(lighting.sunDirection, 40)
     sun.target.position.set(state.x, state.y, state.z)
     sun.target.updateMatrixWorld()
