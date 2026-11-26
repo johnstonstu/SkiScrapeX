@@ -2,6 +2,13 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.27 (2026-11-25): Rider legs in turns and pushes
+
+### Fixed
+
+- **Legs lean into the turn.** In a carve the shins leaned into the turn with the edged skis, but the hips stayed out over the boots, so the thighs leaned back the other way and every knee made a sideways Z. The hips now sit where the legs can incline with the skis (about 40 to 50 cm inside the boots in a hard carve), so thigh and shin lean in together. Through the edge change the legs swing across under the body instead of kinking.
+- **Skating push.** The pushing ski now goes well out to the side on an extending leg, instead of sliding about under a standing body.
+
 ## 0.9.26 (2026-11-25): Rider legs
 
 ### Fixed

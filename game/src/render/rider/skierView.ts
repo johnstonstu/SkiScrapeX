@@ -24,6 +24,10 @@ const PLANT_REACH = 0.12
 export const BOOT_CUFF = new THREE.Vector3(0, Math.cos(0.26), Math.sin(0.26))
 /** How far the wrist bends toward the pole shaft (0 rigid, 1 fully in line). */
 const WRIST_FOLLOW = 0.35
+/** In a turn the legs lean this much less than the edged skis (knee angulation), radians. */
+const KNEE_ANGULATION = 0.12
+/** Skating: how far the hips move from the middle of the stance over the gliding ski (0 to 1). */
+const SKATE_WEIGHT_SHIFT = 0.7
 /** How far below the chest's rest height the carried hands sit, metres. */
 const HAND_DROP = 0.1
 /** Skis ride this far above the root; the ankle sits ANKLE_IN_SKI above that. */
@@ -34,10 +38,10 @@ const SKI_FORE = 0.04
 /**
  * Hips height for a skier from how bent the knees should be: the hip-to-ankle
  * chord at that knee angle, less how far the hips sit back of the boots. About
- * 53° of knee bend standing, 60° cruising, 70° in a carve and 110° in a full
+ * 53Â° of knee bend standing, 60Â° cruising, 70Â° in a carve and 110Â° in a full
  * tuck, so a crouch reads as a crouch and the legs have room to angulate into
  * a turn without the thighs swinging out flat. (The old fit put the knees
- * near 85° all the time, a permanent squat.)
+ * near 85Â° all the time, a permanent squat.)
  */
 export function skiHipHeight(flex: number, tuck: number, hipBack: number): number {
   const kneeBend = 0.7 + flex * 1.05 + tuck * 0.2
@@ -147,6 +151,8 @@ export function createSkierView(): {
   let lastTravel: number | null = null
   let pathAccel = 0
   let railLook = 0
+  /** 1 while the hips follow the skis' lean (on snow), easing to 0 in the air and on rails. */
+  let legFollow = 0
   const ease = (rate: number, dt: number) => 1 - Math.exp(-rate * dt)
 
   // ---- Crossfade between modes ---------------------------------------------
@@ -256,6 +262,40 @@ export function createSkierView(): {
       kneeHint.copy(cuffKnee).sub(midLeg.copy(leg.thigh.position).add(ankle).multiplyScalar(0.5))
       solveKnee(leg.thigh, leg.knee, ankle, THIGH_LENGTH, SHIN_LENGTH, kneeHint)
     }
+  }
+
+  const ankleMid = new THREE.Vector3()
+  const glideAnkle = new THREE.Vector3()
+  const hipRoot = new THREE.Vector3()
+  const bodyInverse = new THREE.Matrix4()
+  /**
+   * Put the hips where the legs can incline with the skis. The body's lean spring
+   * lags and leans less than the edged skis, so with the hips left over the boots
+   * the shins ran up the edged cuffs while the thighs leaned back out of the turn,
+   * a sideways Z at every knee. Here the ankle-to-hip line swings round the boots
+   * to lean with the skis (less a little knee angulation), keeping its length so
+   * the knee bend the stance asked for stays the same; skating, the hips ride over
+   * the gliding ski. `weight` blends it in and out (rails and air keep the old fit).
+   */
+  const placeHipsOverSkis = (skiLean: number, stride: number, weight: number) => {
+    ankleMid.set(0, 0, 0)
+    for (const ski of skis) ankleMid.add(v1.copy(ANKLE_IN_SKI).applyQuaternion(ski.quaternion).add(ski.position))
+    ankleMid.multiplyScalar(0.5)
+    const reach = Math.max(0.3, hips.position.y - ankleMid.y)
+    body.updateMatrix()
+    hipRoot.copy(hips.position).applyMatrix4(body.matrix)
+    const lean = skiLean - Math.sign(skiLean) * Math.min(Math.abs(skiLean), KNEE_ANGULATION)
+    let x = ankleMid.x - Math.sin(lean) * reach
+    const y = ankleMid.y + Math.cos(lean) * reach
+    if (stride !== 0) {
+      // stride > 0: the left leg (index 0) pushes, so the weight rides the right ski.
+      const glide = skis[stride > 0 ? 1 : 0]
+      glideAnkle.copy(ANKLE_IN_SKI).applyQuaternion(glide.quaternion).add(glide.position)
+      x += (glideAnkle.x - x) * SKATE_WEIGHT_SHIFT * Math.min(1, Math.abs(stride))
+    }
+    hipRoot.x += (x - hipRoot.x) * weight
+    hipRoot.y += (y - hipRoot.y) * weight
+    hips.position.copy(hipRoot.applyMatrix4(bodyInverse.copy(body.matrix).invert()))
   }
 
   const handTarget = new THREE.Vector3()
@@ -608,7 +648,7 @@ export function createSkierView(): {
           const recover = Math.max(0, -s * Math.cos(skatePhase)) * skateAmount
           skis[i].rotation.y += s * (0.16 + 0.14 * push) * skateAmount
           skis[i].rotation.z += s * 0.22 * push
-          skis[i].position.x += s * 0.1 * push
+          skis[i].position.x += s * 0.2 * push
           skis[i].position.z -= 0.14 * push
           skis[i].position.y += 0.06 * recover * (1 - push)
         }
@@ -711,6 +751,10 @@ export function createSkierView(): {
         : -counter.x * 0.3 + look.x + spinLead * 0.4 + switchLook * stance * 1.15 * (state.heading > 0 ? 1 : -1) + railLook * 0.4 +
           idle * Math.sin(state.time * 0.37) * 0.35
 
+      if (!boarding) {
+        legFollow += ((skiing ? 1 : 0) - legFollow) * ease(10, dt)
+        if (legFollow > 0.001) placeHipsOverSkis(edgeVisual, skateAmount > 0.01 ? stride : 0, legFollow)
+      }
       fitLegs()
 
       // ---- Arms ----

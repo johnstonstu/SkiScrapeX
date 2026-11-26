@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
-import { createSkiState, type SkiInput } from '../src/sim'
+import { FIXED_DT, createSkiState, createSteadySlope, stepSkier, type SkiInput } from '../src/sim'
 import { DEFAULT_OUTFIT } from '../src/ui/riderPanel'
 import { BOOT_CUFF, Spring, createSkierView } from '../src/render/rider/skierView'
 
@@ -308,5 +308,75 @@ describe('rider legs', () => {
     }
     expect(least).toBeLessThan(65)
     expect(most - least).toBeGreaterThan(8)
+  })
+})
+
+describe('rider legs in real turns', () => {
+  it('leans thigh and shin into the turn together, with the hips inside the boots (no sideways Z)', () => {
+    const slope = createSteadySlope(18, { width: 4000, depth: 8000 })
+    const view = createSkierView()
+    const state = createSkiState({ x: 2000, z: 100, heading: 0 })
+    state.y = slope.sampleTerrain(2000, 100)!.height
+    let checked = 0
+    for (let f = 0; f < 60 * 9; f++) {
+      const time = (f + 1) / 60
+      const steer = time < 3 ? 0 : Math.sin(((time - 3) * Math.PI * 2) / 2.4) > 0 ? 1 : -1
+      const input: SkiInput = { steer, brake: state.speed * 3.6 > 45 ? 0.5 : 0, tuck: false }
+      stepSkier(state, input, slope.sampleTerrain, FIXED_DT, {} as never)
+      view.update(state, input, slope.sampleTerrain(state.x, state.z), 'ski', 1 / 60)
+      // Mid-carve only: well into a turn, edged hard.
+      if (time < 5 || Math.abs(state.edgeAngle) < 0.75) continue
+      view.object.updateMatrixWorld(true)
+      const forward = new THREE.Vector3(state.vx, 0, state.vz).normalize()
+      const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize()
+      const lean = (v: THREE.Vector3) => Math.atan2(v.dot(right), v.y)
+      for (const s of ['L', 'R']) {
+        const hip = view.object.getObjectByName(`thigh_${s}`)!.getWorldPosition(new THREE.Vector3())
+        const shin = view.object.getObjectByName(`shin_${s}`)!
+        const knee = shin.getWorldPosition(new THREE.Vector3())
+        const foot = new THREE.Vector3(0, -0.42, 0).applyMatrix4(shin.matrixWorld)
+        const shinLean = lean(knee.clone().sub(foot))
+        const thighLean = lean(hip.clone().sub(knee))
+        // Before: shins ~45° into the turn with thighs 10-40° the other way.
+        expect(Math.sign(thighLean), `thigh ${s} leans with the shin`).toBe(Math.sign(shinLean))
+        expect(Math.abs(shinLean - thighLean)).toBeLessThan(THREE.MathUtils.degToRad(45))
+        // Hips inside the boots, on the turn side.
+        expect(Math.sign(hip.clone().sub(foot).dot(right))).toBe(Math.sign(shinLean))
+        expect(Math.abs(hip.clone().sub(foot).dot(right))).toBeGreaterThan(0.15)
+        checked++
+      }
+    }
+    expect(checked).toBeGreaterThan(20)
+  })
+
+  it('skating pushes the ski well out to the side on an extending leg, feet locked in the boots', () => {
+    const view = createSkierView()
+    const state = createSkiState({ x: 0, z: 0, heading: 0 })
+    state.speed = 2.5
+    const boots: THREE.Object3D[] = []
+    view.object.traverse((o) => o.name === 'ski-boot' && boots.push(o))
+    let straightest = 180
+    let deepest = 0
+    let spread = 0
+    let miss = 0
+    for (let i = 0; i < 300; i++) {
+      state.time += 1 / 60
+      view.update(state, { ...idle, tuck: true }, ground, 'ski', 1 / 60)
+      if (i < 60) continue
+      for (const leg of kneeAngles(view)) {
+        straightest = Math.min(straightest, leg.bend)
+        deepest = Math.max(deepest, leg.bend)
+      }
+      const ankles = boots.map((boot) => new THREE.Vector3(0, 0.2, -0.01).applyMatrix4(boot.parent!.matrixWorld))
+      spread = Math.max(spread, Math.abs(ankles[0].x - ankles[1].x))
+      boots.forEach((boot, k) => {
+        const shin = view.object.getObjectByName(k === 0 ? 'shin_L' : 'shin_R')!
+        const foot = new THREE.Vector3(0, -0.42, 0).applyMatrix4(shin.matrixWorld)
+        miss = Math.max(miss, new THREE.Vector3(0, 0.2, -0.01).applyMatrix4(boot.parent!.matrixWorld).distanceTo(foot))
+      })
+    }
+    expect(deepest - straightest).toBeGreaterThan(20)
+    expect(spread).toBeGreaterThan(0.43) // was 0.37: the push barely left the stance
+    expect(miss).toBeLessThan(0.005)
   })
 })
