@@ -27,7 +27,7 @@ import { createGatesView, createNuggetsView } from '../render/scenery/goalsView'
 import { createEventView, type EventView } from '../render/scenery/eventView'
 import { createMogulView } from '../render/terrain/mogulView'
 import { bumpField } from '../world/moguls'
-import { EVENTS, buildEventCourse, matchDelta, paceRoute, type EventCourse } from '../world/events'
+import { EVENTS, buildEventCourse, matchDelta, paceRoute, raceTrack, type EventCourse } from '../world/events'
 import { UNLOCKS, awardMedal, readProgress, recordBest, skiedRuns, unlockedIds, writeProgress } from './progress'
 import { createTargetBook } from './targets'
 import type { Challenge, Session } from './session'
@@ -224,11 +224,15 @@ export function createGoals(options: {
         eventView = null
         // Take the event's own terrain and park layout away again.
         stage.setEventTerrain?.(null)
+        stage.setRaceTrack?.(null)
         stage.eventLayout?.(AERIAL_SITE, null)
       }
       if (wanted && !eventView) {
         // The comp's bumps go into the terrain first, so the props and the bump mesh sit on them.
         if (wanted.moguls) stage.setEventTerrain?.(bumpField(wanted.moguls.bumps).apply)
+        // Races run on a groomed track: the mapped moguls under it go flat until the event ends.
+        const track = raceTrack(wanted)
+        if (track) stage.setRaceTrack?.(track)
         if (wanted.def.format === 'aerials') stage.eventLayout?.(AERIAL_SITE, 'aerial')
         eventView = createEventView(wanted, surfaceHeight)
         if (wanted.moguls && stage.snow) eventView.addOwned(createMogulView({ bumps: wanted.moguls.bumps, sampleTerrain: stage.slope.sampleTerrain }, stage.snow))

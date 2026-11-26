@@ -2,6 +2,23 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.30 (2026-11-25): Race day fixes
+
+Fixes from the 2026-11-25 playtest of the events.
+
+### Fixed
+
+- **Finish run-out.** Shoot the Chute and the Downhill froze the racer mid-air at 100+ km/h when the results came up. Now the clock stops at the line, the racer brakes to a stop, and the results show below 10 km/h (or after 5 s).
+- **Stuck forever.** A racer stopped in the start gate or stuck in powder beside a course kept the clock running with no end. With the clock running, less than 3 m of progress down the course in 20 s is now "No progress: DNF".
+- **False start.** The "False start" message was replaced by the count on the very next frame. It now shows for 1.2 s before the count starts again from 3.
+- **Quick taps.** A key pressed and released between two slow frames was missed. Every tap now counts for at least one frame.
+- **Moguls on the race line.** The Gunbarrel moguls sat on the Downhill line (20 takeoffs in one run). While a race runs, its track is groomed: the mapped moguls on it go flat and the snow rides as groomed, including the park ground at the top of the slalom. Free skiing keeps every mogul field.
+
+### Changed
+
+- **Out of the gate.** A racer who has not pushed off by GO skates out for the first 1.5 s. Holding the brake stays put.
+- **No trick cards in races.** Downhill, slalom, GS, Match Your Time and the Chute are timed, so trick pop-ups and combos are off on the course.
+
 ## 0.9.29 (2026-11-25): Crashes stay on the snow
 
 ### Fixed

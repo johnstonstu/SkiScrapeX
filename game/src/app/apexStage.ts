@@ -9,6 +9,7 @@ import { EXTRA_PEAKS, SUMMIT_HUT_FOOTPRINT } from '../world/corrections'
 import { apexMountainTowers, beaconsfieldTowers } from '../world/telecom'
 import { createTelecomView } from '../render/scenery/telecomView'
 import { buildMoguls } from '../world/moguls'
+import { trackMask, type TrackMask } from '../world/raceTrack'
 import { buildCliffs, nearOutcrop, placeRunDrops, placeTowerDrop, TOWER_DROP } from '../world/cliffs'
 import { createSnowDeform, createStamper } from '../world/snowDeform'
 import { createSnowPatchView } from '../render/terrain/snowPatchView'
@@ -227,7 +228,14 @@ export function buildApexStage(
   const stamper = createStamper(createSnowDeform())
   const snowPatch = quality.snowPatch ? createSnowPatchView(grid, stamper.field, terrain.material, quality.snowPatch) : null
   if (snowPatch) scene.add(snowPatch.mesh)
-  const sampleSurface = createSurfaceSampler(grid, surface, canopy, { inPark: (x, z) => overlay.inside(x, z), onMogul: moguls.onMogul, deform: stamper.packed })
+  // The race track of the event that is on, if any (see `setRaceTrack`).
+  let track: TrackMask | null = null
+  const sampleSurface = createSurfaceSampler(grid, surface, canopy, {
+    inPark: (x, z) => overlay.inside(x, z),
+    onMogul: moguls.onMogul,
+    deform: stamper.packed,
+    groomedAt: (x, z) => track?.inside(x, z) ?? false,
+  })
 
   const slope: Slope = {
     id: 'apex',
@@ -258,6 +266,12 @@ export function buildApexStage(
     snowDeform: { stamper, patch: snowPatch },
     setEventTerrain(layer) {
       eventLayer = layer
+    },
+    setRaceTrack(next) {
+      track = next ? trackMask(next.line, next.halfWidth) : null
+      const mask = track
+      const kept = moguls.clear(mask ? (x, z) => mask.inside(x, z) : null)
+      mogulView.keep(mask ? new Set(kept) : null)
     },
     eventLayout(siteName, layout) {
       const site = parkSites.find((s) => s.name === siteName)

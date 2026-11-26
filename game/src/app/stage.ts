@@ -28,6 +28,8 @@ export interface Stage {
   snowDeform?: { stamper: ReturnType<typeof createStamper>; patch: ReturnType<typeof createSnowPatchView> }
   /** Lay an event's own terrain (the mogul comp's bumps) over the ground while it runs; null removes it. */
   setEventTerrain?(layer: ((base: NonNullable<ReturnType<Slope['sampleTerrain']>>, x: number, z: number) => NonNullable<ReturnType<Slope['sampleTerrain']>>) | null): void
+  /** Groom a race track while its event runs: its moguls go flat and its snow rides as groomed. Null puts them back. */
+  setRaceTrack?(track: { line: readonly [number, number][]; halfWidth: number } | null): void
   /** Use a park layout for an event without saving it (null puts the player's layout back). */
   eventLayout?(siteName: string, layout: string | null): void
   /** Per-frame scenery update around the camera. */

@@ -9,6 +9,10 @@ import type { Challenge, Session, SessionEvent } from './session'
 import { FAST_START_KICK, TIGHT_KICK, aimGate, assistSteer, createStartGate, gateAim, gradeGate, kick, steerToward, type GateGrade } from './race'
 import { createGhostRecorder, ghostAt, readGhost, writeGhost, type GhostPose, type GhostTrack } from './ghost'
 import { progressAlong } from '../world/challenges'
+import { PHYSICS } from '../sim/constants'
+
+/** Seconds after GO the racer skates out of the gate on their own if they have not pushed off. */
+export const AUTO_PUSH_SECONDS = 1.5
 import type { RaceHud } from '../ui/raceHud'
 
 type EventChallenge = Extract<Challenge, { kind: 'event' }>
@@ -24,6 +28,7 @@ export function createRaceDirector(options: {
   let gate: ReturnType<typeof createStartGate> | null = null
   let recorder: ReturnType<typeof createGhostRecorder> | null = null
   let ghost: GhostTrack | null = null
+  let sinceGo = Infinity
   const grades: Record<GateGrade, number> = { tight: 0, clean: 0, skid: 0 }
 
   const offset = () => (event && event.course.def.gates.kind !== 'none' ? event.course.def.gates.offset : 0)
@@ -44,6 +49,7 @@ export function createRaceDirector(options: {
         return
       }
       event = challenge
+      sinceGo = Infinity
       gate = createStartGate()
       recorder = ghosted() ? createGhostRecorder() : null
       ghost = ghosted() ? readGhost(challenge.id) : null
@@ -71,17 +77,23 @@ export function createRaceDirector(options: {
         if (start === 'falseStart') hud.setCount('False start', 'warn')
         else if (start === 'go') {
           session.startClock()
+          sinceGo = 0
           hud.setCount('GO!', 'go')
         } else if (start === 'fastStart') {
           kick(skier, FAST_START_KICK)
           show('Fast start', `+${Math.round(FAST_START_KICK * 3.6)} km/h`, 'perfect')
-        } else if (!gate.open) hud.setCount(String(gate.count))
+        } else if (!gate.open && !gate.warning) hud.setCount(String(gate.count))
         if (!gate.open) {
           // Held in the start: no steering or jumping until GO.
           input.steer = 0
           input.jump = false
           return
         }
+      }
+      // Out of the gate: skate the first strides so a start that faces a flat cat track still gets going.
+      if (sinceGo < AUTO_PUSH_SECONDS) {
+        sinceGo += dt
+        if (skier.speed < PHYSICS.skateMaxSpeed && input.brake < PHYSICS.brakeEngage) input.tuck = true
       }
       if (!options.assistOn() || !event.gates.length || !skier.grounded) return
       const along = progressAlong(skier.x, skier.z, event.line).s

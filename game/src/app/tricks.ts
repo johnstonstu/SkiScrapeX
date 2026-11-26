@@ -36,6 +36,8 @@ export function addToCombo(combo: ComboState, name: string, basePoints: number):
 export function createTrickFeed(element: HTMLElement) {
   let lastSeq = 0
   let timer = 0
+  // Race formats are timed, not judged: tricks still happen but score nothing and pop nothing.
+  let muted = false
   const combo = { tricks: [] as string[], counted: 0, multiplier: 1, points: 0, groundTime: 0, total: 0 }
   const stats = { perfect: 0, clean: 0, railMetres: 0, bestName: '', bestPoints: 0 }
   /** Pop a card: title, a small grade line, then points and the combo multiplier. */
@@ -73,9 +75,15 @@ export function createTrickFeed(element: HTMLElement) {
     },
     /** Lose the combo without banking it (a crash or a restart). */
     drop,
+    /** Mute trick cards and combos (race formats). Tricks are still reported as new. */
+    setMuted(on: boolean) {
+      muted = on
+      if (on) drop()
+    },
     onTrick(trick: TrickEvent | null) {
       if (!trick || trick.seq === lastSeq) return false
       lastSeq = trick.seq
+      if (muted) return true
       navigator.vibrate?.(trick.grade === 'crash' ? 120 : trick.grade === 'perfect' ? [20, 40, 20] : 25)
       if (trick.grade === 'crash') {
         show('Bail!', trick.name, 'crash')

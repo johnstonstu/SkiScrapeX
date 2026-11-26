@@ -89,12 +89,26 @@ export function buildMoguls(grid: TerrainGrid, runs: Run[], surface: SurfaceFiel
       }
     }
   }
-  const field = bumpField(bumps)
+  let field = bumpField(bumps)
   const sampleTerrain: SampleTerrain = (x, z) => {
     const base = grid.sampleTerrain(x, z)
     return base ? field.apply(base, x, z) : base
   }
-  return { bumps, sampleTerrain, onMogul: (x: number, z: number) => (field.profile(x, z)?.rise ?? 0) > 0.07 }
+  return {
+    bumps,
+    sampleTerrain,
+    onMogul: (x: number, z: number) => (field.profile(x, z)?.rise ?? 0) > 0.07,
+    /**
+     * Flatten the bumps whose centre `cleared` covers (a race track while its
+     * event runs), or put every bump back with null. Returns the bumps that
+     * stay, for the view.
+     */
+    clear(cleared: ((x: number, z: number) => boolean) | null): readonly Mogul[] {
+      const kept = cleared ? bumps.filter((bump) => !cleared(bump.x, bump.z)) : bumps
+      field = bumpField(kept)
+      return kept
+    },
+  }
 }
 
 /**

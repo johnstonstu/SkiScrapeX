@@ -21,6 +21,8 @@ export const COUNTDOWN = 3
 export const PUSH_WINDOW = 0.3
 /** Speed a fast start adds down the line, m/s. */
 export const FAST_START_KICK = 2
+/** Seconds the "False start" warning shows before the count starts again from 3. */
+export const FALSE_START_HOLD = 1.2
 
 export type StartEvent = 'falseStart' | 'go' | 'fastStart'
 
@@ -36,7 +38,11 @@ export function createStartGate() {
   return {
     /** Seconds left to GO (3, 2, 1), or 0 once the gate is open. */
     get count() {
-      return t < COUNTDOWN ? Math.ceil(COUNTDOWN - t) : 0
+      return t < COUNTDOWN ? Math.min(COUNTDOWN, Math.ceil(COUNTDOWN - t)) : 0
+    },
+    /** A false start was just called: show the warning, not a digit. */
+    get warning() {
+      return t < 0
     },
     get open() {
       return t >= COUNTDOWN
@@ -47,7 +53,8 @@ export function createStartGate() {
       if (done) return { hold: false, event: null }
       if (t < COUNTDOWN) {
         if (push) {
-          t = 0
+          // The warning holds, then the count starts again from 3.
+          t = -FALSE_START_HOLD
           return { hold: true, event: 'falseStart' }
         }
         t += dt
