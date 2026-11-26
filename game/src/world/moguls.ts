@@ -1,4 +1,4 @@
-import { pointAlong, type Run } from './resort'
+import { pointAlong, runHalfWidth, type Run } from './resort'
 import { surfaceAt, SurfaceId, type SurfaceField } from './surface'
 import type { TerrainGrid } from './terrainGrid'
 import type { SampleTerrain } from '../sim'
@@ -21,26 +21,50 @@ export function pointOnMogul(bump: Mogul, across: number, along: number): [numbe
   return [bump.x + u * bump.dirZ + v * bump.dirX, bump.z - u * bump.dirX + v * bump.dirZ]
 }
 
-/** Staggered, irregular rows along mapped mogul runs, with smoother shoulders. */
+/**
+ * Bump shapes. Moguls are the deep, regular rows skiers cut on steep ungroomed
+ * runs (crests about 0.5 to 0.94 m). Chop is what an ungroomed run that is not
+ * a mogul field gets after a few days: lower, looser, uneven bumps (about 0.2
+ * to 0.4 m) in more, closer lanes.
+ */
+export const BUMPS = {
+  mogul: { start: 20, row: 5.2, laneGap: 4.5, rowShift: 3.3, height: 0.72, heightVary: 0.22, width: 2.05, uphill: 2.75, downhill: 1.95 },
+  chop: { start: 15, row: 4.4, laneGap: 3.6, rowShift: 2.6, height: 0.3, heightVary: 0.1, width: 1.75, uphill: 2.2, downhill: 1.6 },
+} as const
+
+/** Lanes across a run: three on a normal mogul run, more on wide ones so the field fills most of the run. */
+export function mogulLanes(run: Run): number {
+  const half = runHalfWidth(run)
+  if (run.chop) return Math.max(3, 2 * Math.floor((half * 0.6) / BUMPS.chop.laneGap) + 1)
+  return Math.max(3, 2 * Math.floor((half * 0.55) / BUMPS.mogul.laneGap) + 1)
+}
+
+/** Staggered, irregular rows along mapped mogul (and chop) runs, with smoother shoulders. */
 export function buildMoguls(grid: TerrainGrid, runs: Run[], surface: SurfaceField, avoid?: (x: number, z: number) => boolean) {
   const bumps: Mogul[] = []
   const cells = new Map<number, Mogul[]>()
   const stride = Math.ceil(grid.width / 8) + 4
   const cell = (x: number, z: number) => Math.floor(x / 8) + stride * Math.floor(z / 8)
   for (const run of runs) {
-    if (!run.moguls || run.kind !== 'line') continue
+    if (!(run.moguls || run.chop) || run.kind !== 'line') continue
+    const spec = run.moguls ? BUMPS.mogul : BUMPS.chop
+    const lanes = mogulLanes(run)
+    const offsets = Array.from({ length: lanes }, (_, i) => i - (lanes - 1) / 2)
     for (const line of run.parts) {
       for (let row = 0; ; row++) {
-        const distance = 20 + row * 5.2 + Math.sin(row * 1.64) * 0.62
+        const distance = spec.start + row * spec.row + Math.sin(row * 1.64) * 0.62
         const [x, z] = pointAlong(line, distance)
         const [nx, nz] = pointAlong(line, distance + 1)
         const length = Math.hypot(nx - x, nz - z)
         if (length < 0.01) break
         const dirX = (nx - x) / length, dirZ = (nz - z) / length
-        for (const lane of [-1, 0, 1]) {
+        for (const lane of offsets) {
           const shape = row * 1.73 + lane * 2.4 + x * 0.015
-          const side = lane * 4.5 + (row % 2 - 0.5) * 3.3 + 0.5 * Math.sin(shape)
-          const stagger = 0.4 * Math.cos(shape * 1.2)
+          // Chop is looser: more sideways scatter and some gaps in each row.
+          if (run.chop && Math.sin(shape * 2.9 + z * 0.031) > 0.55) continue
+          const scatter = run.chop ? 1.2 * Math.sin(shape * 1.9) : 0.5 * Math.sin(shape)
+          const side = lane * spec.laneGap + (row % 2 - 0.5) * spec.rowShift + scatter
+          const stagger = (run.chop ? 1.1 : 0.4) * Math.cos(shape * 1.2)
           const bx = x + side * dirZ + dirX * stagger
           const bz = z - side * dirX + dirZ * stagger
           if (surfaceAt(surface, bx, bz) !== SurfaceId.powder || !Number.isFinite(grid.heightAt(bx, bz)) || avoid?.(bx, bz)) continue
@@ -49,10 +73,10 @@ export function buildMoguls(grid: TerrainGrid, runs: Run[], surface: SurfaceFiel
           const bump = {
             x: bx, z: bz, dirX, dirZ,
             // Deeper crests (~0.5–0.94 m) so Gunbarrel-style fields cast readable shade.
-            height: 0.72 + 0.22 * Math.sin(shape * 0.86),
-            width: 2.05 + 0.24 * Math.cos(shape),
-            uphill: 2.75 + 0.25 * Math.sin(shape),
-            downhill: 1.95 + 0.22 * Math.cos(shape * 0.61),
+            height: spec.height + spec.heightVary * Math.sin(shape * 0.86),
+            width: spec.width + 0.24 * Math.cos(shape),
+            uphill: spec.uphill + 0.25 * Math.sin(shape),
+            downhill: spec.downhill + 0.22 * Math.cos(shape * 0.61),
           }
           bumps.push(bump)
           const radius = Math.max(bump.width, bump.uphill, bump.downhill)

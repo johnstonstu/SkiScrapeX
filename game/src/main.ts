@@ -40,6 +40,7 @@ import { KEYS, readJson, writeJson } from './app/storage'
 import { createTrickFeed } from './app/tricks'
 import { buildParkMenu, buildRunMenu, renderTrailDetail, syncTrailListSelection } from './app/menus'
 import { createTrailMap, type TrailSelection } from './ui/trailMap'
+import { courseForGlade } from './world/glades'
 import { buildApexStage } from './app/apexStage'
 import { loadSceneryAssets, type SceneryAssets } from './render/scenery/sceneryAssets'
 import type { Stage } from './app/stage'
@@ -391,10 +392,12 @@ function startApex(world: World, scenery?: SceneryAssets) {
   const { grid, resort } = world
   perf.phase('credits')
   const runs = pickableRuns(resort)
+  // The maps also name the glades (area runs), which are not timed runs.
+  const mapRuns = [...runs, ...resort.runs.filter((run) => run.glade)]
   const skiRun = (run: Run) => {
     leaveDemoPark()
     setFreeSki()
-    course = courseForRun(resort, run)
+    course = (run.glade ? courseForGlade(run, grid.heightAt) : null) ?? courseForRun(resort, run)
     restartFromMenu()
   }
   const tripTrail = (selection: TrailSelection) => {
@@ -404,7 +407,7 @@ function startApex(world: World, scenery?: SceneryAssets) {
   }
   minimap?.dispose()
   minimap = createMinimap(ui.map, ui.mapLocation, apex.surface.runNameAt, { width: grid.width, depth: grid.depth, resort, hillshade: world.hillshade }, {
-    runs,
+    runs: mapRuns,
     parks: apex.parkSites,
     onTrip: tripTrail,
   })
@@ -415,7 +418,7 @@ function startApex(world: World, scenery?: SceneryAssets) {
   }
   trailMap?.dispose()
   trailMap = createTrailMap(ui.trailMap, { width: grid.width, depth: grid.depth, resort, hillshade: world.hillshade }, {
-    runs,
+    runs: mapRuns,
     parks: apex.parkSites,
     onSelect: selectTrail,
     onTrip: tripTrail,

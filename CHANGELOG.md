@@ -2,6 +2,25 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.23 (2026-11-25): Runs pass B (glades, moguls, grooming, summit landmarks)
+
+From the Apex research handoff (`docs/review/apex-terrain-handoff.md`, `run-profiles.json`).
+
+### Added
+
+- Four glades from the 2025/26 trail map: Any Which Way Glades, Granny's Glades, Fools Gold and Hidden Gold (`world/glades.ts`, polygons from the handoff). Their trees are thinned into open lanes about 7 m wide down the fall line, with clumps between; about 40% of the trees stay. Each glade has a trail-head board at its top, shows its name in the HUD and on the map (hover and click inside it), and a map trip starts you at its top. The forest outside the glades is unchanged.
+- Moguls on Sunbowl, Make My Day, Old Mill, Gunbarrel and K2, as seen in the footage; wide runs (Sunbowl, Old Mill, K2) get five to seven mogul lanes instead of three.
+- Chop on Crusher and Hanks: ungroomed, lower and looser bumps (about 0.2 to 0.4 m) instead of corduroy.
+- Grandmother's Trail is packed, skier-tracked snow: groomed underfoot, no fresh corduroy (a flag in the surface mask's spare blue channel).
+- Orange slat snow fencing round the Quickdraw top where the plateau rolls over into steep ground, kept off every run, lift line and the Pit cliff; and the Tooth/Tusk wooden signpost at the top of Tooth Tusk, arrows left to Tooth and right to Tusk. Both are solid.
+- Tests against the handoff's LiDAR run profiles: every profiled run is found on a line of the same length, pitches agree within 0.5°, run corridors stay inside the measured clearings, tree-lined runs keep at least half of theirs, and runs where the footage saw moguls have them (`tests/runProfiles.test.ts`). Pass B tests check glade density and lanes, mogul and chop heights, corduroy and the landmarks (`tests/runPassB.test.ts`).
+
+### Changed
+
+- Dawdler 1 is narrower (23 m open in the LiDAR; the blue-run default cut 39 m into its trees).
+- Mogul meshes are split into chunks (384 m on Low, 256 m above) drawn only near the camera (170 m on Low, 260 m Medium, 340 m High), and use 40 instead of 84 triangles a bump on Low. The physics keeps every bump.
+- The padded lift towers were already in `lifts.glb` (orange pads on Quickdraw, yellow on Stock's); a test now keeps them there.
+
 ## 0.9.22 (2026-11-25): Adaptive music
 
 ### Added

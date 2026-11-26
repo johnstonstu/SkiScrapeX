@@ -4,7 +4,7 @@
  *
  * R: surface id × 32 → 0 groomed, 32 powder, 64 ice, 96 rock, 128 under-tree, 160 park
  * G: groom heading / (2π). Heading 0 points +X east, π/2 points +Z south.
- * B: unused
+ * B: 255 on packed, skier-tracked groomed snow (no corduroy, worn look), else 0
  * A: 255
  *
  * World address: uv = (x - originX) / sizeX, (z - originZ) / sizeZ
