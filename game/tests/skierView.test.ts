@@ -318,14 +318,17 @@ describe('rider legs in real turns', () => {
     const state = createSkiState({ x: 2000, z: 100, heading: 0 })
     state.y = slope.sampleTerrain(2000, 100)!.height
     let checked = 0
-    for (let f = 0; f < 60 * 9; f++) {
+    let edgedFor = 0
+    // Turns long enough for the edge to roll fully on and hold a carve (the sim steps at half the frame time here).
+    for (let f = 0; f < 60 * 12; f++) {
       const time = (f + 1) / 60
-      const steer = time < 3 ? 0 : Math.sin(((time - 3) * Math.PI * 2) / 2.4) > 0 ? 1 : -1
+      const steer = time < 3 ? 0 : Math.sin(((time - 3) * Math.PI * 2) / 4) > 0 ? 1 : -1
       const input: SkiInput = { steer, brake: state.speed * 3.6 > 45 ? 0.5 : 0, tuck: false }
       stepSkier(state, input, slope.sampleTerrain, FIXED_DT, {} as never)
       view.update(state, input, slope.sampleTerrain(state.x, state.z), 'ski', 1 / 60)
-      // Mid-carve only: well into a turn, edged hard.
-      if (time < 5 || Math.abs(state.edgeAngle) < 0.75) continue
+      // Mid-carve only: well into a turn, edged hard and held there a moment (not the edge change).
+      edgedFor = Math.abs(state.edgeAngle) >= 0.75 ? edgedFor + 1 / 60 : 0
+      if (time < 5 || edgedFor < 0.25) continue
       view.object.updateMatrixWorld(true)
       const forward = new THREE.Vector3(state.vx, 0, state.vz).normalize()
       const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize()

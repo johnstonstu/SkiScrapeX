@@ -45,7 +45,7 @@ function race(course: EventCourse, terrain: SampleTerrain, cap: number, assisted
       const [tx, tz] = pointAlong(course.line, ahead + 12)
       steer = steerToward(s, tx, tz)
     }
-    stepSkier(s, { steer: s.grounded ? steer : 0, brake: s.speed > cap ? 0.7 : 0, tuck: s.speed < cap * 0.7 }, terrain, FIXED_DT)
+    stepSkier(s, { steer: s.grounded ? steer : 0, brake: s.speed > cap ? 1 : 0, tuck: s.speed < cap * 0.7 }, terrain, FIXED_DT)
     events.push(...session.step(s, FIXED_DT))
   }
   return { session, events }

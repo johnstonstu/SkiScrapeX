@@ -15,8 +15,11 @@ export const PHYSICS = {
   mass: 80,
   airDensity: 1.05,
   dragAreaUpright: 0.66,
-  /** Higher than a real race tuck (~0.2 m²) so recreational top speed stays under ~100 km/h on 15°. */
-  dragAreaTuck: 0.42,
+  /**
+   * A recreational tuck: above a race tuck (~0.2 m²), so a straight run on 25°
+   * tops out near 160 km/h and the Chute's 151 km/h benchmark can be reached.
+   */
+  dragAreaTuck: 0.3,
   snowFriction: 0.035,
   /** Scale on the braking share (sin of the attack angle) of the edge's cutting force. */
   skidFriction: 0.8,
@@ -40,7 +43,8 @@ export const PHYSICS = {
   angulationDeg: 15,
   /** Uphill edge held with the stick centred on a traverse, degrees. */
   traverseEdgeDeg: 22,
-  brakeDecel: 5.2,
+  /** Hockey-stop braking on top of the skid scrub, m/s² on the flat; scales with the cosine of the pitch. */
+  brakeDecel: 4,
   /** Brake input above this engages the hockey-stop yaw and the braking state. */
   brakeEngage: 0.2,
   /** Edge fraction used while braking when the stick is centered. */
@@ -48,7 +52,7 @@ export const PHYSICS = {
   /** Grip kept while braking, so the stop skids instead of carving the new heading. */
   brakeGripScale: 0.35,
   /** Multiplier on lateral skid friction while braking. */
-  brakeSkidScale: 1.35,
+  brakeSkidScale: 0.3,
   hockeyYawRate: 2.4,
   /** Airborne steering is this fraction of the on-snow yaw rate. */
   airYawScale: 0.65,
@@ -62,8 +66,15 @@ export const PHYSICS = {
   brakeModeSpeed: 0.35,
   /** Skid fraction that reports `skidding` instead of a carve. */
   skidMode: 0.3,
-  /** Edge roll rate toward the stick's target, degrees per second. */
-  edgeRateDeg: 260,
+  /** Edge roll rate toward the stick's target, degrees per second: 0 to 50° in about 0.28 s. Below about 160 the Teck GS pace line stops clearing gate 5. */
+  edgeRateDeg: 180,
+  /**
+   * Keyboard steering is all or nothing, so its edge is capped by speed: the
+   * full edge up to `keyEdgeFadeKmh[0]`, falling to `keyEdgeHighDeg` at
+   * `keyEdgeFadeKmh[1]`. A tap at speed then holds an arc instead of washing out.
+   */
+  keyEdgeHighDeg: 32,
+  keyEdgeFadeKmh: [60, 110],
   /** Seconds to blend surface parameters when the snow changes underfoot. */
   surfaceBlendTime: 0.15,
   /** Grip ratio past which the edge washes out, for how long, and the grip left. */
@@ -97,6 +108,8 @@ export const PHYSICS = {
   tuckHold: 0.35,
   snapDistance: 0.3,
   landingSoften: 12,
+  /** Normal impact speed the legs soak up on a short hop without losing speed, m/s. */
+  hopAbsorb: 2.5,
   /** A normal shorter than this is a bad sample, same as a hole. */
   minNormalLength: 1e-3,
   maxFrameDt: 0.25,
