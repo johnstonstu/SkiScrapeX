@@ -2,6 +2,22 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.33 (2026-11-26): Race starts, race gates, moguls and lift tops
+
+From Stu's 2026-11-26 playtest notes.
+
+### Changed
+
+- **Race start.** Holding forward through 3, 2, 1 was called a false start, so you had to keep your hands off the keys. You can now hold forward through the count and go at GO. A push timed onto GO (up to 0.35 s before or 0.3 s after) is a fast start. There are no false starts.
+- **Race gates.** The wide panel spanning every gate blocked the view down the course. Slalom gates are now single bare poles; GS and downhill gates have a pair of poles at each end with a small panel (0.75 by 0.5 m, as FIS sets them) between them. Nothing spans the gate.
+- **Mogul comp.** The autopilot held the line with the brake, so the skier hockey-stopped down most of the comp with the skis sideways and the turns you tapped never showed. On each beat the skis now pivot about 30° across the fall line to the new side, the comp holds the target speed through the bumps without the brake, and the skier squares up to each air ramp so the take-off is straight.
+- **Getting off at the top.** The unload picks a spot clear of the station, the lift line, buildings and trees, with open snow both ways across the hill. On gentle ground you stop facing down the fall line; on steeper ground, across it on your edges, standing still, so one turn takes you down either way. The T-bar used to leave you beside the return wheel facing uphill.
+
+### Fixed
+
+- **Floating lift shacks.** Stations stood at the ground under their centre, so on a slope a corner hung in the air (the Quickdraw top hut by 1.3 m). Their walls and legs now reach down to the snow.
+- **Bump back when letting go of a turn.** On release the hips snapped back toward the middle of the stance in one frame while the body still leaned. The skis and hips now ease off the edge when the steer is let go; linked turns still show the physics edge as it is.
+
 ## 0.9.32 (2026-11-26): Riders lean like the physics
 
 ### Fixed

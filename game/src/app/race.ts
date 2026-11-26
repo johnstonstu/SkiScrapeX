@@ -1,9 +1,10 @@
 /**
  * The race system shared by every race event, with no rendering:
  *
- * - The start gate: a 3-2-1 countdown with the racer held in the start. A
- *   push just after GO is a fast start; a push before GO is a false start and
- *   the count begins again.
+ * - The start gate: a 3-2-1 countdown with the racer held in the start.
+ *   Holding the push button through the count is fine: the racer goes at GO.
+ *   A push timed onto GO (just before or just after) is a fast start. There
+ *   are no false starts.
  * - Gate grading: a carved pass close to the turning pole is "tight" and
  *   earns a little speed, a carved pass further out is "clean", a skidded
  *   one earns nothing (the skid has already cost the speed).
@@ -19,30 +20,28 @@ import { headingFor } from '../world/resort'
 export const COUNTDOWN = 3
 /** A push this soon after GO is a fast start. */
 export const PUSH_WINDOW = 0.3
+/** A push this soon before GO also counts: the racer timed it onto the beep. */
+export const ANTICIPATE = 0.35
 /** Speed a fast start adds down the line, m/s. */
 export const FAST_START_KICK = 2
-/** Seconds the "False start" warning shows before the count starts again from 3. */
-export const FALSE_START_HOLD = 1.2
 
-export type StartEvent = 'falseStart' | 'go' | 'fastStart'
+export type StartEvent = 'go' | 'fastStart'
 
 /**
  * The start gate. Call `step` every frame with whether the push button is
- * down; it reports whether to hold the racer still and what happened.
+ * down; it reports whether to hold the racer still and what happened. The
+ * racer can hold the button through the count and simply goes at GO.
  */
 export function createStartGate() {
   let t = 0
   let wasDown = true // a button still held from the menu is not a push
+  let lastPush = -Infinity
   let done = false
-  let pushed = false
+  let fastDue = false
   return {
     /** Seconds left to GO (3, 2, 1), or 0 once the gate is open. */
     get count() {
       return t < COUNTDOWN ? Math.min(COUNTDOWN, Math.ceil(COUNTDOWN - t)) : 0
-    },
-    /** A false start was just called: show the warning, not a digit. */
-    get warning() {
-      return t < 0
     },
     get open() {
       return t >= COUNTDOWN
@@ -52,20 +51,19 @@ export function createStartGate() {
       wasDown = pushDown
       if (done) return { hold: false, event: null }
       if (t < COUNTDOWN) {
-        if (push) {
-          // The warning holds, then the count starts again from 3.
-          t = -FALSE_START_HOLD
-          return { hold: true, event: 'falseStart' }
-        }
+        if (push) lastPush = t
         t += dt
-        if (t >= COUNTDOWN) return { hold: false, event: 'go' }
+        if (t >= COUNTDOWN) {
+          // A push in the last moments before GO, still held, is a fast start on the next frame.
+          fastDue = pushDown && COUNTDOWN - lastPush <= ANTICIPATE
+          return { hold: false, event: 'go' }
+        }
         return { hold: true, event: null }
       }
       t += dt
-      if (push && !pushed) {
-        pushed = true
+      if (fastDue || push) {
         done = true
-        return { hold: false, event: t - COUNTDOWN <= PUSH_WINDOW ? 'fastStart' : null }
+        return { hold: false, event: fastDue || t - COUNTDOWN <= PUSH_WINDOW ? 'fastStart' : null }
       }
       if (t - COUNTDOWN > PUSH_WINDOW) done = true
       return { hold: false, event: null }

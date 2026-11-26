@@ -74,15 +74,14 @@ export function createRaceDirector(options: {
       if (!event || !session) return
       if (gate) {
         const { event: start } = gate.step(dt, input.tuck || Boolean(input.jump))
-        if (start === 'falseStart') hud.setCount('False start', 'warn')
-        else if (start === 'go') {
+        if (start === 'go') {
           session.startClock()
           sinceGo = 0
           hud.setCount('GO!', 'go')
         } else if (start === 'fastStart') {
           kick(skier, FAST_START_KICK)
           show('Fast start', `+${Math.round(FAST_START_KICK * 3.6)} km/h`, 'perfect')
-        } else if (!gate.open && !gate.warning) hud.setCount(String(gate.count))
+        } else if (!gate.open) hud.setCount(String(gate.count))
         if (!gate.open) {
           // Held in the start: no steering or jumping until GO.
           input.steer = 0

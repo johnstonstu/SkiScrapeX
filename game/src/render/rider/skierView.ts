@@ -18,6 +18,8 @@ export type SkierPose = 'ski' | 'sit' | 'stand'
 /** Grip to tip, metres. */
 const POLE_REACH = 1.1
 const smooth = (t: number) => t * t * (3 - 2 * t)
+/** How fast the shown edge eases off when the sim rolls the edge back (per second): softer than going onto it. */
+export const EDGE_RELEASE_RATE = 7
 /** Turn pole plant: where the tip strikes (metres ahead of the boots) and how long the reach takes. */
 const PLANT_AHEAD = 0.75
 const PLANT_REACH = 0.12
@@ -213,6 +215,8 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
   let lastHeading = 0
   /** Travel direction last frame and the smoothed sideways acceleration of the path, m/s². */
   let lastTravel: number | null = null
+  /** The edge angle the body shows (radians), eased off the sim's edge. */
+  let edgeShown = 0
   let pathAccel = 0
   let railLook = 0
   /** 1 while the hips follow the skis' lean (on snow), easing to 0 in the air and on rails. */
@@ -662,6 +666,13 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       const skating = skiing && input.tuck && !braking && speed < PHYSICS.skateMaxSpeed && !boarding
       const charging = skiing && state.popCharge > 0
       const edge = skiing ? state.edgeAngle * stance : 0
+      // The edge the legs and hips show: quick onto the edge, softer off it. The
+      // sim rolls the edge off at its full rate when the steer is let go; the hips
+      // following that straight snapped back under an upright body (a bump back).
+      // Only a let-go eases: while steering (linked turns, an edge change) the skis
+      // show the physics edge as it is.
+      const letGo = Math.abs(input.steer) < 0.05 && Math.abs(edge) < Math.abs(edgeShown)
+      edgeShown = letGo ? edgeShown + (edge - edgeShown) * ease(EDGE_RELEASE_RATE, dt) : edge
       // Lean for the turn the skier is really making: the path's curvature
       // times speed is the sideways acceleration to balance, tan(lean) = a / g.
       // (The carve model's load misses pivoted and skidded turns.)
@@ -711,7 +722,10 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
           // Positive steer = right turn → plant with the right hand (side -1).
           plantSide = steerSign > 0 ? -1 : 1
         }
-        if (edgeSign !== 0 && lastEdgeSign !== 0 && edgeSign !== lastEdgeSign) {
+        // Only a turn the rider steers into unweights. Letting go of a small correction
+        // also rolls the skis back to their uphill edges (the sim holds the traverse);
+        // that is not a new turn, and kicking the crouch there read as a bump back.
+        if (edgeSign !== 0 && lastEdgeSign !== 0 && edgeSign !== lastEdgeSign && steerSign === edgeSign * stance) {
           crouch.v -= (boarding ? 0.8 : 1.1) * Math.min(1, speed / 10)
         }
       }
@@ -825,8 +839,9 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // knee angulation). Only an edge far past the lean is drawn flatter: up to 18°
       // past it when there is hardly any turn (an upright body on hard edges folds
       // the inside knee into the other thigh), 34° once the body leans into a carve.
+      // Off the edge (a turn let go) they ease back with `edgeShown` instead of snapping.
       const edgeRoom = 0.32 + 0.28 * THREE.MathUtils.clamp((Math.abs(incline.x) - 0.15) / 0.3, 0, 1)
-      const edgeVisual = pose === 'ski' && !air ? Math.sign(edge) * Math.min(Math.abs(edge), Math.abs(incline.x) + edgeRoom) : 0
+      const edgeVisual = pose === 'ski' && !air ? Math.sign(edgeShown) * Math.min(Math.abs(edgeShown), Math.abs(incline.x) + edgeRoom) : 0
       for (const ski of skis) ski.rotation.z = edgeVisual
       if (plow.x > 0.01) {
         // Snowplough: tips together, tails out, both skis on their inside edges.

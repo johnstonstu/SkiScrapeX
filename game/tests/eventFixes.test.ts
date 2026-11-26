@@ -1,6 +1,6 @@
 /**
  * Event fixes from the 2026-11-25 playtest: the finish run-out, the
- * no-progress DNF, the false-start warning, the auto-push out of the gate and
+ * no-progress DNF, the auto-push out of the gate and
  * the groomed race track that flattens mapped moguls only while a race runs.
  */
 import { existsSync } from 'node:fs'
@@ -8,7 +8,6 @@ import { describe, expect, it } from 'vitest'
 import type { SkiInput, SkiState } from '../src/sim'
 import { RUNOUT_MAX_SECONDS, RUNOUT_MIN_SECONDS, RUNOUT_STOP_SPEED, createRunout } from '../src/app/runout'
 import { STALL_METRES, STALL_SECONDS, createSession } from '../src/app/session'
-import { COUNTDOWN, FALSE_START_HOLD, createStartGate } from '../src/app/race'
 import { EVENTS, RACE_TRACK_MARGIN, RACE_TRACK_OPEN, buildEventCourse, raceTrack, type EventCourse } from '../src/world/events'
 import { trackMask } from '../src/world/raceTrack'
 import { buildMoguls } from '../src/world/moguls'
@@ -103,30 +102,6 @@ describe('no-progress DNF', () => {
     const course = { def, line, length: 400, gates: [], trap: null, splits: [] } as EventCourse
     const session = createSession({ kind: 'event', id: 'event:x', course, run, line, gates: [], targets: null })
     for (let t = 0; t < STALL_SECONDS * 2; t += DT) expect(session.step(skier(0, 0), DT)).toEqual([])
-  })
-})
-
-describe('false start', () => {
-  it('holds the warning before the count starts again from 3', () => {
-    const gate = createStartGate()
-    for (let t = 0; t < 2; t += DT) gate.step(DT, false)
-    expect(gate.step(DT, true).event).toBe('falseStart')
-    expect(gate.warning).toBe(true)
-    expect(gate.count).toBe(COUNTDOWN)
-    let held = 0
-    while (gate.warning) {
-      gate.step(DT, false)
-      held += DT
-    }
-    expect(held).toBeCloseTo(FALSE_START_HOLD, 1)
-    expect(gate.count).toBe(COUNTDOWN)
-    let toGo = 0
-    let go = false
-    while (!go && toGo < 10) {
-      go = gate.step(DT, false).event === 'go'
-      toGo += DT
-    }
-    expect(toGo).toBeCloseTo(COUNTDOWN, 1)
   })
 })
 

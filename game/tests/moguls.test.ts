@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { FIXED_DT, createSkiState, stepSkier, type SampleTerrain, type TrickEvent } from '../src/sim'
-import { EARLIEST, GOOD, MISS_DROP, OUT_AFTER, PERFECT, START_SPEED, TOP_SPEED, createMogulRun, createTapReader } from '../src/app/moguls'
+import { EARLIEST, GOOD, MISS_DROP, OUT_AFTER, PERFECT, START_SPEED, TOP_SPEED, createMogulRun, createTapReader, holdSpeed } from '../src/app/moguls'
 import { bestTwo, degreeOfDifficulty, formScore, judgeJump } from '../src/app/judging'
 import { bumpField } from '../src/world/moguls'
 import { buildMogulCourse, laneCoords, laneHeading, lanePoint, TURN_PITCH } from '../src/world/mogulCourse'
@@ -154,7 +154,7 @@ describe.skipIf(!hasData)('mogul comp and aerials on the real map', () => {
     expect(pitch).toBeLessThan(28)
   })
 
-  it('perfect taps carry the autopilot down the whole comp: no crash, top speed, air off both ramps', () => {
+  it('perfect taps carry the autopilot down the whole comp: no crash, no hockey stops, top speed, air off both ramps', () => {
     const mc = buildEventCourse(resort, EVENTS.find((e) => e.format === 'moguls')!).moguls!
     const field = bumpField(mc.bumps)
     const terrain: SampleTerrain = (x, z) => {
@@ -166,6 +166,7 @@ describe.skipIf(!hasData)('mogul comp and aerials on the real map', () => {
     sk.y = terrain(sk.x, sk.z)!.height
     const airs: number[] = []
     let worstLateral = 0
+    let over = 0
     let seen = 0
     for (let t = 0; t < 90; t += FIXED_DT) {
       const { s, lateral } = laneCoords(mc, sk.x, sk.z)
@@ -175,7 +176,13 @@ describe.skipIf(!hasData)('mogul comp and aerials on the real map', () => {
       run.step(s, sk.speed, tap)
       // Pop at the lip, as a player holds jump on the run-in and lets go there.
       const popping = mc.airs.some((a) => s > a.s - 8 && s < a.s - 0.6)
-      stepSkier(sk, { ...run.drive(sk, s), jump: popping }, terrain, FIXED_DT)
+      const drive = run.drive(sk, s)
+      holdSpeed(sk, run.goalAt(s), FIXED_DT)
+      if (sk.grounded && !run.inAirZone(s)) {
+        expect(sk.mode, 'no hockey stops in the mogul line').not.toBe('braking')
+        over = Math.max(over, sk.speed - run.goalAt(s))
+      }
+      stepSkier(sk, { ...drive, jump: popping }, terrain, FIXED_DT)
       if (sk.trick && sk.trick.seq !== seen) {
         seen = sk.trick.seq
         if (sk.trick.kind === 'air') airs.push(sk.trick.airTime)
@@ -187,6 +194,8 @@ describe.skipIf(!hasData)('mogul comp and aerials on the real map', () => {
     expect(run.grades.length).toBe(mc.turns.length)
     expect(run.targetSpeed).toBe(TOP_SPEED)
     expect(worstLateral).toBeLessThan(2)
+    // The line holds the target speed without the brake.
+    expect(over).toBeLessThan(2.5)
     expect(airs.filter((a) => a > 0.7)).toHaveLength(2)
   }, 60000)
 

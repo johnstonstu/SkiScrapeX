@@ -6,7 +6,7 @@
  */
 import type { SkiInput, SkiState, TrickEvent } from '../sim'
 import type { Challenge } from './session'
-import { GOOD, createMogulRun, createTapReader, type MogulRun, type TurnGrade } from './moguls'
+import { GOOD, createMogulRun, createTapReader, holdSpeed, type MogulRun, type TurnGrade } from './moguls'
 import { bestTwo, judgeJump, type JudgedJump } from './judging'
 import { laneCoords } from '../world/mogulCourse'
 import type { RaceHud } from '../ui/raceHud'
@@ -53,7 +53,7 @@ export function createCompDirector(options: {
      * Per frame, after the start gate: in the mogul comp, turn the steering into
      * taps and drive the skier along the chosen line (changes `input`).
      */
-    input(input: SkiInput, skier: SkiState, holding: boolean) {
+    input(input: SkiInput, skier: SkiState, holding: boolean, dt = 1 / 60) {
       if (!moguls || !lane) return
       const { s } = laneCoords(lane, skier.x, skier.z)
       const tap = tapOf(input.steer)
@@ -72,7 +72,9 @@ export function createCompDirector(options: {
         }
       }
       hud.setBeats(air ? [] : moguls.cues(s, skier.speed), moguls.streak, skier.speed * 3.6, GOOD)
-      const drive = moguls.drive(skier, s)
+      const drive = moguls.drive(skier, s, dt)
+      // The legs and the skid hold the speed through the bumps (no hockey stop).
+      holdSpeed(skier, moguls.goalAt(s), dt)
       // On the snow the autopilot steers and sets the speed; in the air the player spins, flips and grabs.
       if (skier.grounded) {
         input.steer = drive.steer
