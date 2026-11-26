@@ -65,9 +65,9 @@ export function createEventView(course: EventCourse, heightAt: HeightAt) {
     return mesh
   }
 
-  // Gates: downhill panels are all red; GS alternates red and blue.
+  // Gates: slalom is bare poles; GS and downhill have small panels at each end. Downhill is all red; the others alternate red and blue.
   const gatesView = course.gates.length
-    ? createGatesView(course.gates, heightAt, def.gates.kind === 'downhill' ? DOWNHILL_RED : GS_COLOURS)
+    ? createGatesView(course.gates, heightAt, def.gates.kind === 'downhill' ? DOWNHILL_RED : GS_COLOURS, def.gates.kind === 'slalom' ? 'slalom' : 'panel')
     : null
   if (gatesView) group.add(gatesView.object)
 

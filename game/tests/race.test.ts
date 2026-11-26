@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createSkiState } from '../src/sim'
-import { COUNTDOWN, PUSH_WINDOW, TIGHT_METRES, aimGate, assistSteer, createStartGate, gateAim, gradeGate, kick } from '../src/app/race'
+import { ANTICIPATE, COUNTDOWN, PUSH_WINDOW, TIGHT_METRES, aimGate, assistSteer, createStartGate, gateAim, gradeGate, kick } from '../src/app/race'
 import { createGhostRecorder, ghostAt } from '../src/app/ghost'
 import type { Gate } from '../src/world/challenges'
 
@@ -39,21 +39,42 @@ describe('start gate', () => {
     expect(late.step(DT, true).event).toBeNull()
   })
 
-  it('a push before GO is a false start and the count begins again', () => {
+  it('holding the push button through the count is not a false start: the racer goes at GO', () => {
     const gate = createStartGate()
-    wait(gate, 2.5)
-    const r = gate.step(DT, true)
-    expect(r.event).toBe('falseStart')
-    expect(r.hold).toBe(true)
-    expect(gate.count).toBe(3)
-    gate.step(DT, false)
-    expect(wait(gate, 2.5).hold).toBe(true)
+    wait(gate, 1)
+    // Pressed at 2 to go and held: still held in the gate, no warning, then GO.
+    const events: string[] = []
+    let t = 1
+    while (!gate.open && t < 10) {
+      const r = gate.step(DT, true)
+      if (r.event) events.push(r.event)
+      if (!gate.open) expect(r.hold).toBe(true)
+      t += DT
+    }
+    expect(events).toEqual(['go'])
+    expect(t).toBeCloseTo(COUNTDOWN, 1)
+    // Pressed too early for a fast start, so the next frame is a normal start.
+    expect(gate.step(DT, true).event).toBeNull()
   })
 
-  it('a button still held from the menu does not count as a push', () => {
+  it('a push timed just before GO is a fast start', () => {
     const gate = createStartGate()
-    // Held down from the first frame: never an edge, so no false start.
-    for (let t = 0; t < 1; t += DT) expect(gate.step(DT, true).event).toBeNull()
+    wait(gate, COUNTDOWN - ANTICIPATE / 2)
+    const events: string[] = []
+    for (let i = 0; i < 60; i++) {
+      const r = gate.step(DT, true)
+      if (r.event) events.push(r.event)
+    }
+    expect(events).toEqual(['go', 'fastStart'])
+  })
+
+  it('tapping during the count does nothing: the count carries on', () => {
+    const gate = createStartGate()
+    wait(gate, 1)
+    gate.step(DT, true)
+    gate.step(DT, false)
+    expect(gate.count).toBe(2)
+    expect(wait(gate, COUNTDOWN - 1).events).toEqual(['go'])
   })
 })
 

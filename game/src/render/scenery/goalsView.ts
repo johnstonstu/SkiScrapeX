@@ -9,50 +9,73 @@ const PASSED = new THREE.Color(0x58c46a)
 const MISSED = new THREE.Color(0x56595e)
 
 /**
- * Slalom gates: two poles and a banner between them, red and blue in turn.
- * A passed gate turns green, a missed one grey.
+ * How a gate is dressed, as on a real race hill:
+ * - `slalom`: a single bare pole at each end (the racer clears the turning pole).
+ * - `panel`: at each end a pair of poles 0.75 m apart with a small panel
+ *   between them, as GS and downhill gates are set. Nothing spans the gate,
+ *   so the course below stays in view.
  */
-export function createGatesView(gates: Gate[], heightAt: HeightAt, colours: number[] = GATE_COLOURS) {
+export type GateStyle = 'slalom' | 'panel'
+
+/** FIS-sized panel: 0.75 m wide, 0.5 m tall, its bottom 0.9 m up. */
+const PANEL_WIDTH = 0.75
+const PANEL_HEIGHT = 0.5
+const PANEL_BASE = 0.9
+
+/**
+ * Race gates, red and blue in turn. A passed gate turns green, a missed one
+ * grey (the panels, or the poles of a slalom gate).
+ */
+export function createGatesView(gates: Gate[], heightAt: HeightAt, colours: number[] = GATE_COLOURS, style: GateStyle = 'panel') {
   const group = new THREE.Group()
   group.name = 'slalom'
-  // Race-sized: stubby poles read as nothing at 40 m, so these are thick, tall and bright.
-  const poleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2.3, 8)
-  poleGeometry.translate(0, 1.15, 0)
-  const bannerGeometries = new Map<number, THREE.PlaneGeometry>()
-  const bannerFor = (half: number) => {
-    let geometry = bannerGeometries.get(half)
-    if (!geometry) bannerGeometries.set(half, (geometry = new THREE.PlaneGeometry(half * 2, 0.9)))
-    return geometry
-  }
-  const banners: THREE.MeshLambertMaterial[] = []
+  const poleHeight = style === 'slalom' ? 1.8 : 1.9
+  const poleGeometry = new THREE.CylinderGeometry(0.028, 0.03, poleHeight, 8)
+  poleGeometry.translate(0, poleHeight / 2, 0)
+  const panelGeometry = new THREE.PlaneGeometry(PANEL_WIDTH, PANEL_HEIGHT)
+  /** Per gate: the materials that show pass or miss. */
+  const markers: THREE.MeshLambertMaterial[] = []
   /** Per gate: its materials and centre, for fading as the camera passes through. */
   const fades: { materials: THREE.MeshLambertMaterial[]; centre: THREE.Vector3 }[] = []
+  const pole = (x: number, z: number, material: THREE.Material) => {
+    const mesh = new THREE.Mesh(poleGeometry, material)
+    mesh.position.set(x, heightAt(x, z) - 0.1, z)
+    mesh.castShadow = true
+    group.add(mesh)
+  }
   gates.forEach((gate, i) => {
     const colour = colours[i % colours.length]
     const half = gate.halfWidth ?? GATE_HALF_WIDTH
-    const pole = new THREE.MeshLambertMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.25 })
-    const banner = new THREE.MeshLambertMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.3, side: THREE.DoubleSide })
-    banners.push(banner)
-    // Poles either side across the direction of travel.
-    const px = gate.dirZ * half
-    const pz = -gate.dirX * half
-    const ends: [number, number][] = [
-      [gate.x + px, gate.z + pz],
-      [gate.x - px, gate.z - pz],
-    ]
-    const heights = ends.map(([x, z]) => heightAt(x, z))
-    for (const [k, [x, z]] of ends.entries()) {
-      const mesh = new THREE.Mesh(poleGeometry, pole)
-      mesh.position.set(x, heights[k] - 0.1, z)
-      mesh.castShadow = true
-      group.add(mesh)
+    const poleMaterial = new THREE.MeshLambertMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.25, transparent: true })
+    const materials = [poleMaterial]
+    // Across the direction of travel.
+    const ax = gate.dirZ
+    const az = -gate.dirX
+    const yaw = Math.atan2(gate.dirX, gate.dirZ)
+    if (style === 'slalom') {
+      for (const sign of [1, -1]) pole(gate.x + sign * ax * half, gate.z + sign * az * half, poleMaterial)
+      markers.push(poleMaterial)
+    } else {
+      const panelMaterial = new THREE.MeshLambertMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.3, side: THREE.DoubleSide, transparent: true })
+      materials.push(panelMaterial)
+      markers.push(panelMaterial)
+      for (const sign of [1, -1]) {
+        // Inner pole on the gate line, outer pole 0.75 m further out, the panel between.
+        const inner = half
+        const outer = half + PANEL_WIDTH
+        pole(gate.x + sign * ax * inner, gate.z + sign * az * inner, poleMaterial)
+        pole(gate.x + sign * ax * outer, gate.z + sign * az * outer, poleMaterial)
+        const mid = (inner + outer) / 2
+        const x = gate.x + sign * ax * mid
+        const z = gate.z + sign * az * mid
+        const panel = new THREE.Mesh(panelGeometry, panelMaterial)
+        panel.position.set(x, heightAt(x, z) + PANEL_BASE + PANEL_HEIGHT / 2, z)
+        panel.rotation.y = yaw
+        group.add(panel)
+      }
     }
-    const flag = new THREE.Mesh(bannerFor(half), banner)
-    flag.position.set(gate.x, (heights[0] + heights[1]) / 2 + 1.5, gate.z)
-    flag.rotation.y = Math.atan2(gate.dirX, gate.dirZ)
-    group.add(flag)
-    for (const material of [pole, banner]) material.transparent = true
-    fades.push({ materials: [pole, banner], centre: flag.position.clone() })
+    const y = (heightAt(gate.x + ax * half, gate.z + az * half) + heightAt(gate.x - ax * half, gate.z - az * half)) / 2 + 1
+    fades.push({ materials, centre: new THREE.Vector3(gate.x, y, gate.z) })
   })
   return {
     object: group,
@@ -60,7 +83,7 @@ export function createGatesView(gates: Gate[], heightAt: HeightAt, colours: numb
     update(camera: THREE.Vector3) {
       for (const { materials, centre } of fades) {
         const d = camera.distanceTo(centre)
-        const opacity = d > 7 ? 1 : Math.max(0, (d - 2.5) / 4.5)
+        const opacity = d > 6 ? 1 : Math.max(0, (d - 2) / 4)
         if (materials[0].opacity === opacity) continue
         for (const material of materials) {
           material.opacity = opacity
@@ -69,20 +92,20 @@ export function createGatesView(gates: Gate[], heightAt: HeightAt, colours: numb
       }
     },
     mark(index: number, result: 'pass' | 'miss') {
-      const material = banners[index]
+      const material = markers[index]
       if (!material) return
       material.color.copy(result === 'pass' ? PASSED : MISSED)
       material.emissive.copy(material.color)
     },
     reset() {
-      banners.forEach((material, i) => {
+      markers.forEach((material, i) => {
         material.color.setHex(colours[i % colours.length])
         material.emissive.setHex(colours[i % colours.length])
       })
     },
     dispose() {
       poleGeometry.dispose()
-      for (const geometry of bannerGeometries.values()) geometry.dispose()
+      panelGeometry.dispose()
       group.traverse((object) => {
         const material = (object as THREE.Mesh).material as THREE.Material | undefined
         material?.dispose()

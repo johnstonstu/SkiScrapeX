@@ -157,6 +157,9 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       station.position.set(x, ground(x, z), z)
       // Each terminal's detach section faces down the line toward the other end.
       station.rotation.y = yaw + (aerial && atTop ? Math.PI : 0)
+      // A station stands at the ground under its centre; where the slope falls away
+      // under a corner (a hut, a leg, the end of the deck), reach down to the snow.
+      disposables.push(...reachGround(station, ground))
       group.add(station)
       if (station.userData.housing) housings.push(station)
     }
@@ -312,6 +315,49 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       }
     },
   }
+}
+
+/** Vertices this close to a station's base (metres) are its footings. */
+const FOOTING_HEIGHT = 0.35
+
+/**
+ * Lower every footing vertex of `station` (walls, legs and skirts at its base)
+ * that hangs over the snow down to just under it, so nothing floats on a
+ * slope. Footings over higher ground are left alone (they stand in the snow).
+ * Meshes it changes get their own copy of the geometry, returned for disposal.
+ */
+export function reachGround(station: THREE.Object3D, ground: (x: number, z: number) => number): THREE.BufferGeometry[] {
+  station.updateMatrixWorld(true)
+  const base = station.position.y
+  const copies: THREE.BufferGeometry[] = []
+  const v = new THREE.Vector3()
+  const inverse = new THREE.Matrix4()
+  station.traverse((object) => {
+    const mesh = object as THREE.Mesh
+    if (!mesh.isMesh || !mesh.geometry.attributes.position) return
+    inverse.copy(mesh.matrixWorld).invert()
+    let geometry: THREE.BufferGeometry | null = null
+    const source = mesh.geometry.attributes.position
+    for (let i = 0; i < source.count; i++) {
+      v.fromBufferAttribute(source, i).applyMatrix4(mesh.matrixWorld)
+      if (v.y - base > FOOTING_HEIGHT) continue
+      const snow = ground(v.x, v.z) - 0.1
+      if (snow >= v.y - 0.02) continue
+      if (!geometry) {
+        geometry = mesh.geometry.clone()
+        copies.push(geometry)
+      }
+      v.y = snow
+      v.applyMatrix4(inverse)
+      geometry.attributes.position.setXYZ(i, v.x, v.y, v.z)
+    }
+    if (geometry) {
+      geometry.computeBoundingSphere()
+      geometry.computeBoundingBox()
+      mesh.geometry = geometry
+    }
+  })
+  return copies
 }
 
 /** Merge boxes and tubes into one geometry (all indexed, same attributes). */

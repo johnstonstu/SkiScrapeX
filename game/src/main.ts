@@ -28,6 +28,7 @@ import { createSnowEffects } from './player/effects'
 import { createMinimap } from './ui/minimap'
 import { SKI_MODELS, createStylePanel, readOutfit, writeOutfit } from './ui/riderPanel'
 import { loadWorld, type World } from './world/loadWorld'
+import { chooseExit, type ExitSpot } from './app/liftExit'
 import { chooseCourse, courseForRun, headingFor, liftAtBottom, nearestOnPolyline, pickableRuns, pointAlong, type Course as RunCourse, type Lift, type Run } from './world/resort'
 import { approachAim, featureAhead, type ParkSite } from './world/park'
 import { pushOutOfRing } from './world/buildings'
@@ -282,18 +283,16 @@ interface Ride {
   path: RidePath
   s: number
   /** Getting off at the top: stand up and glide down the unload ramp. */
-  unload: { t: number; from: THREE.Vector3; to: THREE.Vector3; yaw: number } | null
-  /** Where the rider leaves the lift and which way they go, worked out once per ride. */
-  exit?: { from: THREE.Vector3; yaw: number; lineYaw: number }
+  unload: { t: number; from: THREE.Vector3; to: THREE.Vector3; yaw: number; face: number } | null
+  /** Where the rider leaves the lift, which way they go and where they stop, worked out once per ride. */
+  exit?: { from: THREE.Vector3; yaw: number; lineYaw: number; spot: ExitSpot }
 }
 
 /** Seconds of ride left after Skip, so you arrive at the top and get off. */
 const SKIP_LEAD = 2.2
 /** Seconds of chair ride shown when a free-ski session starts. */
 const ARRIVAL_SECONDS = 4.5
-const UNLOAD_TIME = 1.8
-/** Metres past the top terminal where the unload ramp ends. */
-const UNLOAD_DISTANCE = { aerial: 10, surface: 5 }
+const UNLOAD_TIME = 2.2
 
 let stage: Stage
 let stageReady = false
@@ -923,64 +922,33 @@ function skipRide() {
 }
 
 /**
- * Which way to step off: straight on if the way is open, otherwise the
- * nearest turn that is clear of buildings and trees for a good run-out
- * (the Magic Carpet top faces an apartment block 10 m ahead).
+ * The end of the ride and the way off it (`chooseExit`): a spot past the
+ * station with room to head off either way, facing down the fall line.
  */
-function unloadHeading(from: THREE.Vector3, yaw: number): number {
-  let best = yaw
-  let bestScore = -Infinity
-  for (const turn of [0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35]) {
-    const heading = yaw + turn
-    let clear = 0
-    for (let d = 2; d <= 20; d += 1.5) {
-      const x = from.x + Math.sin(heading) * d
-      const z = from.z + Math.cos(heading) * d
-      if (!stage.slope.sampleTerrain(x, z) || stage.buildings?.hit(x, z) || stage.trunks?.hit(x, z, 1)) break
-      clear = d
-    }
-    const score = Math.min(clear, 16) - Math.abs(turn) * 3
-    if (score > bestScore) ((bestScore = score), (best = heading))
-  }
-  return best
-}
-
-/** The end of the ride and the way off it: straight on for chairs if clear; to the side for surface lifts. */
 function exitPlan(current: Ride): NonNullable<Ride['exit']> {
   if (current.exit) return current.exit
   const from = new THREE.Vector3()
   const lineYaw = sampleRide(current.path, current.path.total, from)
-  let yaw: number
-  if (current.path.aerial) {
-    yaw = unloadHeading(from, lineYaw)
-  } else {
-    // Let go of the T (or step off the belt) and stand aside, away from the lift line,
-    // so the bar can swing round the bullwheel behind you.
-    const line = current.lift.line
-    const away = (turn: number) => {
-      const x = from.x + Math.sin(lineYaw + turn) * 4
-      const z = from.z + Math.cos(lineYaw + turn) * 4
-      return nearestOnPolyline(x, z, line).distanceSq
-    }
-    const side = away(Math.PI / 2) > away(-Math.PI / 2) ? 1 : -1
-    yaw = unloadHeading(from, lineYaw + side * 1.25)
-  }
-  current.exit = { from, yaw, lineYaw }
+  const line = current.lift.line
+  const spot = chooseExit(from.x, from.z, lineYaw, {
+    aerial: current.path.aerial,
+    sample: stage.slope.sampleTerrain,
+    blocked: (x, z) => Boolean(stage.buildings?.hit(x, z) || stage.trunks?.hit(x, z, 1.2)),
+    lineDistanceSq: (x, z) => nearestOnPolyline(x, z, line).distanceSq,
+  })
+  current.exit = { from, yaw: spot.yaw, lineYaw, spot }
   return current.exit
 }
 
 /** Off the chair (or the T-bar) at the top: glide from the seat to the end of the ramp. */
 function beginUnload(current: Ride) {
-  const { from, yaw } = exitPlan(current)
-  const reach = current.path.aerial ? UNLOAD_DISTANCE.aerial : UNLOAD_DISTANCE.surface
-  const x = from.x + Math.sin(yaw) * reach
-  const z = from.z + Math.cos(yaw) * reach
-  const ground = stage.slope.sampleTerrain(x, z)
+  const { from, yaw, spot } = exitPlan(current)
+  const ground = stage.slope.sampleTerrain(spot.x, spot.z)
   if (!ground) {
     finishRide(current.lift)
     return
   }
-  current.unload = { t: 0, from: from.clone(), to: new THREE.Vector3(x, ground.height, z), yaw }
+  current.unload = { t: 0, from: from.clone(), to: new THREE.Vector3(spot.x, ground.height, spot.z), yaw, face: spot.face }
   ui.rideText.textContent = `Top of ${current.lift.name}`
 }
 
@@ -1015,19 +983,20 @@ const shotLook = new THREE.Vector3()
  * pick a way down. The course (for the HUD and run times) is the run that
  * starts nearest, as before.
  */
-function finishRide(lift: Lift, at?: { to: THREE.Vector3; yaw: number }) {
+function finishRide(lift: Lift, at?: { to: THREE.Vector3; yaw: number; face?: number }) {
   ride = null
   ui.ride.hidden = true
   const world = stage.world
   if (world) course = chooseCourse(world.resort, world.grid.heightAt, lift.name, course?.startRun?.name ?? 'Grandfather')
-  if (course && at) course = { ...course, spawn: { x: at.to.x, z: at.to.z, heading: Math.atan2(-Math.sin(at.yaw), Math.cos(at.yaw)) } }
+  const face = at ? (at.face ?? at.yaw) : 0
+  if (course && at) course = { ...course, spawn: { x: at.to.x, z: at.to.z, heading: Math.atan2(-Math.sin(face), Math.cos(face)) } }
   spawn(Boolean(at))
   if (at) {
     ui.title.textContent = `Top of ${lift.name}`
-    // Off a chair, keep the glide off the ramp going; off a T-bar you stand and choose.
-    const glide = /t-?bar|platter|drag|carpet|rope_tow/i.test(lift.type) ? 0.3 : 2
-    skier.vx = Math.sin(at.yaw) * glide
-    skier.vz = Math.cos(at.yaw) * glide
+    // Facing down the fall line with a little way on, ready to turn either way.
+    const glide = /t-?bar|platter|drag|carpet|rope_tow/i.test(lift.type) ? 0.6 : 1.5
+    skier.vx = Math.sin(face) * glide
+    skier.vz = Math.cos(face) * glide
     rig.releaseShot()
   }
 }
@@ -1190,7 +1159,7 @@ function tick(dt: number, frameMs: number) {
       pause = null
       done()
     }
-  } else if ((race.input(input, skier, dt), comp.input(input, skier, race.holding), runout.input(input), race.holding)) {
+  } else if ((race.input(input, skier, dt), comp.input(input, skier, race.holding, dt), runout.input(input), race.holding)) {
     // Held in the start gate until GO.
   } else {
     perf.begin()
@@ -1363,16 +1332,20 @@ function stepUnload(current: Ride, unload: NonNullable<Ride['unload']>, dt: numb
   // Off a chair the seat drops to the snow in the first third; a T-bar is already on it.
   const drop = current.path.aerial ? Math.min(1, along * 3) : 1
   const y = Math.max(ground, unload.from.y + (ground - unload.from.y) * drop)
-  const speed = 2.5
+  // Off the ramp, slow and turn to face down the hill: a short skid to a ready stance.
+  const settle = Math.max(0, (k - 0.55) / 0.45)
+  const ease = settle * settle * (3 - 2 * settle)
+  const yaw = unload.yaw + Math.atan2(Math.sin(unload.face - unload.yaw), Math.cos(unload.face - unload.yaw)) * ease
+  const speed = 2.5 - 1 * ease
   Object.assign(skier, {
     x,
     y,
     z,
-    vx: Math.sin(unload.yaw) * speed,
+    vx: Math.sin(yaw) * speed,
     vy: 0,
-    vz: Math.cos(unload.yaw) * speed,
+    vz: Math.cos(yaw) * speed,
     speed,
-    heading: Math.atan2(-Math.sin(unload.yaw), Math.cos(unload.yaw)),
+    heading: Math.atan2(-Math.sin(yaw), Math.cos(yaw)),
   })
   if (k >= 1) finishRide(current.lift, unload)
   // Sitting until the skis touch, then standing: the rider view crossfades between them.
@@ -1406,7 +1379,10 @@ function stepSurfaceUnload(current: Ride, unload: NonNullable<Ride['unload']>): 
     const e = 1 - (1 - k) * (1 - k)
     const startX = unload.from.x + Math.sin(lineYaw)
     const startZ = unload.from.z + Math.cos(lineYaw)
-    yaw = lineYaw + Math.atan2(Math.sin(unload.yaw - lineYaw), Math.cos(unload.yaw - lineYaw)) * e
+    // Curve off the line, then round to face down the hill at the stop.
+    const out = lineYaw + Math.atan2(Math.sin(unload.yaw - lineYaw), Math.cos(unload.yaw - lineYaw)) * Math.min(1, e * 1.6)
+    const settle = Math.max(0, (e - 0.6) / 0.4)
+    yaw = out + Math.atan2(Math.sin(unload.face - out), Math.cos(unload.face - out)) * settle * settle * (3 - 2 * settle)
     x = startX + (unload.to.x - startX) * e
     z = startZ + (unload.to.z - startZ) * e
     speed = current.path.speed * (1 - k) + 0.3 * k
@@ -1422,7 +1398,7 @@ function stepSurfaceUnload(current: Ride, unload: NonNullable<Ride['unload']>): 
     speed,
     heading: Math.atan2(-Math.sin(yaw), Math.cos(yaw)),
   })
-  if (t >= total) finishRide(current.lift, { to: new THREE.Vector3(x, ground, z), yaw })
+  if (t >= total) finishRide(current.lift, { to: new THREE.Vector3(x, ground, z), yaw, face: unload.face })
   return t < hold ? 'stand' : 'ski'
 }
 
