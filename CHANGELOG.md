@@ -2,6 +2,22 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.25 (2026-11-25): UI and UX pass
+
+### Changed
+
+- A new look across the whole interface: frosted glass menus, white type, large light numbers and one orange accent.
+- **HUD.** The run name and clock sit top left without a box. Speed is a large readout at the bottom left with a bar that fills to 100 km/h. Pause is a round button, and the controls hint fades back after 10 s.
+- **Title screen.** A text menu with a short line under each choice, plus tiles for medals, runs skied and gold nuggets.
+- **Pause.** The game blurs behind the menu. Toggles show On or Off, and the controls guide sits beside the menu.
+- **Menus.** Runs and parks, Rider, Challenges and Settings share one header with a Back button (Esc). Settings is grouped into Graphics, Mountain, Camera, Controls, Sound and Assists.
+- **Results.** A big time or score, a medal that pops in, then the stats and buttons.
+- **Feedback.** Trick pop-ups show the trick, a landing grade, the points and the combo multiplier. The run card, tutorial card (with a lesson progress bar), park speed cue, race countdown and touch buttons match the new style.
+
+### Added
+
+- Arrow keys move through every menu, like the D-pad.
+
 ## 0.9.24 (2026-11-25): Apex events and competition mechanics
 
 ### Added
