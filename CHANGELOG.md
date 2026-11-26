@@ -2,6 +2,12 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.34 (2026-11-26): Softer snowboard lean
+
+### Fixed
+
+- **Snowboard lean.** Since 0.9.32 the board rider drew the full physics lean, and with the stance pivoting about the edge the legs peaked at 55° against 48° of physics lean, which read as too intense. The board now draws 80% of the physics lean on a slightly softer spring, so the legs peak just under the physics. The skier is unchanged.
+
 ## 0.9.33 (2026-11-26): Race starts, race gates, moguls and lift tops
 
 From Stu's 2026-11-26 playtest notes.
