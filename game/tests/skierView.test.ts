@@ -241,3 +241,72 @@ it('keeps each shin running up its boot cuff in a deep carve, so the ankle does 
     expect(up.angleTo(cuff), name).toBeLessThan(0.3)
   }
 })
+
+/** Knee bend (degrees) and how far the shin swings sideways off the thigh's hinge plane, per leg. */
+function kneeAngles(view: ReturnType<typeof createSkierView>) {
+  view.object.updateMatrixWorld(true)
+  return ['L', 'R'].map((s) => {
+    const thigh = view.object.getObjectByName(`thigh_${s}`)!
+    const shin = view.object.getObjectByName(`shin_${s}`)!
+    const hip = thigh.getWorldPosition(new THREE.Vector3())
+    const knee = shin.getWorldPosition(new THREE.Vector3())
+    const foot = new THREE.Vector3(0, -0.42, 0).applyMatrix4(shin.matrixWorld)
+    const local = new THREE.Vector3(0, -1, 0).applyQuaternion(shin.quaternion)
+    return {
+      bend: THREE.MathUtils.radToDeg(Math.PI - hip.sub(knee).angleTo(foot.sub(knee))),
+      sideways: THREE.MathUtils.radToDeg(Math.abs(Math.atan2(local.x, Math.hypot(local.y, local.z)))),
+    }
+  })
+}
+
+describe('rider legs', () => {
+  const pose = (setup: (s: ReturnType<typeof createSkiState>) => SkiInput, frames = 180) => {
+    const view = createSkierView()
+    const state = createSkiState({ x: 0, z: 0, heading: 0 })
+    let worstSideways = 0
+    for (let i = 0; i < frames; i++) {
+      state.time += 1 / 60
+      view.update(state, setup(state), ground, 'ski', 1 / 60)
+      for (const leg of kneeAngles(view)) worstSideways = Math.max(worstSideways, leg.sideways)
+    }
+    return { view, worstSideways, legs: kneeAngles(view) }
+  }
+
+  it('bends each knee as a hinge, never sideways, through carves, skating and a hockey stop', () => {
+    const cases: ((s: ReturnType<typeof createSkiState>) => SkiInput)[] = [
+      (s) => ((s.speed = 14), (s.edgeAngle = 0.75), (s.carveRadius = 10), (s.carveLoad = 2.2), { ...idle, steer: 1 }),
+      (s) => ((s.speed = 2.5), { ...idle, tuck: true }),
+      (s) => ((s.speed = 8), (s.edgeAngle = 0.7), { ...idle, brake: 1 }),
+      (s) => ((s.speed = 3), { ...idle, brake: 1 }),
+    ]
+    // Before the hinge solve these reached 19° to 47°.
+    for (const setup of cases) expect(pose(setup).worstSideways).toBeLessThan(0.5)
+  })
+
+  it('stands in an athletic stance rather than a squat, and folds deeper in a tuck', () => {
+    const standing = pose((s) => ((s.speed = 0), idle)).legs
+    const cruising = pose((s) => ((s.speed = 10), idle)).legs
+    const tucked = pose((s) => ((s.speed = 20), (s.tuck = true), { ...idle, tuck: true })).legs
+    for (const leg of standing) expect(leg.bend).toBeLessThan(65) // the old fit was ~80°
+    for (const leg of cruising) expect(leg.bend).toBeLessThan(68)
+    for (let i = 0; i < 2; i++) expect(tucked[i].bend).toBeGreaterThan(cruising[i].bend + 25)
+  })
+
+  it('double-poles on fairly straight legs, dipping the knees on each push', () => {
+    let least = 180
+    let most = 0
+    const view = createSkierView()
+    const state = createSkiState({ x: 0, z: 0, heading: 0 })
+    state.speed = 0.8
+    for (let i = 0; i < 240; i++) {
+      state.time += 1 / 60
+      view.update(state, { ...idle, tuck: true }, ground, 'ski', 1 / 60)
+      if (i < 60) continue
+      const bend = kneeAngles(view)[0].bend
+      least = Math.min(least, bend)
+      most = Math.max(most, bend)
+    }
+    expect(least).toBeLessThan(65)
+    expect(most - least).toBeGreaterThan(8)
+  })
+})

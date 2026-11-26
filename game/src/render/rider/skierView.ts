@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { PHYSICS, fallLineHeading, skiFrame, type SkiInput, type SkiState, type SurfaceSample } from '../../sim'
-import { ANKLE_IN_SKI, BOARD_BINDINGS, BOARD_BOOT_HEIGHT, FORE_ARM, SHIN_LENGTH, THIGH_LENGTH, UPPER_ARM, buildRider, type RiderLook } from './skierModel'
+import { ANKLE_IN_SKI, BOARD_BINDINGS, BOARD_BOOT_HEIGHT, FORE_ARM, HIP_SOCKET_DROP, SHIN_LENGTH, THIGH_LENGTH, UPPER_ARM, buildRider, type RiderLook } from './skierModel'
 import { Spring } from './spring'
 import { RiderSnow } from './riderSnow'
 import { DOUBLE_POLE_CYCLE, doublePolePose } from './doublePole'
@@ -24,6 +24,27 @@ const PLANT_REACH = 0.12
 export const BOOT_CUFF = new THREE.Vector3(0, Math.cos(0.26), Math.sin(0.26))
 /** How far the wrist bends toward the pole shaft (0 rigid, 1 fully in line). */
 const WRIST_FOLLOW = 0.35
+/** How far below the chest's rest height the carried hands sit, metres. */
+const HAND_DROP = 0.1
+/** Skis ride this far above the root; the ankle sits ANKLE_IN_SKI above that. */
+const SKI_LIFT = 0.03
+/** Ski stance fore/aft offset of the boots (the ankle sits ANKLE_IN_SKI.z further on). */
+const SKI_FORE = 0.04
+
+/**
+ * Hips height for a skier from how bent the knees should be: the hip-to-ankle
+ * chord at that knee angle, less how far the hips sit back of the boots. About
+ * 53° of knee bend standing, 60° cruising, 70° in a carve and 110° in a full
+ * tuck, so a crouch reads as a crouch and the legs have room to angulate into
+ * a turn without the thighs swinging out flat. (The old fit put the knees
+ * near 85° all the time, a permanent squat.)
+ */
+export function skiHipHeight(flex: number, tuck: number, hipBack: number): number {
+  const kneeBend = 0.7 + flex * 1.05 + tuck * 0.2
+  const chord = Math.sqrt(THIGH_LENGTH ** 2 + SHIN_LENGTH ** 2 + 2 * THIGH_LENGTH * SHIN_LENGTH * Math.cos(kneeBend))
+  const back = hipBack + SKI_FORE + ANKLE_IN_SKI.z
+  return SKI_LIFT + ANKLE_IN_SKI.y + HIP_SOCKET_DROP + Math.sqrt(Math.max(0.01, chord * chord - back * back))
+}
 
 /** Discrete poses that crossfade into each other instead of snapping. */
 type Mode = 'ski' | 'rail' | 'crash' | 'sit' | 'stand'
@@ -181,6 +202,37 @@ export function createSkierView(): {
     lower.quaternion.setFromUnitVectors(down, rest.applyQuaternion(qInv).normalize())
   }
 
+  const hingeX = new THREE.Vector3()
+  const hingeY = new THREE.Vector3()
+  const hingeZ = new THREE.Vector3()
+  const hingeBasis = new THREE.Matrix4()
+  /**
+   * Two-bone IK for a knee: a hinge, not a ball joint. The thigh twists so its
+   * front (local +Z, the kneecap in the bind pose) faces the bend, and the shin
+   * only rotates about the thigh's local X. `solve` leaves the twist to
+   * setFromUnitVectors, so the shin bent sideways off the thigh (up to ~45Â° in
+   * a carve) and the skinned trousers folded across the knee.
+   */
+  const solveKnee = (upper: THREE.Object3D, lower: THREE.Object3D, target: THREE.Vector3, l1: number, l2: number, bendHint: THREE.Vector3) => {
+    const to = v1.copy(target).sub(upper.position)
+    const d = THREE.MathUtils.clamp(to.length(), Math.abs(l1 - l2) + 1e-3, l1 + l2 - 1e-3)
+    const dir = to.normalize()
+    const bend = hint.copy(bendHint).addScaledVector(dir, -bendHint.dot(dir))
+    if (bend.lengthSq() < 1e-8) bend.set(0, 0, 1)
+    bend.normalize()
+    const a = (d * d + l1 * l1 - l2 * l2) / (2 * d)
+    const h = Math.sqrt(Math.max(0, l1 * l1 - a * a))
+    const mid = v2.copy(dir).multiplyScalar(a).addScaledVector(bend, h)
+    // Bone hangs down -Y, so +Y runs knee to hip; +Z is the kneecap, square to the thigh.
+    hingeY.copy(mid).normalize().negate()
+    hingeZ.copy(bend).addScaledVector(hingeY, -bend.dot(hingeY)).normalize()
+    hingeX.crossVectors(hingeY, hingeZ)
+    upper.quaternion.setFromRotationMatrix(hingeBasis.makeBasis(hingeX, hingeY, hingeZ))
+    // Shin in thigh space lies in its YZ plane; flexion swings it back (-Z) about +X.
+    const shin = v3.copy(dir).multiplyScalar(d).sub(mid).applyQuaternion(qInv.copy(upper.quaternion).invert())
+    lower.quaternion.setFromAxisAngle(xAxis, Math.max(0, Math.atan2(-shin.z, -shin.y)))
+  }
+
   /** Root-space point to the local space of `object` (root's matrices must be current). */
   const rootToLocal = (object: THREE.Object3D, point: THREE.Vector3, out: THREE.Vector3) =>
     object.worldToLocal(root.localToWorld(out.copy(point)))
@@ -202,7 +254,7 @@ export function createSkierView(): {
       rootToLocal(hips, ankle, ankle)
       rootToLocal(hips, cuffKnee, cuffKnee)
       kneeHint.copy(cuffKnee).sub(midLeg.copy(leg.thigh.position).add(ankle).multiplyScalar(0.5))
-      solve(leg.thigh, leg.knee, ankle, THIGH_LENGTH, SHIN_LENGTH, kneeHint)
+      solveKnee(leg.thigh, leg.knee, ankle, THIGH_LENGTH, SHIN_LENGTH, kneeHint)
     }
   }
 
@@ -518,11 +570,13 @@ export function createSkierView(): {
         wantCrouch,
         tucked ? (boarding ? 0.8 : 1) * tuckDepth : 0,
         braking ? (plowing ? 0.38 : 0.6) : 0,
-        skating ? 0.4 : 0,
+        // Double-poling is done from the waist on fairly straight legs (a dip on each push, below).
+        skating ? 0.4 * (1 - doublePole) : 0,
         charging ? 0.45 + state.popCharge * 0.45 : 0,
         air ? 0.42 + grabBlend * 0.45 : 0,
         rail ? 0.42 : 0,
       )
+      wantCrouch += doublePole * dp.crunch * 0.3
       crouch.step(Math.min(1.05, wantCrouch), dt, 3, 0.6)
       const flex = Math.max(0, Math.min(1.1, crouch.x))
       // Hips back in a tuck and a hockey stop, forward over the skis in a press.
@@ -533,8 +587,8 @@ export function createSkierView(): {
       const lead = incline.x * 0.12
       // Skis drift under the outside of the turn so the body can incline.
       const shift = -Math.sin(incline.x) * 0.32
-      skis[0].position.set(halfStance + shift, 0.03, 0.04 - lead)
-      skis[1].position.set(-halfStance + shift, 0.03, 0.04 + lead)
+      skis[0].position.set(halfStance + shift, SKI_LIFT, SKI_FORE - lead)
+      skis[1].position.set(-halfStance + shift, SKI_LIFT, SKI_FORE + lead)
       // Skis tilt with the legs plus a little knee angulation, so the full-turn
       // pose holds together instead of skis on 45Â° under an upright body.
       const edgeVisual = pose === 'ski' && !air ? Math.sign(edge) * Math.min(Math.abs(edge) * 0.9, Math.abs(incline.x) + 0.32) : 0
@@ -624,13 +678,14 @@ export function createSkierView(): {
       const sway = idle * Math.sin(state.time * 0.8) * 0.025
       // Skating moves the weight over the gliding ski; on a rail the body sways with the balance.
       body.rotation.z = incline.x + (rail ? rail.balance * 0.32 : 0) + stride * 0.12 + sway
-      const kneeFold = 0.15 + flex * 1.25
-      const hipHeight = 0.97 - (THIGH_LENGTH + SHIN_LENGTH) * (1 - Math.cos(kneeFold * 0.55)) * 1.05 - flex * 0.06 - tuck.x * 0.05
       if (boarding) {
+        const kneeFold = 0.15 + flex * 1.25
+        const hipHeight = 0.97 - (THIGH_LENGTH + SHIN_LENGTH) * (1 - Math.cos(kneeFold * 0.55)) * 1.05 - flex * 0.06 - tuck.x * 0.05
         const toeSide = THREE.MathUtils.clamp(edge * 0.9, -0.55, 0.55)
         hips.position.set(-toeSide * 0.14, Math.max(0.4, hipHeight), (1 - 2 * switchLook) * (0.04 + tuck.x * 0.09))
       } else {
-        hips.position.set(0, Math.max(0.4, hipHeight), -0.05 - flex * 0.1 - fore.x)
+        const hipBack = 0.05 + flex * 0.1 + fore.x
+        hips.position.set(0, skiHipHeight(flex, tuck.x, hipBack), -hipBack)
       }
       // Angulation: the hips and spine tilt back against the inclination so the
       // shoulders stay near level and the knees drive into the hill.
@@ -670,17 +725,18 @@ export function createSkierView(): {
         const side = arms[i].side
         const inside = Math.sign(incline.x) === -side ? 1 : 0 // left hand (side 1) is inside on a left turn (incline < 0)
         const planting = plantSide === side && skiing ? plantWeight : 0
-        // Hands forward and a little wide, about belt height, as if holding a tray.
+        // Hands forward and a little wide, about belt height, as if holding a tray
+        // (HAND_DROP below the chest keeps them there over the athletic stance).
         // In a turn the inside hand reaches forward and down toward the next plant; the outside one stays wide.
         const hand = v1.set(
           side * (0.31 + (1 - inside) * Math.abs(incline.x) * 0.08) + side * idleHand * 0.35,
-          breathe - inside * Math.abs(incline.x) * 0.12 + idle * Math.sin(state.time * 1.3 + side) * 0.012,
+          -HAND_DROP + breathe - inside * Math.abs(incline.x) * 0.12 + idle * Math.sin(state.time * 1.3 + side) * 0.012,
           0.42 + inside * Math.abs(incline.x) * 0.14 + cruise * Math.sin(state.time * 0.7 + side) * 0.02,
         )
         // Plant: a forward reach and wrist flick, then the hand rides past the planted pole.
         const reachIn = plantSide === side && skiing && plantAge < PLANT_REACH ? smooth(plantAge / PLANT_REACH) : 0
         hand.z += planting * (0.06 + reachIn * 0.06)
-        hand.y += planting * 0.04
+        hand.y -= planting * 0.04
         hand.x -= side * planting * 0.03
         // Bite loads the planting shoulder back and down for a moment.
         if (plantSide === side) {
