@@ -6,7 +6,15 @@ const focusable = (panel: HTMLElement) => [...panel.querySelectorAll<HTMLElement
 
 export function createMenuNavigation() {
   let panel: HTMLElement | null = null
+  const arrows: Record<string, Exclude<MenuCommand, 'back' | 'accept'>> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }
   window.addEventListener('keydown', (event) => {
+    // Arrow keys move through menus like the D-pad (sliders keep their own arrow handling).
+    const arrow = arrows[event.key]
+    if (panel && arrow && !(event.target instanceof HTMLInputElement)) {
+      event.preventDefault()
+      api.move(arrow)
+      return
+    }
     if (!panel || event.key !== 'Tab') return
     const choices = focusable(panel)
     const first = choices[0], last = choices.at(-1)
@@ -18,7 +26,7 @@ export function createMenuNavigation() {
     }
   })
 
-  return {
+  const api = {
     sync(next: HTMLElement | null) {
       if (next === panel) return
       panel = next
@@ -70,4 +78,5 @@ export function createMenuNavigation() {
       next?.focus()
     },
   }
+  return api
 }

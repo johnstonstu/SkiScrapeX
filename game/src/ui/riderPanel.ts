@@ -81,7 +81,7 @@ export function createStylePanel(
     if (controls) return
     panel.innerHTML =
       '<header><div><h2>Rider &amp; gear</h2><p class="menu-lead">Tune the look, then check it on the stand.</p></div>' +
-      '<button type="button" class="close" aria-label="Close">✕</button></header>' +
+      '<button type="button" class="close" aria-label="Close"><kbd>Esc</kbd><span>Back</span></button></header>' +
       '<div class="menu-layout rider-layout"><div class="rider-stage" aria-hidden="true"></div><div class="style-controls menu-side"></div></div>'
     panel.querySelector('.close')!.addEventListener('click', () => {
       panel.hidden = true
@@ -161,7 +161,7 @@ export function createStylePanel(
     ]
     for (const [title, key, options] of toggles) {
       const row = document.createElement('div')
-      row.className = 'style-row models'
+      row.className = 'style-row models segmented'
       row.innerHTML = `<span>${title}</span>`
       for (const [value, label] of options) {
         const button = document.createElement('button')
