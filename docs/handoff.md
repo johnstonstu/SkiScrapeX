@@ -45,6 +45,15 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 - To review a change without a GPU, render an outfit in a skiing stance from four sides after `build_all` in the same namespace: `exec(open(r"<repo>/tools/blender/review_rider.py").read(), ns); ns["review"]({"jacket": "shell", "pants": "baggy", "gloves": "mitt", "headwear": "helmet"}, r"<out.png>", closeup=False)`. It shades garments the way the game does (mask colours, normal map, AO).
 - Rider lab: `?snow` starts each rider snow-covered (crash patches and powder up the legs) so the snow shader can be checked; it fades as it would in game.
 
+## Rider clipping check
+
+- `tests/riderClipping.test.ts` poses the real skinned garments from `rider.glb` in every rider lab pose (`src/tools/riderPoses.ts`) and measures how deep one body part's cloth cuts into another, or into the snow. The measure is in `src/render/rider/riderClipping.ts`: each body part has a core capsule sized from the slimmest garment, a garment vertex belongs to its heaviest joint, and depth counts only past what the bind pose already had. Neighbouring parts (and the waist over the hip sockets) are not checked against each other.
+- Today's clipping is recorded per pose and pair in `tests/riderClipping.json`. The test fails when a pair clips more than 0.5 cm deeper than its budget, or a new pair clips more than 1 cm.
+- Print the table: `RIDER_CLIP_REPORT=1 npx vitest run tests/riderClipping.test.ts` in `game/`. After a deliberate fix or a pose change, record new budgets with `UPDATE_RIDER_CLIP=1` and check the diff of the JSON: fixed pairs should drop out.
+- To see where: `rider.html?clip` draws red points on the offending vertices of the worn outfit and puts the worst depth under each label. Add `&pose=mute-grab` for one pose, `&anim` to watch it move.
+- Not covered: the small cloth sway in the garment shader (`loose`) and boots, skis and poles, which are not skinned.
+- `tests/riderBoots.test.ts` checks the other way a pose breaks: every shin must end at its boot (within 2 cm) in every lab pose, on skis and on a snowboard. In crashes, `keepSkisInReach` in `skierCrashPose.ts` pulls a thrown ski back toward its hip when the leg cannot reach it.
+
 ## Scenery models (Blender)
 
 - Lifts: `tools/blender/build_lifts.py` exports `game/public/models/scenery/lifts.glb`. Each part is an empty named `qd_*`, `st_*` or `tb_*` (chair, tower, terminal_bottom, terminal_top) authored in the frames `liftView.ts` uses: chairs from the grip at the origin, towers on the ground with the rope at 11 m (7 m for the T-bar) and 2.6 m either side, terminals on the ground under the bullwheel with +Z down the line. Meshes named `hood_*` hide when the camera is inside the station. `tests/liftAssets.test.ts` checks those anchors.

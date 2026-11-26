@@ -2,33 +2,16 @@ import { readFileSync, statSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
 import { GLOVE_STYLES, HEADWEAR, JACKET_STYLES, PANTS_STYLES } from '../src/render/rider/riderSkin'
+import { RIDER_GLB as GLB, readGlb, type Gltf, type GltfNode } from './riderGlb'
 
 /**
  * public/models/rider.glb comes from tools/blender/build_rider.py. These checks
  * read its JSON chunk directly (no WebGL or image decoding needed) and make sure
  * it still fits the rig the animation drives.
  */
-const GLB = new URL('../public/models/rider.glb', import.meta.url)
 const REST = new URL('../../tools/blender/rig_rest.json', import.meta.url)
 
-interface GltfNode { name?: string; children?: number[]; translation?: number[]; rotation?: number[]; scale?: number[]; mesh?: number; skin?: number }
-interface Gltf {
-  nodes: GltfNode[]
-  meshes: { name: string; primitives: { attributes: Record<string, number>; indices: number; material: number }[] }[]
-  skins: { joints: number[] }[]
-  accessors: { count: number; type: string }[]
-  materials: { name: string }[]
-  images?: { mimeType: string; bufferView: number }[]
-  textures?: { source: number }[]
-}
-
-function readGltf(): Gltf {
-  const bytes = readFileSync(GLB)
-  expect(bytes.readUInt32LE(0)).toBe(0x46546c67) // 'glTF'
-  const jsonLength = bytes.readUInt32LE(12)
-  expect(bytes.readUInt32LE(16)).toBe(0x4e4f534a) // 'JSON'
-  return JSON.parse(bytes.subarray(20, 20 + jsonLength).toString('utf8')) as Gltf
-}
+const readGltf = (): Gltf => readGlb().gltf
 
 /** World position of every named node (game space; glTF is +Y up like the game). */
 function worldPositions(gltf: Gltf): Map<string, THREE.Vector3> {

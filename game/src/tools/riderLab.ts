@@ -1,7 +1,8 @@
 /**
  * Rider lab (`rider.html`): the skier model in a row of poses on flat snow,
  * for reviewing the model and animation without skiing to find each pose.
- * `?anim` plays the poses over time instead of freezing them.
+ * `?anim` plays the poses over time instead of freezing them. `?clip` marks
+ * cloth cutting into another body part in red (see riderClipping.ts).
  * `?sim` instead runs the real ski sim through linked turns on a steady
  * slope behind the follow camera (`pitch`, `period` seconds per turn pair,
  * `cap` km/h). `window.__step(frames)` advances it frame by frame, for
@@ -9,84 +10,13 @@
  */
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { FIXED_DT, createSkiState, createSteadySlope, newPressState, stepSkier, type RailPress, type SkiInput, type SkiState } from '../sim'
+import { FIXED_DT, createSkiState, createSteadySlope, stepSkier, type SkiInput } from '../sim'
 import { createCameraRig } from '../player/camera'
 import { createSkierView } from '../render/rider/skierView'
+import { createClipCheck, type ClipCheck } from '../render/rider/riderClipping'
+import { LAB_POSES, stepLabPose } from './riderPoses'
 import { addSceneLights, createLighting } from '../render/lighting'
 import { DEFAULT_OUTFIT, readOutfit, SKI_MODELS } from '../ui/riderPanel'
-
-interface Pose {
-  label: string
-  setup: (s: SkiState, t: number) => SkiInput
-}
-
-const idle: SkiInput = { steer: 0, brake: 0, tuck: false }
-const POSES: Pose[] = [
-  { label: 'Standing', setup: (s) => ((s.speed = 0), idle) },
-  { label: 'Cruising', setup: (s) => ((s.speed = 10), idle) },
-  { label: 'Carve left', setup: (s) => ((s.speed = 14), (s.edgeAngle = -0.75), (s.carveRadius = 10), (s.carveLoad = 2.2), { ...idle, steer: -1 }) },
-  { label: 'Carve right', setup: (s) => ((s.speed = 14), (s.edgeAngle = 0.75), (s.carveRadius = 10), (s.carveLoad = 2.2), { ...idle, steer: 1 }) },
-  {
-    label: 'Linked turns',
-    setup: (s, t) => {
-      s.speed = 12
-      s.edgeAngle = Math.sin(t * 2.6) * 0.75
-      s.carveRadius = 11
-      s.carveLoad = 1 + 0.9 * Math.abs(Math.sin(t * 2.6))
-      return { ...idle, steer: Math.sign(s.edgeAngle) }
-    },
-  },
-  { label: 'Tuck', setup: (s) => ((s.speed = 20), { ...idle, tuck: true }) },
-  { label: 'Snowplough', setup: (s) => ((s.speed = 3), { ...idle, brake: 1 }) },
-  { label: 'Pushing', setup: (s) => ((s.speed = 0.8), { ...idle, tuck: true }) },
-  { label: 'Skating', setup: (s) => ((s.speed = 2.5), { ...idle, tuck: true }) },
-  { label: 'Hockey stop', setup: (s) => ((s.speed = 8), (s.edgeAngle = 0.7), { ...idle, brake: 1 }) },
-  {
-    label: 'Mute grab',
-    setup: (s) => {
-      s.grounded = false
-      s.speed = 10
-      s.air = { time: 0.5, spin: 0, spinRate: 0, flip: 0, flipRate: 0, grab: 'mute', grabTime: 0.4, timeToLand: 1, predictedFrom: 0, cork: 0, corkTime: 0 }
-      return { ...idle, grab: true }
-    },
-  },
-  {
-    label: 'Japan',
-    setup: (s) => {
-      s.grounded = false
-      s.speed = 10
-      s.air = { time: 0.5, spin: 0, spinRate: 0, flip: 0, flipRate: 0, grab: 'japan', grabTime: 0.4, timeToLand: 1, predictedFrom: 0, cork: 0, corkTime: 0 }
-      return { ...idle, grab: true }
-    },
-  },
-  {
-    label: 'Truck driver',
-    setup: (s) => {
-      s.grounded = false
-      s.speed = 10
-      s.air = { time: 0.5, spin: 0, spinRate: 0, flip: 0, flipRate: 0, grab: 'truck', grabTime: 0.4, timeToLand: 1, predictedFrom: 0, cork: 0, corkTime: 0 }
-      return { ...idle, grab: true }
-    },
-  },
-  {
-    label: 'Rail slide',
-    setup: (s, t) => {
-      s.speed = 5
-      const rail = { kind: 'rail', points: [[0, 0, 0], [0, 0, 5]] } as unknown as import('../sim').Rail
-      s.rail = { rail, s: 1, vs: 5, balance: Math.sin(t * 1.7) * 0.6, balanceRate: 0, style: 'slide', headingOffset: Math.PI / 2, entrySpeed: 5, metres: 1, ...newPressState(true) }
-      return idle
-    },
-  },
-  ...(['nose', 'tail'] as RailPress[]).map((press) => ({
-    label: press === 'nose' ? 'Nose press' : 'Tail press',
-    setup: (s: SkiState, t: number) => {
-      s.speed = 5
-      const rail = { kind: 'rail', points: [[0, 0, 0], [0, 0, 5]] } as unknown as import('../sim').Rail
-      s.rail = { rail, s: 1, vs: 5, balance: Math.sin(t * 1.7) * 0.4, balanceRate: 0, style: '5050', headingOffset: 0, entrySpeed: 5, metres: 1, ...newPressState(true), press, pressTime: 1 }
-      return idle
-    },
-  })),
-]
 
 const params = new URLSearchParams(location.search)
 const canvas = document.querySelector<HTMLCanvasElement>('#view')!
@@ -122,7 +52,7 @@ const slug = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 const wanted = params.get('pose')?.split(',').map(slug)
 const boarding = outfit.model === 'snowboard'
 const boardLabels: Readonly<Record<string, string>> = { 'Carve left': 'Heel-side', 'Carve right': 'Toe-side', 'Hockey stop': 'Edge stop' }
-const shown = POSES
+const shown = LAB_POSES
   .filter(({ label }) => !boarding || !['Snowplough', 'Pushing', 'Skating'].includes(label))
   .filter(({ label }) => !wanted || wanted.includes(slug(label)) ||
     (boarding && boardLabels[label] && wanted.includes(slug(boardLabels[label]))))
@@ -158,7 +88,6 @@ function runPoses() {
   sun.target.position.set(0, 0, 0)
   sun.position.copy(lighting.sunDirection).multiplyScalar(40)
 
-  const ground = { height: 0, normal: { x: 0, y: 1, z: 0 } }
   const resize = () => {
     renderer.setSize(innerWidth, innerHeight, false)
     camera.aspect = innerWidth / innerHeight
@@ -171,25 +100,55 @@ function runPoses() {
   let time = 0
   const step = (dt: number) => {
     time += dt
-    for (const { pose, view, state } of riders) {
-      state.time = time
-      const input = pose.setup(state, time)
-      state.mode = state.grounded ? 'carving' : 'air'
-      state.y = state.rail ? 0.5 : state.grounded ? 0 : 0.7
-      view.update(state, input, state.grounded ? ground : null, 'ski', dt)
-    }
+    for (const { pose, view, state } of riders) stepLabPose(pose, state, view, time, dt)
   }
   // Let the smoothing settle so a screenshot shows the held pose.
   for (let i = 0; i < 180; i++) step(1 / 60)
+  const clip = params.has('clip') ? createClipView(riders) : null
   let last = performance.now()
+  let frame = 0
   renderer.setAnimationLoop((now) => {
     const dt = Math.min(0.05, (now - last) / 1000)
     last = now
     if (animate) step(dt)
+    if (clip && (animate || frame % 30 === 0)) clip()
+    frame++
     controls.update()
     renderer.render(scene, camera)
   })
 
+}
+
+/**
+ * `?clip`: red points where one body part's cloth cuts into another (or into
+ * the snow), and the worst depth under each pose label. Same check as
+ * tests/riderClipping.test.ts, limited to the garments this rider wears.
+ */
+function createClipView(riders: { view: ReturnType<typeof createSkierView>; state: { grounded: boolean; rail: unknown } }[]) {
+  const material = new THREE.PointsMaterial({ color: 0xff1a1a, size: 0.025, depthTest: false })
+  const dots = new THREE.Points(new THREE.BufferGeometry(), material)
+  dots.renderOrder = 10
+  scene.add(dots)
+  const checks: (ClipCheck | null)[] = riders.map(() => null)
+  const labels = [...document.querySelectorAll<HTMLSpanElement>('#labels span')]
+  const names = labels.map((span) => span.textContent ?? '')
+  return () => {
+    const points: THREE.Vector3[] = []
+    riders.forEach(({ view, state }, i) => {
+      if (!view.skinned) return
+      checks[i] ??= createClipCheck(view)
+      const worn = new Set<string>()
+      view.object.traverse((o) => {
+        if ((o as THREE.SkinnedMesh).isSkinnedMesh && o.visible) worn.add(o.name)
+      })
+      const report = checks[i]!.measure({ garments: worn, groundY: state.grounded && !state.rail ? 0 : null, points: 4000 })
+      points.push(...report.points)
+      const worst = report.hits[0]
+      if (labels[i]) labels[i].textContent = worst ? `${names[i]} · ${(worst.depth * 100).toFixed(1)} cm ${worst.from}→${worst.into}` : `${names[i]} · clean`
+    })
+    dots.geometry.dispose()
+    dots.geometry = new THREE.BufferGeometry().setFromPoints(points)
+  }
 }
 
 /** Linked turns on the real sim, seen from the follow camera. */

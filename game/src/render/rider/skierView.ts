@@ -6,6 +6,7 @@ import { RiderSnow } from './riderSnow'
 import { DOUBLE_POLE_CYCLE, doublePolePose } from './doublePole'
 import { applyCrashPose } from './skierCrashPose'
 import { applySitPose } from './skierLiftPose'
+import type { RiderAsset } from './riderSkin'
 
 export { SKI_GRAPHICS, type RiderLook, type SkiGraphic } from './skierModel'
 export { Spring } from './spring'
@@ -64,7 +65,7 @@ const FADE_IN: Record<Mode, number> = { ski: 0.3, rail: 0.12, crash: 0.16, sit: 
  * getting up, getting on a lift or a rail) crossfade from a snapshot of the
  * last pose.
  */
-export function createSkierView(): {
+export function createSkierView(options: { asset?: RiderAsset } = {}): {
   object: THREE.Group
   update: (state: SkiState, input: SkiInput, ground: SurfaceSample | null, pose?: SkierPose, dt?: number) => void
   /** Point between the eyes, for the first-person camera. */
@@ -74,10 +75,19 @@ export function createSkierView(): {
   setColours: (look: RiderLook) => void
   /** Snow stuck to the clothes (read-only; for tests and tuning). */
   snow: RiderSnow
+  /** The rig's named joints and its bind pose, for the clipping check (riderClipping.ts). */
+  bones: Record<string, THREE.Bone>
+  /** Ski groups, left then right; each carries its boot (the ankle sits at ANKLE_IN_SKI). */
+  skis: readonly THREE.Object3D[]
+  withRestPose: (fn: () => void) => void
+  /** True once the skinned body has replaced the code-built one. */
+  readonly skinned: boolean
 } {
   const rig = buildRider()
-  // The skinned body loads in the browser; tests and `?noskin` keep the code-built one.
-  if (typeof window !== 'undefined' && !new URLSearchParams(window.location.search).has('noskin')) {
+  // A given asset (tests) attaches at once. Otherwise the skinned body loads in
+  // the browser; tests and `?noskin` keep the code-built one.
+  if (options.asset) rig.attachSkin(options.asset)
+  else if (typeof window !== 'undefined' && !new URLSearchParams(window.location.search).has('noskin')) {
     rig.loadSkin().catch((error: unknown) => console.error('Rider model failed to load; keeping the code-built rider.', error))
   }
   const { root, skis, boardGroup, body, hips, spine, chest, head, legs, arms } = rig
@@ -303,15 +313,39 @@ export function createSkierView(): {
   const tip = new THREE.Vector3()
   const handWorld = new THREE.Vector3()
   const qWrist = new THREE.Quaternion()
-  /** Hand target in chest space (or root space when `inRoot`), pole tip in root space. */
-  const placeArm = (index: number, hand: THREE.Vector3, poleTip: THREE.Vector3, inRoot = false) => {
+  const qChest = new THREE.Quaternion()
+  /** Where a shoulder is in root space right now (the torso must be posed). */
+  const shoulderInRoot = (index: number, out: THREE.Vector3) => {
+    root.updateMatrixWorld(true)
+    return root.worldToLocal(arms[index].shoulder.getWorldPosition(out))
+  }
+  const thighs = legs.map((leg) => leg.thigh)
+  /** A point in `object`'s frame, in root space right now. */
+  const pointInRoot = (object: THREE.Object3D, local: THREE.Vector3, out: THREE.Vector3) => {
+    root.updateMatrixWorld(true)
+    return root.worldToLocal(object.localToWorld(out.copy(local)))
+  }
+  /**
+   * Hand target in chest space (or root space when `inRoot`), pole tip in root
+   * space. With a `floor` (root-space height, the snow plus the glove's
+   * thickness), a root-space hand stays at or above it and the elbow bends up,
+   * away from the snow, so an arm lying on the ground does not sink into it.
+   */
+  const placeArm = (index: number, hand: THREE.Vector3, poleTip: THREE.Vector3, inRoot = false, floor?: number) => {
     const arm = arms[index]
-    if (inRoot) {
-      root.updateMatrixWorld(true)
-      rootToLocal(chest, hand, handTarget)
-    } else handTarget.copy(hand)
     // Elbows point back and out.
     elbowHint.set(arm.side * 0.6, -0.2, -1)
+    if (inRoot) {
+      root.updateMatrixWorld(true)
+      handTarget.copy(hand)
+      if (floor !== undefined) {
+        handTarget.y = Math.max(handTarget.y, floor)
+        // Root-space up, in chest space: out and up beats back and out on the ground.
+        chest.getWorldQuaternion(qChest).invert().multiply(root.quaternion)
+        elbowHint.set(0, 1, -0.3).applyQuaternion(qChest)
+      }
+      rootToLocal(chest, handTarget, handTarget)
+    } else handTarget.copy(hand)
     solve(arm.shoulder, arm.elbow, handTarget, UPPER_ARM, FORE_ARM, elbowHint)
     arm.hand.quaternion.identity()
     root.updateMatrixWorld(true)
@@ -359,6 +393,12 @@ export function createSkierView(): {
     eye: rig.eye,
     setFirstPerson: rig.setFirstPerson,
     setColours: rig.setColours,
+    bones: rig.bones,
+    skis: rig.skis,
+    withRestPose: rig.withRestPose,
+    get skinned() {
+      return rig.skinned
+    },
     update(state, input, ground, pose = 'ski', dt = 1 / 60) {
       const boarding = rig.boarding
       // World pickups hide attached gear until the piece is collected.
@@ -468,6 +508,9 @@ export function createSkierView(): {
           crouch,
           placeBoard,
           placeArm,
+          shoulderInRoot,
+          pointInRoot,
+          thighs,
           fitLegs,
         })
         applyFade(dt)

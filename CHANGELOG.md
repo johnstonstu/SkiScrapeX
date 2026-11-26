@@ -2,6 +2,18 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.29 (2026-11-25): Crashes stay on the snow
+
+### Fixed
+
+- **Crash arms.** After a crash the arm underneath lay about 25 cm inside the snow, and the top hand floated in the air. Both hands now rest on the snow beside the body.
+- **Crash tumble.** In a hard crash the body cartwheeled around hips held near the snow, so the head and chest went up to 66 cm into it. The body now rolls over the snow instead.
+- **Legs keep their boots.** The yard-sale could throw a ski further from the hip than the leg is long, leaving the shin hanging up to 25 cm off its boot. Thrown skis now stay within reach.
+
+### Added
+
+- **Rider clipping check** (development). A test poses the real skinned outfit in every rider lab pose and measures any cloth cutting into another body part or the snow, and fails if a change makes it worse. Another test checks every shin ends at its boot. `rider.html?clip` marks the clipping in red.
+
 ## 0.9.28 (2026-11-25): Chair 9 FM
 
 ### Changed
