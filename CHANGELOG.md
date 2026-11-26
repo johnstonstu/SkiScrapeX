@@ -2,6 +2,14 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.22 (2026-11-25): Adaptive music
+
+### Added
+
+- Adaptive music, on by default and made in the browser. It follows how you ski: ambient pads on lifts, in menus and standing still; a mellow beat when cruising; four-on-the-floor drive with 16th hats and tom fills on steeps and at speed; a broken beat with chord stabs and a shaker in the park, in the air, on rails and after tricks. One key and tempo per session, changes land on bar lines, and speed opens up the sound inside each mood.
+- Settings: Music on or off, Music source (Procedural or Tracks) and Music volume, saved with the other settings. The music ducks under crashes and hard landings and pauses while the tab is hidden.
+- The Tracks source plays open-licence tracks listed in `game/public/audio/music/tracks.json`, loaded only when picked. No tracks are bundled yet, so it plays the procedural music until some are added.
+
 ## 0.9.21 (2026-11-25): Lifts and the Gunbarrel modelled from photos
 
 ### Added

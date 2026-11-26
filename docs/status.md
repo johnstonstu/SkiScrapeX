@@ -27,7 +27,7 @@ Updated 2026-11-24 for v0.9.17. Older measurement sections below stay dated. Ope
 | `src/render/terrain/`, `scenery/`, `rider/` | Terrain mesh with the snow shader (5 m for the whole crop; 2 m tiles within 220 m of the camera, exact inside 140 m and morphing to the 5 m surface beyond, with the 5 m mesh cut out under them; 90/150 m on touch devices), instanced trees with distance LOD (dissolve near the camera), lifts with moving chairs and ride paths, buildings with a shader window grid, trail-head and building signs, sky with clouds, the rider (`rider/skierView.ts`, see the rider notes below). Sun shadows from trees, buildings, lifts and the skier in a 220 m box that follows the skier (snow shader reads the shadow map; `?noshadows` turns them off). |
 | `src/fx/` | Snow shader, spray, snowfall and ski tracks (moved from the former `labs/snow-fx`). |
 | `src/main.ts`, `src/app/` | Entry and frame loop; `app/apexStage.ts` assembles the Apex scene and collision indices; menus, trick feed, storage, version and the `?perf` probe. |
-| `src/player/` | Keyboard and touch input, follow, first-person and orbit camera, procedural audio, snow effects glue. |
+| `src/player/` | Keyboard and touch input, follow, first-person and orbit camera, procedural audio, adaptive music (`music*.ts`), snow effects glue. |
 | `src/ui/` | Minimap and the rider panel (outfit, ski model). |
 | `src/tools/` | Rider lab (`rider.html`). |
 
@@ -58,6 +58,14 @@ Updated 2026-11-24 for v0.9.17. Older measurement sections below stay dated. Ope
 - Tuned with `npm run tune` (bots on eight real runs, open powder and every park layout). Results on 2026-11-21: blues and blacks average 40 to 56 km/h with a 65 km/h cap and no washouts at moderate speed; open powder stalls below about 5° (realistic) but a bounce or skate gets you out; kickers land clean or sketchy inside their sign speeds and crash well above them. Changes from the first pass: washout only past a grip ratio of 2.5 with more than 40° of edge, chatter needs 30° of edge, compaction drag fades at walking pace, skate in deep snow 60%, clean landing up to 1.8 m EFH and sketchy to 3.5 m, rail capture reach 0.6 m with a 0.5 s re-catch cooldown (fixed a capture loop), gentler balance, big roller 3 m.
 - An approach hint shows the next jump's speed window and turns green, blue (slow) or red (fast).
 - Not tuned by a human yet. Kicker design speeds are on the feature signs; overshooting a jump lands flat and crashes, which is realistic but harsh.
+
+## Adaptive music (2026-11-25, unreleased)
+
+- On by default. Settings has Music (on or off), Music source (Procedural or Tracks) and Music volume; the Sound button mutes it too.
+- Four moods: ambient (lifts, menus, standing still), cruise, drive (steeps and speed) and freestyle (park snow, rails, long air, landed tricks). The choice is pure and tested (`src/player/musicState.ts`, `tests/music.test.ts`), with hysteresis: Schmitt bands on speed and slope, a per-mood confirm time, a minimum dwell of 4 s, a 6 s freestyle hold, and the mood held through crashes.
+- Procedural: one key, scale and tempo per session (`musicScore.ts`), eight stems (pad, bass, kick, snare, hat, perc, arp, stab), a 16th-step scheduler on the audio clock that changes mood only on bar lines (`musicClock.ts`), stem levels cross-fading over about a beat. Speed opens a low-pass inside a mood.
+- Tracks: `public/audio/music/tracks.json`, fetched only when Tracks is picked; empty for now, so Tracks plays the procedural music. A track gets the mood as a filter and level.
+- Ducks under crashes and hard landings; suspends while the tab is hidden and resumes on return or on the next key or tap.
 
 ## Controls and feel pass (2026-11-21, third pass)
 
