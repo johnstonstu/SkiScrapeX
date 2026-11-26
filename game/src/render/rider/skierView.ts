@@ -41,6 +41,9 @@ const OUTSIDE_WEIGHT = -0.15
 export const INCLINE_HZ = 5.5
 /** Smoothing rate of the path's sideways acceleration, 1/s (a time constant of about 40 ms). */
 const LEAN_SMOOTH = 25
+/** Edge change: the old edge (radians) above which the body holds off crossing over, and below which it crosses fully. */
+const CROSSOVER_HOLD = 0.6
+const CROSSOVER_EDGE = 0.2
 /** Only a guard against a spike in the measured lean, radians (66°). */
 const MAX_INCLINE = 1.15
 /** How far the chest turns with the skis, from the fall line (0 stays down the hill, 1 follows the skis). */
@@ -682,9 +685,18 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       const rightX = -Math.cos(state.heading)
       const rightZ = -Math.sin(state.heading)
       const slopeRoll = skiing && ground ? Math.asin(Math.max(-0.6, Math.min(0.6, ground.normal.x * rightX + ground.normal.z * rightZ))) : 0
-      const wantIncline = skiing
-        ? stance * Math.sign(lateralG || edge) * Math.min(MAX_INCLINE, Math.max(Math.atan(Math.abs(lateralG)), Math.abs(edge) * 0.15)) - slopeRoll * 0.8
-        : 0
+      // At an edge change the path can start curving the new way while the old edge
+      // is still engaged (the edge rolls over at its own rate). The body cannot cross
+      // over an edge that is still biting, or the hips swing out past the boots and
+      // the thighs lean against the shins: hold the new lean back until the old edge
+      // releases (full by CROSSOVER_EDGE).
+      const pathLean = stance * Math.sign(lateralG) * Math.min(MAX_INCLINE, Math.atan(Math.abs(lateralG)))
+      const edgeLean = stance * edge * 0.15
+      const crossing = pathLean * edgeLean < 0
+        ? THREE.MathUtils.clamp((CROSSOVER_HOLD - Math.abs(edge)) / (CROSSOVER_HOLD - CROSSOVER_EDGE), 0, 1)
+        : 1
+      const lean = Math.abs(pathLean * crossing) > Math.abs(edgeLean) ? pathLean * crossing : edgeLean
+      const wantIncline = skiing ? lean - slopeRoll * 0.8 : 0
       // Fast and near critically damped: the lean follows the physics with little lag.
       incline.step(wantIncline, dt, INCLINE_HZ, 0.9)
 
