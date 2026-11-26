@@ -2,6 +2,36 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.33 (2026-11-26): Race starts, race gates, moguls and lift tops
+
+From Stu's 2026-11-26 playtest notes.
+
+### Changed
+
+- **Race start.** Holding forward through 3, 2, 1 was called a false start, so you had to keep your hands off the keys. You can now hold forward through the count and go at GO. A push timed onto GO (up to 0.35 s before or 0.3 s after) is a fast start. There are no false starts.
+- **Race gates.** The wide panel spanning every gate blocked the view down the course. Slalom gates are now single bare poles; GS and downhill gates have a pair of poles at each end with a small panel (0.75 by 0.5 m, as FIS sets them) between them. Nothing spans the gate.
+- **Mogul comp.** The autopilot held the line with the brake, so the skier hockey-stopped down most of the comp with the skis sideways and the turns you tapped never showed. On each beat the skis now pivot about 30° across the fall line to the new side, the comp holds the target speed through the bumps without the brake, and the skier squares up to each air ramp so the take-off is straight.
+- **Getting off at the top.** The unload picks a spot clear of the station, the lift line, buildings and trees, with open snow both ways across the hill. On gentle ground you stop facing down the fall line; on steeper ground, across it on your edges, standing still, so one turn takes you down either way. The T-bar used to leave you beside the return wheel facing uphill.
+
+### Fixed
+
+- **Floating lift shacks.** Stations stood at the ground under their centre, so on a slope a corner hung in the air (the Quickdraw top hut by 1.3 m). Their walls and legs now reach down to the snow.
+- **Bump back when letting go of a turn.** On release the hips snapped back toward the middle of the stance in one frame while the body still leaned. The skis and hips now ease off the edge when the steer is let go; linked turns still show the physics edge as it is.
+
+## 0.9.32 (2026-11-26): Riders lean like the physics
+
+### Fixed
+
+- **Full lean.** The rider drew about 20% less lean than the turn needs and caught up about 110 ms late, and the skis were drawn about 7° flatter than the edge the physics was carving on. The lean now follows the physics (a 5.5 Hz spring, about 20 ms behind) with no 49° cap, and the skis show the physics edge. At an edge change the body crosses over once the old edge lets go, not before, so the hips never swing out past a ski that is still biting.
+- **Angulation builds with the edge.** On skis the hips, spine and chest tilt back toward the outside ski by 15% of the lean on a flat ski, building to 45% past about 25° of edge, so a hard carve is legs inclined and shoulders nearer level rather than one tilted stick. The head now stays level with the horizon on snow. The outside leg extends and the inside one folds, about 12 cm of difference at 45° of edge.
+- **Chest down the fall line.** The chest is now aimed from the fall line (30% of the way to the skis) on a 3.5 Hz spring, so it stays down the hill in short turns too. It used to follow the skis 60% of the way, slowly.
+- **Snowboard stance.** The board rider had borrowed the skier's legs: a frog squat when cruising (85° of knee bend), sitting on the heels on the heel edge, and folded flat over the toe edge with the knees bent back and a hand in the snow. The board now has its own stance: hips over the middle of the bindings at a height set by the knee bend (about 35° cruising), the lean taken about the edge in use, knees over the toes and a little in, the torso leaning across the board (upright over the toe edge, chest over the knees on the heel edge), and hands kept above the snow. The board's roll now follows the physics edge (up to 57°, was capped at 41°).
+
+### Added
+
+- **Turn tests** (development). The real sim drives the real rider through linked turns on skis and on a board, and the test checks the angulation, the drawn edge and lean, the chest against the fall line, and the board stance on both edges.
+- **Close camera in the rider lab** (development). `rider.html?sim&cam=back` (or `front`, `side`, with `dist` in metres) follows the rider with a close camera fixed to the direction of travel.
+
 ## 0.9.31 (2026-11-25): Physics tuning
 
 Physics fixes from the 2026-11-25 playtest, measured with the new lab in `game/tuning/physlab.test.ts`.

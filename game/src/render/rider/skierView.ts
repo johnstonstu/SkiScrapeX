@@ -37,6 +37,60 @@ const HAND_DROP = 0.1
 const SKI_LIFT = 0.03
 /** Ski stance fore/aft offset of the boots (the ankle sits ANKLE_IN_SKI.z further on). */
 const SKI_FORE = 0.04
+/** Carving: how far the hips move from the middle of the stance toward the outside ski (0 to 1). */
+const OUTSIDE_WEIGHT = -0.15
+/** Lean spring, Hz: fast enough to follow the physics lean through a short turn. */
+export const INCLINE_HZ = 5.5
+/** Smoothing rate of the path's sideways acceleration, 1/s (a time constant of about 40 ms). */
+const LEAN_SMOOTH = 25
+/** Edge change: the old edge (radians) above which the body holds off crossing over, and below which it crosses fully. */
+const CROSSOVER_HOLD = 0.6
+const CROSSOVER_EDGE = 0.2
+/** Only a guard against a spike in the measured lean, radians (66°). */
+const MAX_INCLINE = 1.15
+/** How far the chest turns with the skis, from the fall line (0 stays down the hill, 1 follows the skis). */
+export const CHEST_FOLLOW = 0.3
+/** Most the chest twists off the skis, radians: a waist turns about 65° at most. */
+const MAX_COUNTER = 1.15
+/** Angulation, as a share of the lean the upper body tilts back out of the turn (low and high edge). */
+const ANGULATION_FLAT = 0.15
+const ANGULATION_CARVE = 0.45
+/** Edge (radians) where angulation starts to build and where it is full. */
+const ANGULATION_FROM = 0.22
+const ANGULATION_FULL = 0.47
+/** How much of the head's roll off level it takes back on snow (it stays near level). */
+const HEAD_LEVEL = 0.85
+/** Board: the hip sockets' half spread along the board, and the stance's lean off the board normal. */
+const BOARD_HIP_HALF = 0.107
+const BOARD_TOE_LEAN = 0.05
+const BOARD_HEEL_SIT = 0.14
+/** Board torso: forward hinge, and the share of the lean the torso keeps on each edge. */
+const BOARD_HINGE = 0.2
+const BOARD_TORSO_TOE = 0.3
+const BOARD_TORSO_HEEL = 0.45
+/** Lowest a board rider's hand goes, metres above the snow (root space). */
+const BOARD_HAND_FLOOR = 0.14
+
+/**
+ * Share of the lean the upper body tilts back toward the outside ski: a little
+ * at a low edge, building to ANGULATION_CARVE once the edge passes about 25°.
+ */
+export function angulationShare(edge: number): number {
+  const t = THREE.MathUtils.clamp((Math.abs(edge) - ANGULATION_FROM) / (ANGULATION_FULL - ANGULATION_FROM), 0, 1)
+  return ANGULATION_FLAT + (ANGULATION_CARVE - ANGULATION_FLAT) * smooth(t)
+}
+
+/**
+ * Board knee bend (radians) for a crouch: about 35° cruising, 50° in a carve and
+ * 65° in a tuck. Real riders cruise at 25° to 40°; the old fit squatted at 85°.
+ */
+export function boardKneeBend(flex: number): number {
+  return 0.42 + flex * 0.95
+}
+
+/** 0 to 1: how far a board is onto its toe edge (positive edge) or its heel edge. */
+const toeSide = (edge: number) => smooth(THREE.MathUtils.clamp(edge / 0.5, 0, 1))
+const heelSide = (edge: number) => toeSide(-edge)
 
 /**
  * Hips height for a skier from how bent the knees should be: the hip-to-ankle
@@ -262,18 +316,39 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
   const hipsInverse = new THREE.Matrix4()
   const cuffKnee = new THREE.Vector3()
   const midLeg = new THREE.Vector3()
-  const fitLegs = () => {
+  const boardNose = new THREE.Vector3()
+  const boardUp = new THREE.Vector3()
+  const boardToe = new THREE.Vector3()
+  /**
+   * Bend the knees to reach the boots. `boardKnees`: a snowboard boot is soft and
+   * turned across the board, so the knee goes over the toes and a little in toward
+   * the stance centre (the ski cuff hint bowed the legs out and, in a toe-side lean,
+   * flipped the knees back toward the heels).
+   */
+  const fitLegs = (boardKnees = false) => {
     root.updateMatrixWorld(true)
     hipsInverse.copy(hips.matrixWorld).invert()
-    for (const leg of legs) {
+    for (let i = 0; i < legs.length; i++) {
+      const leg = legs[i]
       ankle.copy(ANKLE_IN_SKI).applyQuaternion(leg.ski.quaternion).add(leg.ski.position)
-      // A ski boot's cuff is stiff: the shin runs up it, leaning forward over the tip and
-      // rolling with the ski onto its edge. Aim the knee one shin length up the cuff, so the
-      // leg angulates into the boot instead of folding sideways at the ankle.
-      cuffKnee.copy(BOOT_CUFF).applyQuaternion(leg.ski.quaternion).multiplyScalar(SHIN_LENGTH).add(ankle)
+      if (boardKnees) {
+        // Root-space direction: the boot's toe, pulled in along the board, a little up.
+        boardNose.set(0, 0, 1).applyQuaternion(boardGroup.quaternion)
+        boardUp.set(0, 1, 0).applyQuaternion(boardGroup.quaternion)
+        cuffKnee.set(0, 0, 1).applyQuaternion(leg.ski.quaternion)
+          .addScaledVector(boardNose, -Math.sign(BOARD_BINDINGS[i].z) * 0.25)
+          .addScaledVector(boardUp, 0.1)
+          .add(ankle)
+      } else {
+        // A ski boot's cuff is stiff: the shin runs up it, leaning forward over the tip and
+        // rolling with the ski onto its edge. Aim the knee one shin length up the cuff, so the
+        // leg angulates into the boot instead of folding sideways at the ankle.
+        cuffKnee.copy(BOOT_CUFF).applyQuaternion(leg.ski.quaternion).multiplyScalar(SHIN_LENGTH).add(ankle)
+      }
       rootToLocal(hips, ankle, ankle)
       rootToLocal(hips, cuffKnee, cuffKnee)
-      kneeHint.copy(cuffKnee).sub(midLeg.copy(leg.thigh.position).add(ankle).multiplyScalar(0.5))
+      if (boardKnees) kneeHint.copy(cuffKnee).sub(ankle)
+      else kneeHint.copy(cuffKnee).sub(midLeg.copy(leg.thigh.position).add(ankle).multiplyScalar(0.5))
       solveKnee(leg.thigh, leg.knee, ankle, THIGH_LENGTH, SHIN_LENGTH, kneeHint)
     }
   }
@@ -301,6 +376,12 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
     const lean = skiLean - Math.sign(skiLean) * Math.min(Math.abs(skiLean), KNEE_ANGULATION)
     let x = ankleMid.x - Math.sin(lean) * reach
     const y = ankleMid.y + Math.cos(lean) * reach
+    if (stride === 0 && lean !== 0) {
+      // Carving, the weight rides the outside ski (the left one, index 0, in a right turn).
+      const outside = skis[lean > 0 ? 0 : 1]
+      glideAnkle.copy(ANKLE_IN_SKI).applyQuaternion(outside.quaternion).add(outside.position)
+      x += (glideAnkle.x - ankleMid.x) * OUTSIDE_WEIGHT * Math.min(1, Math.abs(lean) / 0.6)
+    }
     if (stride !== 0) {
       // stride > 0: the left leg (index 0) pushes, so the weight rides the right ski.
       const glide = skis[stride > 0 ? 1 : 0]
@@ -312,7 +393,54 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
     hips.position.copy(hipRoot.applyMatrix4(bodyInverse.copy(body.matrix).invert()))
   }
 
+  /**
+   * The board's own stance, in board space: the hips above the middle of the two
+   * bindings at the height the knee bend asks for (the legs splay along the board,
+   * so that is less than a skier's), with the leg line leaning `lean` off the board
+   * normal toward the toe edge (negative: back over the heels). The board's roll
+   * already carries most of the lean, so the body pivots about the edge in use, not
+   * about the board's centre. `fore` shifts the hips toward the nose; `lift` (air)
+   * is how far the board has come up under the body, so the knees fold to meet it.
+   */
+  const placeBoardHips = (flex: number, lean: number, fore: number, lift: number) => {
+    boardUp.set(0, 1, 0).applyQuaternion(boardGroup.quaternion)
+    boardToe.set(-1, 0, 0).applyQuaternion(boardGroup.quaternion)
+    boardNose.set(0, 0, 1).applyQuaternion(boardGroup.quaternion)
+    ankleMid.set(0, 0, 0)
+    for (const boot of skis) ankleMid.add(v1.copy(ANKLE_IN_SKI).applyQuaternion(boot.quaternion).add(boot.position))
+    ankleMid.multiplyScalar(0.5)
+    const halfSpan = Math.abs(v1.sub(ankleMid).dot(boardNose))
+    const along = Math.max(0, halfSpan - BOARD_HIP_HALF)
+    const knee = boardKneeBend(flex)
+    const chord2 = THIGH_LENGTH ** 2 + SHIN_LENGTH ** 2 + 2 * THIGH_LENGTH * SHIN_LENGTH * Math.cos(knee)
+    const reach = Math.sqrt(Math.max(0.04, chord2 - along * along)) + HIP_SOCKET_DROP
+    hipRoot.copy(ankleMid)
+      .addScaledVector(boardUp, Math.cos(lean) * reach)
+      .addScaledVector(boardToe, Math.sin(lean) * reach)
+      .addScaledVector(boardNose, fore)
+    hipRoot.y -= lift
+    body.updateMatrix()
+    hips.position.copy(hipRoot.applyMatrix4(bodyInverse.copy(body.matrix).invert()))
+  }
+
+  const earAxis = new THREE.Vector3()
+  const crownAxis = new THREE.Vector3()
+  /**
+   * How far to roll the head about its own forward axis to bring the line between
+   * the ears level with the horizon. Call with head.rotation.z at 0; clamped so a
+   * flip or a crash never spins the head round.
+   */
+  const levelHead = () => {
+    head.updateWorldMatrix(true, false)
+    head.getWorldQuaternion(qInv)
+    earAxis.set(1, 0, 0).applyQuaternion(qInv)
+    crownAxis.set(0, 1, 0).applyQuaternion(qInv)
+    if (crownAxis.y < 0.3) return 0
+    return THREE.MathUtils.clamp(Math.atan2(-earAxis.y, crownAxis.y), -0.7, 0.7)
+  }
+
   const handTarget = new THREE.Vector3()
+  const handRoot = new THREE.Vector3()
   const elbowHint = new THREE.Vector3()
   const tip = new THREE.Vector3()
   const handWorld = new THREE.Vector3()
@@ -541,8 +669,10 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // The edge the legs and hips show: quick onto the edge, softer off it. The
       // sim rolls the edge off at its full rate when the steer is let go; the hips
       // following that straight snapped back under an upright body (a bump back).
-      const rolling = Math.sign(edge) === Math.sign(edgeShown) && Math.abs(edge) > Math.abs(edgeShown)
-      edgeShown += (edge - edgeShown) * ease(rolling || Math.sign(edge) !== Math.sign(edgeShown) && Math.abs(edgeShown) < 0.05 ? 22 : EDGE_RELEASE_RATE, dt)
+      // Only a let-go eases: while steering (linked turns, an edge change) the skis
+      // show the physics edge as it is.
+      const letGo = Math.abs(input.steer) < 0.05 && Math.abs(edge) < Math.abs(edgeShown)
+      edgeShown = letGo ? edgeShown + (edge - edgeShown) * ease(EDGE_RELEASE_RATE, dt) : edge
       // Lean for the turn the skier is really making: the path's curvature
       // times speed is the sideways acceleration to balance, tan(lean) = a / g.
       // (The carve model's load misses pivoted and skidded turns.)
@@ -554,9 +684,11 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         if (Math.abs(delta) < 0.5) turnRate = delta / dt
       }
       lastTravel = travel
-      pathAccel += ((skiing ? turnRate * horizontal : 0) - pathAccel) * ease(11, dt)
+      // A light smooth (about 40 ms) against the frame-to-frame jitter of the heading.
+      pathAccel += ((skiing ? turnRate * horizontal : 0) - pathAccel) * ease(LEAN_SMOOTH, dt)
       const lateralG = pathAccel / PHYSICS.gravity
-      // Scaled and capped: full race inclination reads as falling at game camera distances.
+      // The full lean the physics needs, drawn as it is (it used to be scaled to 78% and
+      // capped at 49°, so a 50° carve looked under-leaned). MAX_INCLINE only guards a spike.
       // The lean above is against gravity, but the body hangs off the root, which lies on
       // the slope. On a side-hill or a banked berm the slope already tips the root, so take
       // that roll back out (most of it) or the skier over-leans into banks and tips downhill
@@ -564,10 +696,20 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       const rightX = -Math.cos(state.heading)
       const rightZ = -Math.sin(state.heading)
       const slopeRoll = skiing && ground ? Math.asin(Math.max(-0.6, Math.min(0.6, ground.normal.x * rightX + ground.normal.z * rightZ))) : 0
-      const wantIncline = skiing
-        ? stance * Math.sign(lateralG || edge) * Math.min(0.85, Math.max(Math.atan(Math.abs(lateralG)) * 0.78, Math.abs(edge) * 0.15)) - slopeRoll * 0.8
-        : 0
-      incline.step(wantIncline, dt, 2.6, 0.92)
+      // At an edge change the path can start curving the new way while the old edge
+      // is still engaged (the edge rolls over at its own rate). The body cannot cross
+      // over an edge that is still biting, or the hips swing out past the boots and
+      // the thighs lean against the shins: hold the new lean back until the old edge
+      // releases (full by CROSSOVER_EDGE).
+      const pathLean = stance * Math.sign(lateralG) * Math.min(MAX_INCLINE, Math.atan(Math.abs(lateralG)))
+      const edgeLean = stance * edge * 0.15
+      const crossing = pathLean * edgeLean < 0
+        ? THREE.MathUtils.clamp((CROSSOVER_HOLD - Math.abs(edge)) / (CROSSOVER_HOLD - CROSSOVER_EDGE), 0, 1)
+        : 1
+      const lean = Math.abs(pathLean * crossing) > Math.abs(edgeLean) ? pathLean * crossing : edgeLean
+      const wantIncline = skiing ? lean - slopeRoll * 0.8 : 0
+      // Fast and near critically damped: the lean follows the physics with little lag.
+      incline.step(wantIncline, dt, INCLINE_HZ, 0.9)
 
       // Steer flip plants first (hand leads the turn); edge flip still unweights the legs.
       const edgeSign = Math.abs(edge) > 0.12 ? Math.sign(edge) : 0
@@ -635,16 +777,19 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // Eyes lead the turn: the head turns toward where the skier is steering.
       look.step(skiing && speed > 2 ? -input.steer * 0.32 : 0, dt, 1.8, 0.9)
 
-      // Counter-rotation: the upper body keeps facing down the fall line.
+      // Counter-rotation: the upper body keeps facing down the fall line. Aimed from the
+      // fall line, not the skis: the chest turns only CHEST_FOLLOW of the way with the
+      // skis (less in a hockey stop), so it stays down the hill in short and long turns.
+      // Riding switch the skier looks back over a shoulder instead (switchLook).
       let wantCounter = 0
-      if (skiing && ground && speed > 1.5 && !boarding) {
+      if (skiing && ground && speed > 1.5 && !boarding && !state.ridingSwitch) {
         const fall = fallLineHeading(ground.normal)
         if (fall !== null) {
           const off = Math.atan2(Math.sin(state.heading - fall), Math.cos(state.heading - fall))
-          wantCounter = Math.max(-1.1, Math.min(1.1, off * (braking ? 0.7 : 0.4)))
+          wantCounter = Math.max(-MAX_COUNTER, Math.min(MAX_COUNTER, off * (1 - (braking ? CHEST_FOLLOW * 0.5 : CHEST_FOLLOW))))
         }
       }
-      counter.step(wantCounter, dt, 1.7, 0.9)
+      counter.step(wantCounter, dt, 3.5, 0.85)
 
       // Pushing on the flat: double-pole when nearly stopped, skate as speed builds.
       const doublePole = Math.max(skate.x * Math.max(0, Math.min(1, (2.4 - speed) / 1.2)), poling.x)
@@ -655,8 +800,10 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       const dp = doublePolePose(dpPhase, speed)
 
       // Athletic base flex, plus terrain absorption, edging, tuck, braking and pop.
-      let wantCrouch = pose === 'stand' ? 0.12 : still ? 0.22 : 0.32
+      // A board rider cruises taller (about 35° of knee bend) and sits lower on the heel edge.
+      let wantCrouch = pose === 'stand' ? 0.12 : still ? (boarding ? 0.15 : 0.22) : boarding ? 0.2 : 0.32
       wantCrouch += Math.abs(incline.x) * 0.3 + (skiing ? Math.min(0.2, state.sink * 0.5) : 0)
+      if (boarding && skiing) wantCrouch += heelSide(edge) * 0.12
       if (skiing && ground?.mogulHeight) {
         // Fold the legs up on the face and extend into the next trough.
         wantCrouch += Math.min(0.48, ground.mogulHeight * Math.max(0, speed / 12 + state.vy * 0.14))
@@ -678,15 +825,23 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       fore.step(tuck.x * 0.16 + brake.x * 0.05 - press.x * 0.05 + skate.x * 0.03, dt, 2.5, 0.9)
 
       // ---- Skis ----
-      const halfStance = 0.13 + brake.x * 0.03 + plow.x * 0.14 + skate.x * 0.03 - railBlend.x * 0.04 - tuck.x * 0.015
+      // The stance opens a little as the lean builds: with the hips leaning over the
+      // middle of it, the outside leg extends and the inside leg folds, more the
+      // higher the edge (about 12 cm of difference at 45°).
+      const halfStance = 0.13 + brake.x * 0.03 + plow.x * 0.14 + skate.x * 0.03 - railBlend.x * 0.04 - tuck.x * 0.015 +
+        Math.min(1, Math.abs(incline.x)) * 0.02
       const lead = incline.x * 0.12
       // Skis drift under the outside of the turn so the body can incline.
       const shift = -Math.sin(incline.x) * 0.32
       skis[0].position.set(halfStance + shift, SKI_LIFT, SKI_FORE - lead)
       skis[1].position.set(-halfStance + shift, SKI_LIFT, SKI_FORE + lead)
-      // Skis tilt with the legs plus a little knee angulation, so the full-turn
-      // pose holds together instead of skis on 45° under an upright body.
-      const edgeVisual = pose === 'ski' && !air ? Math.sign(edgeShown) * Math.min(Math.abs(edgeShown) * 0.9, Math.abs(incline.x) + 0.32) : 0
+      // The skis show the physics edge, and the legs lean with them (less a little
+      // knee angulation). Only an edge far past the lean is drawn flatter: up to 18°
+      // past it when there is hardly any turn (an upright body on hard edges folds
+      // the inside knee into the other thigh), 34° once the body leans into a carve.
+      // Off the edge (a turn let go) they ease back with `edgeShown` instead of snapping.
+      const edgeRoom = 0.32 + 0.28 * THREE.MathUtils.clamp((Math.abs(incline.x) - 0.15) / 0.3, 0, 1)
+      const edgeVisual = pose === 'ski' && !air ? Math.sign(edgeShown) * Math.min(Math.abs(edgeShown), Math.abs(incline.x) + edgeRoom) : 0
       for (const ski of skis) ski.rotation.z = edgeVisual
       if (plow.x > 0.01) {
         // Snowplough: tips together, tails out, both skis on their inside edges.
@@ -755,11 +910,12 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         }
       }
 
+      let boardLift = 0
       if (boarding) {
-        const lift = air ? 0.18 + grabBlend * 0.2 : 0
+        const lift = (boardLift = air ? 0.18 + grabBlend * 0.2 : 0)
         const grabTilt = air && grabBlend > 0 ? (lastGrab === 'nose' ? -0.35 : lastGrab === 'tail' ? 0.3 : 0) * grabBlend : 0
-        // Roll about the engaged edge and let the nose lead the ollie.
-        const roll = THREE.MathUtils.clamp(edge, -0.72, 0.72)
+        // Roll about the engaged edge (the physics edge) and let the nose lead the ollie.
+        const roll = THREE.MathUtils.clamp(edge, -1, 1)
         const ollie = air ? -0.24 * Math.max(0, 1 - air.time / 0.27) * stance : 0
         placeBoard(
           shift * 0.6, 0.02 + 0.13 * Math.abs(Math.sin(roll)) + lift + Math.abs(press.x) * 0.07,
@@ -772,45 +928,60 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       const idle = still && !boarding ? 1 : 0
       const sway = idle * Math.sin(state.time * 0.8) * 0.025
       // Skating moves the weight over the gliding ski; on a rail the body sways with the balance.
+      // The whole body leans with the physics (about the snow under the skis or board).
       body.rotation.z = incline.x + (rail ? rail.balance * 0.32 : 0) + stride * 0.12 + sway
+      const bend = 0.12 + flex * 0.72 + tuck.x * 0.6 + press.x * 0.18 + skateAmount * 0.18 + plow.x * 0.05 + doublePole * dp.crunch
+      legFollow += ((skiing ? 1 : 0) - legFollow) * ease(10, dt)
       if (boarding) {
-        const kneeFold = 0.15 + flex * 1.25
-        const hipHeight = 0.97 - (THIGH_LENGTH + SHIN_LENGTH) * (1 - Math.cos(kneeFold * 0.55)) * 1.05 - flex * 0.06 - tuck.x * 0.05
-        const toeSide = THREE.MathUtils.clamp(edge * 0.9, -0.55, 0.55)
-        hips.position.set(-toeSide * 0.14, Math.max(0.4, hipHeight), (1 - 2 * switchLook) * (0.04 + tuck.x * 0.09))
+        // Facing the toes, open a little toward the nose. In the hips' frame +Z is
+        // now the toe edge and +X the nose, so leaning across the board is about X.
+        hips.rotation.y = -Math.PI / 2 + 0.25
+        const foreAft = (1 - 2 * switchLook) * (0.04 + tuck.x * 0.09)
+        // The legs' line leans off the board normal by the lean the board's roll does
+        // not take, plus a little toward the toes (shins into the tongues) or back over
+        // the heels (sitting into the highbacks).
+        const roll = boardGroup.rotation.z
+        const legLean = THREE.MathUtils.clamp(incline.x - roll, -0.45, 0.45) * legFollow +
+          (toeSide(edge) * BOARD_TOE_LEAN - heelSide(edge) * BOARD_HEEL_SIT) * legFollow
+        placeBoardHips(flex, legLean, foreAft, boardLift)
+        // Torso: a forward hinge plus a share of the lean, so on the toe edge it stays
+        // fairly upright over the toes and on the heel edge the chest comes over the knees.
+        const keep = incline.x > 0 ? BOARD_TORSO_TOE : BOARD_TORSO_HEEL
+        const torso = BOARD_HINGE + flex * 0.35 + tuck.x * 0.6 + press.x * 0.18 + keep * incline.x - incline.x
+        spine.rotation.x = torso * 0.55
+        chest.rotation.x = torso * 0.45 - tuck.x * 0.08
       } else {
         const hipBack = 0.05 + flex * 0.1 + fore.x
         hips.position.set(0, skiHipHeight(flex, tuck.x, hipBack), -hipBack)
+        // Angulation: the hips, spine and chest tilt back against the lean, toward the
+        // outside ski, so the shoulders stay nearer level and the knees drive into the hill.
+        const counterTilt = -incline.x * angulationShare(edge)
+        hips.rotation.y = counter.x * 0.3
+        hips.rotation.z = counterTilt * 0.25
+        // The back bends in two parts, so a deep crouch or a tuck rounds it.
+        spine.rotation.x = bend * 0.55
+        chest.rotation.x = bend * 0.45 - tuck.x * 0.08
+        spine.rotation.z = counterTilt * 0.45
+        chest.rotation.z = counterTilt * 0.3
       }
-      // Angulation: the hips and spine tilt back against the inclination so the
-      // shoulders stay near level and the knees drive into the hill.
-      hips.rotation.y = boarding ? -Math.PI / 2 + 0.25 : counter.x * 0.3
-      hips.rotation.z = -incline.x * 0.12
-      // The back bends in two parts, so a deep crouch or a tuck rounds it.
-      const bend = 0.12 + flex * 0.72 + tuck.x * 0.6 + press.x * 0.18 + skateAmount * 0.18 + plow.x * 0.05 + doublePole * dp.crunch
-      spine.rotation.x = bend * 0.55
-      chest.rotation.x = bend * 0.45 - tuck.x * 0.08
-      spine.rotation.z = -incline.x * 0.2
-      chest.rotation.z = -incline.x * 0.14
       const upperTwist = boarding
         ? 0.45 - switchLook * 0.78 + look.x * 0.28 + spinLead * 0.5
         : counter.x * 0.7 + spinLead * 0.5 + switchLook * 0.25 + railLook * 0.55 - stride * 0.12
       spine.rotation.y = upperTwist * 0.55
       chest.rotation.y = upperTwist * 0.45
-      // Head stays level and looks where the skier is going; up the hill in a tuck.
-      const tiltZ = incline.x + hips.rotation.z + spine.rotation.z + chest.rotation.z
-      head.rotation.x = -bend * 0.8 - tuck.x * 0.22 + idle * Math.sin(state.time * 0.5) * 0.06
-      head.rotation.z = -tiltZ * 0.65
+      // Head looks where the skier is going; up the hill in a tuck.
+      head.rotation.x = boarding
+        ? -Math.max(0, spine.rotation.x + chest.rotation.x) * 0.8 - tuck.x * 0.22
+        : -bend * 0.8 - tuck.x * 0.22 + idle * Math.sin(state.time * 0.5) * 0.06
       head.rotation.y = boarding
         ? 0.75 - switchLook * 1.55 + look.x * 0.5 + spinLead * 0.4
         : -counter.x * 0.3 + look.x + spinLead * 0.4 + switchLook * stance * 1.15 * (state.heading > 0 ? 1 : -1) + railLook * 0.4 +
           idle * Math.sin(state.time * 0.37) * 0.35
+      // On snow the head stays near level with the horizon, whatever the body does.
+      head.rotation.z = levelHead() * HEAD_LEVEL * legFollow
 
-      if (!boarding) {
-        legFollow += ((skiing ? 1 : 0) - legFollow) * ease(10, dt)
-        if (legFollow > 0.001) placeHipsOverSkis(edgeVisual, skateAmount > 0.01 ? stride : 0, legFollow)
-      }
-      fitLegs()
+      if (!boarding && legFollow > 0.001) placeHipsOverSkis(edgeVisual, skateAmount > 0.01 ? stride : 0, legFollow)
+      fitLegs(boarding)
 
       // ---- Arms ----
       // Targets are in chest space: the shoulders sit at (±0.215, 0.21, 0).
@@ -883,6 +1054,14 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
           hand.lerp(v2.set(side * 0.25, -0.08, 0.21), THREE.MathUtils.clamp(tuck.x, 0, 1))
           hand.lerp(v2.set(side * 0.55, 0.16, 0.1), Math.max(handsBack, Math.min(1, railBlend.x)))
           if (rig.firstPerson) hand.y += 0.3
+          // Low over the edge in a carve, never into the snow.
+          if (skiing) {
+            pointInRoot(chest, hand, handRoot)
+            if (handRoot.y < BOARD_HAND_FLOOR) {
+              handRoot.y = BOARD_HAND_FLOOR
+              rootToLocal(chest, handRoot, hand)
+            }
+          }
         }
         const handLocal = hand.clone()
         // Pole tip: carried just off the snow behind the boots, planted on a plant,

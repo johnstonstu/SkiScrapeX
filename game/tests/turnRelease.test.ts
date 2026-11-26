@@ -36,11 +36,11 @@ describe('turn release', () => {
   it('the hips ease back under the body when a turn is let go, with no jolt', () => {
     const hips = turnAndRelease()
     const release = Math.round(2.5 / FIXED_DT)
-    const speeds = hips.slice(release, release + 30).map((x, i, a) => (i ? Math.abs(x - a[i - 1]) / FIXED_DT : 0))
-    // The first frames after letting go barely move (the old snap moved ~2.5 m/s at once)...
-    expect(Math.max(...speeds.slice(0, 4))).toBeLessThan(1)
-    // ...and the return never rushes.
-    expect(Math.max(...speeds)).toBeLessThan(2.2)
+    const speeds = hips.slice(release - 1, release + 40).map((x, i, a) => (i ? (x - a[i - 1]) / FIXED_DT : 0)).slice(1)
+    // No jolt: the hips never start or stop moving all at once. Without the ease they
+    // went from rest to 2.5 m/s in one frame and stopped from 3.7 m/s just as fast.
+    const jerk = speeds.map((v, i) => (i ? Math.abs(v - speeds[i - 1]) : Math.abs(v)))
+    expect(Math.max(...jerk)).toBeLessThan(0.6)
     // But it does come back: most of the way within 0.6 s.
     const held = hips[release - 1]
     const settled = hips[hips.length - 1]
