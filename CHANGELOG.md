@@ -2,6 +2,20 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.32 (2026-11-26): Riders lean like the physics
+
+### Fixed
+
+- **Full lean.** The rider drew about 20% less lean than the turn needs and caught up about 110 ms late, and the skis were drawn about 7° flatter than the edge the physics was carving on. The lean now follows the physics (a 5.5 Hz spring, about 20 ms behind) with no 49° cap, and the skis show the physics edge. At an edge change the body crosses over once the old edge lets go, not before, so the hips never swing out past a ski that is still biting.
+- **Angulation builds with the edge.** On skis the hips, spine and chest tilt back toward the outside ski by 15% of the lean on a flat ski, building to 45% past about 25° of edge, so a hard carve is legs inclined and shoulders nearer level rather than one tilted stick. The head now stays level with the horizon on snow. The outside leg extends and the inside one folds, about 12 cm of difference at 45° of edge.
+- **Chest down the fall line.** The chest is now aimed from the fall line (30% of the way to the skis) on a 3.5 Hz spring, so it stays down the hill in short turns too. It used to follow the skis 60% of the way, slowly.
+- **Snowboard stance.** The board rider had borrowed the skier's legs: a frog squat when cruising (85° of knee bend), sitting on the heels on the heel edge, and folded flat over the toe edge with the knees bent back and a hand in the snow. The board now has its own stance: hips over the middle of the bindings at a height set by the knee bend (about 35° cruising), the lean taken about the edge in use, knees over the toes and a little in, the torso leaning across the board (upright over the toe edge, chest over the knees on the heel edge), and hands kept above the snow. The board's roll now follows the physics edge (up to 57°, was capped at 41°).
+
+### Added
+
+- **Turn tests** (development). The real sim drives the real rider through linked turns on skis and on a board, and the test checks the angulation, the drawn edge and lean, the chest against the fall line, and the board stance on both edges.
+- **Close camera in the rider lab** (development). `rider.html?sim&cam=back` (or `front`, `side`, with `dist` in metres) follows the rider with a close camera fixed to the direction of travel.
+
 ## 0.9.31 (2026-11-25): Physics tuning
 
 Physics fixes from the 2026-11-25 playtest, measured with the new lab in `game/tuning/physlab.test.ts`.
