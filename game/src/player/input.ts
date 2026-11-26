@@ -1,5 +1,6 @@
 import type { GrabKind, SkiInput } from '../sim'
 import { createGamepadInput, type MenuCommand } from './gamepad'
+import { rampKeySteer, type KeyChange } from './keySteer'
 
 export interface ControlOptions {
   /** 0.5 to 1.5: how quickly keys and sticks reach full edge. */
@@ -42,6 +43,18 @@ const KEY_RELEASE = 10
  */
 export function createControls(root: HTMLElement): Controls {
   const keys = new Set<string>()
+  // Keys pressed since the last read. A tap that goes down and up between two
+  // frames still counts as held for one read, so a slow frame cannot drop it.
+  const tapped = new Set<string>()
+  const has = (code: string) => keys.has(code) || tapped.has(code)
+  // Steer key changes with their times since the last read, for the time-based ramp.
+  const steerKeyCodes = new Set(['ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD'])
+  const keyWant = () => (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0)
+  let steerChanges: KeyChange[] = []
+  let readWant = 0
+  const noteSteerKey = (code: string) => {
+    if (steerKeyCodes.has(code)) steerChanges.push({ t: performance.now(), want: keyWant() })
+  }
   const actions = new Set<Action>()
   const touch = matchMedia('(pointer: coarse)').matches || new URLSearchParams(location.search).has('touch')
   const keyActions: Record<string, Action> = {
@@ -74,17 +87,27 @@ export function createControls(root: HTMLElement): Controls {
     usingPad = false
     if (event.code === 'Space' && event.target instanceof HTMLButtonElement) return
     if (event.code === 'Enter' && event.target instanceof HTMLButtonElement) return
-    keys.add(event.code)
+    if (!keys.has(event.code)) {
+      keys.add(event.code)
+      noteSteerKey(event.code)
+    }
+    tapped.add(event.code)
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault()
     if (event.repeat) return
     const action = keyActions[event.code]
     if (action) actions.add(action)
     if (/^Digit[1-9]$/.test(event.code)) actions.add(`slope${Number(event.code.slice(5))}`)
   }
-  const onKeyUp = (event: KeyboardEvent) => keys.delete(event.code)
+  const onKeyUp = (event: KeyboardEvent) => {
+    keys.delete(event.code)
+    noteSteerKey(event.code)
+  }
   const onPointer = () => { usingPad = false }
   const onBlur = () => {
     keys.clear()
+    tapped.clear()
+    steerChanges = []
+    readWant = 0
     keySteer = 0
     grabWasHeld = false
     stick.pointer = null
@@ -173,26 +196,25 @@ export function createControls(root: HTMLElement): Controls {
     },
     read() {
       const now = performance.now()
-      const dt = Math.min(0.1, (now - lastRead) / 1000)
+      // Ramp over the real key times since the last read (at most 0.1 s back) and steer with the mean.
+      const from = Math.max(lastRead, now - 100)
       lastRead = now
-      const rise = KEY_RISE * options.steering
-      let want = 0
-      if (keys.has('ArrowLeft') || keys.has('KeyA')) want -= 1
-      if (keys.has('ArrowRight') || keys.has('KeyD')) want += 1
-      if (want === 0) keySteer = Math.sign(keySteer) * Math.max(0, Math.abs(keySteer) - KEY_RELEASE * dt)
-      else if (Math.sign(want) !== Math.sign(keySteer)) keySteer = want * Math.min(1, rise * dt * 2)
-      else keySteer = want * Math.min(1, Math.abs(keySteer) + rise * dt)
+      const ramp = rampKeySteer(keySteer, readWant, steerChanges, from, now, KEY_RISE * options.steering, KEY_RELEASE)
+      keySteer = ramp.value
+      const keyMean = ramp.mean
+      readWant = keyWant()
+      steerChanges = []
       // Analog sticks (touch or gamepad): sensitivity scales the deflection needed for full edge.
       const analog = (v: number) => Math.max(-1, Math.min(1, v * options.steering))
       const stickX = stick.pointer !== null ? analog(stick.x) : analog(pad.x)
       const stickY = stick.pointer !== null ? stick.y : pad.y
 
-      const up = keys.has('ArrowUp') || keys.has('KeyW') || stickY * STICK_RANGE_PX < -STICK_VERTICAL_PX
-      const down = keys.has('ArrowDown') || keys.has('KeyS') || stickY * STICK_RANGE_PX > STICK_VERTICAL_PX || pad.brake > 0.3
+      const up = has('ArrowUp') || has('KeyW') || stickY * STICK_RANGE_PX < -STICK_VERTICAL_PX
+      const down = has('ArrowDown') || has('KeyS') || stickY * STICK_RANGE_PX > STICK_VERTICAL_PX || pad.brake > 0.3
       const stickPitch = Math.abs(stickY) > 0.45 ? -stickY : 0
-      const keyPitch = (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0) - (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0)
-      const second = keys.has('KeyK') || pad.second
-      const grab = keys.has('KeyJ') || second || keys.has('ShiftLeft') || keys.has('ShiftRight') || held.has('grab') || pad.grab
+      const keyPitch = (has('ArrowUp') || has('KeyW') ? 1 : 0) - (has('ArrowDown') || has('KeyS') ? 1 : 0)
+      const second = has('KeyK') || pad.second
+      const grab = has('KeyJ') || second || has('ShiftLeft') || has('ShiftRight') || held.has('grab') || pad.grab
       // The grab is chosen when it starts, from the direction held.
       if (grab && !grabWasHeld) {
         const steerNow = keySteer || stickX
@@ -202,12 +224,15 @@ export function createControls(root: HTMLElement): Controls {
           : up ? 'japan' : down ? 'tail' : Math.abs(steerNow) > 0.3 ? 'safety' : 'mute'
       }
       grabWasHeld = grab
+      const brakeKey = has('ArrowDown') || has('KeyS')
+      const jump = has('Space') || held.has('jump') || pad.jump
+      tapped.clear()
       return {
-        steer: keySteer !== 0 ? keySteer : stickX,
-        directionalSteering: keySteer !== 0,
-        brake: down ? Math.max(pad.brake > 0.3 ? pad.brake : 0, keys.has('ArrowDown') || keys.has('KeyS') || stickY * STICK_RANGE_PX > STICK_VERTICAL_PX ? 1 : 0) : 0,
+        steer: keyMean !== 0 ? keyMean : stickX,
+        directionalSteering: keyMean !== 0,
+        brake: down ? Math.max(pad.brake > 0.3 ? pad.brake : 0, brakeKey || stickY * STICK_RANGE_PX > STICK_VERTICAL_PX ? 1 : 0) : 0,
         tuck: up && !down,
-        jump: keys.has('Space') || held.has('jump') || pad.jump,
+        jump,
         grab,
         grabKind,
         pitch: (keyPitch !== 0 ? keyPitch : stickPitch) * (options.invertPitch ? -1 : 1),

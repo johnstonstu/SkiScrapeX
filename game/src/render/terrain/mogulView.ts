@@ -39,20 +39,34 @@ export function createMogulView(field: MogulField, material: THREE.Material, det
     if (list) list.push(bump)
     else byChunk.set(key, [bump])
   }
-  const chunks: { mesh: THREE.Mesh; cx: number; cz: number }[] = []
+  const chunks: { mesh: THREE.Mesh; cx: number; cz: number; bumps: Mogul[]; trimmed: boolean }[] = []
   for (const bumps of byChunk.values()) {
     const mesh = new THREE.Mesh(bumpGeometry(bumps, field, detail), material)
     mesh.receiveShadow = true
     mesh.castShadow = true
     let cx = 0, cz = 0
     for (const bump of bumps) ((cx += bump.x), (cz += bump.z))
-    chunks.push({ mesh, cx: cx / bumps.length, cz: cz / bumps.length })
+    chunks.push({ mesh, cx: cx / bumps.length, cz: cz / bumps.length, bumps, trimmed: false })
     group.add(mesh)
+  }
+  const rebuild = (chunk: (typeof chunks)[number], bumps: Mogul[]) => {
+    chunk.mesh.geometry.dispose()
+    chunk.mesh.geometry = bumpGeometry(bumps, field, detail)
   }
   const reach = detail.reach + detail.chunk * 0.5
   return {
     object: group,
     triangles: chunks.reduce((n, c) => n + (c.mesh.geometry.index?.count ?? 0) / 3, 0),
+    /** Leave out the bumps `kept` does not hold (a race track's), or draw them all again with null. Only touched chunks are rebuilt. */
+    keep(kept: ReadonlySet<Mogul> | null) {
+      for (const chunk of chunks) {
+        const bumps = kept ? chunk.bumps.filter((bump) => kept.has(bump)) : chunk.bumps
+        const trimmed = bumps.length < chunk.bumps.length
+        if (!trimmed && !chunk.trimmed) continue
+        rebuild(chunk, bumps)
+        chunk.trimmed = trimmed
+      }
+    },
     update(camera: { x: number; z: number }) {
       for (const chunk of chunks) chunk.mesh.visible = (chunk.cx - camera.x) ** 2 + (chunk.cz - camera.z) ** 2 < reach * reach
     },

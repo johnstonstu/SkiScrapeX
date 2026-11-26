@@ -6,7 +6,7 @@ SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor 
 
 ### Fixed
 
-- **Full lean.** The rider drew about 20% less lean than the turn needs and caught up about 110 ms late, and the skis were drawn about 7° flatter than the edge the physics was carving on. The lean now follows the physics (a 5.5 Hz spring, about 20 ms behind) with no 49° cap, and the skis show the physics edge.
+- **Full lean.** The rider drew about 20% less lean than the turn needs and caught up about 110 ms late, and the skis were drawn about 7° flatter than the edge the physics was carving on. The lean now follows the physics (a 5.5 Hz spring, about 20 ms behind) with no 49° cap, and the skis show the physics edge. At an edge change the body crosses over once the old edge lets go, not before, so the hips never swing out past a ski that is still biting.
 - **Angulation builds with the edge.** On skis the hips, spine and chest tilt back toward the outside ski by 15% of the lean on a flat ski, building to 45% past about 25° of edge, so a hard carve is legs inclined and shoulders nearer level rather than one tilted stick. The head now stays level with the horizon on snow. The outside leg extends and the inside one folds, about 12 cm of difference at 45° of edge.
 - **Chest down the fall line.** The chest is now aimed from the fall line (30% of the way to the skis) on a 3.5 Hz spring, so it stays down the hill in short turns too. It used to follow the skis 60% of the way, slowly.
 - **Snowboard stance.** The board rider had borrowed the skier's legs: a frog squat when cruising (85° of knee bend), sitting on the heels on the heel edge, and folded flat over the toe edge with the knees bent back and a hand in the snow. The board now has its own stance: hips over the middle of the bindings at a height set by the knee bend (about 35° cruising), the lean taken about the edge in use, knees over the toes and a little in, the torso leaning across the board (upright over the toe edge, chest over the knees on the heel edge), and hands kept above the snow. The board's roll now follows the physics edge (up to 57°, was capped at 41°).
@@ -15,6 +15,40 @@ SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor 
 
 - **Turn tests** (development). The real sim drives the real rider through linked turns on skis and on a board, and the test checks the angulation, the drawn edge and lean, the chest against the fall line, and the board stance on both edges.
 - **Close camera in the rider lab** (development). `rider.html?sim&cam=back` (or `front`, `side`, with `dist` in metres) follows the rider with a close camera fixed to the direction of travel.
+
+## 0.9.31 (2026-11-25): Physics tuning
+
+Physics fixes from the 2026-11-25 playtest, measured with the new lab in `game/tuning/physlab.test.ts`.
+
+### Changed
+
+- **Faster tuck.** The tuck had more drag than a real one, so a straight run topped out at 134 km/h on 25° and the Chute's 151 km/h Pehota benchmark was out of reach. It now tops out near 160 km/h on 25° (120 km/h on 15°).
+- **Edging takes time.** The edge rolled from flat to 50° in about 0.19 s, so a 200 ms key tap reached the full edge and washed out. It now takes about 0.28 s.
+- **Keyboard edge by speed.** Keys are all or nothing, so keyboard steering now asks for the full edge up to 60 km/h, easing to 32° at 110 km/h. A tap at speed holds an arc instead of washing out. A stick or touch can still ask for the full edge.
+- **Real hockey stops.** Stops were about 1.5 to 1.9 g and the same on every slope. They are now 0.64 to 0.83 g and take longer on steeps: from 50 km/h, 1.8 s on 10° and 2.2 s on 30°.
+- **Softer short landings.** The legs soak up the first 2.5 m/s of a short hop's impact, so a clean little air no longer costs a big chunk of speed.
+
+### Fixed
+
+- **Steering at low frame rates.** A key tap was read once per frame and held for the whole frame, so the same tap turned about 12 times as far at 5 fps as at 60 fps. Keys now ramp on their real press and release times, so a tap turns the same at any frame rate.
+- **Moguls comp airs.** A straight air off the top or bottom kicker shorter than 0.5 s scored nothing. In the moguls comp and aerials, every air over 0.25 s is now judged.
+
+## 0.9.30 (2026-11-25): Race day fixes
+
+Fixes from the 2026-11-25 playtest of the events.
+
+### Fixed
+
+- **Finish run-out.** Shoot the Chute and the Downhill froze the racer mid-air at 100+ km/h when the results came up. Now the clock stops at the line, the racer brakes to a stop, and the results show below 10 km/h (or after 5 s).
+- **Stuck forever.** A racer stopped in the start gate or stuck in powder beside a course kept the clock running with no end. With the clock running, less than 3 m of progress down the course in 20 s is now "No progress: DNF".
+- **False start.** The "False start" message was replaced by the count on the very next frame. It now shows for 1.2 s before the count starts again from 3.
+- **Quick taps.** A key pressed and released between two slow frames was missed. Every tap now counts for at least one frame.
+- **Moguls on the race line.** The Gunbarrel moguls sat on the Downhill line (20 takeoffs in one run). While a race runs, its track is groomed: the mapped moguls on it go flat and the snow rides as groomed, including the park ground at the top of the slalom. Free skiing keeps every mogul field.
+
+### Changed
+
+- **Out of the gate.** A racer who has not pushed off by GO skates out for the first 1.5 s. Holding the brake stays put.
+- **No trick cards in races.** Downhill, slalom, GS, Match Your Time and the Chute are timed, so trick pop-ups and combos are off on the course.
 
 ## 0.9.29 (2026-11-25): Crashes stay on the snow
 

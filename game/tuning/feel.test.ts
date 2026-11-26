@@ -157,6 +157,7 @@ it('turn to stop from 30 km/h', () => {
     }
     console.log(`${turnModel} ${maneuver}: ${distance.toFixed(1)} m, final speed ${(state.speed * 3.6).toFixed(1)} km/h`)
     expect(state.speed).toBeLessThan(0.25)
-    expect(distance).toBeLessThanOrEqual(maneuver === 'uphill' ? 25.5 : 4)
+    // A real hockey stop is 0.5 to 0.8 g: 4.4 to 7 m from 30 km/h (2026-11-25 playtest; it was 4 m, about 0.9 g).
+    expect(distance).toBeLessThanOrEqual(maneuver === 'uphill' ? 25.5 : 6.5)
   }
 })

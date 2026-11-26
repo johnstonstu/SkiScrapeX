@@ -46,11 +46,19 @@ export function createSurfaceSampler(
   grid: TerrainGrid,
   field: SurfaceField,
   canopy: Canopy | null,
-  options: { freshSnow?: number; inPark?: (x: number, z: number) => boolean; onMogul?: (x: number, z: number) => boolean; deform?: SnowDeform } = {},
+  options: {
+    freshSnow?: number
+    inPark?: (x: number, z: number) => boolean
+    onMogul?: (x: number, z: number) => boolean
+    deform?: SnowDeform
+    /** A race track while its event runs: groomed underfoot whatever the mask says. */
+    groomedAt?: (x: number, z: number) => boolean
+  } = {},
 ): SampleSurface {
   const fresh = Math.max(0, options.freshSnow ?? 1)
   return (x, z) => {
     if (options.inPark?.(x, z)) return SURFACES.park
+    if (options.groomedAt?.(x, z)) return SURFACES.groomed
     switch (surfaceAt(field, x, z)) {
       case SurfaceId.groomed:
         return SURFACES.groomed
