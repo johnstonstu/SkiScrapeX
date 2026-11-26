@@ -60,6 +60,7 @@ import { createCompDirector } from './app/compDirector'
 import { createRaceHud } from './ui/raceHud'
 import { createGoals, type Goals } from './app/goals'
 import { renderChallenges, renderResults, renderTitle, setTitleStatus } from './ui/goalsPanels'
+import { holdRiderAsset } from './render/rider/riderSkin'
 import { GATE_PENALTY, progressAlong } from './world/challenges'
 import { createCoach } from './app/tutorial'
 import { createNpcs, type Npcs } from './app/npcs'
@@ -123,6 +124,8 @@ const sky = createSky(lighting)
 scene.add(sky)
 const camera = new THREE.PerspectiveCamera(58, 1, 0.25, 25000)
 const rig = createCameraRig(camera, ui.canvas)
+// The rider GLB waits for the world data (see boot).
+const releaseRiderAsset = holdRiderAsset()
 const skierView = createSkierView()
 skierView.object.traverse((child) => (child.castShadow = true))
 scene.add(skierView.object)
@@ -373,31 +376,45 @@ async function warmShaders() {
   }
 }
 
+/** Resolves after the browser has painted the current DOM. */
+function nextPaint() {
+  return new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)))
+}
+
 async function boot() {
   // Review links (`?park`, `?ride`, `?at`) and test slopes go straight in.
   const skipTitle = ['dev', 'park', 'ride', 'at', 'perf', 'demo'].some((key) => params.has(key))
   if (skipTitle) ui.titleScreen.hidden = true
   else renderTitle(ui.titleScreen, null, false, titleActions(), !coach.done)
+  const status = (message: string, done: number) => {
+    // The rider GLB starts once the height grids (the bulk of the world data) are in.
+    if (done >= 0.5) releaseRiderAsset()
+    ui.status.textContent = message
+    setTitleStatus(ui.titleScreen, message, done)
+  }
   if (params.has('dev')) {
+    releaseRiderAsset()
     startDev('pitch')
   } else {
     try {
       const base = `${import.meta.env.BASE_URL}data/`
       // Hand-modelled scenery loads alongside the world data; it never rejects.
       const [world, scenery] = await Promise.all([
-        loadWorld(base, (message) => {
-          ui.status.textContent = message
-          setTitleStatus(ui.titleScreen, message)
-        }),
+        loadWorld(base, status).finally(releaseRiderAsset),
         loadSceneryAssets(),
       ])
       perf.phase('loadWorld')
+      // Building the stage blocks the page: paint the message first.
+      status('Building the village…', 0.85)
+      await nextPaint()
       startApex(world, scenery)
       perf.phase('startApex')
+      setTitleStatus(ui.titleScreen, 'Preparing shaders…', 0.95)
       await warmShaders()
       perf.phase('shaders')
       if (!skipTitle) showTitle()
     } catch (error) {
+      releaseRiderAsset()
       console.error(error)
       ui.status.textContent = 'Apex data not found. Showing test slopes.'
       startDev('pitch')

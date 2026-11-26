@@ -129,7 +129,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     shadowRange: 110,
     shadows: false,
     snowDetail: false,
-    forest: { near: 150, mid: 600, midShare: 0.45, farShare: 0.1, compact: true },
+    forest: { near: 150, mid: 600, midShare: 0.45, farShare: 0.1, compact: true, leanStandIns: true },
     apronForestDensity: 0.6,
     apronForestReach: 900,
     terrain: { near: 90, far: 150, cache: 24, coarseStride: 2 },
@@ -209,6 +209,7 @@ export function lighterQuality(level: QualityLevel): QualityLevel {
 export function scaledForest(base: ForestDetail, viewDistance: number): ForestDetail {
   return {
     compact: base.compact,
+    leanStandIns: base.leanStandIns,
     near: base.near * Math.min(1.2, viewDistance),
     mid: base.mid * viewDistance,
     midShare: Math.min(1, base.midShare * viewDistance),

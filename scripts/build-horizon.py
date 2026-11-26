@@ -13,6 +13,8 @@ from pathlib import Path
 import numpy as np
 from osgeo import gdal
 
+from height_packing import gzip_bytes, pack_heights
+
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / 'terrain' / 'generated'
 # Mirrors of the same COGs, tried in order.
@@ -87,8 +89,19 @@ def main():
         'sourceUrls': [dtm_url, dsm_url],
         'attribution': 'Contains information licensed under the Open Government Licence – Canada.',
     }
+    # Packed copies for the browser; the raw files stay for tools and older builds.
+    packed_heights = pack_heights(height_bytes, columns, rows, coarse=True)
+    packed_canopy = gzip_bytes(canopy_bytes)
+    meta['packedHeights'] = {
+        'file': 'horizon.delta.bin',
+        'encoding': 'plane-delta16-gzip-v1',
+        'sha256': hashlib.sha256(packed_heights).hexdigest(),
+    }
+    meta['packedCanopy'] = {'file': 'horizon-canopy.u8.gz.bin', 'encoding': 'gzip-v1'}
     (OUTPUT / 'horizon.f32').write_bytes(height_bytes)
     (OUTPUT / 'horizon-canopy.u8').write_bytes(canopy_bytes)
+    (OUTPUT / 'horizon.delta.bin').write_bytes(packed_heights)
+    (OUTPUT / 'horizon-canopy.u8.gz.bin').write_bytes(packed_canopy)
     (OUTPUT / 'horizon.json').write_text(json.dumps(meta, indent=2) + '\n', encoding='utf-8')
     print(f'Horizon {columns} x {rows} at {STEP} m, {np.nanmin(heights) + origin:.0f} to {np.nanmax(heights) + origin:.0f} m')
 

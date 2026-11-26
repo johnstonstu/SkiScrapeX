@@ -34,7 +34,13 @@ export interface TerrainManifest {
   heightEncoding: string
   packedHeights?: PackedHeights
   attribution: string
-  canopy?: { coverFile: string; heightFile: string; heightScale: number }
+  canopy?: {
+    coverFile: string
+    heightFile: string
+    heightScale: number
+    /** Gzip copies of the two files (`gzip-v1`); the raw files stay for older builds. */
+    packed?: { coverFile: string; heightFile: string; encoding: string }
+  }
   detail?: DetailManifest
 }
 
@@ -63,9 +69,10 @@ export interface World {
 }
 
 /** Generated files live in `data/` beside the page (see the data branch). */
-export async function loadWorld(base: string, onProgress?: (message: string) => void): Promise<World> {
+export async function loadWorld(base: string, onProgress?: (message: string, done: number) => void): Promise<World> {
   const url = (name: string) => `${base}${name}`
-  onProgress?.('Loading Apex terrain…')
+  // `done` is a rough share of the download (by bytes) and stage build, for the title's progress bar.
+  onProgress?.('Loading Apex terrain…', 0.02)
   const manifest = await fetchJson<TerrainManifest>(url('terrain.json'))
   if (manifest.version !== 1 || manifest.heightEncoding !== 'float32-le') {
     throw new Error('Unsupported terrain manifest')
@@ -75,7 +82,7 @@ export async function loadWorld(base: string, onProgress?: (message: string) => 
   const heights = littleEndianFloats(buffer)
   let grid = createTerrainGrid(manifest, heights)
   if (manifest.detail) {
-    onProgress?.('Loading 2 m terrain…')
+    onProgress?.('Loading 2 m terrain…', 0.15)
     const detail = await loadDetail(manifest, url).catch((error) => {
       console.warn('Detail terrain skipped', error)
       return null
@@ -83,7 +90,7 @@ export async function loadWorld(base: string, onProgress?: (message: string) => 
     if (detail) grid = withDetail(grid, detail)
   }
 
-  onProgress?.('Loading forest and runs…')
+  onProgress?.('Loading forest and runs…', 0.5)
   const [canopy, features, references, hillshade, horizon] = await Promise.all([
     loadCanopy(manifest, url),
     fetchJson<FeaturesDocument>(url('features.json')).catch(() => null),
@@ -133,10 +140,7 @@ async function loadHeightBytes(
   const packed = grid.packedHeights
   if (packed?.encoding === 'plane-delta16-gzip-v1' && typeof DecompressionStream === 'function') {
     try {
-      const response = await fetch(url(packed.file))
-      if (!response.ok || !response.body) throw new Error(`Missing ${packed.file}`)
-      const stream = response.body.pipeThrough(new DecompressionStream('gzip'))
-      const inflated = await new Response(stream).arrayBuffer()
+      const inflated = await inflate(url(packed.file))
       return unpackHeights(inflated, grid.columns, grid.rows, coarse)
     } catch (error) {
       console.warn(`Packed terrain skipped for ${rawFile}`, error)
@@ -149,7 +153,10 @@ async function loadCanopy(manifest: TerrainManifest, url: (name: string) => stri
   const info = manifest.canopy
   if (!info) return null
   try {
-    const [cover, height] = await Promise.all([fetchBuffer(url(info.coverFile)), fetchBuffer(url(info.heightFile))])
+    const [cover, height] = await Promise.all([
+      loadGzipped(url, info.coverFile, info.packed?.encoding === 'gzip-v1' ? info.packed.coverFile : undefined),
+      loadGzipped(url, info.heightFile, info.packed?.encoding === 'gzip-v1' ? info.packed.heightFile : undefined),
+    ])
     const count = manifest.columns * manifest.rows
     if (cover.byteLength !== count || height.byteLength !== count) return null
     const coverBytes = new Uint8Array(cover)
@@ -175,16 +182,37 @@ async function loadHorizon(url: (name: string) => string): Promise<Horizon | nul
     originZ: number
     heightFile: string
     canopyFile?: string
+    packedHeights?: PackedHeights
+    packedCanopy?: { file: string; encoding: string }
   }>(url('horizon.json'))
   if (meta.version !== 1) return null
-  const heights = littleEndianFloats(await fetchBuffer(url(meta.heightFile)))
+  const heights = littleEndianFloats(await loadHeightBytes(meta, url, meta.heightFile, true))
   if (heights.length !== meta.columns * meta.rows) return null
   let canopy: Float32Array | null = null
   if (meta.canopyFile) {
-    const bytes = new Uint8Array(await fetchBuffer(url(meta.canopyFile)))
+    const packed = meta.packedCanopy?.encoding === 'gzip-v1' ? meta.packedCanopy.file : undefined
+    const bytes = new Uint8Array(await loadGzipped(url, meta.canopyFile, packed))
     if (bytes.length === heights.length) canopy = Float32Array.from(bytes, (b) => b / 4)
   }
   return { columns: meta.columns, rows: meta.rows, step: meta.stepMetres, originX: meta.originX, originZ: meta.originZ, heights, canopy }
+}
+
+/** `packed` (a gzip of `raw`) when the browser can inflate it, else `raw`. */
+async function loadGzipped(url: (name: string) => string, raw: string, packed?: string): Promise<ArrayBuffer> {
+  if (packed && typeof DecompressionStream === 'function') {
+    try {
+      return await inflate(url(packed))
+    } catch (error) {
+      console.warn(`Packed file skipped for ${raw}`, error)
+    }
+  }
+  return fetchBuffer(url(raw))
+}
+
+async function inflate(address: string): Promise<ArrayBuffer> {
+  const response = await fetch(address)
+  if (!response.ok || !response.body) throw new Error(`Missing ${address}`)
+  return new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
 }
 
 function littleEndianFloats(buffer: ArrayBuffer): Float32Array {

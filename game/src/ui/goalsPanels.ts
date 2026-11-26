@@ -51,7 +51,9 @@ export function renderTitle(
   panel.innerHTML =
     '<div class="title-card"><p class="title-eyebrow eyebrow">Apex Mountain Resort · Penticton, BC</p>' +
     '<h1>Ski<b>Scrape</b>x</h1>' +
-    `<p class="title-status">${ready ? '' : 'Loading the mountain…'}</p><nav class="title-buttons" aria-label="Main menu"></nav>` +
+    `<p class="title-status">${ready ? '' : 'Loading the mountain…'}</p>` +
+    (ready ? '' : '<div class="title-progress" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>') +
+    `<nav class="title-buttons" aria-label="Main menu"></nav>` +
     `<div class="title-summary">${summary ? summaryHtml(summary) : ''}</div></div>` +
     '<p class="title-hint" aria-hidden="true"><span><kbd>↑</kbd> <kbd>↓</kbd> or <kbd>Tab</kbd> choose</span><span><kbd>Enter</kbd> select</span></p>'
   const buttons = panel.querySelector('.title-buttons')!
@@ -72,9 +74,16 @@ export function renderTitle(
   if (ready) (learnFirst ? learn : play).focus()
 }
 
-export function setTitleStatus(panel: HTMLElement, text: string): void {
+/** Loading message and, when `done` (0 to 1) is given, the progress bar under it. */
+export function setTitleStatus(panel: HTMLElement, text: string, done?: number): void {
   const status = panel.querySelector('.title-status')
   if (status) status.textContent = text
+  const bar = panel.querySelector<HTMLElement>('.title-progress')
+  if (bar && done !== undefined) {
+    const percent = Math.round(Math.min(1, Math.max(0, done)) * 100)
+    bar.setAttribute('aria-valuenow', String(percent))
+    bar.querySelector<HTMLElement>('span')!.style.width = `${percent}%`
+  }
 }
 
 export interface ChallengeRow {
