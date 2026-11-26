@@ -1,6 +1,6 @@
 # Status
 
-Updated 2026-11-24 for v0.9.17. Older measurement sections below stay dated. Open work is tracked as GitHub issues with phase labels. Release history is in `CHANGELOG.md`, the plan in `docs/roadmap.md`.
+Updated 2026-11-27 for v0.9.38. Older measurement sections below stay dated. Open work is tracked as GitHub issues with phase labels. Release history is in `CHANGELOG.md`, the plan in `docs/roadmap.md`.
 
 ## How the pieces fit
 
@@ -68,7 +68,7 @@ Updated 2026-11-24 for v0.9.17. Older measurement sections below stay dated. Ope
 - Timing: `tools/lyrics/align.mjs` matches a Whisper transcript (ffmpeg's whisper filter, `ggml-base.en`) to the known lyrics; `lyrics.html` on the dev server checks them by ear and re-times lines by tapping. Igloo Party's vocals are chopped and only its first three lines are timed.
 - Pure and tested: the shuffle bag and previous rule (`src/player/radio.ts`, `tests/radio.test.ts`), lyric lookup and word fill (`src/player/lyrics.ts`, `tests/lyrics.test.ts`), and a check that every manifest file exists and every lyrics file parses.
 
-## Adaptive music (2026-11-25, unreleased)
+## Adaptive music (2026-11-25, 0.9.22)
 
 - On by default. Settings has Music (on or off), Music source (Procedural, Tracks or Radio) and Music volume; the Sound button mutes it too.
 - Four moods: ambient (lifts, menus, standing still), cruise, drive (steeps and speed) and freestyle (park snow, rails, long air, landed tricks). The choice is pure and tested (`src/player/musicState.ts`, `tests/music.test.ts`), with hysteresis: Schmitt bands on speed and slope, a per-mood confirm time, a minimum dwell of 4 s, a 6 s freestyle hold, and the mood held through crashes.
@@ -96,7 +96,7 @@ Updated 2026-11-24 for v0.9.17. Older measurement sections below stay dated. Ope
 
 ## Runs, trees, village, creator and corks (2026-11-21, sixth pass)
 
-- Runs: `scripts/detect-runs.py` traces cleared corridors in canopy-cover inside the resort boundary that OSM does not map. The reviewed 21 (W1 to W6 on the south side below Hang'em High, likely Wildside; L1 to L15 elsewhere) live in `world/runOverlay.ts` with provisional names and are loaded with the OSM runs. Key map: `docs/runs-overlay.png`. Stu to supply real names.
+- Runs: `scripts/detect-runs.py` traces cleared corridors in canopy-cover inside the resort boundary that OSM does not map. The reviewed 21 (W1 to W6 on the south side below Hang'em High, likely Wildside; L1 to L15 elsewhere) live in `world/runOverlay.ts` and are loaded with the OSM runs. Key map: `docs/runs-overlay.png`. The Wildside cuts got their trail-map names in 0.9.18; traces with no known name are "Unnamed cut L…" and stay out of run challenges.
 - Trees: `pickSpecies` in `world/forest.ts` (elevation and canopy height) and six shapes in `render/treeShapes.ts`. Near chunks feed one instanced pool per species; far chunks keep a tinted stand-in.
 - Village: `world/village.ts` (lots from flat treeless ground by plowed roads, cars at 60%, decks on the downhill wall, Billy Goat Hut beside the Quickdraw top) and `render/villageView.ts`.
 - Creator: ski top-sheet graphics (canvas textures on UV'd skis), jacket accent, backpack.
@@ -133,7 +133,7 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 
 ## Open issues
 
-- Playtested by Stu through 0.8.x; still wanted: other Apex regulars. Landmarks are from OSM and the LidarBC terrain only.
+- Playtested by Stu through 0.9.33; still wanted: other Apex regulars. Landmarks are from OSM and the LidarBC terrain only.
 - Run widths are guessed from difficulty (11 to 16 m half-width). OSM run areas are not mapped at Apex, so edges are approximate.
 - The 2 m detail is smoothed for snowpack with one fixed sigma. Real snow fills gullies more than it rounds ridges; a fill pass (raise concave cells) could follow a playtest.
 - Trees, lifts and buildings sit on the 2 m ground; far away the 5 m mesh can be up to about 0.5 m off, which is not visible at that distance.
@@ -150,7 +150,7 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - Wider groomers + lift clearings (0.9.6): easy/mid/adv half-widths 22/20/15; lift cut 14 m half, terminals 20 m.
 - Tree snow / summit ghosts (0.9.7): heavier branch snow + far frost tint; more rime pillars above 2080 m.
 - Stock's green terminals + seat fallbacks; Quickdraw Uni polish (0.9.8).
-- Thicker village roof snow + near chimneys; timber place boards (0.9.9). Sky presets already shipped earlier — left alone.
+- Thicker village roof snow + near chimneys; timber place boards (0.9.9). Sky presets already shipped earlier and were left alone.
 - T-bar drive/return split, portal towers, Magic Carpet rails, Quickdraw maze hint (0.9.10).
 - Ragged run edges + deeper mogul crests with cast shadows (0.9.11).
 - Modest Saloon + Inn hero massing (gable/snow/porch/board) without a photo rebuild (0.9.12).
@@ -159,11 +159,28 @@ Largest remaining costs: the full-crop 5 m terrain mesh (680k triangles in one c
 - Summit, towers and windows (0.9.15): windows on all building LODs, Billy Goat Hut on its OSM footprint (other summit shells dropped in `world/corrections.ts`), telecom towers on Beaconsfield and Apex Mountain (`world/telecom.ts`).
 - Deep snow, drops and fitted runs (0.9.16): deformable trenches and berms around the player (drawn on Medium and High, read by the sim everywhere), West Bank moguls and tower drop, The Pit cliff and rock band, LiDAR-fitted run corridors, edge saplings only at real edges, fall-line corduroy, window detail, upload and streaming performance fixes. Not yet profiled on a real GPU.
 - Arrivals, unloads, parks and rider feel (0.9.17): free ski opens on the Quickdraw chair, arrival camera shot, T-bar and carpet step-aside unloads, carpet follows the ground, instant trenches, pole push vs graded tuck, gravity-relative lean, Aerial Site / Prospector (L2) / Claim Jumper XL parks, antialiased windows.
+- Run pass A (0.9.18): five upper Quickdraw south-face runs and Wildly Easy from the research handoff, the Wildside traces named, Upper and Lower splits, saved medals follow renames.
+- Deep snow fixes (0.9.19): trench uploads reach the GPU as they form, softer pole plant.
+- Blender rider (0.9.20): skinned GLB body with jacket, pants, glove and headwear styles, cloth physics and snow that sticks to clothes; 31 meshes and about 15k triangles per rider.
+- Blender scenery (0.9.21): Quickdraw, Stock's and T-Bar modelled from photos, Gunbarrel Saloon and Apex Mountain Inn hero buildings; two-groove groomer tracks.
+- Adaptive music (0.9.22), see the section above.
+- Runs pass B (0.9.23): four trail-map glades with fall-line lanes, moguls and chop from the footage, packed Grandmother's, Quickdraw-top snow fencing, tests against the handoff's LiDAR run profiles, chunked mogul meshes.
+- Apex events (0.9.24): Downhill, Shoot the Chute, Slalom, Teck Open GS, Kristi's Moguls, Aerials and Match Your Time, with start gates, gate grades, a racing line assist and ghosts. Course props appear only during the event.
+- UI and UX pass (0.9.25): frosted glass menus, new HUD, title, pause and results screens; arrow keys drive every menu.
+- Rider legs (0.9.26, 0.9.27): true hinge knees, a lighter standing stance, legs that incline into the turn, a wider skating push.
+- Chair 9 FM (0.9.28), see the section above.
+- Crash poses stay on the snow (0.9.29), with a rider clipping test.
+- Race day fixes (0.9.30): finish run-out, no-progress DNF, groomed race lines, no trick cards in races.
+- Physics tuning (0.9.31) from `game/tuning/physlab.test.ts`: faster tuck, slower edge roll, keyboard edge eased by speed, realistic hockey stops, frame-rate independent key taps.
+- Rider lean follows the physics (0.9.32, 0.9.34): full lean and angulation that builds with edge, chest down the fall line, a snowboard stance of its own, drawn at 80% of the physics lean on the board.
+- Race starts, gates, moguls and lift tops (0.9.33): hold through the count, FIS-sized gate panels, pivoting mogul comp autopilot, unloads onto open snow, lift shacks reach the ground.
+- Mobile pass (0.9.35 to 0.9.37): a minimal in-run screen on touch (Settings, Screen while skiing), phone layouts for Runs, Rider, Challenges and Pause, 44 px tap targets, touch controls that follow the input in use, `dvh` sizing, fullscreen, a web app manifest for the home screen and Screen Wake Lock. Checked at iPhone SE, iPhone 15 and iPad sizes in a browser; not yet on a real phone (#50).
+- Lighter village and smaller first download (0.9.38): park hardware batched into one mesh per material (village spot about 415 draws on Low, 465 on High), lean two-cone trees on Low, the rider model loads after the height grids, a packed horizon and gzip canopy (about 9.1 MB to 5.2 MB before the title), a title progress bar.
 - Tuck drag raised in 0.8.11 (0.42 m²); re-check equilibrium on Gunbarrel / Grandfather's after a playtest.
-- Buildings are shells from OSM footprints with guessed heights. Only 10 of 147 have tagged storeys. No interiors, decks or props yet.
-- Roads are stamped as packed snow; there are no cars, parking lots or village props.
+- Buildings are shells from OSM footprints with guessed heights (only 10 of 147 have tagged storeys), apart from the Blender-modelled Gunbarrel Saloon and Apex Mountain Inn. No interiors.
+- Roads are stamped as packed snow. Parking lots, cars and decks come from the LiDAR (`world/village.ts`); most other village details in #38 are still to do.
 - Mobile performance is untested on real devices. Touch devices get fewer trees, lower pixel ratio, fewer particles and the Low profile, which from 0.8.7 turns shadows off unless Settings → Shadows is On.
 - The horizon is real NRCan MRDEM 30 m terrain and canopy out to about 12 km (`scripts/build-horizon.py`, run by the data workflow). Without it the game falls back to procedural hills.
-- About 20 runs the resort grooms were missing from OSM. 21 cleared corridors are now traced from LiDAR with provisional names; matching them to real names (Wildside: Gauntlet, Glade-iator, Granny's Glades, Gun Slinger, Jackpot, Panhandler, ShootOut, Showdown and others) needs Stu or the trail map. Gladed runs with sparse trees are not detected.
+- About 20 runs the resort grooms were missing from OSM. 21 cleared corridors are traced from LiDAR; the Wildside ones are named from the trail map (0.9.18) and the rest without a known name stay "Unnamed cut L…". Gladed runs with sparse trees are not detected, so the four glades are drawn from the handoff polygons instead (0.9.23).
 - OSM tags Beaconsfield Mountain with 2247 m, which is Apex Mountain's height. The game labels peaks from the LiDAR instead (about 2176 m).
 - `npm audit` is clean since vitest 5 (0.8.x).
