@@ -160,6 +160,8 @@ export const THIGH_LENGTH = 0.43
 export const SHIN_LENGTH = 0.42
 export const UPPER_ARM = 0.29
 export const FORE_ARM = 0.27
+/** Hip sockets: how far the thighs hang below the hips bone. */
+export const HIP_SOCKET_DROP = 0.06
 /** Ankle point in a ski's space (the boot's pivot). */
 export const ANKLE_IN_SKI = new THREE.Vector3(0, 0.2, -0.01)
 /** Spine (lower back) origin above the hips, and chest origin above the spine. */
@@ -367,7 +369,7 @@ export function buildRider() {
   const legs: Leg[] = skis.map((ski, index) => {
     const side = index === 0 ? 1 : -1
     const thigh = bone(`thigh_${side === 1 ? 'L' : 'R'}`)
-    thigh.position.set(side * 0.11, -0.06, 0)
+    thigh.position.set(side * 0.11, -HIP_SOCKET_DROP, 0)
     const upper = limb(0.1, 0.088, THIGH_LENGTH, mat.pants, 0.014)
     const knee = bone(`shin_${side === 1 ? 'L' : 'R'}`)
     knee.position.y = -THIGH_LENGTH

@@ -2,6 +2,14 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.26 (2026-11-25): Rider legs
+
+### Fixed
+
+- **Knees bend like knees.** The leg solver let the shin bend sideways off the thigh (up to about 45° in a carve or hockey stop), so the trousers folded across the knee. The thigh now turns so the kneecap faces the bend and the knee is a true hinge.
+- **No more permanent squat.** The rider stood with the knees bent about 85° all the time, so driving the knees into a turn swung the thighs out flat. The stance is now about 55° standing and 60° cruising, deeper as you crouch, carve or tuck, and the shins follow the boot cuffs.
+- **Double-poling** pushes from the waist on fairly straight legs, with a knee dip on each stroke, instead of sitting into a squat.
+
 ## 0.9.25 (2026-11-25): UI and UX pass
 
 ### Changed
