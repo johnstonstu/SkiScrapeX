@@ -171,3 +171,26 @@ Held full-edge turn (edge 50°):
 - `frames/lab_*/`: deterministic rider-lab frame sequences and a clip.mp4 for each (turns at 12°/20°/25°, tuck, ollie attempt).
 - `raw/`: per-run JSON, run stdout, browser console log, CPU profile (`cpu-profile.cpuprofile`), probe, UI-flow JSON.
 - Scripts: `/workspace/skiscrapex-live/pw/p25_*.mjs` and `/workspace/sx-main/game/tests/zz_playtest_physlab.test.ts`. The lab test lives in the extracted main copy, not in the repo clone.
+
+## Snowboarder (added 20:45 PST, live v0.9.29, origin/main 28f409e)
+Full report: **[SNOWBOARDER.md](SNOWBOARDER.md)**. Evidence is in `snowboard/`.
+
+- **How to select it:** Rider → "Skis or board" → Snowboard. It works in free-ski and in every event. There is no regular/goofy choice, no binding-angle setting and no fakie toggle.
+- **HIGH: the legs.** The board reuses the skier's leg and body pipeline with the ski "hips over feet" solver turned off (`render/rider/skierView.ts:797`).
+  - In real-sim **toe-side** turns the rider folds flat over the toe edge: hips 0.22 m above the board and below the knees, torso 77° off the slope normal, knees bent back toward the heel (109–130° off the boot toe), and the back hand 18 cm into the snow.
+  - In **heel-side** turns the rider sits on their heels, with hips level with the knees.
+  - **When cruising** it is a frog squat: 83–87° of knee flex, knees bowed out past the bindings.
+  - Causes:
+    - the whole-body incline pivots at the board centre (`:763`);
+    - the hip height formula assumes a vertical-leg stance and is clamped at 0.40 m (`:765-768`);
+    - the knee hint comes from the ski-boot cuff relative to the hip–ankle midpoint (`:261-274`);
+    - the angulation terms act about the wrong axis once the hips are turned 90° (`:775-782`).
+  - The feet stay attached (0 cm gap), nothing passes through the deck, and the heel/toe edge mapping is correct, including riding switch.
+- **MED, physics:** the board is the ski model with an 8 m sidecut and more float.
+  - Same speeds: Chute 1:12.8 and 129 km/h on the board, against 1:14.0 and 127 km/h on skis.
+  - Invisible skating and pole-pushing on a board (`sim/skier.ts:269`, `:429`).
+  - Stops are too strong: 52 → 0 km/h in 0.87 s over 7.4 m.
+  - The board looks under-leaned for the g it pulls: about 2.1 g on a 5.1 m arc, with the view capped at 49° of lean and 41° of roll.
+  - No crash at 13.9 g of load.
+  - Switch only happens after landing a spin backwards.
+- **Events on the snowboard:** Shoot the Chute PASS (1:12.8), Aerials PASS (14 pts), Kristi's Moguls PASS (82 pts, gold).

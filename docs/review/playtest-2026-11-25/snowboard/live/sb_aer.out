@@ -1,0 +1,10 @@
+[20:40:38] sb_aer: page loaded 2020 ms; startEvent(apex-aerials) -> true
+[20:40:40] sb_aer: course {"name":"Aerials","length":210,"line":5,"targets":{"gold":30,"silver":22,"bronze":14},"title":"Aerials","beat":false}
+[20:40:45] shot sb_aer_01_start
+[20:41:00] shot sb_aer_02_t12
+[20:41:07] shot sb_aer_02_t20
+[20:41:11] sb_aer: pilot err undefined; samples 185 over 26.68s
+[20:41:11] sb_aer: events [{"t":15.67,"takeoff":{"kmh":44,"vy":2.8}},{"t":17.79,"trick":"Mute DD 1.1 × FORM 5.5 = 6.0"},{"t":20.96,"takeoff":{"kmh":27,"vy":1.1}},{"t":23.51,"takeoff":{"kmh":42,"vy":-1.3}},{"t":24.47,"trick":"Air DD 1.0 × FORM 8.0 = 8.0"},{"t":28.12,"trick":"Combo ×2 1,214 TOTAL +1,214"},{"t":29.11,"trick":"Combo ×21,214 total+1,214"}]
+[20:41:11] sb_aer: RESULT AERIALS | 14 pts | First finish | Silver needs 22 pts | Jump 1: Air | DD 1.0 × form 8.0 = 8.0 | Jump 2: Mute | DD 1.1 × form 5.5 = 6.0 | Top speed | 62 km/h | Distance | 189 m | Vertical | 48 m | Retry | R | Keep skiing | Challenges
+[20:41:15] shot sb_aer_03_end
+CONSOLE ?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.

@@ -1,0 +1,62 @@
+[
+ {
+  "switch": false,
+  "steer": 1,
+  "still_switch": false,
+  "dx_m": -4.1,
+  "edge_deg": 50,
+  "turned_toward": "-x",
+  "toe_world_x": -0.662,
+  "nose_leads": 0.958,
+  "edge_down": "toe",
+  "hips_over_toe_cm": 24.6,
+  "head_over_toe_cm": 91.2,
+  "front_knee_vs_toe": 109.5,
+  "back_knee_vs_toe": 124.5
+ },
+ {
+  "switch": false,
+  "steer": -1,
+  "still_switch": false,
+  "dx_m": 4.1,
+  "edge_deg": -50,
+  "turned_toward": "+x",
+  "toe_world_x": -0.263,
+  "nose_leads": 0.958,
+  "edge_down": "heel",
+  "hips_over_toe_cm": -24.6,
+  "head_over_toe_cm": -62.7,
+  "front_knee_vs_toe": 4.5,
+  "back_knee_vs_toe": 28.4
+ },
+ {
+  "switch": true,
+  "steer": 1,
+  "still_switch": true,
+  "dx_m": -4.1,
+  "edge_deg": 50,
+  "turned_toward": "-x",
+  "toe_world_x": 0.662,
+  "nose_leads": -0.958,
+  "edge_down": "heel",
+  "hips_over_toe_cm": -24.6,
+  "head_over_toe_cm": -62.3,
+  "front_knee_vs_toe": 12.4,
+  "back_knee_vs_toe": 19.5
+ },
+ {
+  "switch": true,
+  "steer": -1,
+  "still_switch": true,
+  "dx_m": 4.1,
+  "edge_deg": -50,
+  "turned_toward": "+x",
+  "toe_world_x": 0.263,
+  "nose_leads": -0.958,
+  "edge_down": "toe",
+  "hips_over_toe_cm": 24.6,
+  "head_over_toe_cm": 105.2,
+  "front_knee_vs_toe": 94.1,
+  "back_knee_vs_toe": 143.5
+ }
+]

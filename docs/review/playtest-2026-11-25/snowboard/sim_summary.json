@@ -1,0 +1,66 @@
+[
+ {
+  "name": "straight",
+  "maxKmh": 71.9,
+  "brakeFromKmh": 0,
+  "stopTime": -1,
+  "stopDist": 0,
+  "turningSamples": 0
+ },
+ {
+  "name": "hold_right",
+  "maxKmh": 38.7,
+  "brakeFromKmh": 0,
+  "stopTime": -1,
+  "stopDist": 0,
+  "turningSamples": 10,
+  "mismatch_toe_toe": 10,
+  "hips_over_toe": 150.8
+ },
+ {
+  "name": "hold_left",
+  "maxKmh": 38.7,
+  "brakeFromKmh": 0,
+  "stopTime": -1,
+  "stopDist": 0,
+  "turningSamples": 10,
+  "mismatch_heel_heel": 10,
+  "hips_over_toe": 150.8
+ },
+ {
+  "name": "linked_1.2s",
+  "maxKmh": 34.9,
+  "brakeFromKmh": 0,
+  "stopTime": -1,
+  "stopDist": 0,
+  "turningSamples": 85,
+  "mismatch_toe_toe": 37,
+  "hips_over_toe": 145.29999999999993,
+  "mismatch_heel_toe": 8,
+  "mismatch_heel_heel": 34,
+  "mismatch_toe_heel": 6
+ },
+ {
+  "name": "stop_brake",
+  "maxKmh": 52.4,
+  "brakeFromKmh": 52.3,
+  "stopTime": 0.867,
+  "stopDist": 7.4,
+  "turningSamples": 3,
+  "mismatch_toe_toe": 3,
+  "hips_over_toe": -76.2
+ },
+ {
+  "name": "ski_hold_right",
+  "maxKmh": 38.9,
+  "brakeFromKmh": 0,
+  "stopTime": -1,
+  "stopDist": 0,
+  "turningSamples": 10,
+  "mismatch_toe_heel": 5,
+  "hips_over_toe": 234.8,
+  "mismatch_toe_toe": 3,
+  "mismatch_toe_flat": 1,
+  "mismatch_heel_toe": 1
+ }
+]

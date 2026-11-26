@@ -1,0 +1,30 @@
+[20:32:09] sb: version v0.9.29 load 2670 ms
+[20:32:09] sb: title buttons ["Learn to skiA short lesson by the Magic Carpet","Free skiDrop in and ski anywhere on the mountain","ChallengesApex events, slalom, park scores and nuggets","RiderOutfit, skis or snowboard","SettingsGraphics, camera, sound and assists"]
+[20:32:15] sb shot 01_rider_panel
+[20:32:15] sb: rider button clicked=true; models ["All-mountain14 m sidecut, quick to carve pressed=true","Park twin18 m sidecut, loose and playful pressed=false","Powder22 m sidecut, floats in deep snow pressed=false","Snowboard8 m sidecut, quick edge to edge, surfs powder pressed=false","Shell pressed=true","Park rat pressed=false","Racer pressed=false","Hoodie pressed=false","Puffer pressed=false","Baggy pressed=true","Slim pressed=false","Race pressed=false","Mitts pressed=true","Gloves pressed=false","Pipe gloves pressed=false","Helmet pressed=true","Beanie pressed=false","Cap pressed=false","None pressed=true","Backpack pressed=false","Solid pressed=false","Stripes pressed=true","Chevron pressed=false","Camo pressed=false","Fade pressed=false","Checker pressed=false","TopoSki 20 different runs pressed=false","NuggetFind 6 gold nuggets pressed=false"]
+[20:32:22] sb shot 02_snowboard_selected_preview
+[20:32:22] sb: outfit stored {"jacket":"#d42a2f","pants":"#27313f","helmet":"#f2f5f8","skis":"#f2b705","gaiter":"#59606b","model":"snowboard","jacketStyle":"shell","pantsStyle":"baggy","gloves":"mitt","headwear":"helmet","jacketAccent":"#8f1c20","skiGraphic":"stripes","skiAccent":"#1b1f24","backpack":false}; stance/goofy options in DOM: ["View distance"]
+[20:32:35] sb shot 03_start_gate
+[20:32:54] sb shot 04_push_0
+[20:33:05] sb phase 04_push: {"kmh":35.9,"mode":"tucked","count":"GO!","time":"0:21.4","res":false}
+[20:33:14] sb shot 05_straight_0
+[20:33:19] sb shot 05_straight_1
+[20:33:19] sb phase 05_straight: {"kmh":14.7,"mode":"tucked","count":"GO!","time":"0:30.5","res":false}
+[20:33:26] sb shot 06_toeside_D_0
+[20:33:26] sb phase 06_toeside_D: {"kmh":8,"mode":"carving","count":"GO!","time":"0:34.8","res":false}
+[20:33:33] sb shot 07_heelside_A_0
+[20:33:33] sb phase 07_heelside_A: {"kmh":5.7,"mode":"carving","count":"GO!","time":"0:39.3","res":false}
+[20:33:40] sb shot 08_toeside_D_0
+[20:33:40] sb phase 08_toeside_D: {"kmh":0,"mode":"still","count":"GO!","time":"0:43.7","res":false}
+[20:33:45] sb shot 09_heelside_A_0
+[20:33:45] sb phase 09_heelside_A: {"kmh":1.2,"mode":"carving","count":"GO!","time":"0:47.0","res":false}
+[20:33:53] sb shot 10_straight_0
+[20:33:54] sb phase 10_straight: {"kmh":5,"mode":"tucked","count":"GO!","time":"0:53.9","res":false}
+[20:33:55] sb phase 11_pop: {"kmh":1,"mode":"straight","count":"GO!","time":"0:54.9","res":false}
+[20:34:00] sb shot 11b_air_0
+[20:34:01] sb phase 11b_air: {"kmh":9.6,"mode":"straight","count":"GO!","time":"0:58.2","res":false}
+[20:34:05] sb shot 12_stop_S_0
+[20:34:05] sb phase 12_stop_S: {"kmh":0,"mode":"still","count":"GO!","time":"1:02.1","res":false}
+[20:34:12] sb shot 13_still_0
+[20:34:13] sb phase 13_still: {"kmh":0.1,"mode":"still","count":"GO!","time":"1:06.5","res":false}
+[20:34:14] sb: recorded 348 samples; fps ~ 3.2

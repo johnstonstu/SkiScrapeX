@@ -1,0 +1,13 @@
+board linked 0.9 steer 0 brake 0 air False | hips 0.89 kneeL 0.56 kneeR 0.58 head 1.55 handL 1.11 handR 0.95 torso-tilt 15°
+board linked 1.7 steer 1 brake 0 air False | hips 0.22 kneeL 0.51 kneeR 0.48 head 0.37 handL 0.12 handR -0.18 torso-tilt 77°
+board linked 2.1 steer 1 brake 0 air False | hips 0.34 kneeL 0.45 kneeR 0.47 head 0.58 handL 0.26 handR -0.00 torso-tilt 69°
+board linked 2.45 steer -1 brake 0 air False | hips 0.74 kneeL 0.40 kneeR 0.40 head 1.32 handL 0.86 handR 0.68 torso-tilt 32°
+board linked 3.1 steer -1 brake 0 air False | hips 0.55 kneeL 0.52 kneeR 0.51 head 1.21 handL 0.80 handR 0.74 torso-tilt 13°
+board linked 3.5 steer -1 brake 0 air False | hips 0.47 kneeL 0.56 kneeR 0.54 head 1.11 handL 0.72 handR 0.68 torso-tilt 18°
+board linked 3.85 steer 1 brake 0 air False | hips 0.42 kneeL 0.59 kneeR 0.59 head 1.05 handL 0.68 handR 0.64 torso-tilt 20°
+board brake 3.3 steer 0 brake 1 air False | hips 0.66 kneeL 0.36 kneeR 0.35 head 1.20 handL 0.76 handR 0.56 torso-tilt 38°
+board pop 2.3 steer 0 brake 0 air False | hips 0.76 kneeL 0.52 kneeR 0.56 head 1.36 handL 0.91 handR 0.74 torso-tilt 27°
+board pop 2.6 steer 0 brake 0 air True | hips 0.67 kneeL 0.60 kneeR 0.37 head 1.33 handL 1.26 handR 0.95 torso-tilt 17°
+board pop 2.8 steer 0 brake 0 air True | hips 0.66 kneeL 0.62 kneeR 0.38 head 1.32 handL 1.26 handR 0.95 torso-tilt 17°
+ski linked 1.7 steer 1 brake 0 air False | hips 0.80 kneeL 0.49 kneeR 0.48 head 1.36 handL 1.04 handR 0.74 torso-tilt 34°
+ski linked 3.1 steer -1 brake 0 air False | hips 0.83 kneeL 0.49 kneeR 0.49 head 1.37 handL 0.67 handR 0.87 torso-tilt 36°

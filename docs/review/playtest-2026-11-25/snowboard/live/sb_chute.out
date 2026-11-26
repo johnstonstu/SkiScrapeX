@@ -1,0 +1,16 @@
+[20:38:04] sb_chute: page loaded in 2320 ms
+[20:38:05] sb_chute: startEvent(shoot-the-chute) -> true
+[20:38:06] sb_chute: course {"kind":"event","id":"event:shoot-the-chute","name":"Shoot the Chute","format":"race","length":1136,"gates":0,"gateKind":"none","trap":[749,863],"splits":[],"targets":{"gold":66.5,"silver":80,"bronze":99.5},"start":[1525,572,1532],"startHeading":129,"line0":[1524.5853520169908,1532.2955059411568],"lineEnd":[1479.08,506.18],"linePts":25,"title":"Shoot the Chute","best":"–","count":"3","countHidden":false}
+[20:38:11] shot sb_chute_01_start
+[20:38:30] shot sb_chute_02_t15
+[20:38:59] shot sb_chute_02_t45
+[20:39:14] shot sb_chute_02_t60
+[20:39:33] sb_chute: evlen [7,["GO!","",7,true]]
+[20:39:33] sb_chute: steps 539 down function
+[20:39:33] sb_chute: pilot error undefined
+[20:39:33] sb_chute: elapsed 82.601s, samples 538
+[20:39:33] sb_chute: events [{"t":0.2,"count":"2"},{"t":1.43,"count":"1"},{"t":2.82,"count":"GO!"},{"t":3.14,"trick":"Fast start +7 KM/H"},{"t":4.39,"count":""},{"t":76.95,"trick":"Radar 126 KM/H"},{"t":86.63,"trick":"Radar126 km/h"}]
+[20:39:33] sb_chute: RESULT SHOOT THE CHUTE | 1:12.8 | First finish | Gold needs 1:06.5 | Speed trap | 126 km/h | Top speed | 129 km/h | Distance | 1114 m | Vertical | 344 m | Eric Pehota | 151 km/h | Retry | R | Keep skiing | Challenges
+[20:39:36] shot sb_chute_03_end
+[20:39:36] sb_chute: max 129.1 km/h, final {"t":86.769,"st":72.792,"x":1468.77,"y":229.83,"z":516.28,"vx":13.36,"vy":-7.5,"vz":-21.49,"kmh":95,"hdg":-132.2,"trav":-148.1,"edge":50,"skid":0.273,"pitch":18.4,"rad":5.1,"load":13.88,"grip":6.22,"chat":0,"wash":1,"mode":"carving","gnd":1,"tuck":1,"sink":0,"surf":"groomed","crash":0,"hud":"1:12.8","title":"Shoot the Chute","res":1}
+CONSOLE ?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.
