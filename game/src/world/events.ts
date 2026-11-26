@@ -330,6 +330,28 @@ export interface EventCourse {
   moguls?: MogulCourse
 }
 
+/** Formats raced against the clock on a prepared track, as opposed to the judged ones. */
+export function isRaceFormat(format: EventFormat): boolean {
+  return format === 'race' || format === 'twoRun' || format === 'match'
+}
+
+/** Groomed snow either side of the outermost gate pole on a race track, metres. */
+export const RACE_TRACK_MARGIN = 4
+/** Half width of a track with no gates (Shoot the Chute), metres. */
+export const RACE_TRACK_OPEN = 10
+
+/**
+ * The prepared track a race runs on while it is on: the course line and the
+ * half width the cats groom so the gates and the racing line sit on firm snow
+ * with no moguls, powder or park underfoot. Null for the judged formats.
+ */
+export function raceTrack(course: EventCourse): { line: Point2[]; halfWidth: number } | null {
+  if (!isRaceFormat(course.def.format)) return null
+  const gates = course.def.gates
+  const halfWidth = gates.kind === 'none' ? RACE_TRACK_OPEN : gates.offset + gates.halfWidth + RACE_TRACK_MARGIN
+  return { line: course.line, halfWidth }
+}
+
 export function buildEventCourse(resort: Resort, def: EventDef): EventCourse {
   const stitched = trimLine(stitch(resort, def.legs), def.startTrim ?? 0)
   const line: Point2[] = def.straight ? [stitched[0], pointAlong(stitched, def.straight)] : stitched

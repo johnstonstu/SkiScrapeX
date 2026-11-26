@@ -53,6 +53,8 @@ import { lowerAutoCap, readAutoCap } from './app/autoCap'
 import { showGraphicsProblem } from './app/graphicsFail'
 import { createSession, type Challenge, type SessionEvent } from './app/session'
 import { createRaceDirector } from './app/raceDirector'
+import { createRunout } from './app/runout'
+import { isRaceFormat } from './world/events'
 import { createCompDirector } from './app/compDirector'
 import { createRaceHud } from './ui/raceHud'
 import { createGoals, type Goals } from './app/goals'
@@ -191,6 +193,8 @@ const effects = createSnowEffects(scene, lighting, pixelRatio, quality)
 effects.setBoard(outfit.model === 'snowboard')
 const tricks = createTrickFeed(ui.trick)
 const raceHud = createRaceHud()
+/** Braking after the finish line before the result shows. */
+const runout = createRunout()
 const race = createRaceDirector({ hud: raceHud, show: (title, detail, kind) => tricks.show(title, detail, kind), assistOn: () => settings.raceAssist })
 const comp = createCompDirector({ hud: raceHud, show: (title, detail, kind) => tricks.show(title, detail, kind), onOut: () => endChallenge('Out of the line: three misses in a row') })
 const coach = createCoach(ui.coach, () => (controls.gamepad ? 'pad' : mobile ? 'touch' : 'keys'), { onExit: () => (tutorialLine = null), toTop: (message) => transition(message, 1.1, spawn) })
@@ -582,10 +586,13 @@ function spawn(keepCamera = false) {
   else skier = createSkier(stage.slope)
   clock.accumulator = 0
   session = createSession(challenge)
+  runout.cancel()
   race.begin(challenge, session)
   comp.begin(challenge)
   goals?.resetGates()
   tricks.resetTotal()
+  // Races are timed, not judged: no trick cards or combos on the course.
+  tricks.setMuted(challenge.kind === 'event' && isRaceFormat(challenge.course.def.format))
   effects.clear()
   stage.snowDeform?.stamper.reset()
   sound.reset()
@@ -652,6 +659,8 @@ function setFreeSki() {
   challenge = { kind: 'free' }
   goals?.activate(challenge)
   session = createSession(challenge)
+  runout.cancel()
+  tricks.setMuted(false)
   race.end()
   comp.end()
 }
@@ -712,14 +721,17 @@ function onSessionEvent(event: SessionEvent) {
       // Run one: back to the start for run two (to match it, or to add to it).
       const first = session.total
       const next = goals.event(current.course, first)
-      transition(`Run 1: ${formatTime(first)}
-${current.course.def.format === 'match' ? 'Now match it' : 'Run 2'}`, 2, () => startChallenge(next))
+      crossLine(() =>
+        transition(`Run 1: ${formatTime(first)}
+${current.course.def.format === 'match' ? 'Now match it' : 'Run 2'}`, 2, () => startChallenge(next)),
+      )
       return
     }
     if (event.type === 'finish') {
       goals?.recordSplits(current.id, session.stats.splits)
-      endChallenge(null)
+      crossLine(() => endChallenge(null))
     } else if (event.type === 'offCourse') endChallenge('Left the course')
+    else if (event.type === 'stalled') endChallenge('No progress: DNF')
     return
   }
   if (event.type === 'gate') {
@@ -729,8 +741,17 @@ ${current.course.def.format === 'match' ? 'Now match it' : 'Run 2'}`, 2, () => s
       const next = Math.min(event.index + 2, event.total)
       ui.title.textContent = `${challenge.run.name} · slalom · ${event.index + 1 < event.total ? `gate ${next}/${event.total}` : 'to the finish'}${session.stats.gatesMissed ? ` · ${session.stats.gatesMissed} missed` : ''}`
     }
-  } else if (event.type === 'finish') endChallenge(null)
+  } else if (event.type === 'finish') {
+    if (challenge.kind === 'park') endChallenge(null)
+    else crossLine(() => endChallenge(null))
+  } else if (event.type === 'stalled') endChallenge('No progress: DNF')
   else endChallenge('Left the course')
+}
+
+/** Over the line: the clock has stopped. Brake to a stop, then `then` shows the result. */
+function crossLine(then: () => void) {
+  tricks.show('Finish', formatTime(session.total), 'bank')
+  runout.start(then)
 }
 
 /** One-time tips the first time something happens. Each shows once ever. */
@@ -1167,7 +1188,7 @@ function tick(dt: number, frameMs: number) {
       pause = null
       done()
     }
-  } else if ((race.input(input, skier, dt), comp.input(input, skier, race.holding), race.holding)) {
+  } else if ((race.input(input, skier, dt), comp.input(input, skier, race.holding), runout.input(input), race.holding)) {
     // Held in the start gate until GO.
   } else {
     perf.begin()
@@ -1187,6 +1208,7 @@ function tick(dt: number, frameMs: number) {
     }
     if (skier.mode !== 'crashed') crashShown = false
     for (const event of session.step(skier, dt)) onSessionEvent(event)
+    runout.step(skier, dt)
     race.record(skier)
     coach.update(skier, input, dt)
     coachTips()

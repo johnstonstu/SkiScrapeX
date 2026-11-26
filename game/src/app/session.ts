@@ -57,9 +57,14 @@ export type SessionEvent =
   | { type: 'trap'; speed: number }
   /** A race gate missed in an event: the attempt is over. */
   | { type: 'disqualified'; gate: number }
+  /** The clock is running but the racer has not moved on down the course for `STALL_SECONDS`. */
+  | { type: 'stalled' }
 
 /** Seconds allowed far off the course before the attempt ends. */
 const OFF_COURSE_SECONDS = 4
+/** With the clock running, less than `STALL_METRES` of progress down the course in this long ends the attempt. */
+export const STALL_SECONDS = 20
+export const STALL_METRES = 3
 
 export function createSession(challenge: Challenge) {
   const stats: RunStats = { time: 0, distance: 0, vertical: 0, topSpeed: 0, gatesPassed: 0, gatesMissed: 0, penalty: 0, trapSpeed: 0, splits: [] }
@@ -80,6 +85,10 @@ export function createSession(challenge: Challenge) {
   let maxS = 0
   let offTime = 0
   let nextGate = 0
+  // Progress mark for the stall rule: the furthest point reached, and the clock time since it last moved on.
+  const stallRule = challenge.kind === 'event' || challenge.kind === 'slalom' || challenge.kind === 'time'
+  let stallMark = 0
+  let stallTime = 0
 
   return {
     challenge,
@@ -125,6 +134,17 @@ export function createSession(challenge: Challenge) {
           finished = true
           events.push({ type: 'offCourse' })
           return events
+        }
+        if (stallRule && timing) {
+          if (maxS > stallMark + STALL_METRES) {
+            stallMark = maxS
+            stallTime = 0
+          } else stallTime += dt
+          if (stallTime > STALL_SECONDS) {
+            finished = true
+            events.push({ type: 'stalled' })
+            return events
+          }
         }
         if (timing && trap) {
           const inside = s >= trap[0] && s <= trap[1]
