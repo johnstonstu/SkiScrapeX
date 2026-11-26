@@ -1,0 +1,82 @@
+{
+ "info": {
+  "kind": "event",
+  "id": "event:apex-slalom",
+  "name": "Apex Slalom",
+  "format": "twoRun",
+  "length": 547,
+  "gates": 35,
+  "gateKind": "slalom",
+  "splits": [
+   274
+  ],
+  "targets": {
+   "gold": 97,
+   "silver": 116,
+   "bronze": 145
+  },
+  "start": [
+   1901,
+   267,
+   853
+  ],
+  "startHeading": -141,
+  "line0": [
+   1901.2208737542012,
+   852.8243415648637
+  ],
+  "lineEnd": [
+   2359.05,
+   563.84
+  ],
+  "linePts": 9,
+  "title": "Apex Slalom · run 1 · gate 1/35",
+  "best": "–",
+  "count": "3",
+  "countHidden": false
+ },
+ "opts": {
+  "tuck": true,
+  "minKmh": 0,
+  "maxKmh": 28,
+  "ahead": 20,
+  "dead": 0.04,
+  "maxMs": 420000,
+  "fastStart": true,
+  "shotsAt": [
+   30
+  ],
+  "route": "gates",
+  "viewport": {
+   "width": 800,
+   "height": 450
+  },
+  "inside": 2
+ },
+ "events": [
+  {
+   "t": 0.02,
+   "count": "3"
+  },
+  {
+   "t": 0.21,
+   "count": "2"
+  },
+  {
+   "t": 3.49,
+   "count": "1"
+  },
+  {
+   "t": 6.49,
+   "count": "GO!"
+  },
+  {
+   "t": 8.19,
+   "count": ""
+  }
+ ],
+ "result": "APEX SLALOM\n\nDid not finish\n\nDisqualified: missed gate 1\n\nGates\n0/35\nTop speed\n30 km/h\nDistance\n30 m\nVertical\n11 m\nRetry\nR\nKeep skiing\nChallenges",
+ "console": [
+  "?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported."
+ ]
+}

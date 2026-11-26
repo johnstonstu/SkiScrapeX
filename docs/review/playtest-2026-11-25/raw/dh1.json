@@ -1,0 +1,140 @@
+{
+ "info": {
+  "kind": "event",
+  "id": "event:apex-downhill",
+  "name": "Apex Downhill",
+  "format": "race",
+  "length": 1501,
+  "gates": 10,
+  "gateKind": "downhill",
+  "trap": [
+   1051,
+   1141
+  ],
+  "splits": [
+   631,
+   1141
+  ],
+  "targets": {
+   "gold": 148,
+   "silver": 177.5,
+   "bronze": 222
+  },
+  "start": [
+   1525,
+   572,
+   1532
+  ],
+  "startHeading": 129,
+  "line0": [
+   1524.5853520169908,
+   1532.2955059411568
+  ],
+  "lineEnd": [
+   1479.08,
+   506.18
+  ],
+  "linePts": 34,
+  "title": "Apex Downhill · gate 1/10",
+  "best": "–",
+  "count": "3",
+  "countHidden": false
+ },
+ "opts": {
+  "tuck": true,
+  "minKmh": 0,
+  "maxKmh": 999,
+  "ahead": 30,
+  "dead": 0.06,
+  "maxMs": 240000,
+  "fastStart": true,
+  "shotsAt": [
+   15,
+   45
+  ],
+  "route": "auto",
+  "viewport": {
+   "width": 800,
+   "height": 450
+  },
+  "retry": true
+ },
+ "events": [
+  {
+   "t": 0.01,
+   "count": "2"
+  },
+  {
+   "t": 1.86,
+   "count": "1"
+  },
+  {
+   "t": 3.93,
+   "count": "GO!"
+  },
+  {
+   "t": 4.72,
+   "trick": "Fast start +7 KM/H"
+  },
+  {
+   "t": 6.54,
+   "count": ""
+  },
+  {
+   "t": 110.48,
+   "trick": "Split 1 1:31.7"
+  },
+  {
+   "t": 114.33,
+   "trick": "Air CLEAN LANDING +100"
+  },
+  {
+   "t": 119.09,
+   "trick": "Banked 100 TOTAL +100"
+  },
+  {
+   "t": 122.93,
+   "trick": "Air PERFECT LANDING +89"
+  },
+  {
+   "t": 126.87,
+   "trick": "Banked 189 TOTAL +89"
+  },
+  {
+   "t": 128.81,
+   "trick": "Air SKETCHY LANDING +77"
+  },
+  {
+   "t": 132.87,
+   "trick": "Banked 266 TOTAL +77"
+  },
+  {
+   "t": 137.28,
+   "trick": "Skied Gunbarrel 1/90 RUNS"
+  },
+  {
+   "t": 141.31,
+   "trick": "Air SKETCHY LANDING +106"
+  },
+  {
+   "t": 147.63,
+   "trick": "Air SKETCHY LANDING +39"
+  },
+  {
+   "t": 151.43,
+   "trick": "Banked 411 TOTAL +145"
+  },
+  {
+   "t": 158.07,
+   "trick": "Split 2 2:12.5"
+  },
+  {
+   "t": 196.31,
+   "trick": "Split 22:12.5"
+  }
+ ],
+ "result": "APEX DOWNHILL\n\n2:46.4\n\nFirst finish\n\nGold needs 2:28.0\n\nGates\n10/10\nSplit 1\n1:31.7\nSplit 2\n2:12.5\nSpeed trap\n71 km/h\nTop speed\n85 km/h\nDistance\n1458 m\nVertical\n347 m\nConrad Pridy (FIS, 2,002 m course)\n1:19.5\nTrick points\n411\nTight / clean / skidded gates\n0 / 10 / 0\nRetry\nR\nKeep skiing\nChallenges",
+ "console": [
+  "?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported."
+ ]
+}

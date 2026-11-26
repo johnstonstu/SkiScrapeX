@@ -1,0 +1,13 @@
+[19:39:15] sl3: page loaded in 2313 ms
+[19:39:16] sl3: startEvent(apex-slalom) -> true
+[19:39:18] sl3: course {"kind":"event","id":"event:apex-slalom","name":"Apex Slalom","format":"twoRun","length":547,"gates":35,"gateKind":"slalom","splits":[274],"targets":{"gold":97,"silver":116,"bronze":145},"start":[1901,267,853],"startHeading":-141,"line0":[1901.2208737542012,852.8243415648637],"lineEnd":[2359.05,563.84],"linePts":9,"title":"Apex Slalom · run 1 · gate 1/35","best":"–","count":"3","countHidden":false}
+[19:39:26] shot sl3_01_start
+[19:39:32] sl3: evlen [5,["GO!","",5,true]]
+[19:39:32] sl3: steps 38 down function
+[19:39:32] sl3: pilot error undefined
+[19:39:32] sl3: elapsed 5.895s, samples 38
+[19:39:32] sl3: events [{"t":0.02,"count":"3"},{"t":0.21,"count":"2"},{"t":3.49,"count":"1"},{"t":6.49,"count":"GO!"},{"t":8.19,"count":""}]
+[19:39:32] sl3: RESULT APEX SLALOM | Did not finish | Disqualified: missed gate 1 | Gates | 0/35 | Top speed | 30 km/h | Distance | 30 m | Vertical | 11 m | Retry | R | Keep skiing | Challenges
+[19:39:36] shot sl3_03_end
+[19:39:36] sl3: max 30.1 km/h, final {"t":13.966,"st":5.258,"x":1923.66,"y":255.39,"z":833.56,"vx":5.45,"vy":-2.25,"vz":-4.49,"kmh":26.7,"hdg":-129.5,"trav":-129.5,"edge":27.1,"skid":0.008,"pitch":17.7,"rad":12.5,"load":1.1,"grip":0.45,"chat":0,"wash":0,"mode":"carving","gnd":1,"tuck":1,"sink":0,"surf":"park","crash":0,"hud":"0:05.3","title":"Apex Slalom · run 1 · gate 2/35","res":1}
+CONSOLE ?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.

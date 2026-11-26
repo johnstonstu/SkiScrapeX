@@ -1,0 +1,82 @@
+{
+ "info": {
+  "kind": "event",
+  "id": "event:shoot-the-chute",
+  "name": "Shoot the Chute",
+  "format": "race",
+  "length": 1136,
+  "gates": 0,
+  "gateKind": "none",
+  "trap": [
+   749,
+   863
+  ],
+  "splits": [],
+  "targets": {
+   "gold": 66.5,
+   "silver": 80,
+   "bronze": 99.5
+  },
+  "start": [
+   1525,
+   572,
+   1532
+  ],
+  "startHeading": 129,
+  "line0": [
+   1524.5853520169908,
+   1532.2955059411568
+  ],
+  "lineEnd": [
+   1479.08,
+   506.18
+  ],
+  "linePts": 25,
+  "title": "Shoot the Chute",
+  "best": "–",
+  "count": "2",
+  "countHidden": false
+ },
+ "opts": {
+  "tuck": true,
+  "minKmh": 0,
+  "maxKmh": 999,
+  "ahead": 40,
+  "dead": 0.06,
+  "maxMs": 240000,
+  "fastStart": true,
+  "shotsAt": [],
+  "route": "auto",
+  "viewport": {
+   "width": 800,
+   "height": 450
+  },
+  "bailKmh": 95
+ },
+ "events": [
+  {
+   "t": 0.28,
+   "count": "2"
+  },
+  {
+   "t": 1.45,
+   "count": "1"
+  },
+  {
+   "t": 3.64,
+   "count": "GO!"
+  },
+  {
+   "t": 6.06,
+   "count": ""
+  },
+  {
+   "t": 68.94,
+   "bail": 96
+  }
+ ],
+ "result": "SHOOT THE CHUTE\n\nDid not finish\n\nLeft the course\n\nTop speed\n96 km/h\nDistance\n681 m\nVertical\n137 m\nEric Pehota\n151 km/h\nRetry\nR\nKeep skiing\nChallenges",
+ "console": [
+  "?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported."
+ ]
+}

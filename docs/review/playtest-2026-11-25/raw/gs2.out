@@ -1,0 +1,14 @@
+[19:46:31] gs2: page loaded in 2585 ms
+[19:46:32] gs2: startEvent(teck-gs) -> true
+[19:46:33] gs2: course {"kind":"event","id":"event:teck-gs","name":"Teck Open GS","format":"race","length":858,"gates":23,"gateKind":"gs","splits":[429],"targets":{"gold":85,"silver":102,"bronze":127},"start":[1883,281,939],"startHeading":-35,"line0":[1883.113720534978,938.639920895768],"lineEnd":[2647.58,716.95],"linePts":25,"title":"Teck Open GS · gate 1/23","best":"–","count":"3","countHidden":false}
+[19:46:39] shot gs2_01_start
+[19:47:07] shot gs2_02_t25
+[19:51:41] gs2: evlen [6,["GO!","",6,true]]
+[19:51:41] gs2: steps 1664 down function
+[19:51:41] gs2: pilot error undefined
+[19:51:41] gs2: elapsed 301.691s, samples 1663
+[19:51:41] gs2: events [{"t":0.02,"count":"2"},{"t":1.33,"count":"1"},{"t":3.19,"count":"GO!"},{"t":5.29,"count":""},{"t":19.65,"trick":"Tight GATE 2"},{"t":28.67,"trick":"Tight GATE 4"}]
+[19:51:41] gs2: RESULT none (timeout)
+[19:51:45] shot gs2_03_end
+[19:51:45] gs2: max 41 km/h, final {"t":306.68,"st":270.142,"x":2027.53,"y":248.82,"z":1006.42,"vx":0,"vy":0,"vz":0,"kmh":0,"hdg":118.9,"trav":-180,"edge":0,"skid":0,"pitch":11.8,"rad":-1,"load":1,"grip":0,"chat":0,"wash":0,"mode":"still","gnd":1,"tuck":1,"sink":0.354,"surf":"powder","crash":0,"hud":"4:30.1","title":"Teck Open GS · gate 5/23","res":0}
+CONSOLE ?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.

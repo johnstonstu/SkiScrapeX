@@ -1,0 +1,84 @@
+{
+ "list": [
+  "BUTTON: EscBack",
+  "H3: Apex events",
+  "BUTTON: 🏁Shoot the Chute Summit to the old upper lot, down the Chutesetting times…",
+  "BUTTON: 🏁Apex Downhill Summit start house, down Gunbarrel to the old upper lotsetting times…",
+  "BUTTON: 🏁Apex Slalom Okanagan Run, off the T-Barsetting times…",
+  "BUTTON: 🏁Teck Open GS Old Mill, finishing at the Ski Club timing hutsetting times…",
+  "BUTTON: 🏁Kristi's Moguls Kristi's Run, the Nor-Am mogul courseGold 80 pts",
+  "BUTTON: 🏁Aerials The Aerial Site beside Kristi'sGold 30 pts",
+  "BUTTON: 🏁Match Your Time MaverickGold 0:00.3",
+  "H3: Slalom",
+  "BUTTON: Rookie's Trail 25 gatessetting times…",
+  "BUTTON: Prospector 13 gatessetting times…",
+  "BUTTON: Dawdler 1 13 gatessetting times…",
+  "H3: Park score attack",
+  "BUTTON: Okanagan Park OkanaganGold 14,500 pts",
+  "BUTTON: Aerial Site Aerial SiteGold 17,400 pts",
+  "BUTTON: Boarder Cross RollersGold 3,000 pts",
+  "BUTTON: Claim Jumper Claim JumperGold 23,150 pts",
+  "BUTTON: Little Nuggets Little NuggetsGold 5,000 pts",
+  "BUTTON: Prospector ProspectorGold 24,400 pts",
+  "H3: Timed runs",
+  "BUTTON: Easy Rider 181 msetting times…",
+  "BUTTON: Chicken Finger 276 msetting times…",
+  "BUTTON: Dude-Ney Trail 1116 msetting times…",
+  "BUTTON: Easy Out 298 msetting times…",
+  "BUTTON: Finger 276 msetting times…",
+  "BUTTON: Grandfather's Trail 4445 msetting times…",
+  "BUTTON: Greenhorn Traverse 1133 msetting times…",
+  "BUTTON: Rookie's Trail 734 msetting times…",
+  "BUTTON: Stock's Traverse 946 msetting times…",
+  "BUTTON: The Cut 584 msetting times…",
+  "BUTTON: Unnamed cut L6 188 msetting times…",
+  "BUTTON: Village Traverse 800 msetting times…",
+  "BUTTON: Whipsaw 1846 msetting times…",
+  "BUTTON: Adrian's Alley 682 msetting times…",
+  "BUTTON: Dawdler 1 416 msetting times…",
+  "BUTTON: Dawdler 2 246 msetting times…",
+  "BUTTON: Grandmother's Trail 3118 msetting times…",
+  "BUTTON: Juniper 923 msetting times…",
+  "BUTTON: Little Joe 465 msetting times…"
+ ],
+ "st1": {
+  "title": "Shoot the Chute",
+  "count": "3",
+  "ch": "event",
+  "chal": false
+ },
+ "p1": {
+  "count": "GO!",
+  "menu": true,
+  "time": "0:00.8"
+ },
+ "p2": {
+  "count": "GO!",
+  "menu": true,
+  "time": "0:00.8"
+ },
+ "fs1": [
+  "GO!",
+  "GO!",
+  "GO!",
+  "GO!",
+  "GO!",
+  "GO!"
+ ],
+ "before": {
+  "t": "0:09.4",
+  "x": 1520,
+  "z": 1528
+ },
+ "after": {
+  "t": "0:00.0",
+  "x": 1525,
+  "z": 1532,
+  "count": "2",
+  "res": false
+ },
+ "res": null,
+ "console": [
+  "?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported."
+ ]
+}

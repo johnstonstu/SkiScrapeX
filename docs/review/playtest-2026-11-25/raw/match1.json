@@ -1,0 +1,275 @@
+{
+ "info": {
+  "kind": "event",
+  "id": "event:match-your-time",
+  "name": "Match Your Time",
+  "format": "match",
+  "length": 1249,
+  "gates": 0,
+  "gateKind": "none",
+  "splits": [],
+  "targets": {
+   "gold": 0.3,
+   "silver": 1,
+   "bronze": 2.5
+  },
+  "start": [
+   2078,
+   351,
+   1831
+  ],
+  "startHeading": -62,
+  "line0": [
+   2078.3892366754612,
+   1831.4459417220949
+  ],
+  "lineEnd": [
+   3174.61,
+   1543.12
+  ],
+  "linePts": 15,
+  "title": "Match Your Time · run 1 sets the time",
+  "best": "–",
+  "count": "3",
+  "countHidden": false
+ },
+ "opts": {
+  "tuck": true,
+  "minKmh": 0,
+  "maxKmh": 55,
+  "ahead": 30,
+  "dead": 0.06,
+  "maxMs": 420000,
+  "fastStart": true,
+  "shotsAt": [
+   20
+  ],
+  "route": "auto",
+  "viewport": {
+   "width": 800,
+   "height": 450
+  }
+ },
+ "events": [
+  {
+   "t": 0.29,
+   "count": "2"
+  },
+  {
+   "t": 2.24,
+   "count": "1"
+  },
+  {
+   "t": 3.86,
+   "count": "GO!"
+  },
+  {
+   "t": 5.9,
+   "count": ""
+  },
+  {
+   "t": 18.98,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 19.25,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 19.49,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 50.45,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 65.78,
+   "trick": "Skied Maverick 1/90 RUNS"
+  },
+  {
+   "t": 79.8,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 79.82,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 80,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 80.47,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 92.15,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 92.16,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 92.18,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 92.29,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 92.58,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 92.61,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 92.88,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 93.22,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 93.25,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 93.51,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 112.36,
+   "count": "3"
+  },
+  {
+   "t": 112.36,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 113.38,
+   "count": "2"
+  },
+  {
+   "t": 114.41,
+   "count": "1"
+  },
+  {
+   "t": 115.38,
+   "count": "GO!"
+  },
+  {
+   "t": 116.89,
+   "count": ""
+  },
+  {
+   "t": 126.66,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 126.82,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 126.97,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 127.12,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 127.26,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 158.09,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 187.23,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 187.29,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 187.39,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 187.57,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 187.84,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 187.91,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 188.23,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 200.82,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 200.98,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 201.14,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 201.25,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 201.32,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 201.47,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 201.59,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 201.61,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 201.74,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 201.89,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 202.05,
+   "reset": "route index (respawn)"
+  },
+  {
+   "t": 218.47,
+   "trick": "Skied Maverick1/90 runs"
+  }
+ ],
+ "result": "MATCH YOUR TIME · DIFFERENCE\n\n0:01.1\n\nFirst finish\n\nSilver needs 0:01.0\n\nRun 1\n1:33.3\nRun 2\n1:32.1\nTop speed\n57 km/h\nDistance\n1223 m\nVertical\n292 m\nRetry\nR\nKeep skiing\nChallenges",
+ "console": [
+  "?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported."
+ ]
+}

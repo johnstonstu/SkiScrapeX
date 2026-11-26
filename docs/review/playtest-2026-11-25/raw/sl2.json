@@ -1,0 +1,202 @@
+{
+ "info": {
+  "kind": "event",
+  "id": "event:apex-slalom",
+  "name": "Apex Slalom",
+  "format": "twoRun",
+  "length": 547,
+  "gates": 35,
+  "gateKind": "slalom",
+  "splits": [
+   274
+  ],
+  "targets": {
+   "gold": 97,
+   "silver": 116,
+   "bronze": 145
+  },
+  "start": [
+   1901,
+   267,
+   853
+  ],
+  "startHeading": -141,
+  "line0": [
+   1901.2208737542012,
+   852.8243415648637
+  ],
+  "lineEnd": [
+   2359.05,
+   563.84
+  ],
+  "linePts": 9,
+  "title": "Apex Slalom · run 1 · gate 1/35",
+  "best": "–",
+  "count": "3",
+  "countHidden": false
+ },
+ "opts": {
+  "tuck": true,
+  "minKmh": 0,
+  "maxKmh": 28,
+  "ahead": 20,
+  "dead": 0.04,
+  "maxMs": 240000,
+  "fastStart": true,
+  "shotsAt": [
+   10
+  ],
+  "route": "gates",
+  "viewport": {
+   "width": 800,
+   "height": 450
+  },
+  "inside": 2
+ },
+ "events": [
+  {
+   "t": 0.26,
+   "count": "2"
+  },
+  {
+   "t": 3.47,
+   "count": "1"
+  },
+  {
+   "t": 5.41,
+   "count": "GO!"
+  },
+  {
+   "t": 8.15,
+   "count": ""
+  },
+  {
+   "t": 14.89,
+   "trick": "Tight GATE 1"
+  },
+  {
+   "t": 21.85,
+   "trick": "Tight GATE 3"
+  },
+  {
+   "t": 24.46,
+   "trick": "Skidded GATE 4"
+  },
+  {
+   "t": 30.66,
+   "trick": "Tight GATE 6"
+  },
+  {
+   "t": 43.07,
+   "trick": "Tight GATE 10"
+  },
+  {
+   "t": 46.44,
+   "trick": "Tight GATE 11"
+  },
+  {
+   "t": 49.52,
+   "trick": "Skidded GATE 12"
+  },
+  {
+   "t": 52.23,
+   "trick": "Skidded GATE 13"
+  },
+  {
+   "t": 55.1,
+   "trick": "Tight GATE 14"
+  },
+  {
+   "t": 61.88,
+   "trick": "Tight GATE 16"
+  },
+  {
+   "t": 64.91,
+   "trick": "Tight GATE 17"
+  },
+  {
+   "t": 67.87,
+   "trick": "Skidded GATE 18"
+  },
+  {
+   "t": 68.62,
+   "trick": "Split 1 0:40.2"
+  },
+  {
+   "t": 70.51,
+   "trick": "Tight GATE 19"
+  },
+  {
+   "t": 73.02,
+   "trick": "Tight GATE 20"
+  },
+  {
+   "t": 75.58,
+   "trick": "Tight GATE 21"
+  },
+  {
+   "t": 81.92,
+   "trick": "Skied Okanagan Run 1/90 RUNS"
+  },
+  {
+   "t": 82.5,
+   "trick": "Tight GATE 23"
+  },
+  {
+   "t": 88.61,
+   "trick": "Skidded GATE 25"
+  },
+  {
+   "t": 94.77,
+   "trick": "Tight GATE 27"
+  },
+  {
+   "t": 97.59,
+   "trick": "Skidded GATE 28"
+  },
+  {
+   "t": 100.15,
+   "trick": "Tight GATE 29"
+  },
+  {
+   "t": 102.68,
+   "trick": "Tight GATE 30"
+  },
+  {
+   "t": 108.7,
+   "trick": "Skidded GATE 32"
+  },
+  {
+   "t": 115.03,
+   "trick": "Tight GATE 34"
+  },
+  {
+   "t": 127.01,
+   "count": "3"
+  },
+  {
+   "t": 128.62,
+   "count": "2"
+  },
+  {
+   "t": 129.49,
+   "count": "1"
+  },
+  {
+   "t": 131.59,
+   "count": "GO!"
+  },
+  {
+   "t": 135,
+   "count": ""
+  },
+  {
+   "t": 141.7,
+   "trick": "Tightgate 34"
+  }
+ ],
+ "result": "APEX SLALOM · COMBINED\n\nDid not finish\n\nDisqualified: missed gate 1\n\nRun 1\n1:18.2\nRun 2\n0:05.3\nGates\n0/35\nTop speed\n30 km/h\nDistance\n31 m\nVertical\n12 m\nRetry\nR\nKeep skiing\nChallenges",
+ "console": [
+  "?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported."
+ ]
+}

@@ -1,0 +1,17 @@
+[19:08:55] dh1: page loaded in 2006 ms
+[19:08:56] dh1: startEvent(apex-downhill) -> true
+[19:08:58] dh1: course {"kind":"event","id":"event:apex-downhill","name":"Apex Downhill","format":"race","length":1501,"gates":10,"gateKind":"downhill","trap":[1051,1141],"splits":[631,1141],"targets":{"gold":148,"silver":177.5,"bronze":222},"start":[1525,572,1532],"startHeading":129,"line0":[1524.5853520169908,1532.2955059411568],"lineEnd":[1479.08,506.18],"linePts":34,"title":"Apex Downhill · gate 1/10","best":"–","count":"3","countHidden":false}
+[19:09:05] shot dh1_01_start
+[19:09:25] shot dh1_02_t15
+[19:09:53] shot dh1_02_t45
+[19:12:14] dh1: evlen [18,["GO!","",17,true]]
+[19:12:14] dh1: steps 1140 down function
+[19:12:14] dh1: pilot error undefined
+[19:12:14] dh1: elapsed 189.265s, samples 1140
+[19:12:14] dh1: events [{"t":0.01,"count":"2"},{"t":1.86,"count":"1"},{"t":3.93,"count":"GO!"},{"t":4.72,"trick":"Fast start +7 KM/H"},{"t":6.54,"count":""},{"t":110.48,"trick":"Split 1 1:31.7"},{"t":114.33,"trick":"Air CLEAN LANDING +100"},{"t":119.09,"trick":"Banked 100 TOTAL +100"},{"t":122.93,"trick":"Air PERFECT LANDING +89"},{"t":126.87,"trick":"Banked 189 TOTAL +89"},{"t":128.81,"trick":"Air SKETCHY LANDING +77"},{"t":132.87,"trick":"Banked 266 TOTAL +77"},{"t":137.28,"trick":"Skied Gunbarrel 1/90 RUNS"},{"t":141.31,"trick":"Air SKETCHY LANDING +106"},{"t":147.63,"trick":"Air SKETCHY LANDING +39"},{"t":151.43,"trick":"Banked 411 TOTAL +145"},{"t":158.07,"trick":"Split 2 2:12.5"},{"t":196.31,"trick":"Split 22:12.5"}]
+[19:12:14] dh1: RESULT APEX DOWNHILL | 2:46.4 | First finish | Gold needs 2:28.0 | Gates | 10/10 | Split 1 | 1:31.7 | Split 2 | 2:12.5 | Speed trap | 71 km/h | Top speed | 85 km/h | Distance | 1458 m | Vertical | 347 m | Conrad Pridy (FIS, 2,002 m course) | 1:19.5 | Trick points | 411 | Tight / clean / skidded gates | 0 / 10 / 0 | Retry | R | Keep skiing | Challenges
+[19:12:17] shot dh1_03_end
+[19:12:17] dh1: max 85.1 km/h, final {"t":196.319,"st":166.425,"x":1467.14,"y":229.28,"z":514.79,"vx":9.86,"vy":-2.51,"vz":-6.74,"kmh":44,"hdg":-124.4,"trav":-124.4,"edge":13.1,"skid":0,"pitch":21,"rad":13.6,"load":1.5,"grip":2.49,"chat":0,"wash":0,"mode":"tucked","gnd":1,"tuck":1,"sink":0,"surf":"groomed","crash":0,"hud":"2:46.4","title":"Apex Downhill · to the finish","res":1}
+[19:12:20] dh1: after R (retry): {"res":false,"title":"Apex Downhill · gate 1/10","count":"1","hidden":false,"pos":[1525,1532]}
+[19:12:23] shot dh1_04_retry
+CONSOLE ?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.

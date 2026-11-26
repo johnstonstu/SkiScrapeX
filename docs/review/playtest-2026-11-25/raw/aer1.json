@@ -1,0 +1,75 @@
+{
+ "info": {
+  "name": "Aerials",
+  "length": 210,
+  "line": 5,
+  "targets": {
+   "gold": 30,
+   "silver": 22,
+   "bronze": 14
+  },
+  "title": "Aerials",
+  "beat": false
+ },
+ "opts": {
+  "maxMs": 200000,
+  "trick": "grab",
+  "ahead": 15,
+  "maxKmh": 55,
+  "minKmh": 30,
+  "shotsAt": [
+   10,
+   25
+  ],
+  "tapLead": 0.5
+ },
+ "events": [
+  {
+   "t": 23.92,
+   "takeoff": {
+    "kmh": 45,
+    "vy": 2.4
+   }
+  },
+  {
+   "t": 26.3,
+   "trick": "180 Mute DD 1.1 × FORM 5.5 = 6.0"
+  },
+  {
+   "t": 32.99,
+   "trick": "Banked 482 TOTAL +482"
+  },
+  {
+   "t": 41.11,
+   "takeoff": {
+    "kmh": 20,
+    "vy": 0.6
+   }
+  },
+  {
+   "t": 42.19,
+   "trick": "Air DD 1.0 × FORM 9.5 = 9.5"
+  },
+  {
+   "t": 43.3,
+   "takeoff": {
+    "kmh": 41,
+    "vy": -6.5
+   }
+  },
+  {
+   "t": 43.9,
+   "trick": "Air DD 1.0 × FORM 8.0 = 8.0"
+  },
+  {
+   "t": 47.57,
+   "trick": "Banked 801 TOTAL +319"
+  },
+  {
+   "t": 49.39,
+   "trick": "Banked801 total+319"
+  }
+ ],
+ "taps": [],
+ "result": "AERIALS\n\n18 pts\n\nFirst finish\n\nSilver needs 22 pts\n\nJump 1: Air\nDD 1.0 × form 9.5 = 9.5\nJump 2: Air\nDD 1.0 × form 8.0 = 8.0\nTop speed\n64 km/h\nDistance\n210 m\nVertical\n51 m\nRetry\nR\nKeep skiing\nChallenges"
+}

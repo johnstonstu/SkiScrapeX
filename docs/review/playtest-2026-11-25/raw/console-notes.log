@@ -1,0 +1,333 @@
+[18:57:52] load ms 2242
+[18:57:53] {"keys":["scene","skier","challenge","goals","npcs","snowDeform","tricks","startEvent"],"html":"SkiScrapex · Apex Mountain","version":"v0.9.27","titleVisible":true,"ids":["view","hud","run-name","time","best","slopes","hud-version","weather-cue","speedo","speed","buttons","btn-menu","pause-menu","pause-title","pause-location","version","btn-resume","btn-runs","btn-challenges","btn-style","btn-settings","btn-reset","btn-camera","camera-label","btn-map","btn-sound","btn-info","btn-title","guide-title","control-tabs","control-guide","debug","map-panel","minimap","map-location","status","help","credits","runs","btn-close-runs","trail-map","trail-detail","run-list","style","settings","challenges","results","title-screen","run-card","coach","ride","ride-text","btn-skip","trick","hint","fade","fade-text","touch","race-count","beat-strip"],"events":[["shoot-the-chute",true],["apex-downhill",true],["apex-slalom",true],["teck-gs",true],["kristis-moguls",true],["apex-aerials",true],["match-your-time",true]],"settings":"{\"quality\":\"low\",\"shadows\":false,\"npcs\":false}"}
+[18:57:56] fps 11.7
+[18:58:03] shot 00_title
+[18:59:21] chute1: page loaded in 2075 ms
+[18:59:22] chute1: startEvent(shoot-the-chute) -> true
+[18:59:23] chute1: course {"kind":"event","id":"event:shoot-the-chute","name":"Shoot the Chute","format":"race","length":1136,"gates":0,"gateKind":"none","trap":[749,863],"splits":[],"targets":{"gold":66.5,"silver":80,"bronze":99.5},"start":[1525,572,1532],"startHeading":129,"line0":[1524.5853520169908,1532.2955059411568],"lineEnd":[1479.08,506.18],"linePts":25,"title":"Shoot the Chute","best":"–","count":"3","countHidden":false}
+[18:59:29] shot chute1_01_start
+[18:59:43] shot chute1_02_t8
+[18:59:55] shot chute1_02_t20
+[19:03:31] chute1: elapsed 241.329s, samples 1109
+[19:03:31] chute1: events []
+[19:03:31] chute1: RESULT none (timeout)
+[19:03:35] shot chute1_03_end
+[19:03:35] chute1: max 0.1 km/h, final {"t":240.864,"st":213.308,"x":1524.55,"y":572.01,"z":1532.23,"vx":0,"vy":0,"vz":0,"kmh":0,"hdg":126.1,"trav":-180,"edge":0,"skid":0,"pitch":7.5,"rad":-1,"load":1,"grip":0,"chat":0,"wash":0,"mode":"still","gnd":1,"tuck":0,"sink":0,"surf":"groomed","crash":0,"hud":"3:33.3","title":"Shoot the Chute","res":0}
+[19:03:56] {"html":"<div id=\"race-count\" class=\"count\" style=\"\">3</div>","v":0,"mode":"still","time":"0:00.0","titleHidden":true,"overlays":["fade"]}
+[19:03:56] {"html":"<div id=\"race-count\" class=\"count\" style=\"\">3</div>","v":0,"mode":"still","time":"0:00.0","titleHidden":true,"overlays":["fade"]}
+[19:03:57] {"html":"<div id=\"race-count\" class=\"count\" style=\"\">2</div>","v":0,"mode":"still","time":"0:00.0","titleHidden":true,"overlays":["fade"]}
+[19:03:58] {"html":"<div id=\"race-count\" class=\"count\" style=\"\">1</div>","v":0,"mode":"still","time":"0:00.0","titleHidden":true,"overlays":["fade"]}
+[19:03:58] {"html":"<div id=\"race-count\" class=\"count\" style=\"\">1</div>","v":0,"mode":"still","time":"0:00.0","titleHidden":true,"overlays":["fade"]}
+[19:03:59] {"html":"<div id=\"race-count\" class=\"count\" style=\"\">1</div>","v":0,"mode":"still","time":"0:00.0","titleHidden":true,"overlays":["fade"]}
+[19:04:00] {"html":"<div id=\"race-count\" class=\"go\" style=\"\">GO!</div>","v":0,"mode":"still","time":"0:00.5","titleHidden":true,"overlays":["fade"]}
+[19:04:01] {"html":"<div id=\"race-count\" class=\"go\" style=\"\" hidden=\"\">GO!</div>","v":0,"mode":"still","time":"0:00.8","titleHidden":true,"overlays":["fade"]}
+[19:04:04] {"v":2.943770837889606,"mode":"tucked","tuck":true,"x":1521.4556793116546,"z":1529.7212480163644,"hdg":2.2591264664428605}
+[19:04:24] dbg: page loaded in 2156 ms
+[19:04:25] dbg: startEvent(shoot-the-chute) -> true
+[19:04:27] dbg: course {"kind":"event","id":"event:shoot-the-chute","name":"Shoot the Chute","format":"race","length":1136,"gates":0,"gateKind":"none","trap":[749,863],"splits":[],"targets":{"gold":66.5,"silver":80,"bronze":99.5},"start":[1525,572,1532],"startHeading":129,"line0":[1524.5853520169908,1532.2955059411568],"lineEnd":[1479.08,506.18],"linePts":25,"title":"Shoot the Chute","best":"–","count":"3","countHidden":false}
+[19:04:33] shot dbg_01_start
+[19:04:53] dbg: pilot error undefined
+[19:04:53] dbg: elapsed 20.181s, samples 94
+[19:04:53] dbg: events []
+[19:04:53] dbg: RESULT none (timeout)
+[19:04:58] shot dbg_03_end
+[19:04:58] dbg: max 0 km/h, final {"t":20.101,"st":18.925,"x":1524.59,"y":572.02,"z":1532.3,"vx":0,"vy":0,"vz":0,"kmh":0,"hdg":127.3,"trav":-180,"edge":0,"skid":0,"pitch":7.5,"rad":-1,"load":1,"grip":0,"chat":0,"wash":0,"mode":"still","gnd":1,"tuck":0,"sink":0,"surf":"groomed","crash":0,"hud":"0:18.9","title":"Shoot the Chute","res":0}
+[19:05:15] dbg: page loaded in 1883 ms
+[19:05:16] dbg: startEvent(shoot-the-chute) -> true
+[19:05:18] dbg: course {"kind":"event","id":"event:shoot-the-chute","name":"Shoot the Chute","format":"race","length":1136,"gates":0,"gateKind":"none","trap":[749,863],"splits":[],"targets":{"gold":66.5,"silver":80,"bronze":99.5},"start":[1525,572,1532],"startHeading":129,"line0":[1524.5853520169908,1532.2955059411568],"lineEnd":[1479.08,506.18],"linePts":25,"title":"Shoot the Chute","best":"–","count":"2","countHidden":false}
+[19:05:24] shot dbg_01_start
+[19:05:32] dbg: steps 37 down function
+[19:05:32] dbg: pilot error undefined
+[19:05:32] dbg: elapsed 8.07s, samples 37
+[19:05:32] dbg: events []
+[19:05:32] dbg: RESULT none (timeout)
+[19:05:35] shot dbg_03_end
+[19:05:35] dbg: max 0 km/h, final {"t":7.951,"st":8.608,"x":1524.59,"y":572.02,"z":1532.3,"vx":0,"vy":0,"vz":0,"kmh":0,"hdg":123.1,"trav":-180,"edge":0,"skid":0,"pitch":7.5,"rad":-1,"load":1,"grip":0,"chat":0,"wash":0,"mode":"still","gnd":1,"tuck":0,"sink":0,"surf":"groomed","crash":0,"hud":"0:08.6","title":"Shoot the Chute","res":0}
+[19:05:52] dbg: page loaded in 2126 ms
+[19:05:53] dbg: startEvent(shoot-the-chute) -> true
+[19:05:55] dbg: course {"kind":"event","id":"event:shoot-the-chute","name":"Shoot the Chute","format":"race","length":1136,"gates":0,"gateKind":"none","trap":[749,863],"splits":[],"targets":{"gold":66.5,"silver":80,"bronze":99.5},"start":[1525,572,1532],"startHeading":129,"line0":[1524.5853520169908,1532.2955059411568],"lineEnd":[1479.08,506.18],"linePts":25,"title":"Shoot the Chute","best":"–","count":"3","countHidden":false}
+[19:06:00] shot dbg_01_start
+[19:06:07] dbg: evlen [0,["GO!","",0,true]]
+[19:06:07] dbg: steps 28 down function
+[19:06:07] dbg: pilot error undefined
+[19:06:07] dbg: elapsed 6.087s, samples 27
+[19:06:07] dbg: events []
+[19:06:07] dbg: RESULT none (timeout)
+[19:06:11] shot dbg_03_end
+[19:06:11] dbg: max 0.1 km/h, final {"t":5.873,"st":7.075,"x":1524.58,"y":572.02,"z":1532.29,"vx":0,"vy":0,"vz":0,"kmh":0,"hdg":124.2,"trav":-180,"edge":0,"skid":0,"pitch":7.5,"rad":-1,"load":1,"grip":0,"chat":0,"wash":0,"mode":"still","gnd":1,"tuck":0,"sink":0,"surf":"groomed","crash":0,"hud":"0:07.1","title":"Shoot the Chute","res":0}
+[19:06:24] chute1: page loaded in 1998 ms
+[19:06:25] chute1: startEvent(shoot-the-chute) -> true
+[19:06:27] chute1: course {"kind":"event","id":"event:shoot-the-chute","name":"Shoot the Chute","format":"race","length":1136,"gates":0,"gateKind":"none","trap":[749,863],"splits":[],"targets":{"gold":66.5,"silver":80,"bronze":99.5},"start":[1525,572,1532],"startHeading":129,"line0":[1524.5853520169908,1532.2955059411568],"lineEnd":[1479.08,506.18],"linePts":25,"title":"Shoot the Chute","best":"–","count":"3","countHidden":false}
+[19:06:33] shot chute1_01_start
+[19:06:47] shot chute1_02_t10
+[19:07:03] shot chute1_02_t25
+[19:08:09] chute1: evlen [5,["GO!","",5,true]]
+[19:08:09] chute1: steps 454 down function
+[19:08:09] chute1: pilot error undefined
+[19:08:09] chute1: elapsed 96.323s, samples 453
+[19:08:09] chute1: events [{"t":0.11,"count":"2"},{"t":1.99,"count":"1"},{"t":3.97,"count":"GO!"},{"t":5.34,"count":""},{"t":91.28,"trick":"Radar 123 KM/H"}]
+[19:08:09] chute1: RESULT SHOOT THE CHUTE | 1:14.0 | First finish | Gold needs 1:06.5 | Speed trap | 123 km/h | Top speed | 127 km/h | Distance | 1108 m | Vertical | 344 m | Eric Pehota | 151 km/h | Retry | R | Keep skiing | Challenges
+[19:08:14] shot chute1_03_end
+[19:08:14] chute1: max 127.1 km/h, final {"t":102.433,"st":73.958,"x":1469.74,"y":230.18,"z":517.73,"vx":12.16,"vy":-7.45,"vz":-24.14,"kmh":100.9,"hdg":-136.5,"trav":-153.3,"edge":45.7,"skid":0.283,"pitch":15.6,"rad":9.8,"load":8.26,"grip":4.3,"chat":0,"wash":1,"mode":"carving","gnd":1,"tuck":1,"sink":0,"surf":"groomed","crash":0,"hud":"1:14.0","title":"Shoot the Chute","res":1}
+[19:08:16] chute1: after R (retry): {"res":false,"title":"Shoot the Chute","count":"1","hidden":false,"pos":[1525,1532]}
+[19:08:20] shot chute1_04_retry
+[19:08:55] dh1: page loaded in 2006 ms
+[19:08:55] sl1: page loaded in 2017 ms
+[19:08:56] sl1: startEvent(apex-slalom) -> true
+[19:08:56] dh1: startEvent(apex-downhill) -> true
+[19:08:57] sl1: course {"kind":"event","id":"event:apex-slalom","name":"Apex Slalom","format":"twoRun","length":547,"gates":35,"gateKind":"slalom","splits":[274],"targets":{"gold":97,"silver":116,"bronze":145},"start":[1901,267,853],"startHeading":-141,"line0":[1901.2208737542012,852.8243415648637],"lineEnd":[2359.05,563.84],"linePts":9,"title":"Apex Slalom · run 1 · gate 1/35","best":"–","count":"3","countHidden":false}
+[19:08:58] dh1: course {"kind":"event","id":"event:apex-downhill","name":"Apex Downhill","format":"race","length":1501,"gates":10,"gateKind":"downhill","trap":[1051,1141],"splits":[631,1141],"targets":{"gold":148,"silver":177.5,"bronze":222},"start":[1525,572,1532],"startHeading":129,"line0":[1524.5853520169908,1532.2955059411568],"lineEnd":[1479.08,506.18],"linePts":34,"title":"Apex Downhill · gate 1/10","best":"–","count":"3","countHidden":false}
+[19:09:05] shot sl1_01_start
+[19:09:05] shot dh1_01_start
+[19:09:15] sl1: evlen [7,["GO!","",7,true]]
+[19:09:15] sl1: steps 52 down function
+[19:09:15] sl1: pilot error undefined
+[19:09:15] sl1: elapsed 10.695s, samples 52
+[19:09:15] sl1: events [{"t":0.13,"count":"2"},{"t":1.7,"count":"1"},{"t":3.25,"count":"GO!"},{"t":5.66,"count":""},{"t":11.59,"trick":"Tight GATE 1"},{"t":14.96,"trick":"Tight GATE 3"},{"t":17.09,"trick":"Tightgate 3"}]
+[19:09:15] sl1: RESULT APEX SLALOM | Did not finish | Disqualified: missed gate 4 | Gates | 3/35 | Top speed | 43 km/h | Distance | 73 m | Vertical | 29 m | Retry | R | Keep skiing | Challenges
+[19:09:20] shot sl1_03_end
+[19:09:20] sl1: max 42.6 km/h, final {"t":17.413,"st":8.767,"x":1955.92,"y":238.06,"z":804.14,"vx":6.82,"vy":-3.26,"vz":-4.82,"kmh":32.3,"hdg":-116.9,"trav":-125.2,"edge":-22.5,"skid":0.142,"pitch":22.6,"rad":12.9,"load":1.18,"grip":0.83,"chat":0,"wash":0,"mode":"carving","gnd":1,"tuck":0,"sink":0,"surf":"groomed","crash":0,"hud":"0:08.8","title":"Apex Slalom · run 1 · gate 5/35","res":1}
+[19:09:25] shot dh1_02_t15
+[19:09:53] shot dh1_02_t45
+[19:12:14] dh1: evlen [18,["GO!","",17,true]]
+[19:12:14] dh1: steps 1140 down function
+[19:12:14] dh1: pilot error undefined
+[19:12:14] dh1: elapsed 189.265s, samples 1140
+[19:12:14] dh1: events [{"t":0.01,"count":"2"},{"t":1.86,"count":"1"},{"t":3.93,"count":"GO!"},{"t":4.72,"trick":"Fast start +7 KM/H"},{"t":6.54,"count":""},{"t":110.48,"trick":"Split 1 1:31.7"},{"t":114.33,"trick":"Air CLEAN LANDING +100"},{"t":119.09,"trick":"Banked 100 TOTAL +100"},{"t":122.93,"trick":"Air PERFECT LANDING +89"},{"t":126.87,"trick":"Banked 189 TOTAL +89"},{"t":128.81,"trick":"Air SKETCHY LANDING +77"},{"t":132.87,"trick":"Banked 266 TOTAL +77"},{"t":137.28,"trick":"Skied Gunbarrel 1/90 RUNS"},{"t":141.31,"trick":"Air SKETCHY LANDING +106"},{"t":147.63,"trick":"Air SKETCHY LANDING +39"},{"t":151.43,"trick":"Banked 411 TOTAL +145"},{"t":158.07,"trick":"Split 2 2:12.5"},{"t":196.31,"trick":"Split 22:12.5"}]
+[19:12:14] dh1: RESULT APEX DOWNHILL | 2:46.4 | First finish | Gold needs 2:28.0 | Gates | 10/10 | Split 1 | 1:31.7 | Split 2 | 2:12.5 | Speed trap | 71 km/h | Top speed | 85 km/h | Distance | 1458 m | Vertical | 347 m | Conrad Pridy (FIS, 2,002 m course) | 1:19.5 | Trick points | 411 | Tight / clean / skidded gates | 0 / 10 / 0 | Retry | R | Keep skiing | Challenges
+[19:12:17] shot dh1_03_end
+[19:12:17] dh1: max 85.1 km/h, final {"t":196.319,"st":166.425,"x":1467.14,"y":229.28,"z":514.79,"vx":9.86,"vy":-2.51,"vz":-6.74,"kmh":44,"hdg":-124.4,"trav":-124.4,"edge":13.1,"skid":0,"pitch":21,"rad":13.6,"load":1.5,"grip":2.49,"chat":0,"wash":0,"mode":"tucked","gnd":1,"tuck":1,"sink":0,"surf":"groomed","crash":0,"hud":"2:46.4","title":"Apex Downhill · to the finish","res":1}
+[19:12:20] dh1: after R (retry): {"res":false,"title":"Apex Downhill · gate 1/10","count":"1","hidden":false,"pos":[1525,1532]}
+[19:12:23] shot dh1_04_retry
+[19:14:30] sl2: page loaded in 3892 ms
+[19:14:30] gs1: page loaded in 3886 ms
+[19:14:30] sl2: startEvent(apex-slalom) -> true
+[19:14:30] gs1: startEvent(teck-gs) -> true
+[19:14:32] sl2: course {"kind":"event","id":"event:apex-slalom","name":"Apex Slalom","format":"twoRun","length":547,"gates":35,"gateKind":"slalom","splits":[274],"targets":{"gold":97,"silver":116,"bronze":145},"start":[1901,267,853],"startHeading":-141,"line0":[1901.2208737542012,852.8243415648637],"lineEnd":[2359.05,563.84],"linePts":9,"title":"Apex Slalom · run 1 · gate 1/35","best":"–","count":"3","countHidden":false}
+[19:14:32] gs1: course {"kind":"event","id":"event:teck-gs","name":"Teck Open GS","format":"race","length":858,"gates":23,"gateKind":"gs","splits":[429],"targets":{"gold":85,"silver":102,"bronze":127},"start":[1883,281,939],"startHeading":-35,"line0":[1883.113720534978,938.639920895768],"lineEnd":[2647.58,716.95],"linePts":25,"title":"Teck Open GS · gate 1/23","best":"–","count":"3","countHidden":false}
+[19:14:40] shot sl2_01_start
+[19:14:41] shot gs1_01_start
+[19:14:55] shot sl2_02_t10
+[19:15:03] shot gs1_02_t15
+[19:16:54] sl2: evlen [35,["GO!","",34,true]]
+[19:16:54] sl2: steps 443 down function
+[19:16:54] sl2: pilot error undefined
+[19:16:54] sl2: elapsed 133.791s, samples 443
+[19:16:54] sl2: events [{"t":0.26,"count":"2"},{"t":3.47,"count":"1"},{"t":5.41,"count":"GO!"},{"t":8.15,"count":""},{"t":14.89,"trick":"Tight GATE 1"},{"t":21.85,"trick":"Tight GATE 3"},{"t":24.46,"trick":"Skidded GATE 4"},{"t":30.66,"trick":"Tight GATE 6"},{"t":43.07,"trick":"Tight GATE 10"},{"t":46.44,"trick":"Tight GATE 11"},{"t":49.52,"trick":"Skidded GATE 12"},{"t":52.23,"trick":"Skidded GATE 13"},{"t":55.1,"trick":"Tight GATE 14"},{"t":61.88,"trick":"Tight GATE 16"},{"t":64.91,"trick":"Tight GATE 17"},{"t":67.87,"trick":"Skidded GATE 18"},{"t":68.62,"trick":"Split 1 0:40.2"},{"t":70.51,"trick":"Tight GATE 19"},{"t":73.02,"trick":"Tight GATE 20"},{"t":75.58,"trick":"Tight GATE 21"},{"t":81.92,"trick":"Skied Okanagan Run 1/90 RUNS"},{"t":82.5,"trick":"Tight GATE 23"},{"t":88.61,"trick":"Skidded GATE 25"},{"t":94.77,"trick":"Tight GATE 27"},{"t":97.59,"trick":"Skidded GATE 28"},{"t":100.15,"trick":"Tight GATE 29"},{"t":102.68,"trick":"Tight GATE 30"},{"t":108.7,"trick":"Skidded GATE 32"},{"t":115.03,"trick":"Tight GATE 34"},{"t":127.01,"count":"3"},{"t":128.62,"count":"2"},{"t":129.49,"count":"1"},{"t":131.59,"count":"GO!"},{"t":135,"count":""},{"t":141.7,"trick":"Tightgate 34"}]
+[19:16:54] sl2: RESULT APEX SLALOM · COMBINED | Did not finish | Disqualified: missed gate 1 | Run 1 | 1:18.2 | Run 2 | 0:05.3 | Gates | 0/35 | Top speed | 30 km/h | Distance | 31 m | Vertical | 12 m | Retry | R | Keep skiing | Challenges
+[19:16:59] shot sl2_03_end
+[19:16:59] sl2: max 32.1 km/h, final {"t":141.718,"st":5.258,"x":1926.51,"y":255,"z":835.76,"vx":4.82,"vy":-2.3,"vz":-5.22,"kmh":26.9,"hdg":-134.6,"trav":-137.3,"edge":-11,"skid":0.049,"pitch":18.6,"rad":13.7,"load":1.08,"grip":1.05,"chat":0,"wash":0,"mode":"carving","gnd":1,"tuck":0,"sink":0,"surf":"park","crash":0,"hud":"0:05.3","title":"Apex Slalom · run 2 · gate 2/35","res":1}
+[19:18:43] gs1: evlen [6,["GO!","",6,true]]
+[19:18:43] gs1: steps 844 down function
+[19:18:44] gs1: pilot error undefined
+[19:18:44] gs1: elapsed 242.213s, samples 843
+[19:18:44] gs1: events [{"t":0.36,"count":"2"},{"t":4.33,"count":"1"},{"t":6.69,"count":"GO!"},{"t":9.36,"count":""},{"t":22.69,"trick":"Tight GATE 2"},{"t":42.32,"trick":"Tight GATE 4"}]
+[19:18:44] gs1: RESULT none (timeout)
+[19:18:48] shot gs1_03_end
+[19:18:48] gs1: max 47 km/h, final {"t":249.529,"st":166.175,"x":2030.54,"y":248.27,"z":995.68,"vx":0,"vy":0,"vz":0,"kmh":0,"hdg":85.5,"trav":0,"edge":0,"skid":0,"pitch":10.5,"rad":-1,"load":1,"grip":0,"chat":0,"wash":0,"mode":"still","gnd":1,"tuck":1,"sink":0.321,"surf":"powder","crash":0,"hud":"2:46.2","title":"Teck Open GS · gate 5/23","res":0}
+[19:19:59] fps {"width":400,"height":225} 4.5 dbg 
+[19:20:10] fps {"width":800,"height":450} 2.3 dbg 
+[19:20:37] Scene ch=12 tris=1189096 vis=true
+ HemisphereLight ch=0 tris=0 vis=true
+ DirectionalLight ch=0 tris=0 vis=true
+ Object3D ch=0 tris=0 vis=true
+ Mesh ch=0 tris=960 vis=true
+ Group ch=21 tris=55292 vis=true
+  Group ch=5 tris=2708 vis=true
+  Group ch=5 tris=2708 vis=true
+  snowboard ch=4 tris=2494 vis=false
+  Group ch=1 tris=17654 vis=true
+  gloves_glove ch=0 tris=976 vis=false
+  gloves_mitt ch=0 tris=1144 vis=true
+  gloves_pipe ch=0 tris=960 vis=false
+  head_beanie ch=0 tris=1212 vis=false
+  head_cap ch=0 tris=828 vis=false
+  head_face ch=0 tris=1092 vis=true
+  head_goggles ch=0 tris=796 vis=true
+  head_goggles ch=0 tris=156 vis=true
+  head_helmet ch=0 tris=1348 vis=true
+  jacket_hoodie ch=0 tris=3352 vis=false
+  jacket_parkrat ch=0 tris=3408 vis=false
+  jacket_puffer ch=0 tris=2664 vis=false
+  jacket_racer ch=0 tris=3432 vis=false
+  jacket_shell ch=0 tris=3448 vis=true
+  pants_baggy ch=0 tris=1552 vis=true
+  pants_race ch=0 tris=1808 vis=false
+  pants_slim ch=0 tris=1552 vis=false
+ Group ch=2 tris=100 vis=false
+  Mesh ch=0 tris=80 vis=true
+  Mesh ch=0 tris=20 vis=true
+ gear-drops ch=0 tris=0 vis=true
+ snow-spray ch=0 tris=1800 vis=false
+ snowfall ch=0 tris=533 vis=true
+ ski-tracks ch=0 tris=3196 vis=false
+ rider contact shadow ch=0 tris=2 vis=true
+ Group ch=18 tris=1127213 vis=true
+  terrain ch=2 tris=278702 vis=true
+  moguls ch=16 tris=146080 vis=true
+  cliffs ch=0 tris=754 vis=true
+  apron ch=0 tris=53120 vis=true
+  forest ch=369 tris=66553 vis=true
+  lifts ch=76 tris=137976 vis=true
+  buildings ch=4 tris=27814 vis=true
+  village ch=2 tris=1264 vis=true
+  roads ch=4 tris=54046 vis=true
+  signs ch=210 tris=4330 vis=true
+  boundary ch=5 tris=31848 vis=true
+  summit-flags ch=8 tris=514 vis=true
+  telecom ch=0 tris=2828 vis=true
+  landmarks ch=3 tris=8118 vis=true
+  park ch=138 tris=72874 vis=true
+  nuggets ch=24 tris=984 vis=true
+  npcs ch=4 tris=221168 vis=false
+  event:teck-gs ch=20 tris=18240 vis=true
+[19:20:40] fps before 3
+[19:20:44] hidden forest,lifts,signs,park fps after 3.7
+[19:21:01] fps before 3
+[19:21:04] hidden terrain,moguls,apron,forest,lifts,buildings,roads,signs,boundary,landmarks,park fps after 5.7
+[19:21:28] CPU self time top: 82.1% getParameter :-1
+4.7% (program) :-1
+3.9% getShaderInfoLog :-1
+3.1% getProgramInfoLog :-1
+2.1% (idle) :-1
+0.3% updateMatrixWorld three-6NWKHUPZ.js:4
+0.3% sampleTerrain main-CO0sOPdW.js:642
+0.3% ha riderPanel-CoJrZnwV.js:0
+0.2% ki riderPanel-CoJrZnwV.js:0
+0.1% u three-6NWKHUPZ.js:3586
+0.1% un riderPanel-CoJrZnwV.js:0
+0.1% Rn riderPanel-CoJrZnwV.js:0
+0.1% o three-6NWKHUPZ.js:47
+0.1% uniform3f :-1
+0.1% getProgramParameter :-1
+0.1% Is three-6NWKHUPZ.js:3839
+0.1% Hr main-CO0sOPdW.js:0
+0.1% Jr main-CO0sOPdW.js:603
+0.1% rebuild main-CO0sOPdW.js:603
+0.1% bufferSubData :-1
+0.1% update main-CO0sOPdW.js:503
+0.1% Cr three-6NWKHUPZ.js:3839
+0.1% r main-CO0sOPdW.js:0
+0.1% update main-CO0sOPdW.js:628
+0.1% integrate main-CO0sOPdW.js:503
+[19:21:48] after load {"link":32,"compile":64,"getParameter":{"2978":1,"3088":1,"3379":1,"7938":1,"34047":1,"34076":1,"34921":2,"34930":1,"35375":1,"35660":1,"35661":1,"36183":1,"36347":1,"36348":1,"36349":1,"37446":1},"frames":11}
+[19:22:02] in 8 s of skiing: frames 34, links 0, compiles 0, getParameter by enum {"3314":29,"3315":29,"3316":29}
+[19:22:02] getParameter stacks: []
+[19:26:02] riderlab lab_turns_period1.2_20deg: 24 frames every 3 steps; first note: ground · t 4.05 · 35 km/h · steer L · edge -50° · skid 0.16
+[19:26:07] riderlab lab_turns_period2.4_20deg: 24 frames every 6 steps; first note: ground · t 4.10 · 33 km/h · steer R · edge 50° · skid 0.00
+[19:26:12] riderlab lab_turns_period4_25deg_cap80: 24 frames every 10 steps; first note: ground · t 4.17 · 36 km/h · steer R · edge 50° · skid 0.09
+[19:26:16] riderlab lab_tuck_25deg: 8 frames every 30 steps; first note: tuck · t 4.50 · 36 km/h · steer L · edge -28° · skid 0.21
+[19:26:21] riderlab lab_ollie_15deg: 24 frames every 4 steps; first note: ground · t 4.23 · 27 km/h · steer - · edge 0° · skid 0.00
+[19:26:43] riderlab lab_turns_period1.2_20deg: 24 frames every 3 steps; first note: ground · t 4.05 · 35 km/h · steer L · edge -50° · skid 0.16
+[19:26:49] riderlab lab_turns_period2.4_20deg: 24 frames every 6 steps; first note: ground · t 4.10 · 33 km/h · steer R · edge 50° · skid 0.00
+[19:26:54] riderlab lab_turns_period4_25deg_cap80: 24 frames every 10 steps; first note: ground · t 4.17 · 36 km/h · steer R · edge 50° · skid 0.09
+[19:26:59] riderlab lab_turns_period2_12deg_cap25: 18 frames every 7 steps; first note: ground · t 4.12 · 19 km/h · steer L · edge 20° · skid 0.02
+[19:27:03] riderlab lab_tuck_25deg: 8 frames every 30 steps; first note: tuck · t 4.50 · 36 km/h · steer L · edge -28° · skid 0.21
+[19:27:09] riderlab lab_ollie_15deg: 24 frames every 4 steps; first note: ground · t 4.23 · 27 km/h · steer - · edge 0° · skid 0.00
+[19:27:59] mog1: page loaded 2459 ms; startEvent(kristis-moguls) -> true
+[19:27:59] aer1: page loaded 2586 ms; startEvent(apex-aerials) -> true
+[19:28:00] mog1: course {"name":"Kristi's Moguls","length":219,"line":2,"turns":41,"airs":[{"name":"Top air","s":44},{"name":"Bottom air","s":175}],"bumps":153,"targets":{"gold":80,"silver":65,"bronze":45},"title":"Kristi's Moguls","beat":true}
+[19:28:01] aer1: course {"name":"Aerials","length":210,"line":5,"targets":{"gold":30,"silver":22,"bronze":14},"title":"Aerials","beat":false}
+[19:28:07] shot mog1_01_start
+[19:28:10] shot aer1_01_start
+[19:28:21] shot mog1_02_t8
+[19:28:25] shot aer1_02_t10
+[19:28:31] shot mog1_02_t20
+[19:28:34] mog1: pilot err undefined; samples 96 over 26.715s
+[19:28:34] mog1: events [{"t":0.71,"count":"3"},{"t":1.23,"count":"2"},{"t":2.72,"count":"1"},{"t":4.79,"count":"GO!"},{"t":7.45,"count":""},{"t":11.78,"trick":"Perfect 23 KM/H"},{"t":12.82,"trick":"Perfect 24 KM/H"},{"t":14.36,"trick":"Perfect 25 KM/H · STREAK 3"},{"t":15.34,"trick":"Good 26 KM/H · STREAK 4"},{"t":17.37,"trick":"Perfect 27 KM/H · STREAK 5"},{"t":18.37,"trick":"Perfect 29 KM/H · STREAK 6"},{"t":19.03,"trick":"Perfect 30 KM/H · STREAK 7"},{"t":25.61,"trick":"Perfect 31 KM/H · STREAK 8"},{"t":27.02,"trick":"Perfect 32 KM/H · STREAK 9"},{"t":27.35,"trick":"Good 33 KM/H · STREAK 10"},{"t":27.99,"trick":"Perfect 34 KM/H · STREAK 11"},{"t":28.61,"trick":"Good 35 KM/H · STREAK 12"},{"t":28.94,"trick":"Perfect 36 KM/H · STREAK 13"},{"t":29.56,"trick":"Good 37 KM/H · STREAK 14"},{"t":31.11,"trick":"Missed 32 KM/H"},{"t":31.89,"trick":"Missed 26 KM/H"},{"t":32.15,"trick":"Missed 21 KM/H"},{"t":32.17,"trick":"Missed21 km/h"}]
+[19:28:34] mog1: taps 18 [{"t":11.27,"i":0,"toBeat":0.051,"frame":0.26},{"t":12.77,"i":1,"toBeat":-0.075,"frame":0.315},{"t":13.96,"i":2,"toBeat":0.014,"frame":0.32},{"t":15.17,"i":3,"toBeat":0.084,"frame":0.301},{"t":17.04,"i":4,"toBeat":0.03,"frame":0.371},{"t":18.04,"i":5,"toBeat":-0.009,"frame":0.353},{"t":18.71,"i":6,"toBeat":0.033,"frame":0.347},{"t":25.31,"i":7,"toBeat":0.065,"frame":0.371},{"t":26.58,"i":8,"toBeat":-0.019,"frame":0.48},{"t":27.02,"i":9,"toBeat":0.119,"frame":0.471},{"t":27.65,"i":10,"toBeat":0.018,"frame":0.415},{"t":27.99,"i":11,"toBeat":0.137,"frame":0.4}]
+[19:28:34] mog1: RESULT KRISTI'S MOGULS | Did not finish | Out of the line: three misses in a row | Top speed | 41 km/h | Distance | 98 m | Vertical | 33 m | Retry | R | Keep skiing | Challenges
+[19:28:40] shot aer1_02_t25
+[19:28:40] shot mog1_03_end
+[19:28:52] aer1: pilot err undefined; samples 175 over 42.385s
+[19:28:52] aer1: events [{"t":23.92,"takeoff":{"kmh":45,"vy":2.4}},{"t":26.3,"trick":"180 Mute DD 1.1 × FORM 5.5 = 6.0"},{"t":32.99,"trick":"Banked 482 TOTAL +482"},{"t":41.11,"takeoff":{"kmh":20,"vy":0.6}},{"t":42.19,"trick":"Air DD 1.0 × FORM 9.5 = 9.5"},{"t":43.3,"takeoff":{"kmh":41,"vy":-6.5}},{"t":43.9,"trick":"Air DD 1.0 × FORM 8.0 = 8.0"},{"t":47.57,"trick":"Banked 801 TOTAL +319"},{"t":49.39,"trick":"Banked801 total+319"}]
+[19:28:52] aer1: RESULT AERIALS | 18 pts | First finish | Silver needs 22 pts | Jump 1: Air | DD 1.0 × form 9.5 = 9.5 | Jump 2: Air | DD 1.0 × form 8.0 = 8.0 | Top speed | 64 km/h | Distance | 210 m | Vertical | 51 m | Retry | R | Keep skiing | Challenges
+[19:28:56] shot aer1_03_end
+[19:30:05] ui: version v0.9.28
+[19:30:07] shot ui_01_title
+[19:30:09] ui: challenges panel ["BUTTON: EscBack","H3: Apex events","BUTTON: 🏁Shoot the Chute Summit to the old upper lot, down the Chutesetting times…","BUTTON: 🏁Apex Downhill Summit start house, down Gunbarrel to the old upper lotsetting times…","BUTTON: 🏁Apex Slalom Okanagan Run, off the T-Barsetting times…","BUTTON: 🏁Teck Open GS Old Mill, finishing at the Ski Club timing hutsetting times…","BUTTON: 🏁Kristi's Moguls Kristi's Run, the Nor-Am mogul courseGold 80 pts","BUTTON: 🏁Aerials The Aerial Site beside Kristi'sGold 30 pts","BUTTON: 🏁Match Your Time MaverickGold 0:00.3","H3: Slalom","BUTTON: Rookie's Trail 25 gatessetting times…","BUTTON: Prospector 13 gatessetting times…","BUTTON: Dawdler 1 13 gatessetting times…","H3: Park score attack","BUTTON: Okanagan Park OkanaganGold 14,500 pts","BUTTON: Aerial Site Aerial SiteGold 17,400 pts","BUTTON: Boarder Cross RollersGold 3,000 pts","BUTTON: Claim Jumper Claim JumperGold 23,150 pts","BUTTON: Little Nuggets Little NuggetsGold 5,000 pts","BUTTON: Prospector ProspectorGold 24,400 pts","H3: Timed runs","BUTTON: Easy Rider 181 msetting times…","BUTTON: Chicken Finger 276 msetting times…","BUTTON: Dude-Ney Trail 1116 msetting times…","BUTTON: Easy Out 298 msetting times…","BUTTON: Finger 276 msetting times…","BUTTON: Grandfather's Trail 4445 msetting times…","BUTTON: Greenhorn Traverse 1133 msetting times…","BUTTON: Rookie's Trail 734 msetting times…","BUTTON: Stock's Traverse 946 msetting times…","BUTTON: The Cut 584 msetting times…","BUTTON: Unnamed cut L6 188 msetting times…","BUTTON: Village Traverse 800 msetting times…","BUTTON: Whipsaw 1846 msetting times…","BUTTON: Adrian's Alley 682 msetting times…","BUTTON: Dawdler 1 416 msetting times…","BUTTON: Dawdler 2 246 msetting times…","BUTTON: Grandmother's Trail 3118 msetting times…","BUTTON: Juniper 923 msetting times…","BUTTON: Little Joe 465 msetting times…"]
+[19:30:14] shot ui_02_challenges
+[19:30:14] ui: clicked Shoot the Chute in Challenges: true
+[19:30:14] ui: after click {"title":"Shoot the Chute","count":"3","ch":"event","chal":false}
+[19:30:18] shot ui_03_countdown
+[19:30:23] ui: paused in countdown: {"count":"GO!","menu":true,"time":"0:00.8"} -> 3 s later {"count":"GO!","menu":true,"time":"0:00.8"}
+[19:30:28] shot ui_04_paused_in_countdown
+[19:30:31] ui: false start sequence ["GO!","GO!","GO!","GO!","GO!","GO!"]
+[19:30:36] shot ui_05_false_start
+[19:30:42] ui: R mid-run {"t":"0:09.4","x":1520,"z":1528} -> {"t":"0:00.0","x":1525,"z":1532,"count":"2","res":false}
+[19:30:46] shot ui_06_after_R
+[19:33:39] ui: crash test log tail ["15 carving groomed","15 carving groomed","7 carving groomed","19 carving groomed","20 carving groomed","6 carving groomed","12 carving groomed","20 carving groomed","7 carving groomed","13 carving groomed","17 carving groomed","7 carving groomed","15 carving groomed","14 carving groomed","6 carving groomed","19 carving groomed","13 carving groomed","10 carving groomed","19 carving groomed","13 carving groomed","10 carving groomed","19 carving groomed","8 carving groomed","17 carving groomed","18 carving groomed","6 carving groomed","20 carving groomed","13 carving groomed","9 carving groomed","16 carving groomed"]
+[19:33:39] ui: crash test result no results
+[19:33:44] shot ui_07_dnf_results
+[19:33:46] ui: results->Challenges opens panel: false, challenge kind now event
+[19:33:49] shot ui_08_back_to_challenges
+[19:34:16] pause: Esc right after start: {"count":"3","pause":true,"time":"0:00.0"} -> 4 s later {"count":"3","pause":true,"time":"0:00.0"}
+[19:34:21] shot ui_04_paused_in_countdown
+[19:34:25] falsestart: W tapped at sample 2: 3@0:00.0, 3@0:00.0, 3@0:00.0, 2@0:00.0, 2@0:00.0, 2@0:00.0, 1@0:00.0, 1@0:00.0, 1@0:00.0, 1@0:00.0, GO!@0:00.2, GO!@0:00.6, GO!@0:00.8, (hidden)@0:01.3
+[19:34:29] shot ui_05_false_start
+[19:34:34] chute_bail: page loaded in 1995 ms
+[19:34:36] chute_bail: startEvent(shoot-the-chute) -> true
+[19:34:37] chute_bail: course {"kind":"event","id":"event:shoot-the-chute","name":"Shoot the Chute","format":"race","length":1136,"gates":0,"gateKind":"none","trap":[749,863],"splits":[],"targets":{"gold":66.5,"silver":80,"bronze":99.5},"start":[1525,572,1532],"startHeading":129,"line0":[1524.5853520169908,1532.2955059411568],"lineEnd":[1479.08,506.18],"linePts":25,"title":"Shoot the Chute","best":"–","count":"2","countHidden":false}
+[19:34:43] shot chute_bail_01_start
+[19:34:46] pause: Esc right after start: {"count":"3","pause":true,"time":"0:00.0"} -> 4 s later {"count":"3","pause":true,"time":"0:00.0"}
+[19:34:53] shot ui_04_paused_in_countdown
+[19:34:58] falsestart: W tapped at sample 2: 3@0:00.0, 3@0:00.0, 3@0:00.0, 3@0:00.0, 3@0:00.0, 2@0:00.0, 2@0:00.0, 2@0:00.0, 1@0:00.0, 1@0:00.0, 1@0:00.0, 1@0:00.0, 1@0:00.0, 1@0:00.0
+[19:35:03] shot ui_05_false_start
+[19:36:34] chute_bail: evlen [5,["GO!","",5,true]]
+[19:36:34] chute_bail: steps 579 down function
+[19:36:34] chute_bail: pilot error undefined
+[19:36:34] chute_bail: elapsed 110.79s, samples 578
+[19:36:34] chute_bail: events [{"t":0.28,"count":"2"},{"t":1.45,"count":"1"},{"t":3.64,"count":"GO!"},{"t":6.06,"count":""},{"t":68.94,"bail":96}]
+[19:36:34] chute_bail: RESULT SHOOT THE CHUTE | Did not finish | Left the course | Top speed | 96 km/h | Distance | 681 m | Vertical | 137 m | Eric Pehota | 151 km/h | Retry | R | Keep skiing | Challenges
+[19:36:37] shot chute_bail_03_end
+[19:36:37] chute_bail: max 95.5 km/h, final {"t":116.597,"st":92.808,"x":1352.26,"y":448.87,"z":1014.72,"vx":1.52,"vy":-1.49,"vz":-2.94,"kmh":13.1,"hdg":-152.7,"trav":-152.7,"edge":-50,"skid":0.015,"pitch":24.7,"rad":9,"load":1.01,"grip":0.07,"chat":0,"wash":0,"mode":"carving","gnd":1,"tuck":1,"sink":0,"surf":"groomed","crash":0,"hud":"1:32.8","title":"Shoot the Chute","res":1}
+[19:39:15] match1: page loaded in 2322 ms
+[19:39:15] sl3: page loaded in 2313 ms
+[19:39:16] match1: startEvent(match-your-time) -> true
+[19:39:16] sl3: startEvent(apex-slalom) -> true
+[19:39:17] match1: course {"kind":"event","id":"event:match-your-time","name":"Match Your Time","format":"match","length":1249,"gates":0,"gateKind":"none","splits":[],"targets":{"gold":0.3,"silver":1,"bronze":2.5},"start":[2078,351,1831],"startHeading":-62,"line0":[2078.3892366754612,1831.4459417220949],"lineEnd":[3174.61,1543.12],"linePts":15,"title":"Match Your Time · run 1 sets the time","best":"–","count":"3","countHidden":false}
+[19:39:18] sl3: course {"kind":"event","id":"event:apex-slalom","name":"Apex Slalom","format":"twoRun","length":547,"gates":35,"gateKind":"slalom","splits":[274],"targets":{"gold":97,"silver":116,"bronze":145},"start":[1901,267,853],"startHeading":-141,"line0":[1901.2208737542012,852.8243415648637],"lineEnd":[2359.05,563.84],"linePts":9,"title":"Apex Slalom · run 1 · gate 1/35","best":"–","count":"3","countHidden":false}
+[19:39:24] shot match1_01_start
+[19:39:26] shot sl3_01_start
+[19:39:32] sl3: evlen [5,["GO!","",5,true]]
+[19:39:32] sl3: steps 38 down function
+[19:39:32] sl3: pilot error undefined
+[19:39:32] sl3: elapsed 5.895s, samples 38
+[19:39:32] sl3: events [{"t":0.02,"count":"3"},{"t":0.21,"count":"2"},{"t":3.49,"count":"1"},{"t":6.49,"count":"GO!"},{"t":8.19,"count":""}]
+[19:39:32] sl3: RESULT APEX SLALOM | Did not finish | Disqualified: missed gate 1 | Gates | 0/35 | Top speed | 30 km/h | Distance | 30 m | Vertical | 11 m | Retry | R | Keep skiing | Challenges
+[19:39:36] shot sl3_03_end
+[19:39:36] sl3: max 30.1 km/h, final {"t":13.966,"st":5.258,"x":1923.66,"y":255.39,"z":833.56,"vx":5.45,"vy":-2.25,"vz":-4.49,"kmh":26.7,"hdg":-129.5,"trav":-129.5,"edge":27.1,"skid":0.008,"pitch":17.7,"rad":12.5,"load":1.1,"grip":0.45,"chat":0,"wash":0,"mode":"carving","gnd":1,"tuck":1,"sink":0,"surf":"park","crash":0,"hud":"0:05.3","title":"Apex Slalom · run 1 · gate 2/35","res":1}
+[19:39:48] shot match1_02_t20
+[19:42:57] match1: evlen [54,["GO!","",54,true]]
+[19:42:57] match1: steps 1305 down function
+[19:42:57] match1: pilot error undefined
+[19:42:57] match1: elapsed 212.86s, samples 1304
+[19:42:57] match1: events [{"t":0.29,"count":"2"},{"t":2.24,"count":"1"},{"t":3.86,"count":"GO!"},{"t":5.9,"count":""},{"t":18.98,"reset":"route index (respawn)"},{"t":19.25,"reset":"route index (respawn)"},{"t":19.49,"reset":"route index (respawn)"},{"t":50.45,"reset":"route index (respawn)"},{"t":65.78,"trick":"Skied Maverick 1/90 RUNS"},{"t":79.8,"reset":"route index (respawn)"},{"t":79.82,"reset":"route index (respawn)"},{"t":80,"reset":"route index (respawn)"},{"t":80.47,"reset":"route index (respawn)"},{"t":92.15,"reset":"route index (respawn)"},{"t":92.16,"reset":"route index (respawn)"},{"t":92.18,"reset":"route index (respawn)"},{"t":92.29,"reset":"route index (respawn)"},{"t":92.58,"reset":"route index (respawn)"},{"t":92.61,"reset":"route index (respawn)"},{"t":92.88,"reset":"route index (respawn)"},{"t":93.22,"reset":"route index (respawn)"},{"t":93.25,"reset":"route index (respawn)"},{"t":93.51,"reset":"route index (respawn)"},{"t":112.36,"count":"3"},{"t":112.36,"reset":"route index (respawn)"},{"t":113.38,"count":"2"},{"t":114.41,"count":"1"},{"t":115.38,"count":"GO!"},{"t":116.89,"count":""},{"t":126.66,"reset":"route index (respawn)"},{"t":126.82,"reset":"route index (respawn)"},{"t":126.97,"reset":"route index (respawn)"},{"t":127.12,"reset":"route index (respawn)"},{"t":127.26,"reset":"route index (respawn)"},{"t":158.09,"reset":"route index (respawn)"},{"t":187.23,"reset":"route index (respawn)"},{"t":187.29,"reset":"route index (respawn)"},{"t":187.39,"reset":"route index (respawn)"},{"t":187.57,"reset":"route index (respawn)"},{"t":187.84,"reset":"route index (respawn)"},{"t":187.91,"reset":"route index (respawn)"},{"t":188.23,"reset":"route index (respawn)"},{"t":200.82,"reset":"route index (respawn)"},{"t":200.98,"reset":"route index (respawn)"},{"t":201.14,"reset":"route index (respawn)"},{"t":201.25,"reset":"route index (respawn)"},{"t":201.32,"reset":"route index (respawn)"},{"t":201.47,"reset":"route index (respawn)"},{"t":201.59,"reset":"route index (respawn)"},{"t":201.61,"reset":"route index (respawn)"},{"t":201.74,"reset":"route index (respawn)"},{"t":201.89,"reset":"route index (respawn)"},{"t":202.05,"reset":"route index (respawn)"},{"t":218.47,"trick":"Skied Maverick1/90 runs"}]
+[19:42:57] match1: RESULT MATCH YOUR TIME · DIFFERENCE | 0:01.1 | First finish | Silver needs 0:01.0 | Run 1 | 1:33.3 | Run 2 | 1:32.1 | Top speed | 57 km/h | Distance | 1223 m | Vertical | 292 m | Retry | R | Keep skiing | Challenges
+[19:43:01] shot match1_03_end
+[19:43:01] match1: max 57 km/h, final {"t":219.136,"st":92.142,"x":3167.16,"y":61.12,"z":1555.31,"vx":8.45,"vy":-2.03,"vz":-11.87,"kmh":53,"hdg":-144.6,"trav":-144.6,"edge":-9.5,"skid":0,"pitch":12.1,"rad":13.8,"load":1.89,"grip":4.44,"chat":0,"wash":0,"mode":"tucked","gnd":1,"tuck":1,"sink":0,"surf":"groomed","crash":0,"hud":"1:32.1","title":"Match Your Time · run 2 · match 1:33.3","res":1}
+[19:46:31] sl4: page loaded in 2559 ms
+[19:46:31] gs2: page loaded in 2585 ms
+[19:46:32] gs2: startEvent(teck-gs) -> true
+[19:46:32] sl4: startEvent(apex-slalom) -> true
+[19:46:33] gs2: course {"kind":"event","id":"event:teck-gs","name":"Teck Open GS","format":"race","length":858,"gates":23,"gateKind":"gs","splits":[429],"targets":{"gold":85,"silver":102,"bronze":127},"start":[1883,281,939],"startHeading":-35,"line0":[1883.113720534978,938.639920895768],"lineEnd":[2647.58,716.95],"linePts":25,"title":"Teck Open GS · gate 1/23","best":"–","count":"3","countHidden":false}
+[19:46:33] sl4: course {"kind":"event","id":"event:apex-slalom","name":"Apex Slalom","format":"twoRun","length":547,"gates":35,"gateKind":"slalom","splits":[274],"targets":{"gold":97,"silver":116,"bronze":145},"start":[1901,267,853],"startHeading":-141,"line0":[1901.2208737542012,852.8243415648637],"lineEnd":[2359.05,563.84],"linePts":9,"title":"Apex Slalom · run 1 · gate 1/35","best":"–","count":"3","countHidden":false}
+[19:46:39] shot sl4_01_start
+[19:46:39] shot gs2_01_start
+[19:46:46] sl4: evlen [4,["GO!","",4,true]]
+[19:46:46] sl4: steps 42 down function
+[19:46:46] sl4: pilot error undefined
+[19:46:46] sl4: elapsed 6.529s, samples 42
+[19:46:46] sl4: events [{"t":0.04,"count":"2"},{"t":1.43,"count":"1"},{"t":3.51,"count":"GO!"},{"t":5.04,"count":""}]
+[19:46:46] sl4: RESULT APEX SLALOM | Did not finish | Disqualified: missed gate 1 | Gates | 0/35 | Top speed | 31 km/h | Distance | 31 m | Vertical | 12 m | Retry | R | Keep skiing | Challenges
+[19:46:51] shot sl4_03_end
+[19:46:51] sl4: max 30.6 km/h, final {"t":12.242,"st":5.325,"x":1925.03,"y":254.95,"z":833.11,"vx":5.14,"vy":-2.31,"vz":-5.4,"kmh":28.1,"hdg":-136.4,"trav":-136.4,"edge":36.9,"skid":0.01,"pitch":17.6,"rad":11.2,"load":1.14,"grip":0.39,"chat":0,"wash":0,"mode":"carving","gnd":1,"tuck":0,"sink":0,"surf":"park","crash":0,"hud":"0:05.3","title":"Apex Slalom · run 1 · gate 2/35","res":1}
+[19:47:07] shot gs2_02_t25
+[19:51:41] gs2: evlen [6,["GO!","",6,true]]
+[19:51:41] gs2: steps 1664 down function
+[19:51:41] gs2: pilot error undefined
+[19:51:41] gs2: elapsed 301.691s, samples 1663
+[19:51:41] gs2: events [{"t":0.02,"count":"2"},{"t":1.33,"count":"1"},{"t":3.19,"count":"GO!"},{"t":5.29,"count":""},{"t":19.65,"trick":"Tight GATE 2"},{"t":28.67,"trick":"Tight GATE 4"}]
+[19:51:41] gs2: RESULT none (timeout)
+[19:51:45] shot gs2_03_end
+[19:51:45] gs2: max 41 km/h, final {"t":306.68,"st":270.142,"x":2027.53,"y":248.82,"z":1006.42,"vx":0,"vy":0,"vz":0,"kmh":0,"hdg":118.9,"trav":-180,"edge":0,"skid":0,"pitch":11.8,"rad":-1,"load":1,"grip":0,"chat":0,"wash":0,"mode":"still","gnd":1,"tuck":1,"sink":0.354,"surf":"powder","crash":0,"hud":"4:30.1","title":"Teck Open GS · gate 5/23","res":0}

@@ -1,0 +1,13 @@
+[19:34:34] chute_bail: page loaded in 1995 ms
+[19:34:36] chute_bail: startEvent(shoot-the-chute) -> true
+[19:34:37] chute_bail: course {"kind":"event","id":"event:shoot-the-chute","name":"Shoot the Chute","format":"race","length":1136,"gates":0,"gateKind":"none","trap":[749,863],"splits":[],"targets":{"gold":66.5,"silver":80,"bronze":99.5},"start":[1525,572,1532],"startHeading":129,"line0":[1524.5853520169908,1532.2955059411568],"lineEnd":[1479.08,506.18],"linePts":25,"title":"Shoot the Chute","best":"–","count":"2","countHidden":false}
+[19:34:43] shot chute_bail_01_start
+[19:36:34] chute_bail: evlen [5,["GO!","",5,true]]
+[19:36:34] chute_bail: steps 579 down function
+[19:36:34] chute_bail: pilot error undefined
+[19:36:34] chute_bail: elapsed 110.79s, samples 578
+[19:36:34] chute_bail: events [{"t":0.28,"count":"2"},{"t":1.45,"count":"1"},{"t":3.64,"count":"GO!"},{"t":6.06,"count":""},{"t":68.94,"bail":96}]
+[19:36:34] chute_bail: RESULT SHOOT THE CHUTE | Did not finish | Left the course | Top speed | 96 km/h | Distance | 681 m | Vertical | 137 m | Eric Pehota | 151 km/h | Retry | R | Keep skiing | Challenges
+[19:36:37] shot chute_bail_03_end
+[19:36:37] chute_bail: max 95.5 km/h, final {"t":116.597,"st":92.808,"x":1352.26,"y":448.87,"z":1014.72,"vx":1.52,"vy":-1.49,"vz":-2.94,"kmh":13.1,"hdg":-152.7,"trav":-152.7,"edge":-50,"skid":0.015,"pitch":24.7,"rad":9,"load":1.01,"grip":0.07,"chat":0,"wash":0,"mode":"carving","gnd":1,"tuck":1,"sink":0,"surf":"groomed","crash":0,"hud":"1:32.8","title":"Shoot the Chute","res":1}
+CONSOLE ?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.

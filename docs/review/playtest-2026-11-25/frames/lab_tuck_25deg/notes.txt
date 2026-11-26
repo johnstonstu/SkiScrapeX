@@ -1,0 +1,8 @@
+f000 +0.50s tuck · t 4.50 · 36 km/h · steer L · edge -28° · skid 0.21
+f001 +1.00s tuck · t 5.00 · 37 km/h · steer L · edge -50° · skid 0.01
+f002 +1.50s tuck · t 5.50 · 42 km/h · steer R · edge -24° · skid 0.04
+f003 +2.00s tuck · t 6.00 · 43 km/h · steer R · edge 50° · skid 0.26
+f004 +2.50s tuck · t 6.50 · 36 km/h · steer R · edge 50° · skid 0.34
+f005 +3.00s tuck · t 7.00 · 32 km/h · steer L · edge -50° · skid 0.13
+f006 +3.50s tuck · t 7.50 · 36 km/h · steer L · edge -50° · skid 0.01
+f007 +4.00s tuck · t 8.00 · 42 km/h · steer R · edge 2° · skid 0.13

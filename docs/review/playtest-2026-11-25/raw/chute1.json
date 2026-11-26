@@ -1,0 +1,85 @@
+{
+ "info": {
+  "kind": "event",
+  "id": "event:shoot-the-chute",
+  "name": "Shoot the Chute",
+  "format": "race",
+  "length": 1136,
+  "gates": 0,
+  "gateKind": "none",
+  "trap": [
+   749,
+   863
+  ],
+  "splits": [],
+  "targets": {
+   "gold": 66.5,
+   "silver": 80,
+   "bronze": 99.5
+  },
+  "start": [
+   1525,
+   572,
+   1532
+  ],
+  "startHeading": 129,
+  "line0": [
+   1524.5853520169908,
+   1532.2955059411568
+  ],
+  "lineEnd": [
+   1479.08,
+   506.18
+  ],
+  "linePts": 25,
+  "title": "Shoot the Chute",
+  "best": "–",
+  "count": "3",
+  "countHidden": false
+ },
+ "opts": {
+  "tuck": true,
+  "minKmh": 0,
+  "maxKmh": 999,
+  "ahead": 40,
+  "dead": 0.06,
+  "maxMs": 240000,
+  "fastStart": true,
+  "shotsAt": [
+   10,
+   25
+  ],
+  "route": "auto",
+  "viewport": {
+   "width": 960,
+   "height": 540
+  },
+  "retry": true
+ },
+ "events": [
+  {
+   "t": 0.11,
+   "count": "2"
+  },
+  {
+   "t": 1.99,
+   "count": "1"
+  },
+  {
+   "t": 3.97,
+   "count": "GO!"
+  },
+  {
+   "t": 5.34,
+   "count": ""
+  },
+  {
+   "t": 91.28,
+   "trick": "Radar 123 KM/H"
+  }
+ ],
+ "result": "SHOOT THE CHUTE\n\n1:14.0\n\nFirst finish\n\nGold needs 1:06.5\n\nSpeed trap\n123 km/h\nTop speed\n127 km/h\nDistance\n1108 m\nVertical\n344 m\nEric Pehota\n151 km/h\nRetry\nR\nKeep skiing\nChallenges",
+ "console": [
+  "?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported."
+ ]
+}

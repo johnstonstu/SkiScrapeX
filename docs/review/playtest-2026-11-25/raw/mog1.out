@@ -1,0 +1,11 @@
+[19:27:59] mog1: page loaded 2459 ms; startEvent(kristis-moguls) -> true
+[19:28:00] mog1: course {"name":"Kristi's Moguls","length":219,"line":2,"turns":41,"airs":[{"name":"Top air","s":44},{"name":"Bottom air","s":175}],"bumps":153,"targets":{"gold":80,"silver":65,"bronze":45},"title":"Kristi's Moguls","beat":true}
+[19:28:07] shot mog1_01_start
+[19:28:21] shot mog1_02_t8
+[19:28:31] shot mog1_02_t20
+[19:28:34] mog1: pilot err undefined; samples 96 over 26.715s
+[19:28:34] mog1: events [{"t":0.71,"count":"3"},{"t":1.23,"count":"2"},{"t":2.72,"count":"1"},{"t":4.79,"count":"GO!"},{"t":7.45,"count":""},{"t":11.78,"trick":"Perfect 23 KM/H"},{"t":12.82,"trick":"Perfect 24 KM/H"},{"t":14.36,"trick":"Perfect 25 KM/H · STREAK 3"},{"t":15.34,"trick":"Good 26 KM/H · STREAK 4"},{"t":17.37,"trick":"Perfect 27 KM/H · STREAK 5"},{"t":18.37,"trick":"Perfect 29 KM/H · STREAK 6"},{"t":19.03,"trick":"Perfect 30 KM/H · STREAK 7"},{"t":25.61,"trick":"Perfect 31 KM/H · STREAK 8"},{"t":27.02,"trick":"Perfect 32 KM/H · STREAK 9"},{"t":27.35,"trick":"Good 33 KM/H · STREAK 10"},{"t":27.99,"trick":"Perfect 34 KM/H · STREAK 11"},{"t":28.61,"trick":"Good 35 KM/H · STREAK 12"},{"t":28.94,"trick":"Perfect 36 KM/H · STREAK 13"},{"t":29.56,"trick":"Good 37 KM/H · STREAK 14"},{"t":31.11,"trick":"Missed 32 KM/H"},{"t":31.89,"trick":"Missed 26 KM/H"},{"t":32.15,"trick":"Missed 21 KM/H"},{"t":32.17,"trick":"Missed21 km/h"}]
+[19:28:34] mog1: taps 18 [{"t":11.27,"i":0,"toBeat":0.051,"frame":0.26},{"t":12.77,"i":1,"toBeat":-0.075,"frame":0.315},{"t":13.96,"i":2,"toBeat":0.014,"frame":0.32},{"t":15.17,"i":3,"toBeat":0.084,"frame":0.301},{"t":17.04,"i":4,"toBeat":0.03,"frame":0.371},{"t":18.04,"i":5,"toBeat":-0.009,"frame":0.353},{"t":18.71,"i":6,"toBeat":0.033,"frame":0.347},{"t":25.31,"i":7,"toBeat":0.065,"frame":0.371},{"t":26.58,"i":8,"toBeat":-0.019,"frame":0.48},{"t":27.02,"i":9,"toBeat":0.119,"frame":0.471},{"t":27.65,"i":10,"toBeat":0.018,"frame":0.415},{"t":27.99,"i":11,"toBeat":0.137,"frame":0.4}]
+[19:28:34] mog1: RESULT KRISTI'S MOGULS | Did not finish | Out of the line: three misses in a row | Top speed | 41 km/h | Distance | 98 m | Vertical | 33 m | Retry | R | Keep skiing | Challenges
+[19:28:40] shot mog1_03_end
+CONSOLE ?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.

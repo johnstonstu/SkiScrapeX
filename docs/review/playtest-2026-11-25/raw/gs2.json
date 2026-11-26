@@ -1,0 +1,86 @@
+{
+ "info": {
+  "kind": "event",
+  "id": "event:teck-gs",
+  "name": "Teck Open GS",
+  "format": "race",
+  "length": 858,
+  "gates": 23,
+  "gateKind": "gs",
+  "splits": [
+   429
+  ],
+  "targets": {
+   "gold": 85,
+   "silver": 102,
+   "bronze": 127
+  },
+  "start": [
+   1883,
+   281,
+   939
+  ],
+  "startHeading": -35,
+  "line0": [
+   1883.113720534978,
+   938.639920895768
+  ],
+  "lineEnd": [
+   2647.58,
+   716.95
+  ],
+  "linePts": 25,
+  "title": "Teck Open GS · gate 1/23",
+  "best": "–",
+  "count": "3",
+  "countHidden": false
+ },
+ "opts": {
+  "tuck": true,
+  "minKmh": 0,
+  "maxKmh": 40,
+  "ahead": 20,
+  "dead": 0.04,
+  "maxMs": 300000,
+  "fastStart": true,
+  "shotsAt": [
+   25
+  ],
+  "route": "gates",
+  "viewport": {
+   "width": 800,
+   "height": 450
+  },
+  "inside": 2
+ },
+ "events": [
+  {
+   "t": 0.02,
+   "count": "2"
+  },
+  {
+   "t": 1.33,
+   "count": "1"
+  },
+  {
+   "t": 3.19,
+   "count": "GO!"
+  },
+  {
+   "t": 5.29,
+   "count": ""
+  },
+  {
+   "t": 19.65,
+   "trick": "Tight GATE 2"
+  },
+  {
+   "t": 28.67,
+   "trick": "Tight GATE 4"
+  }
+ ],
+ "result": null,
+ "console": [
+  "?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported."
+ ]
+}

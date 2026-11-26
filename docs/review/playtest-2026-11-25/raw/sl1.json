@@ -1,0 +1,89 @@
+{
+ "info": {
+  "kind": "event",
+  "id": "event:apex-slalom",
+  "name": "Apex Slalom",
+  "format": "twoRun",
+  "length": 547,
+  "gates": 35,
+  "gateKind": "slalom",
+  "splits": [
+   274
+  ],
+  "targets": {
+   "gold": 97,
+   "silver": 116,
+   "bronze": 145
+  },
+  "start": [
+   1901,
+   267,
+   853
+  ],
+  "startHeading": -141,
+  "line0": [
+   1901.2208737542012,
+   852.8243415648637
+  ],
+  "lineEnd": [
+   2359.05,
+   563.84
+  ],
+  "linePts": 9,
+  "title": "Apex Slalom · run 1 · gate 1/35",
+  "best": "–",
+  "count": "3",
+  "countHidden": false
+ },
+ "opts": {
+  "tuck": true,
+  "minKmh": 0,
+  "maxKmh": 40,
+  "ahead": 20,
+  "dead": 0.06,
+  "maxMs": 240000,
+  "fastStart": true,
+  "shotsAt": [
+   12
+  ],
+  "route": "gates",
+  "viewport": {
+   "width": 800,
+   "height": 450
+  }
+ },
+ "events": [
+  {
+   "t": 0.13,
+   "count": "2"
+  },
+  {
+   "t": 1.7,
+   "count": "1"
+  },
+  {
+   "t": 3.25,
+   "count": "GO!"
+  },
+  {
+   "t": 5.66,
+   "count": ""
+  },
+  {
+   "t": 11.59,
+   "trick": "Tight GATE 1"
+  },
+  {
+   "t": 14.96,
+   "trick": "Tight GATE 3"
+  },
+  {
+   "t": 17.09,
+   "trick": "Tightgate 3"
+  }
+ ],
+ "result": "APEX SLALOM\n\nDid not finish\n\nDisqualified: missed gate 4\n\nGates\n3/35\nTop speed\n43 km/h\nDistance\n73 m\nVertical\n29 m\nRetry\nR\nKeep skiing\nChallenges",
+ "console": [
+  "?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported."
+ ]
+}

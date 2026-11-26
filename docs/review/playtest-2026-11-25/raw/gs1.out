@@ -1,0 +1,14 @@
+[19:14:30] gs1: page loaded in 3886 ms
+[19:14:30] gs1: startEvent(teck-gs) -> true
+[19:14:32] gs1: course {"kind":"event","id":"event:teck-gs","name":"Teck Open GS","format":"race","length":858,"gates":23,"gateKind":"gs","splits":[429],"targets":{"gold":85,"silver":102,"bronze":127},"start":[1883,281,939],"startHeading":-35,"line0":[1883.113720534978,938.639920895768],"lineEnd":[2647.58,716.95],"linePts":25,"title":"Teck Open GS · gate 1/23","best":"–","count":"3","countHidden":false}
+[19:14:41] shot gs1_01_start
+[19:15:03] shot gs1_02_t15
+[19:18:43] gs1: evlen [6,["GO!","",6,true]]
+[19:18:43] gs1: steps 844 down function
+[19:18:44] gs1: pilot error undefined
+[19:18:44] gs1: elapsed 242.213s, samples 843
+[19:18:44] gs1: events [{"t":0.36,"count":"2"},{"t":4.33,"count":"1"},{"t":6.69,"count":"GO!"},{"t":9.36,"count":""},{"t":22.69,"trick":"Tight GATE 2"},{"t":42.32,"trick":"Tight GATE 4"}]
+[19:18:44] gs1: RESULT none (timeout)
+[19:18:48] shot gs1_03_end
+[19:18:48] gs1: max 47 km/h, final {"t":249.529,"st":166.175,"x":2030.54,"y":248.27,"z":995.68,"vx":0,"vy":0,"vz":0,"kmh":0,"hdg":85.5,"trav":0,"edge":0,"skid":0,"pitch":10.5,"rad":-1,"load":1,"grip":0,"chat":0,"wash":0,"mode":"still","gnd":1,"tuck":1,"sink":0.321,"surf":"powder","crash":0,"hud":"2:46.2","title":"Teck Open GS · gate 5/23","res":0}
+CONSOLE ?test [warning] THREE.WebGLRenderer: KHR_parallel_shader_compile extension not supported.

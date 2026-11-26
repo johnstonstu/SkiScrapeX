@@ -1,0 +1,5 @@
+pitch,hold_s,airtime_s,apex_above_snow_m,kmh_after,crashed
+0,0.1,0.3,0.11,20.76,false
+0,0.4,0.48,0.3,19.07,false
+15,0.1,0.3,0.12,44.5,false
+15,0.4,0.5,0.32,41.96,false
