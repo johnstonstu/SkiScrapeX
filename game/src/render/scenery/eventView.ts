@@ -295,9 +295,10 @@ export function createEventView(course: EventCourse, heightAt: HeightAt) {
       pose(skier)
     },
     /** Add a mesh the view owns: its geometry is disposed with the view (its material is shared, so kept). */
-    addOwned(mesh: THREE.Mesh) {
-      group.add(mesh)
-      disposables.push(mesh.geometry)
+    /** Add an event-only view (the mogul comp's bumps); disposed with the event. */
+    addOwned(view: { object: THREE.Object3D; dispose(): void }) {
+      group.add(view.object)
+      disposables.push(view)
     },
     /** Place the ghost (skier heading convention: 0 faces +Z, positive to the right), or hide it. */
     setGhost(pose: { x: number; y: number; z: number; heading: number } | null) {

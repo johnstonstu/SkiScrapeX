@@ -1,6 +1,6 @@
 import type { ParkSite } from '../world/park'
 import type { Point2, Resort, Run } from '../world/resort'
-import { polylineLength } from '../world/resort'
+import { pointInRing, polylineLength } from '../world/resort'
 
 export const RUN_COLOURS: Record<string, string> = {
   novice: '#3fbf5a',
@@ -52,7 +52,8 @@ export function hitTrail(
   let best: TrailSelection = null
   let bestDist = radius
   for (const run of runs) {
-    const distance = distToParts(x, z, run.parts)
+    // Inside a glade (an area run) counts as on it.
+    const distance = run.kind === 'area' && run.parts.some((ring) => pointInRing(x, z, ring)) ? 0 : distToParts(x, z, run.parts)
     if (distance < bestDist) {
       bestDist = distance
       best = { kind: 'run', run }
@@ -272,7 +273,7 @@ export function createTrailMap(
     },
     /** Useful for tests and detail copy. */
     runLength(run: Run) {
-      return Math.max(...run.parts.map(polylineLength))
+      return run.kind === 'area' ? 0 : Math.max(...run.parts.map(polylineLength))
     },
   }
 }

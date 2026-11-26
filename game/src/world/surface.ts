@@ -18,7 +18,7 @@ export interface SurfaceField {
   width: number
   height: number
   texel: number
-  /** RGBA mask for SnowMaterial: R surface id × 32, G groom heading / 2π. Forest shade is a separate canopy texture. */
+  /** RGBA mask for SnowMaterial: R surface id × 32, G groom heading / 2π, B 255 on packed (no corduroy) groomed snow. Forest shade is a separate canopy texture. */
   mask: Uint8Array
   /** 1 on a mapped run, road or building lot. Trees stay off these texels. */
   runNameAt(x: number, z: number): string
@@ -54,9 +54,19 @@ export function buildSurface(
   const heading = new Float32Array(count)
   const halfWidths: number[] = [0]
   const woodedRuns: number[] = [0]
+  const packedRuns: number[] = [0]
+  const glades: { location: number; ring: [number, number][] }[] = []
 
   for (const run of resort.runs) {
     const location = names.push(run.name) - 1
+    packedRuns[location] = run.packed ? 1 : 0
+    if (run.glade && run.kind === 'area') {
+      // Glades name the ground between runs once the runs are fitted; see below.
+      halfWidths[location] = 0
+      woodedRuns[location] = 1
+      for (const ring of run.parts) glades.push({ location, ring })
+      continue
+    }
     halfWidths[location] = run.kind === 'area' ? 0 : runHalfWidth(run)
     woodedRuns[location] = run.wooded ? 1 : 0
     const clearCorridor = !run.wooded
@@ -103,6 +113,16 @@ export function buildSurface(
       grid,
       options.canopyCover,
     )
+  }
+
+  // Glades: off-piste ground inside a glade polygon takes the glade's name (map and
+  // HUD). Trees stay (forest.ts thins them) and runs crossing the glade keep their ground.
+  for (const { location, ring } of glades) {
+    const [minX, minZ, maxX, maxZ] = bounds(ring, 0)
+    eachTexel(minX, minZ, maxX, maxZ, texel, width, height, (index, x, z) => {
+      if (locations[index] || !pointInRing(x, z, ring)) return
+      locations[index] = location
+    })
   }
 
   // Terrain parks: groomed look, park physics, no trees.
@@ -159,6 +179,8 @@ export function buildSurface(
     const turns = (((heading[i] / TAU) % 1) + 1) % 1
     mask[i * 4] = surface[i] * 32
     mask[i * 4 + 1] = Math.round(turns * 255)
+    // B: packed, skier-tracked snow on a groomed run: no corduroy (SnowMaterial).
+    mask[i * 4 + 2] = surface[i] === SurfaceId.groomed && packedRuns[locations[i]] ? 255 : 0
     mask[i * 4 + 3] = 255
   }
   function runNameAt(x: number, z: number) {

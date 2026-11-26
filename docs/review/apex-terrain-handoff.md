@@ -2,6 +2,8 @@
 
 > **Status in the game (0.9.18, run pass A):** applied items 1 to 5 and 10: the five south-face runs, the Wildside names (W3 to W6, order confirmed by Stu), Wildly Easy, the Gambit, Spruce Hollow and Hang 'em High splits, the Wishbone merge, Grandmother's difficulty, Chaser (L3), Any Which Way Glades (W1, W2) and neutral names for the other traces. Not applied: L2 stays **Prospector** (Stu, 0.9.17), and Easy Rider stays `novice`, which the game already draws as green. Pass B (glades, moguls and grooming from frames, widths) is next.
 >
+> **Pass B (unreleased, branch `runs-pass-b`):** applied items 6 and 7 and part of 9: the four glade polygons (thinned into lanes, labelled), moguls on Sunbowl, Make My Day, Old Mill, Gunbarrel and K2, chop on Crusher and Hanks, packed Grandmother's, the summit fence and the Tooth/Tusk signpost, and Dawdler 1 narrowed to its LiDAR width. `game/tests/runProfiles.test.ts` checks every profiled run's pitch and width against `run-profiles.json`. Not applied: item 8 (distant forest) and the per-run edge tree density and height.
+>
 > **Not copied to `main`:** the run-sheet images and video frame grabs, the CC BY-NC photos and the generated forest rasters. They stay on the `docs/apex-terrain-events-handoff` branch (PR #101) as reference only, so links to `run-sheets/*.jpg` below resolve only there.
 
 **For:** Claude (lead dev) to integrate into the SkiScrapeX game map. **Status:** these are all PROPOSALS. Nothing in the repo was edited or committed. Historically another agent owned `terrain/` and `scripts/`, so treat every item as a suggestion to review and apply, not a finished change.

@@ -56,7 +56,12 @@ Expensive shader work goes behind a define (like `SNOW_DETAIL`). Expensive geome
 ### Runs from the Apex research handoff (PR #101, `docs/review/apex-terrain-handoff.md`)
 
 - [x] 0.9.18, pass A: south-face runs, Wildside names and Wildly Easy, Upper/Lower splits, Wishbone merge, Grandmother's blue, Chaser, neutral names for unknown traces.
-- [ ] Pass B: thin trees in the four glade polygons and label them; moguls on Sunbowl, Make My Day, Old Mill, Gunbarrel, K2; ungroomed Crusher and Hanks, packed Grandmother's; landmarks (summit orange slat fence, Tooth/Tusk signpost, padded lift towers); a test of run widths and pitches against `run-profiles.json`.
+- [x] Pass B (0.9.23): glades thinned into lanes and labelled; moguls on Sunbowl, Make My Day, Old Mill, Gunbarrel, K2; chop on Crusher and Hanks, packed Grandmother's; summit orange slat fence, Tooth/Tusk signpost, padded lift towers (already in `lifts.glb`, now tested); run widths and pitches tested against `run-profiles.json`.
+  - [x] Glades: Any Which Way, Granny's, Fools Gold, Hidden Gold thinned (lanes down the fall line), on the map and HUD, with trail-head boards.
+  - [x] Moguls on Sunbowl, Make My Day, Old Mill, Gunbarrel and K2.
+  - [x] Crusher and Hanks ungroomed (chop, no corduroy); Grandmother's packed (no corduroy).
+  - [x] Landmarks: summit slat fence, Tooth/Tusk signpost, padded towers.
+  - [x] `tests/runProfiles.test.ts`: widths and pitches against `run-profiles.json`.
 - [x] Events: Shoot the Chute and the Mars downhill (`docs/review/apex-events/game-event-ideas.md`), plus the Apex Slalom, Teck Open GS, Kristi's Moguls (tap-to-turn rhythm), Aerials and Match Your Time, with a shared race system (start gate, gate grades, line assist, ghosts). Next candidates from the same doc: dual moguls against a ghost, Torchlight Parade (needs night), Dummy Downhill, Boardercross heats against AI.
 - [ ] Distant forest: apron tree density (the LiDAR ring is sparser than our cover already), with the performance pass.
 
@@ -68,7 +73,7 @@ Expensive shader work goes behind a define (like `SNOW_DETAIL`). Expensive geome
 ### Next up (from Stu's 0.9.16 playtest, 2026-11-24)
 
 - [x] 0.9.17: instant deep-snow trenches, chair arrival on free ski, arrival camera, T-bar and carpet unloads, carpet on the ground, window flicker, Aerial Site, Prospector park on L2, Claim Jumper XL line, pole push vs tuck, gravity-relative lean.
-- [ ] 0.9.18, music: a music player whose tracks react to what you are doing (cruising, steeps, freestyle). Both sources: procedural layers generated in the browser by default, plus a few open-licence tracks as an option (credits in `game/THIRD_PARTY_NOTICES.md`).
+- [x] 0.9.18, music (PR pending, `claude/adaptive-music-1dc879`): a music player whose tracks react to what you are doing (cruising, steeps, freestyle). Both sources: procedural layers generated in the browser by default, plus a few open-licence tracks as an option (credits in `game/THIRD_PARTY_NOTICES.md`). Done: procedural music and the Tracks source with an empty track list; picking and adding the actual CC0 or CC-BY tracks is left for Stu (see `game/public/audio/music/README.md`).
 - [ ] More animation and VFX polish from play: landing and takeoff spray, powder plumes off berms, the rider's turn shape from behind.
 
 ### Next up (from Stu's 0.9.13 playtest, 2026-11-24)
@@ -127,7 +132,7 @@ Goal: a local recognises Apex at a glance. Ship this in batches of four to eight
 
 1. **Runs and terrain**
    - [ ] Ragged, natural run edges (#12), cat tracks and traverses (#15), summit plateau (#14).
-   - [ ] Glades with real gaps (#17), bigger moguls on the right runs (#16).
+   - [x] Glades with real gaps (#17), bigger moguls on the right runs (#16) (run pass B).
    - [ ] Name the remaining traced runs (#18, #52; needs Stu or the trail map).
 2. **Trees**
    - [ ] Denser forest (#21), clumping (#23), variety (#22).

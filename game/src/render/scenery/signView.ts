@@ -3,6 +3,7 @@ import { applyTextureBudget } from '../textureBudget'
 import { createStaticBatch } from './mergeStatic'
 import type { Peak, Run } from '../../world/resort'
 import { pointAlong } from '../../world/resort'
+import { gladeEntry } from '../../world/glades'
 
 const SYMBOL: Record<string, { shape: 'circle' | 'square' | 'diamond' | 'double'; color: string }> = {
   novice: { shape: 'circle', color: '#2e9e4a' },
@@ -66,6 +67,22 @@ export function createSignView(
     if (!Number.isFinite(ground)) continue
     // A timber trail-head board facing skiers coming down from above.
     const face = trailBoard(run.name, SYMBOL[run.difficulty ?? ''] ?? null, boardParts, disposables, batch, new THREE.Vector3(x, ground - 0.15, z), Math.atan2(-(x1 - x0), -(z1 - z0)))
+    group.add(face)
+    faces.push(face)
+    const sprite = label(run.name, SYMBOL[run.difficulty ?? ''] ?? null, disposables)
+    sprite.position.set(x, ground + 3.0, z)
+    group.add(sprite)
+    labels.push(sprite)
+    trailLabels.add(sprite)
+  }
+  // Glades: the same board at the top of each glade, facing skiers dropping in.
+  for (const run of runs) {
+    if (run.kind !== 'area' || !run.glade || seen.has(run.name)) continue
+    const entry = gladeEntry(run.parts[0], heightAt)
+    if (!entry) continue
+    seen.add(run.name)
+    const { x, z, ground, yaw } = entry
+    const face = trailBoard(run.name, SYMBOL[run.difficulty ?? ''] ?? null, boardParts, disposables, batch, new THREE.Vector3(x, ground - 0.15, z), yaw)
     group.add(face)
     faces.push(face)
     const sprite = label(run.name, SYMBOL[run.difficulty ?? ''] ?? null, disposables)
@@ -240,3 +257,4 @@ function signCanvas(text: string, symbol: { shape: string; color: string } | nul
   g.fillText(text, left, 66)
   return canvas
 }
+

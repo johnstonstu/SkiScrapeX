@@ -22,6 +22,7 @@ import { applyWeather, weatherGust, weatherPreset, type WeatherPreset } from './
 import { createControls } from './player/input'
 import { createCameraRig } from './player/camera'
 import { createSkiAudio } from './player/audio'
+import { createMusic } from './player/music'
 import { createHaptics } from './player/haptics'
 import { createGearDrops } from './player/gearDrops'
 import { createSnowEffects } from './player/effects'
@@ -39,6 +40,7 @@ import { KEYS, readJson, writeJson } from './app/storage'
 import { createTrickFeed } from './app/tricks'
 import { buildParkMenu, buildRunMenu, renderTrailDetail, syncTrailListSelection } from './app/menus'
 import { createTrailMap, type TrailSelection } from './ui/trailMap'
+import { courseForGlade } from './world/glades'
 import { buildApexStage } from './app/apexStage'
 import { loadSceneryAssets, type SceneryAssets } from './render/scenery/sceneryAssets'
 import type { Stage } from './app/stage'
@@ -149,7 +151,10 @@ const hideOverlays = () => {
   for (const panel of [ui.menu, ui.results, ui.titleScreen, ...sidePanels]) panel.hidden = true
   stylePanel.setVisible(false)
 }
-const sound = createSkiAudio($<HTMLButtonElement>('#btn-sound'))
+const sound = createSkiAudio($<HTMLButtonElement>('#btn-sound'), { onImpact: (level) => music.duck(level), onMute: (muted) => music.setMuted(muted) })
+const music = createMusic({ enabled: settings.music, source: settings.musicSource, volume: settings.musicVolume, muted: sound.muted })
+// Read-only probe for checking the adaptive music from the console or a test browser.
+;(window as unknown as { skiMusic: () => unknown }).skiMusic = () => music.status()
 const haptics = createHaptics((weak, strong, ms) => controls.rumble(weak, strong, ms))
 const gearDrops = createGearDrops(scene)
 const effects = createSnowEffects(scene, lighting, pixelRatio, quality)
@@ -167,6 +172,9 @@ function applySetting(key?: keyof Settings) {
   const all = key === undefined
   if (all || key === 'steering' || key === 'invertPitch') controls.setOptions({ steering: settings.steering, invertPitch: settings.invertPitch })
   if (all || key === 'volume') sound.setVolume(settings.volume)
+  if (all || key === 'music') music.setEnabled(settings.music)
+  if (all || key === 'musicSource') music.setSource(settings.musicSource)
+  if (all || key === 'musicVolume') music.setVolume(settings.musicVolume)
   if (all || key === 'fov') rig.setFov(settings.fov)
   if (all || key === 'cameraShake') {
     rig.setShake(settings.cameraShake ? 1 : 0)
@@ -390,10 +398,12 @@ function startApex(world: World, scenery?: SceneryAssets) {
   const { grid, resort } = world
   perf.phase('credits')
   const runs = pickableRuns(resort)
+  // The maps also name the glades (area runs), which are not timed runs.
+  const mapRuns = [...runs, ...resort.runs.filter((run) => run.glade)]
   const skiRun = (run: Run) => {
     leaveDemoPark()
     setFreeSki()
-    course = courseForRun(resort, run)
+    course = (run.glade ? courseForGlade(run, grid.heightAt) : null) ?? courseForRun(resort, run)
     restartFromMenu()
   }
   const tripTrail = (selection: TrailSelection) => {
@@ -403,7 +413,7 @@ function startApex(world: World, scenery?: SceneryAssets) {
   }
   minimap?.dispose()
   minimap = createMinimap(ui.map, ui.mapLocation, apex.surface.runNameAt, { width: grid.width, depth: grid.depth, resort, hillshade: world.hillshade }, {
-    runs,
+    runs: mapRuns,
     parks: apex.parkSites,
     onTrip: tripTrail,
   })
@@ -414,7 +424,7 @@ function startApex(world: World, scenery?: SceneryAssets) {
   }
   trailMap?.dispose()
   trailMap = createTrailMap(ui.trailMap, { width: grid.width, depth: grid.depth, resort, hillshade: world.hillshade }, {
-    runs,
+    runs: mapRuns,
     parks: apex.parkSites,
     onSelect: selectTrail,
     onTrip: tripTrail,
@@ -1041,6 +1051,19 @@ function tick(dt: number, frameMs: number) {
     $('#btn-menu').setAttribute('aria-expanded', String(menuOpen))
     if (!menuOpen) ui.canvas.focus()
   }
+  music.update({
+    dt,
+    menu: menuOpen,
+    riding: Boolean(ride),
+    speed: skier.speed,
+    slopeDeg: (skier.pitch * 180) / Math.PI,
+    airborne: !skier.grounded && !skier.rail,
+    airTime: skier.air?.time ?? 0,
+    onRail: Boolean(skier.rail),
+    inPark: skier.surface.kind === 'park',
+    crashed: skier.crashed > 0,
+    trickSeq: skier.trick?.seq ?? 0,
+  })
   if (menuOpen) {
     if (!ui.titleScreen.hidden && stage.world) {
       // Title backdrop: a slow pan around the view from where the skier stands.

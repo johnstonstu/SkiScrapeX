@@ -313,6 +313,8 @@ void main() {
     groom = vec2(cos(ang), sin(ang));
   }
 
+  // Packed, skier-tracked runs (Grandmother's): groomed snow with no fresh corduroy.
+  float packedSnow = (uHasMask > 0.5 && uMaskEnabled > 0.5) ? step(0.5, maskSample.b) : 0.0;
   float groomed = 1.0 - step(0.5, abs(id - 0.0));
   float powder = 1.0 - step(0.5, abs(id - 1.0));
   float ice = 1.0 - step(0.5, abs(id - 2.0));
@@ -424,13 +426,13 @@ void main() {
   float broken = smoothstep(0.02, 0.28, dep);
   // Traffic wears patches of a groomer: the corduroy fades and faint streaks run along the run.
 #ifdef SNOW_DETAIL
-  float worn = groomed * smoothstep(0.55, 0.8, valueNoise(vWorld.xz * 0.045 + 3.0));
+  float worn = groomed * max(smoothstep(0.55, 0.8, valueNoise(vWorld.xz * 0.045 + 3.0)), packedSnow);
   float streak = valueNoise(vec2(dot(vWorld.xz, perp) * 2.4, dot(vWorld.xz, groom) * 0.07));
   albedo *= mix(1.0, mix(0.92, 1.0, streak), worn * snowMask);
 #else
   float worn = 0.0;
 #endif
-  float cordMask = groomed * snowMask * step(0.0001, uCordDepth) * aa * (1.0 - broken) * (1.0 - 0.75 * worn);
+  float cordMask = groomed * snowMask * step(0.0001, uCordDepth) * aa * (1.0 - broken) * (1.0 - 0.75 * worn) * (1.0 - packedSnow);
   float cordJitter = phase - dot(vWorld.xz, perp) * freq;
   float wave = sin(phase) * 0.78 + sin(phase * 0.5 + 1.3) * 0.22;
   vec2 tilt = perp * cos(phase);
