@@ -64,6 +64,7 @@ import { createPauseGuide } from './app/pauseGuide'
 import { createMenuNavigation } from './app/menuNavigation'
 import { createParkHud } from './app/parkHud'
 import type { Point2 } from './world/resort'
+import { createPocketPlayer } from './ui/pocketPlayer'
 
 const params = new URLSearchParams(location.search)
 const turnModel = (params.get('turns') ?? params.get('turn')) === 'wide' ? 'wide' : 'classic'
@@ -153,9 +154,37 @@ const hideOverlays = () => {
   stylePanel.setVisible(false)
 }
 const sound = createSkiAudio($<HTMLButtonElement>('#btn-sound'), { onImpact: (level) => music.duck(level), onMute: (muted) => music.setMuted(muted) })
-const music = createMusic({ enabled: settings.music, source: settings.musicSource, volume: settings.musicVolume, muted: sound.muted })
+const music = createMusic({ enabled: settings.music, source: settings.musicSource, mix: settings.radioMix, volume: settings.musicVolume, muted: sound.muted })
 // Read-only probe for checking the adaptive music from the console or a test browser.
 ;(window as unknown as { skiMusic: () => unknown }).skiMusic = () => music.status()
+const pocket = createPocketPlayer(music, {
+  onMix: (mix) => {
+    settings.radioMix = mix
+    settings.musicSource = 'radio'
+    writeSettings(settings)
+    applySetting('radioMix')
+    applySetting('musicSource')
+  },
+  onLyrics: (on) => {
+    settings.lyrics = on
+    writeSettings(settings)
+  },
+  onPick: (song) => {
+    if (song.id.startsWith('synth:')) {
+      settings.musicSource = 'procedural'
+    } else {
+      settings.musicSource = 'radio'
+      // Keep the playlist unless the song is not in it.
+      if ((settings.radioMix === 'vocal' && !song.lyrics) || (settings.radioMix === 'instrumental' && song.lyrics)) settings.radioMix = 'all'
+    }
+    writeSettings(settings)
+    applySetting('radioMix')
+    applySetting('musicSource')
+    if (song.id.startsWith('synth:')) music.playSynth(Number(song.id.slice(6)))
+    else music.playFile(song.id)
+  },
+})
+const headOnScreen = new THREE.Vector3()
 const haptics = createHaptics((weak, strong, ms) => controls.rumble(weak, strong, ms))
 const gearDrops = createGearDrops(scene)
 const effects = createSnowEffects(scene, lighting, pixelRatio, quality)
@@ -175,6 +204,7 @@ function applySetting(key?: keyof Settings) {
   if (all || key === 'volume') sound.setVolume(settings.volume)
   if (all || key === 'music') music.setEnabled(settings.music)
   if (all || key === 'musicSource') music.setSource(settings.musicSource)
+  if (all || key === 'radioMix') music.setMix(settings.radioMix)
   if (all || key === 'musicVolume') music.setVolume(settings.musicVolume)
   if (all || key === 'fov') rig.setFov(settings.fov)
   if (all || key === 'cameraShake') {
@@ -210,6 +240,16 @@ function applySetting(key?: keyof Settings) {
       for (const m of Array.isArray(material) ? material : material ? [material] : []) m.needsUpdate = true
     })
   }
+}
+/** The pocket player's screen and lyrics; on lifts the line sits by the rider's ear. */
+function updatePocket() {
+  let head: { x: number; y: number } | null = null
+  if (ride && rig.mode !== 'first') {
+    skierView.eye.getWorldPosition(headOnScreen).project(camera)
+    const { x, y, z } = headOnScreen
+    if (z < 1 && Math.abs(x) < 0.95 && Math.abs(y) < 0.95) head = { x: ((x + 1) / 2) * window.innerWidth, y: ((1 - y) / 2) * window.innerHeight }
+  }
+  pocket.update({ riding: Boolean(ride), head, hideLyrics: menuWasOpen || !ui.titleScreen.hidden, lyricsOn: settings.lyrics })
 }
 createSettingsPanel(ui.settings, settings, quality.level, (next, key) => {
   writeSettings(next)
@@ -291,6 +331,7 @@ for (const [id, action] of [
   ['#btn-settings', 'settings'],
   ['#btn-challenges', 'challenges'],
   ['#btn-title', 'title'],
+  ['#btn-player', 'player'],
 ] as const) {
   $(id).addEventListener('click', () => controls.push(action))
 }
@@ -1014,6 +1055,13 @@ function handleActions() {
       skierView.setFirstPerson(next === 'first')
       document.body.classList.toggle('first-person', next === 'first')
       $('#camera-label').textContent = `Camera · ${next === 'first' ? 'First person' : next === 'orbit' ? 'Orbit' : 'Follow'}`
+    } else if (action === 'player') {
+      pocket.toggle()
+      $('#btn-player').setAttribute('aria-pressed', String(pocket.open))
+    } else if (action === 'prevTrack') {
+      music.prev()
+    } else if (action === 'nextTrack') {
+      music.next()
     } else if (action === 'debug') {
       ui.debug.hidden = !ui.debug.hidden
       $('#btn-info').setAttribute('aria-pressed', String(!ui.debug.hidden))
@@ -1222,6 +1270,7 @@ function tick(dt: number, frameMs: number) {
     minimap?.draw(skier, ride?.lift.name, focus ? { x: camera.position.x, z: camera.position.z, tx: focus.x, tz: focus.z } : undefined)
   }
   updateHud(frameMs, steps)
+  updatePocket()
   perf.begin()
   renderer.render(scene, camera)
   perf.lap('render')

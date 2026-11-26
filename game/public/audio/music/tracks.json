@@ -1,3 +1,15 @@
 {
-  "tracks": []
+  "tracks": [
+    {"file": "first-chair.mp3", "title": "First Chair", "artist": "Chair 9 FM", "author": "SkiScrapex (generated with ElevenLabs Music via Higgsfield)", "licence": "See game/THIRD_PARTY_NOTICES.md", "url": "", "kind": "score", "moods": ["ambient", "cruise"]},
+    {"file": "cold-smoke.mp3", "title": "Cold Smoke", "artist": "Chair 9 FM", "author": "SkiScrapex (generated with ElevenLabs Music via Higgsfield)", "licence": "See game/THIRD_PARTY_NOTICES.md", "url": "", "kind": "score", "moods": ["drive", "freestyle"]},
+    {"file": "radio/yard-sale.mp3", "title": "Yard Sale", "artist": "The Liftline Shanty Crew", "author": "SkiScrapex (generated with ElevenLabs Music via Higgsfield)", "licence": "See game/THIRD_PARTY_NOTICES.md", "url": "", "kind": "radio", "lyrics": "radio/yard-sale.lyrics.json"},
+    {"file": "radio/t-bar-blues.mp3", "title": "T-Bar Blues", "artist": "Blind Lemon Edge", "author": "SkiScrapex (generated with ElevenLabs Music via Higgsfield)", "licence": "See game/THIRD_PARTY_NOTICES.md", "url": "", "kind": "radio", "lyrics": "radio/t-bar-blues.lyrics.json"},
+    {"file": "radio/singles-line.mp3", "title": "Singles Line", "artist": "Fixed Grip", "author": "SkiScrapex (generated with ElevenLabs Music via Higgsfield)", "licence": "See game/THIRD_PARTY_NOTICES.md", "url": "", "kind": "radio", "lyrics": "radio/singles-line.lyrics.json"},
+    {"file": "radio/flat-light.mp3", "title": "Flat Light", "artist": "The Yard Sales", "author": "SkiScrapex (generated with ElevenLabs Music via Higgsfield)", "licence": "See game/THIRD_PARTY_NOTICES.md", "url": "", "kind": "radio", "lyrics": "radio/flat-light.lyrics.json"},
+    {"file": "radio/boots-still-on.mp3", "title": "Boots Still On", "artist": "Die Klompers", "author": "SkiScrapex (generated with ElevenLabs Music via Higgsfield)", "licence": "See game/THIRD_PARTY_NOTICES.md", "url": "", "kind": "radio", "lyrics": "radio/boots-still-on.lyrics.json"},
+    {"file": "radio/igloo-party.mp3", "title": "Igloo Party", "artist": "DJ Snowmelt", "author": "SkiScrapex (generated with ElevenLabs Music via Higgsfield)", "licence": "See game/THIRD_PARTY_NOTICES.md", "url": "", "kind": "radio", "lyrics": "radio/igloo-party.lyrics.json"},
+    {"file": "cc0/black-diamond.mp3", "title": "Black Diamond", "artist": "Joth", "author": "Joth", "licence": "CC0 1.0", "url": "https://opengameart.org/content/black-diamond", "kind": "radio"},
+    {"file": "cc0/christmas-synths.mp3", "title": "Happy Synths", "artist": "3xBlast", "author": "3xBlast", "licence": "CC0 1.0", "url": "https://opengameart.org/content/happy-synths-loop-with-slight-christmas-feeling", "kind": "radio"},
+    {"file": "cc0/funked-up.mp3", "title": "Funked Up", "artist": "Joth", "author": "Joth", "licence": "CC0 1.0", "url": "https://opengameart.org/content/funked-up", "kind": "radio"}
+  ]
 }

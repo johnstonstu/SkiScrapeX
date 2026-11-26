@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SkiScrapex · Lyrics lab</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { margin: 0; background: #0d1822; color: #eef4f8; font: 14px system-ui, sans-serif; }
+      main { max-width: 52rem; margin: 0 auto; padding: 1rem; display: grid; gap: 0.8rem; }
+      header { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+      select, button, textarea { font: inherit; color: inherit; background: #1d2b38; border: 1px solid #ffffff2a; border-radius: 8px; padding: 0.35rem 0.6rem; }
+      button { cursor: pointer; }
+      audio { width: 100%; }
+      #preview { min-height: 3.2rem; text-align: center; font-size: 1.5rem; font-weight: 750; }
+      #preview .w { background: linear-gradient(90deg, #ff7a45 calc(var(--f) * 100%), #f4f8fb calc(var(--f) * 100%)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      #preview .w + .w::before { content: " "; }
+      ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+      li { display: grid; grid-template-columns: 4.5rem 4.5rem 1fr; gap: 0.6rem; padding: 0.3rem 0.5rem; border-radius: 6px; cursor: pointer; font-variant-numeric: tabular-nums; }
+      li.now { background: #ff7a4533; }
+      li.sel { outline: 1px solid #ff7a45; }
+      li.next-tap { border-left: 3px solid #7ee2a8; }
+      textarea { width: 100%; min-height: 6rem; box-sizing: border-box; font-family: ui-monospace, monospace; font-size: 12px; }
+      p.keys { color: #e2ecf4a8; margin: 0; }
+      kbd { border: 1px solid #ffffff40; border-radius: 4px; padding: 0 4px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <strong>Lyrics lab</strong>
+        <select id="song"></select>
+        <button id="copy" type="button">Copy JSON</button>
+        <button id="tapmode" type="button" aria-pressed="false">Tap mode: off</button>
+      </header>
+      <audio id="audio" controls preload="auto"></audio>
+      <div id="preview"></div>
+      <p class="keys">
+        <kbd>Space</kbd> in tap mode: start the next line now (green bar), and end the one before ·
+        <kbd>Backspace</kbd> undo the last tap · click a line to select it, <kbd>,</kbd> <kbd>.</kbd> nudge its start 0.1 s,
+        <kbd>Shift</kbd>+<kbd>,</kbd> <kbd>.</kbd> nudge its end · <kbd>Enter</kbd> play from the selected line.
+        Save the copied JSON to <code>public/audio/music/radio/&lt;song&gt;.lyrics.json</code>.
+      </p>
+      <ol id="lines"></ol>
+      <details>
+        <summary>Replace the lines (one per row, untimed)</summary>
+        <textarea id="text"></textarea>
+        <button id="use-text" type="button">Use these lines</button>
+      </details>
+      <textarea id="out" readonly></textarea>
+    </main>
+    <script type="module" src="/src/tools/lyricsLab.ts"></script>
+  </body>
+</html>

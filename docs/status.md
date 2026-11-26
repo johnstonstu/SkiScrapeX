@@ -59,12 +59,21 @@ Updated 2026-11-24 for v0.9.17. Older measurement sections below stay dated. Ope
 - An approach hint shows the next jump's speed window and turns green, blue (slow) or red (fast).
 - Not tuned by a human yet. Kicker design speeds are on the feature signs; overshooting a jump lands flat and crashes, which is realistic but harsh.
 
+## Chair 9 FM radio and pocket player (2026-11-25, 0.9.28)
+
+- Three CC0 songs from OpenGameArt in `public/audio/music/cc0/` (Black Diamond and Funked Up by Joth, Happy Synths by 3xBlast), on the radio as instrumentals and credited in `game/THIRD_PARTY_NOTICES.md`.
+- Eight generated songs (ElevenLabs Music v2.5 via Higgsfield, lyrics written for the game): two instrumentals for Tracks (First Chair for ambient and cruise, Cold Smoke for drive and freestyle) and six joke songs for the new Radio source. Licence checked against Higgsfield's terms (see `game/THIRD_PARTY_NOTICES.md`).
+- Pocket player (`src/ui/pocketPlayer.ts`): P, the music button or R3 slides it up from the bottom right (top right under the buttons on touch). It shows title, artist, progress and the current lyric line, with previous, play/pause and next, one button that cycles the playlist (Shuffle all, Sing-along, Instrumental), a Lyrics on/off button and a ☰ Songs list of every song in the game (the eight bundled files and four named synth songs: Corduroy, Tree Well, Bluebird, Night Groom, which are fixed seeds of the procedural music in `src/player/musicLibrary.ts`). Picking a song switches the source to suit it. `[` and `]` (or D-pad left and right; restart moved to the pause menu on controllers) skip with it closed, and a "now playing" tab peeks out when a song starts. Previous restarts a song after 3 s, as on real players.
+- Lyrics: one karaoke line low in the middle while skiing, words filling as they are sung; on lifts a bubble beside the rider's head that flips sides to stay on screen. Settings, Sound, Lyrics or the player's Lyrics button turns them off. Songs pause while a menu is open so the lyrics stay in step.
+- Timing: `tools/lyrics/align.mjs` matches a Whisper transcript (ffmpeg's whisper filter, `ggml-base.en`) to the known lyrics; `lyrics.html` on the dev server checks them by ear and re-times lines by tapping. Igloo Party's vocals are chopped and only its first three lines are timed.
+- Pure and tested: the shuffle bag and previous rule (`src/player/radio.ts`, `tests/radio.test.ts`), lyric lookup and word fill (`src/player/lyrics.ts`, `tests/lyrics.test.ts`), and a check that every manifest file exists and every lyrics file parses.
+
 ## Adaptive music (2026-11-25, unreleased)
 
-- On by default. Settings has Music (on or off), Music source (Procedural or Tracks) and Music volume; the Sound button mutes it too.
+- On by default. Settings has Music (on or off), Music source (Procedural, Tracks or Radio) and Music volume; the Sound button mutes it too.
 - Four moods: ambient (lifts, menus, standing still), cruise, drive (steeps and speed) and freestyle (park snow, rails, long air, landed tricks). The choice is pure and tested (`src/player/musicState.ts`, `tests/music.test.ts`), with hysteresis: Schmitt bands on speed and slope, a per-mood confirm time, a minimum dwell of 4 s, a 6 s freestyle hold, and the mood held through crashes.
 - Procedural: one key, scale and tempo per session (`musicScore.ts`), eight stems (pad, bass, kick, snare, hat, perc, arp, stab), a 16th-step scheduler on the audio clock that changes mood only on bar lines (`musicClock.ts`), stem levels cross-fading over about a beat. Speed opens a low-pass inside a mood.
-- Tracks: `public/audio/music/tracks.json`, fetched only when Tracks is picked; empty for now, so Tracks plays the procedural music. A track gets the mood as a filter and level.
+- Tracks: `public/audio/music/tracks.json`, fetched only when Tracks or Radio is picked. A score track gets the mood as a filter and level.
 - Ducks under crashes and hard landings; suspends while the tab is hidden and resumes on return or on the next key or tap.
 
 ## Controls and feel pass (2026-11-21, third pass)

@@ -1,0 +1,175 @@
+/*
+ * Chair 9 FM pocket player. A chunky rubberised player with a backlit LCD that
+ * slides up from the bottom-right corner (top-right under the buttons on touch
+ * screens), plus the sing-along line and the lift bubble.
+ */
+.pocket {
+  position: fixed; z-index: 5;
+  right: var(--safe-r); bottom: var(--safe-b);
+  width: min(15.5rem, calc(100vw - 2rem));
+  transform: translateY(calc(100% + 2rem)) rotate(4deg);
+  transform-origin: 80% 100%;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 420ms cubic-bezier(0.25, 1.35, 0.4, 1), opacity 200ms var(--ease);
+}
+.pocket.on { transform: none; opacity: 1; pointer-events: auto; }
+
+.pocket-body {
+  position: relative;
+  display: grid; gap: 0.55rem;
+  padding: 0.9rem 0.8rem 0.7rem;
+  border-radius: 22px;
+  background:
+    radial-gradient(120% 60% at 30% 0%, rgba(255, 255, 255, 0.1), transparent 60%),
+    linear-gradient(160deg, #1d2b38, #0d1822 70%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: var(--shadow), inset 0 -3px 0 rgba(0, 0, 0, 0.35), inset 0 0 0 3px rgba(255, 122, 69, 0.55);
+}
+/* Rubber grip ridges along the top edge, like a lanyard loop. */
+.pocket-grip {
+  position: absolute; top: -0.45rem; left: 50%; width: 3.2rem; height: 0.9rem; transform: translateX(-50%);
+  border-radius: 0.5rem 0.5rem 0.2rem 0.2rem; background: var(--accent);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.pocket-screen {
+  display: grid; gap: 0.2rem;
+  padding: 0.6rem 0.7rem 0.55rem;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #cfe6d8, #a9cdb8);
+  color: #10261b;
+  font-family: var(--mono);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.pocket-top { display: flex; justify-content: space-between; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.14em; opacity: 0.75; }
+.pocket-title { font-size: 0.98rem; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pocket-artist { font-size: 0.7rem; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pocket-bar { height: 0.32rem; margin-top: 0.25rem; border-radius: 1px; background: rgba(16, 38, 27, 0.22); overflow: hidden; }
+.pocket-bar i { display: block; height: 100%; background: #10261b; transform-origin: 0 50%; transform: scaleX(0); }
+.pocket-times { display: flex; justify-content: space-between; font-size: 0.6rem; font-variant-numeric: tabular-nums; }
+.pocket-lyric {
+  margin: 0.2rem 0 0; min-height: 2.1em; font-size: 0.68rem; line-height: 1.05; font-style: italic;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.pocket-modes { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 0.3rem; }
+
+/* Song list: same LCD look, scrolls inside the player. */
+.pocket-list {
+  margin: 0; padding: 0.3rem; list-style: none;
+  max-height: min(17rem, 48vh); overflow-y: auto; overscroll-behavior: contain;
+  border-radius: 10px; background: linear-gradient(180deg, #cfe6d8, #a9cdb8);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.pocket-list[hidden], .pocket-screen[hidden] { display: none; }
+.pocket-song {
+  display: grid; gap: 0.05rem; width: 100%; padding: 0.35rem 0.45rem;
+  border: 0; border-radius: 6px; background: transparent; color: #10261b;
+  font-family: var(--mono); text-align: left; cursor: pointer;
+}
+.pocket-song strong { font-size: 0.8rem; }
+.pocket-song small { font-size: 0.62rem; opacity: 0.72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pocket-song:hover, .pocket-song:focus-visible { background: rgba(16, 38, 27, 0.12); outline: none; }
+.pocket-song[aria-current="true"] { background: #10261b; color: #cfe6d8; }
+.pocket-song[aria-current="true"] strong::before { content: "▶ "; }
+.pocket-list-note { padding: 0.5rem; color: #10261b; font: 0.75rem var(--mono); }
+.pocket-src {
+  min-height: 1.7rem; border: 1px solid var(--line); border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04); color: var(--muted);
+  font: 600 0.66rem/1 var(--font); letter-spacing: 0.02em; cursor: pointer;
+  white-space: nowrap; padding: 0 0.3rem;
+}
+.pocket-src[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+
+.pocket-keys { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 0.45rem; }
+.pocket-key {
+  min-height: 2.7rem; border: none; border-radius: 14px;
+  background: linear-gradient(180deg, #2c3d4c, #1a2733);
+  box-shadow: 0 3px 0 #0a131b, inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: var(--text); font-size: 1.05rem; cursor: pointer;
+  transition: transform 80ms, box-shadow 80ms;
+}
+.pocket-key:nth-child(2) { background: linear-gradient(180deg, #ff8c5c, var(--accent)); color: var(--accent-ink); box-shadow: 0 3px 0 #b84d22, inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+.pocket-key:active { transform: translateY(2px); box-shadow: 0 1px 0 #0a131b; }
+.pocket-key:focus-visible, .pocket-src:focus-visible { outline: 2px solid var(--snow); outline-offset: 2px; }
+.pocket-hint { justify-self: center; color: var(--faint); font-size: 0.62rem; letter-spacing: 0.06em; }
+.touch .pocket-hint { display: none; }
+
+/* Touch screens keep the bottom-right for Jump and Grab, so the player hangs below the buttons. */
+.touch .pocket { top: calc(var(--safe-t) + 3.2rem); bottom: auto; transform: translateY(calc(-100% - 5rem)) rotate(-4deg); transform-origin: 80% 0; }
+.touch .pocket.on { transform: none; }
+
+/* The "now playing" tab that peeks out when a song starts with the player closed. */
+.pocket-peek {
+  position: fixed; z-index: 4; right: var(--safe-r); bottom: var(--safe-b);
+  max-width: min(20rem, calc(100vw - 2rem));
+  padding: 0.45rem 0.85rem; border-radius: 999px;
+  background: var(--glass-strong); border: 1px solid var(--accent);
+  color: var(--text); font-size: 0.78rem; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transform: translateY(160%); opacity: 0; pointer-events: none;
+  transition: transform 360ms var(--ease), opacity 240ms var(--ease);
+}
+.pocket-peek.on { transform: none; opacity: 1; }
+.touch .pocket-peek { top: calc(var(--safe-t) + 3.2rem); bottom: auto; transform: translateY(-160%); }
+.touch .pocket-peek.on { transform: none; }
+
+/* Sing-along words: each fills with the accent as it is sung. */
+.sing-line .w, .sing-bubble .w {
+  --f: 0;
+  background: linear-gradient(90deg, var(--accent) calc(var(--f) * 100%), var(--snow) calc(var(--f) * 100%));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.sing-line .w + .w::before, .sing-bubble .w + .w::before { content: " "; }
+
+.sing-line {
+  position: fixed; z-index: 3; left: 50%; bottom: calc(var(--safe-b) + 5.5rem);
+  width: max-content; max-width: min(34rem, calc(100vw - 2rem)); transform: translate(-50%, 0.6rem);
+  display: grid; justify-items: center; gap: 0.15rem; text-align: center;
+  padding: 0.4rem 1rem 0.45rem; border-radius: 16px;
+  background: rgba(8, 18, 28, 0.5);
+  opacity: 0; pointer-events: none; transition: opacity 260ms var(--ease), transform 260ms var(--ease);
+}
+.sing-line.on { opacity: 1; transform: translate(-50%, 0); }
+.sing-now { margin: 0; font-size: clamp(1.05rem, 2.6vw, 1.45rem); font-weight: 750; letter-spacing: -0.01em; line-height: 1.2; }
+.sing-next { margin: 0; color: var(--muted); font-size: 0.82rem; font-weight: 600; min-height: 1.2em; }
+.touch .sing-line { bottom: calc(var(--safe-b) + 9.5rem); }
+
+/* On lifts: a bubble beside the rider's ear, positioned each frame. */
+.sing-bubble {
+  position: fixed; z-index: 3; left: 0; top: 0;
+  pointer-events: none;
+  opacity: 0; transition: opacity 260ms var(--ease);
+}
+.sing-bubble.on { opacity: 1; }
+.sing-bubble > span {
+  position: absolute; left: 0; bottom: 0.4rem;
+  display: block; width: max-content; max-width: min(15rem, calc(100vw - 1rem));
+  padding: 0.4rem 0.7rem 0.45rem 1.55rem; border-radius: 14px 14px 14px 3px;
+  background: rgba(8, 18, 28, 0.72); border: 1px solid var(--line-strong);
+  font-size: 0.86rem; font-weight: 700; line-height: 1.25;
+}
+.sing-bubble > span::after {
+  content: "♪"; position: absolute; left: 0.55rem; top: 0.38rem;
+  color: var(--accent); -webkit-text-fill-color: var(--accent);
+  animation: sing-note 1.1s ease-in-out infinite alternate;
+}
+@keyframes sing-note { from { transform: translateY(1px) rotate(-8deg); } to { transform: translateY(-2px) rotate(8deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pocket, .pocket-peek, .sing-line { transition: opacity 160ms linear; }
+  .sing-bubble > span::after { animation: none; }
+}
+
+/* The ♪ button beside Pause. */
+#btn-player {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  min-height: 2.6rem; padding: 0 0.7rem 0 0.85rem;
+  border: 1px solid var(--line-strong); border-radius: 999px;
+  background: rgba(8, 18, 28, 0.42); color: var(--text);
+  font: 700 1rem/1 var(--font); cursor: pointer;
+}
+#btn-player[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+#btn-player kbd { font: 600 0.62rem/1 var(--mono); color: var(--muted); }
+.touch #btn-player kbd { display: none; }

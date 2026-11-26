@@ -28,7 +28,8 @@ const shortcuts: ControlRow[] = [
     touch: 'Tap Pause to open runs and parks, rider and gear, settings, or challenges.',
   } },
   { name: 'Camera and map', binding: { keys: 'C · M', pad: 'LB / L1 · D-pad ↓', touch: 'Pause → Camera or Map' }, detail: 'Cycle follow, first-person, and orbit cameras. Toggle the resort map.' },
-  { name: 'Restart or skip lift', binding: { keys: 'R · Enter', pad: 'D-pad → · B / ○', touch: 'Pause → Restart · Skip' }, detail: 'Restart the current run. Skip takes you to the top during a lift ride.' },
+  { name: 'Restart or skip lift', binding: { keys: 'R · Enter', pad: 'Pause → Restart · B / ○', touch: 'Pause → Restart · Skip' }, detail: 'Restart the current run. Skip takes you to the top during a lift ride.' },
+  { name: 'Music player', binding: { keys: 'P · [ ]', pad: 'R3 · D-pad ← →', touch: '♪ button' }, detail: 'Open the pocket player. Skip back or forward a song, with the player open or closed.' },
 ]
 
 const menuHint: Record<InputMode, string> = {
