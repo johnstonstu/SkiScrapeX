@@ -17,6 +17,12 @@ export interface Settings {
   invertPitch: boolean
   /** 0 to 1. */
   volume: number
+  /** Adaptive music on or off. */
+  music: boolean
+  /** Procedural stems made in the browser, or the open-licence tracks in `public/audio/music/`. */
+  musicSource: 'procedural' | 'tracks'
+  /** 0 to 1, on top of the Sound button. */
+  musicVolume: number
   /** Follow-camera field of view, degrees. */
   fov: number
   cameraShake: boolean
@@ -38,6 +44,9 @@ export const DEFAULT_SETTINGS: Settings = {
   steering: 1,
   invertPitch: false,
   volume: 0.8,
+  music: true,
+  musicSource: 'procedural',
+  musicVolume: 0.6,
   fov: 58,
   cameraShake: true,
   cameraStyle: 'steady',
@@ -53,6 +62,8 @@ export function readSettings(): Settings {
   const stored = settings.shadows as unknown
   if (stored === true) settings.shadows = 'auto'
   if (stored === false) settings.shadows = 'off'
+  if (settings.musicSource !== 'procedural' && settings.musicSource !== 'tracks') settings.musicSource = 'procedural'
+  if (typeof settings.musicVolume !== 'number' || !Number.isFinite(settings.musicVolume)) settings.musicVolume = DEFAULT_SETTINGS.musicVolume
   if (!settings.weather || !['clear', 'snow', 'storm', 'flat'].includes(settings.weather)) settings.weather = 'snow'
   return settings
 }
@@ -228,7 +239,7 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
       }
       element.append(group)
     }
-    const slider = (title: string, key: 'viewDistance' | 'steering' | 'volume' | 'fov', min: number, max: number, step: number, format: (v: number) => string) => {
+    const slider = (title: string, key: 'viewDistance' | 'steering' | 'volume' | 'musicVolume' | 'fov', min: number, max: number, step: number, format: (v: number) => string) => {
       const element = row(title)
       const input = document.createElement('input')
       input.type = 'range'
@@ -274,6 +285,11 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
       ['flat', 'Flat light'],
     ])
     slider('Volume', 'volume', 0, 1, 0.05, percent)
+    chips('Music', 'music', [[true, 'On'], [false, 'Off']], 'follows how you ski: calm on lifts, driving on steeps, punchy in the park')
+    if (settings.music) {
+      chips('Music source', 'musicSource', [['procedural', 'Procedural'], ['tracks', 'Tracks']], 'tracks play procedural music until some are installed')
+      slider('Music volume', 'musicVolume', 0, 1, 0.05, percent)
+    }
     chips('Other skiers', 'npcs', [[true, 'On'], [false, 'Off']])
     chips('Landing marker', 'landingRing', [[true, 'On'], [false, 'Off']])
     chips('Landing assist', 'landingAssist', [[true, 'On'], [false, 'Off']], 'lines up rotation near touchdown')

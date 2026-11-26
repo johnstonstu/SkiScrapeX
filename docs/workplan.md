@@ -73,7 +73,7 @@ Expensive shader work goes behind a define (like `SNOW_DETAIL`). Expensive geome
 ### Next up (from Stu's 0.9.16 playtest, 2026-11-24)
 
 - [x] 0.9.17: instant deep-snow trenches, chair arrival on free ski, arrival camera, T-bar and carpet unloads, carpet on the ground, window flicker, Aerial Site, Prospector park on L2, Claim Jumper XL line, pole push vs tuck, gravity-relative lean.
-- [ ] 0.9.18, music: a music player whose tracks react to what you are doing (cruising, steeps, freestyle). Both sources: procedural layers generated in the browser by default, plus a few open-licence tracks as an option (credits in `game/THIRD_PARTY_NOTICES.md`).
+- [x] 0.9.18, music (PR pending, `claude/adaptive-music-1dc879`): a music player whose tracks react to what you are doing (cruising, steeps, freestyle). Both sources: procedural layers generated in the browser by default, plus a few open-licence tracks as an option (credits in `game/THIRD_PARTY_NOTICES.md`). Done: procedural music and the Tracks source with an empty track list; picking and adding the actual CC0 or CC-BY tracks is left for Stu (see `game/public/audio/music/README.md`).
 - [ ] More animation and VFX polish from play: landing and takeoff spray, powder plumes off berms, the rider's turn shape from behind.
 
 ### Next up (from Stu's 0.9.13 playtest, 2026-11-24)

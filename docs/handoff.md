@@ -69,10 +69,17 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 
 Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
 
+## Music
+
+- `src/player/musicState.ts` picks the mood (pure, thresholds in `MUSIC_TUNING`); `musicClock.ts` is the bar scheduler; `musicScore.ts` the key, progression, patterns and the per-mood stem mix (`MOOD_MIX`); `musicVoices.ts` the synths; `music.ts` the Web Audio graph, track player and settings glue.
+- `window.skiMusic()` returns the current source, mood, wanted mood, the mood of the last scheduled bar, intensity, key and tempo, track and AudioContext state. Use it with `?at=` and `?park=` to check the mood changes (ambient when standing, drive at about `?at=1906,1512,233` held in a tuck, freestyle on `?park=p`). The in-app browser runs at about one frame a second, so moods change slower there than in play.
+- To add tracks, see `game/public/audio/music/README.md`. Credit each in `game/THIRD_PARTY_NOTICES.md`.
+
 ## Where to tune
 
 - Ski physics: `PHYSICS` in `src/sim/constants.ts`, surfaces in `src/sim/surface.ts`.
 - Freestyle: `FREESTYLE` in `src/sim/freestyle.ts`, kicker and rail specs in `src/world/park.ts`.
+- Music: `MUSIC_TUNING` in `src/player/musicState.ts` (when moods change), `MOOD_MIX` and the patterns in `src/player/musicScore.ts` (how they sound).
 - Medal targets: the pace bot in `src/world/challenges.ts` (times) and `parkTargets` (park scores).
 - Apex facts the OSM data gets wrong: `src/world/corrections.ts` (including `RUN_STYLE`: moguls, chop, packed and widths per run); traced runs: `src/world/runOverlay.ts`.
 - Glades: polygons and lane spacing in `src/world/glades.ts`. Mogul and chop shapes: `BUMPS` in `src/world/moguls.ts`; how far and how finely they are drawn per level: `MOGUL_DETAIL` in `src/render/terrain/mogulView.ts`. Summit fence and Tooth/Tusk signpost: `src/world/landmarks.ts`.

@@ -46,3 +46,9 @@ The kinematic stepper in `src/sim/skier.ts` is original.
 - **SNOWFLOW** by Noniv (`Noniv/snowflow_demo`, MIT) is a WebGPU / Babylon.js snow demo. The track module uses the same kind of bounded trail window: a trench that follows the skier and is forgotten outside a fixed area. No WGSL, Babylon source, or ported shader is included.
 - **three.quarks** (MIT, Forrest Sun) was considered as the particle runtime and was not used. See the README for why.
 - SnowboardAnywhere and Extreme Tux Racer were not used. None of their source is included.
+
+## Music
+
+The procedural music (`src/player/music*.ts`) is original and generated in the browser.
+
+No recorded tracks are bundled yet. The Tracks music source reads `public/audio/music/tracks.json`, which is empty, so it plays the procedural music. Each track added there must be CC0 or CC-BY, verified on its own page, and credited here with its title, author, page URL and licence. See `public/audio/music/README.md`.

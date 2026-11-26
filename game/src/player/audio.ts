@@ -9,8 +9,15 @@ const SAMPLE_URLS: Record<SampleKind, string> = {
   latch: 'audio/latch.wav',
 }
 
+export interface SkiAudioHooks {
+  /** A crash or hard landing just sounded; `level` 0..1. The music ducks under it. */
+  onImpact?(level: number): void
+  /** The Sound button changed. */
+  onMute?(muted: boolean): void
+}
+
 /** Procedural ski contact, airflow and lift sounds, unlocked by the first user gesture. */
-export function createSkiAudio(button: HTMLButtonElement) {
+export function createSkiAudio(button: HTMLButtonElement, hooks: SkiAudioHooks = {}) {
   let ctx: AudioContext | undefined
   let master: GainNode, contact: GainNode, wind: GainNode, lift: GainNode, hit: GainNode, rail: GainNode, latch: GainNode
   let ambience: GainNode, plant: GainNode
@@ -129,9 +136,11 @@ export function createSkiAudio(button: HTMLButtonElement) {
     unlock()
     volume()
     label()
+    hooks.onMute?.(muted)
   })
   label()
   return {
+    get muted() { return muted },
     pause(value: boolean) { paused = value; volume() },
     /** 0 to 1, from settings. */
     setVolume(value: number) { level = Math.max(0, Math.min(1, value)); volume() },
@@ -218,6 +227,7 @@ export function createSkiAudio(button: HTMLButtonElement) {
         const speedImpact = freshEvent?.kind === 'air' ? Math.sqrt(Math.max(0, freshEvent.efh) * 19.6) : descent
         hitFilter.frequency.setValueAtTime(bail ? 520 : (sketchy ? 1380 : 840) * (1 - loose * 0.52), t)
         const landLevel = bail ? 0.82 : Math.min(0.74, 0.14 + speedImpact * 0.045 + (sketchy ? 0.17 : 0))
+        if (bail || landLevel > 0.4) hooks.onImpact?.(bail ? 1 : landLevel)
         if (bail || !playSample('landing', t, landLevel * 0.8)) {
           transient(hit, t, landLevel, bail ? 0.13 : sketchy ? 0.096 : 0.062)
         }
