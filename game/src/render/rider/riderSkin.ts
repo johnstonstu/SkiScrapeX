@@ -37,10 +37,22 @@ export interface RiderAsset {
 }
 
 let assetPromise: Promise<RiderAsset> | null = null
+let gate: Promise<void> = Promise.resolve()
+
+/**
+ * Hold the rider GLB download (about 3 MB) until the returned function is
+ * called, so it does not compete with the terrain on a slow connection. The
+ * code-built body shows until then. Call before any rider is created.
+ */
+export function holdRiderAsset(): () => void {
+  let release = () => {}
+  gate = new Promise<void>((resolve) => (release = resolve))
+  return () => release()
+}
 
 /** Loads and caches the rider GLB; every rider shares its geometry and textures. */
 export function loadRiderAsset(url = `${import.meta.env.BASE_URL}models/rider.glb`): Promise<RiderAsset> {
-  assetPromise ??= new GLTFLoader().loadAsync(url).then(
+  assetPromise ??= gate.then(() => new GLTFLoader().loadAsync(url)).then(
     (gltf) => {
       const garments = new Map<string, GarmentSource[]>()
       gltf.scene.updateMatrixWorld(true)

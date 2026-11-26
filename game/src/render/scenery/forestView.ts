@@ -14,6 +14,8 @@ export interface ForestDetail {
   /** Share of trees drawn past `mid`. */
   farShare: number
   compact?: boolean
+  /** Two-cone stand-ins without a trunk (8 triangles instead of 20) between `near` and `mid`. */
+  leanStandIns?: boolean
 }
 
 
@@ -34,7 +36,7 @@ export function createForestView(forest: Forest, detail: ForestDetail) {
   const group = new THREE.Group()
   group.name = 'forest'
   const shapes = detail.compact ? compactTreeShapes() : treeShapes()
-  const simple = distantTree(3, true)
+  const simple = detail.leanStandIns ? distantTree(2) : distantTree(3, true)
   // Past `mid`, a single cone (4 triangles instead of 12) is plenty.
   const lowest = distantTree(1)
   const material = new THREE.MeshLambertMaterial({ vertexColors: true })

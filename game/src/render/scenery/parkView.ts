@@ -4,6 +4,7 @@ import type { Rail } from '../../sim'
 import type { ParkOverlay, PlacedFeature } from '../../world/park'
 import { SnowMaterial } from '../../fx'
 import type { Lighting } from '../lighting'
+import { createStaticBatch } from './mergeStatic'
 
 /**
  * Meshes for terrain-park features: snow shapes sampled from the overlay,
@@ -91,7 +92,19 @@ export function createParkView(
   const boxTop = new THREE.MeshStandardMaterial({ color: 0x1d1f23, roughness: 0.35 })
   const boxSide = new THREE.MeshStandardMaterial({ color: 0xf2b705, roughness: 0.6 })
   disposables.push(metal, post, boxTop, boxSide)
-  for (const rail of overlay.rails) group.add(rail.kind === 'box' ? boxMesh(rail, baseHeight, boxTop, boxSide, disposables) : railMesh(rail, baseHeight, metal, post, disposables))
+  // Rails, posts and boxes are static: bake them into one mesh per material
+  // (a box segment used to cost six draw calls, one per face).
+  const hardware = createStaticBatch()
+  for (const rail of overlay.rails) {
+    if (rail.kind === 'box') addBox(hardware, rail, baseHeight, boxTop, boxSide)
+    else addRail(hardware, rail, baseHeight, metal, post)
+  }
+  for (const mesh of hardware.build(true)) {
+    mesh.name = 'park-hardware'
+    mesh.receiveShadow = mesh.material === boxTop || mesh.material === boxSide
+    disposables.push(mesh.geometry)
+    group.add(mesh)
+  }
 
   for (const site of siteSigns) {
     addSign(site.name, site.layout, '#ffdc69', site.x, site.z, site.yaw, true)
@@ -172,61 +185,57 @@ function featureGeometry(f: PlacedFeature, overlay: ParkOverlay, baseHeight: (x:
   return geometry
 }
 
-function railMesh(
-  rail: Rail,
-  baseHeight: (x: number, z: number) => number,
-  metal: THREE.Material,
-  postMaterial: THREE.Material,
-  disposables: { dispose(): void }[],
-): THREE.Group {
-  const group = new THREE.Group()
+type Batch = ReturnType<typeof createStaticBatch>
+
+function addRail(batch: Batch, rail: Rail, baseHeight: (x: number, z: number) => number, metal: THREE.Material, postMaterial: THREE.Material) {
   const points = rail.points.map((p) => new THREE.Vector3(p.x, p.y - 0.04, p.z))
   const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.05), points.length * 2, 0.045, 8)
-  disposables.push(tube)
-  const mesh = new THREE.Mesh(tube, metal)
-  mesh.castShadow = true
-  group.add(mesh)
+  batch.add(tube, metal, new THREE.Matrix4())
+  tube.dispose()
   const postGeometry = new THREE.CylinderGeometry(0.04, 0.05, 1, 6)
-  disposables.push(postGeometry)
-  for (let i = 0; i < points.length; i += 4) addPost(group, points[i], baseHeight, postGeometry, postMaterial)
-  addPost(group, points[points.length - 1], baseHeight, postGeometry, postMaterial)
-  return group
+  const addPost = (top: THREE.Vector3) => {
+    const ground = baseHeight(top.x, top.z)
+    if (!Number.isFinite(ground)) return
+    const height = Math.max(0.1, top.y - ground + 0.3)
+    const matrix = new THREE.Matrix4().compose(
+      new THREE.Vector3(top.x, ground - 0.3 + height / 2, top.z),
+      new THREE.Quaternion(),
+      new THREE.Vector3(1, height, 1),
+    )
+    batch.add(postGeometry, postMaterial, matrix)
+  }
+  for (let i = 0; i < points.length; i += 4) addPost(points[i])
+  addPost(points[points.length - 1])
+  postGeometry.dispose()
 }
 
-function addPost(group: THREE.Group, top: THREE.Vector3, baseHeight: (x: number, z: number) => number, geometry: THREE.BufferGeometry, material: THREE.Material) {
-  const ground = baseHeight(top.x, top.z)
-  if (!Number.isFinite(ground)) return
-  const height = Math.max(0.1, top.y - ground + 0.3)
-  const post = new THREE.Mesh(geometry, material)
-  post.scale.y = height
-  post.position.set(top.x, ground - 0.3 + height / 2, top.z)
-  post.castShadow = true
-  group.add(post)
-}
-
-function boxMesh(
-  rail: Rail,
-  baseHeight: (x: number, z: number) => number,
-  top: THREE.Material,
-  side: THREE.Material,
-  disposables: { dispose(): void }[],
-): THREE.Group {
-  const group = new THREE.Group()
+function addBox(batch: Batch, rail: Rail, baseHeight: (x: number, z: number) => number, top: THREE.Material, side: THREE.Material) {
+  const place = new THREE.Object3D()
   for (let i = 1; i < rail.points.length; i++) {
     const a = rail.points[i - 1]
     const b = rail.points[i]
     const length = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z)
-    const mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2)
     const ground = Math.min(baseHeight(a.x, a.z), baseHeight(b.x, b.z))
-    const depth = Math.max(0.2, mid.y - ground + 0.3)
+    const midY = (a.y + b.y) / 2
+    const depth = Math.max(0.2, midY - ground + 0.3)
+    place.position.set((a.x + b.x) / 2, midY - depth / 2, (a.z + b.z) / 2)
+    place.lookAt(b.x, b.y - depth / 2, b.z)
+    place.updateMatrix()
     const slab = new THREE.BoxGeometry(rail.width, depth, length + 0.02)
-    disposables.push(slab)
-    const body = new THREE.Mesh(slab, [side, side, top, side, side, side])
-    body.position.set(mid.x, mid.y - depth / 2, mid.z)
-    body.lookAt(b.x, b.y - depth / 2, b.z)
-    body.castShadow = true
-    body.receiveShadow = true
-    group.add(body)
+    // BoxGeometry groups: +x, -x, +y (the plastic top), -y, +z, -z.
+    for (const [index, faces] of slab.groups.entries()) {
+      const part = faceGroup(slab, faces.start, faces.count)
+      batch.add(part, index === 2 ? top : side, place.matrix)
+      part.dispose()
+    }
+    slab.dispose()
   }
-  return group
+}
+
+/** One group of an indexed geometry as its own indexed geometry (shares nothing). */
+function faceGroup(geometry: THREE.BufferGeometry, start: number, count: number) {
+  const part = new THREE.BufferGeometry()
+  for (const [name, attribute] of Object.entries(geometry.attributes)) part.setAttribute(name, attribute.clone())
+  part.setIndex(Array.from(geometry.index!.array.slice(start, start + count)))
+  return part
 }

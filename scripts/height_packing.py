@@ -41,3 +41,8 @@ def pack_heights(data: bytes, columns: int, rows: int, *, coarse: bool) -> bytes
             left = previous_row[column] = int(units) if exact else 0
             upper_left = upper
     return gzip.compress(packed, compresslevel=6, mtime=0)
+
+
+def gzip_bytes(data: bytes) -> bytes:
+    """Deterministic gzip (no timestamp) for the `gzip-v1` downloads."""
+    return gzip.compress(data, compresslevel=9, mtime=0)
