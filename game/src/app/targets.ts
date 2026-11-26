@@ -17,10 +17,12 @@ interface Cache {
 export interface Course {
   id: string
   line: Point2[]
+  /** Pace bot speed cap, m/s (BOT_SPEED_CAP when unset): speed events let it run faster. */
+  cap?: number
 }
 
 /** Cache key: the course id plus its shape, so a moved gate or retraced run is worked out again. */
-const keyOf = (course: Course) => `${course.id}|${course.line.length}|${Math.round(polylineLength(course.line))}`
+const keyOf = (course: Course) => `${course.id}|${course.line.length}|${Math.round(polylineLength(course.line))}${course.cap ? `|${course.cap}` : ''}`
 
 export function createTargetBook(courses: Course[], terrain: SampleTerrain, env: SkiEnv, version: string) {
   const stored = readJson<Cache>(KEYS.targets, { version, seconds: {} })
@@ -44,7 +46,7 @@ export function createTargetBook(courses: Course[], terrain: SampleTerrain, env:
       keys.set(course.id, key)
       if (!(key in cache.seconds)) {
         if (current?.course.id === course.id) current = null
-        cache.seconds[key] = paceBotSync(course.line, terrain, env)
+        cache.seconds[key] = paceBotSync(course.line, terrain, env, course.cap)
         save()
       }
       return targets(course.id) ?? null
@@ -57,7 +59,7 @@ export function createTargetBook(courses: Course[], terrain: SampleTerrain, env:
           let next = queue.shift()
           while (next && keyOf(next) in cache.seconds) next = queue.shift()
           if (!next) return
-          current = { course: next, bot: paceBot(next.line, terrain, env, BOT_SPEED_CAP, 420, 60) }
+          current = { course: next, bot: paceBot(next.line, terrain, env, next.cap ?? BOT_SPEED_CAP, 420, 60) }
         }
         const step = current.bot.next()
         if (step.done) {

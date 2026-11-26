@@ -21,8 +21,13 @@ import {
   runLengths,
   type Gate,
   type Medal,
+  type MedalTargets,
 } from '../world/challenges'
 import { createGatesView, createNuggetsView } from '../render/scenery/goalsView'
+import { createEventView, type EventView } from '../render/scenery/eventView'
+import { createMogulView } from '../render/terrain/mogulView'
+import { bumpField } from '../world/moguls'
+import { EVENTS, buildEventCourse, matchDelta, paceRoute, type EventCourse } from '../world/events'
 import { UNLOCKS, awardMedal, readProgress, recordBest, skiedRuns, unlockedIds, writeProgress } from './progress'
 import { createTargetBook } from './targets'
 import type { Challenge, Session } from './session'
@@ -48,6 +53,8 @@ function slalomLine(line: Point2[], gates: Gate[]): Point2[] {
 }
 
 const NUGGET_RADIUS = 2.6
+/** The park the aerials event uses, switched to its aerial layout while it runs. */
+const AERIAL_SITE = 'Aerial Site'
 
 export function createGoals(options: {
   world: World
@@ -74,8 +81,31 @@ export function createGoals(options: {
   const timedRuns = runs.filter((run) => polylineLength(mainLine(run)) >= MIN_TIMED_LENGTH)
   const slalomRuns = pickSlalomRuns(runs)
   const gatesFor = new Map(slalomRuns.map((run) => [run.name, buildSlalom(lineOf(run))]))
+  /** The Apex race events whose runs this map has. */
+  const events: EventCourse[] = EVENTS.flatMap((def) => {
+    try {
+      return [buildEventCourse(resort, def)]
+    } catch (error) {
+      console.error(`Event ${def.name} is unavailable on this map.`, error)
+      return []
+    }
+  })
+  /** The pace bot follows the race line at the event's own speed cap. */
+  const eventPace = (course: EventCourse) => ({
+    id: `event:${course.def.id}`,
+    line: paceRoute(course),
+    cap: course.def.paceCap,
+  })
+  /** Medal targets for an event: fixed ones, or the pace bot's (doubled for two-run combined time). */
+  const eventTargets = (course: EventCourse, ensure: boolean): MedalTargets | null | undefined => {
+    if (course.def.fixedTargets) return course.def.fixedTargets
+    const one = ensure ? book.ensure(eventPace(course)) : book.get(`event:${course.def.id}`)
+    if (!one || course.def.format !== 'twoRun') return one
+    return { gold: one.gold * 2, silver: one.silver * 2, bronze: one.bronze * 2 }
+  }
   const book = createTargetBook(
     [
+      ...events.filter((course) => !course.def.fixedTargets).map(eventPace),
       // Slaloms first: there are only a few and they show at the top of the list.
       ...slalomRuns.map((run) => ({ id: `slalom:${run.name}`, line: slalomLine(lineOf(run), gatesFor.get(run.name)!) })),
       ...timedRuns.map((run) => ({ id: `time:${run.name}`, line: lineOf(run) })),
@@ -92,6 +122,7 @@ export function createGoals(options: {
   const nuggetsView = createNuggetsView(nuggets, surfaceHeight, found)
   scene.add(nuggetsView.object)
   let gatesView: ReturnType<typeof createGatesView> | null = null
+  let eventView: EventView | null = null
   let lastX = NaN
   let lastZ = NaN
   let unsaved = 0
@@ -129,6 +160,17 @@ export function createGoals(options: {
       const gates = gatesFor.get(run.name) ?? buildSlalom(line)
       const id = `slalom:${run.name}`
       return { kind: 'slalom', id, run, line, gates, targets: book.ensure({ id, line: slalomLine(line, gates) }) }
+    },
+    event(course: EventCourse, firstRun?: number): Challenge {
+      const { def } = course
+      const run: Run = { id: `event:${def.id}`, name: def.name, difficulty: null, groomed: true, kind: 'line', parts: [course.line] }
+      const targets = eventTargets(course, true) ?? null
+      return { kind: 'event', id: `event:${def.id}`, course, run, line: course.line, gates: course.gates, targets, firstRun }
+    },
+    /** An event by its id (`shoot-the-chute`), or null when this map lacks it. */
+    eventById(id: string): Challenge | null {
+      const course = events.find((c) => c.def.id === id)
+      return course ? this.event(course) : null
     },
     park(site: ParkSite): Challenge {
       return { kind: 'park', id: `park:${site.name}:${site.layout}`, site, layout: site.layout, line: site.line, targets: parkTargets(site.layout) }
@@ -174,6 +216,24 @@ export function createGoals(options: {
         gatesView.dispose()
         gatesView = null
       }
+      // Event dressing is built only while that event is on, and kept across retries of it.
+      const wanted = challenge.kind === 'event' ? challenge.course : null
+      if (eventView && eventView.object.name !== `event:${wanted?.def.id}`) {
+        scene.remove(eventView.object)
+        eventView.dispose()
+        eventView = null
+        // Take the event's own terrain and park layout away again.
+        stage.setEventTerrain?.(null)
+        stage.eventLayout?.(AERIAL_SITE, null)
+      }
+      if (wanted && !eventView) {
+        // The comp's bumps go into the terrain first, so the props and the bump mesh sit on them.
+        if (wanted.moguls) stage.setEventTerrain?.(bumpField(wanted.moguls.bumps).apply)
+        if (wanted.def.format === 'aerials') stage.eventLayout?.(AERIAL_SITE, 'aerial')
+        eventView = createEventView(wanted, surfaceHeight)
+        if (wanted.moguls && stage.snow) eventView.addOwned(createMogulView({ bumps: wanted.moguls.bumps, sampleTerrain: stage.slope.sampleTerrain }, stage.snow))
+        scene.add(eventView.object)
+      }
       if (challenge.kind === 'slalom') {
         gatesView = createGatesView(challenge.gates, surfaceHeight)
         scene.add(gatesView.object)
@@ -181,9 +241,24 @@ export function createGoals(options: {
     },
     resetGates() {
       gatesView?.reset()
+      eventView?.reset()
     },
     markGate(index: number, result: 'pass' | 'miss') {
       gatesView?.mark(index, result)
+      eventView?.mark(index, result)
+    },
+    /** Show the ghost of the best run at this pose (or hide it). */
+    setGhost(pose: { x: number; y: number; z: number; heading: number } | null) {
+      eventView?.setGhost(pose)
+    },
+    /** Keep the fastest time at each split of an event, for the split deltas next time. */
+    recordSplits(id: string, splits: number[]) {
+      splits.forEach((time, i) => recordBest(progress, `${id}:split${i + 1}`, time, true))
+      if (splits.length) writeProgress(progress)
+    },
+    /** The event dressing on the hill now, if any (for tests). */
+    get eventView() {
+      return eventView
     },
 
     /**
@@ -193,6 +268,7 @@ export function createGoals(options: {
     frame(skier: SkiState, dt: number, riding: boolean, camera: THREE.Vector3): { title: string; detail: string } | null {
       book.work(2)
       gatesView?.update(camera)
+      eventView?.update(camera, riding ? null : skier, dt)
       nuggetsView.update(dt)
       if (riding) {
         lastX = NaN
@@ -241,8 +317,12 @@ export function createGoals(options: {
       const challenge = session.challenge
       if (challenge.kind === 'free') throw new Error('free skiing has no result')
       const before = unlocked()
-      const score = challenge.kind === 'park'
-      const value = score ? points : session.total
+      // Parks, mogul comps and aerials are judged on points (higher is better); the rest on time.
+      const score = challenge.kind === 'park' || (challenge.kind === 'event' && ['moguls', 'aerials'].includes(challenge.course.def.format))
+      const match = challenge.kind === 'event' && challenge.course.def.format === 'match' && challenge.firstRun !== undefined
+      const combined = challenge.kind === 'event' && challenge.course.def.format === 'twoRun' && challenge.firstRun !== undefined
+      const first = challenge.kind === 'event' ? challenge.firstRun ?? 0 : 0
+      const value = score ? points : match ? matchDelta(first, session.total) : combined ? first + session.total : session.total
       const { stats } = session
       progress.totals.runs++
       progress.totals.vertical += stats.vertical
@@ -264,10 +344,36 @@ export function createGoals(options: {
         lines.unshift(['Gates', `${stats.gatesPassed}/${challenge.gates.length}${stats.penalty ? ` · +${stats.penalty} s` : ''}`])
         if (stats.penalty) lines.unshift(['Clock', formatTime(stats.time)])
       }
+      if (challenge.kind === 'event') {
+        const { def } = challenge.course
+        const head: [string, string][] = []
+        if (match || combined) head.push(['Run 1', formatTime(challenge.firstRun!)], ['Run 2', formatTime(session.total)])
+        if (challenge.gates.length) head.push(['Gates', `${stats.gatesPassed}/${challenge.gates.length}`])
+        stats.splits.forEach((time, i) => head.push([`Split ${i + 1}`, formatTime(time)]))
+        if (challenge.course.trap && stats.trapSpeed > 0) {
+          const kmh = Math.round(stats.trapSpeed * 3.6)
+          const trapId = `${challenge.id}:trap`
+          const trapBest = failed ? { previous: progress.bests[trapId], improved: false } : recordBest(progress, trapId, kmh, false)
+          const note = trapBest.previous === undefined ? '' : trapBest.improved ? ' · best!' : ` · best ${trapBest.previous} km/h`
+          head.push(['Speed trap', `${kmh} km/h${note}`])
+          if (trapBest.improved) writeProgress(progress)
+        }
+        lines.unshift(...head)
+        if (def.benchmark?.kmh) lines.push([def.benchmark.label, `${def.benchmark.kmh} km/h`])
+        if (def.benchmark?.seconds) lines.push([def.benchmark.label, formatTime(def.benchmark.seconds)])
+      }
       if (challenge.kind === 'park') lines.unshift(['Time', formatTime(stats.time)])
-      else if (points > 0) lines.push(['Trick points', points.toLocaleString()])
+      else if (points > 0 && !score) lines.push(['Trick points', points.toLocaleString()])
       const title =
-        challenge.kind === 'park' ? `${challenge.site.name} · score attack` : challenge.kind === 'slalom' ? `${challenge.run.name} slalom` : challenge.run.name
+        challenge.kind === 'park'
+          ? `${challenge.site.name} · score attack`
+          : challenge.kind === 'slalom'
+            ? `${challenge.run.name} slalom`
+            : match
+              ? `${challenge.run.name} · difference`
+              : combined
+                ? `${challenge.run.name} · combined`
+                : challenge.run.name
       return {
         title,
         value,
@@ -315,8 +421,20 @@ export function createGoals(options: {
       }
       const skied = new Set(skiedRuns(progress, lengths, SKIED_SHARE))
       const runRows = runs.filter((run) => lengths.has(run.name)).map((run) => ({ name: run.name, symbol: symbolOf(run), skied: skied.has(run.name) }))
+      const eventRows: ChallengeRow[] = events.map((course) => ({
+        id: `event:${course.def.id}`,
+        name: course.def.name,
+        symbol: 'event',
+        detail: course.def.where,
+        story: course.def.story,
+        rules: course.def.rules,
+        targets: eventTargets(course, false),
+        score: ['moguls', 'aerials'].includes(course.def.format),
+        start: () => start(this.event(course)),
+      }))
       return {
         summary: this.summary(),
+        events: eventRows,
         slalom: slalomRuns.map((run) => lazy('slalom', run)),
         park: parkSites.map((site) => row(this.park(site) as Exclude<Challenge, { kind: 'free' }>, site.name, 'park', LAYOUTS.find((l) => l.id === site.layout)?.label ?? site.layout)),
         timed: timedRuns.map((run) => lazy('time', run)),

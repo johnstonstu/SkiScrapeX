@@ -42,9 +42,12 @@ export function mogulLanes(run: Run): number {
 /** Staggered, irregular rows along mapped mogul (and chop) runs, with smoother shoulders. */
 export function buildMoguls(grid: TerrainGrid, runs: Run[], surface: SurfaceField, avoid?: (x: number, z: number) => boolean) {
   const bumps: Mogul[] = []
-  const cells = new Map<number, Mogul[]>()
-  const stride = Math.ceil(grid.width / 8) + 4
-  const cell = (x: number, z: number) => Math.floor(x / 8) + stride * Math.floor(z / 8)
+  // Overlap check while placing: one bump where mapped runs share a centreline.
+  const placed = new Map<string, Mogul[]>()
+  const cell = (x: number, z: number) => `${Math.floor(x / 8)},${Math.floor(z / 8)}`
+  // Look in the neighbouring cells too, so a bump just across a cell edge still counts.
+  const near = (x: number, z: number) =>
+    [-1.5, 0, 1.5].some((ox) => [-1.5, 0, 1.5].some((oz) => placed.get(cell(x + ox, z + oz))?.some((b) => (b.x - x) ** 2 + (b.z - z) ** 2 < 1.5 ** 2)))
   for (const run of runs) {
     if (!(run.moguls || run.chop) || run.kind !== 'line') continue
     const spec = run.moguls ? BUMPS.mogul : BUMPS.chop
@@ -69,7 +72,7 @@ export function buildMoguls(grid: TerrainGrid, runs: Run[], surface: SurfaceFiel
           const bz = z - side * dirX + dirZ * stagger
           if (surfaceAt(surface, bx, bz) !== SurfaceId.powder || !Number.isFinite(grid.heightAt(bx, bz)) || avoid?.(bx, bz)) continue
           // Mapped runs can share a centreline. Plant one bump where they overlap.
-          if (cells.get(cell(bx, bz))?.some((b) => (b.x - bx) ** 2 + (b.z - bz) ** 2 < 1.5 ** 2)) continue
+          if (near(bx, bz)) continue
           const bump = {
             x: bx, z: bz, dirX, dirZ,
             // Deeper crests (~0.5–0.94 m) so Gunbarrel-style fields cast readable shade.
@@ -79,20 +82,43 @@ export function buildMoguls(grid: TerrainGrid, runs: Run[], surface: SurfaceFiel
             downhill: spec.downhill + 0.22 * Math.cos(shape * 0.61),
           }
           bumps.push(bump)
-          const radius = Math.max(bump.width, bump.uphill, bump.downhill)
-          for (let cz = Math.floor((bz - radius) / 8); cz <= Math.floor((bz + radius) / 8); cz++) {
-            for (let cx = Math.floor((bx - radius) / 8); cx <= Math.floor((bx + radius) / 8); cx++) {
-              const key = cz * stride + cx
-              if (!cells.has(key)) cells.set(key, [])
-              cells.get(key)!.push(bump)
-            }
-          }
+          const key = cell(bx, bz)
+          if (!placed.has(key)) placed.set(key, [])
+          placed.get(key)!.push(bump)
         }
       }
     }
   }
+  const field = bumpField(bumps)
+  const sampleTerrain: SampleTerrain = (x, z) => {
+    const base = grid.sampleTerrain(x, z)
+    return base ? field.apply(base, x, z) : base
+  }
+  return { bumps, sampleTerrain, onMogul: (x: number, z: number) => (field.profile(x, z)?.rise ?? 0) > 0.07 }
+}
+
+/**
+ * A bump list as terrain: the rise and slope of the highest bump at a point
+ * (looked up in an 8 m cell index), and `apply`, which raises a terrain sample
+ * by it and tilts its normal. Used for the mapped mogul runs and for event
+ * courses (the mogul comp) laid on top of the terrain while they run.
+ */
+export function bumpField(bumps: readonly Mogul[]) {
+  const cells = new Map<number, Mogul[]>()
+  // Numeric cell keys: the profile runs for every terrain sample the physics takes.
+  const key = (cx: number, cz: number) => cx + cz * 65536
+  for (const bump of bumps) {
+    const radius = Math.max(bump.width, bump.uphill, bump.downhill)
+    for (let cz = Math.floor((bump.z - radius) / 8); cz <= Math.floor((bump.z + radius) / 8); cz++) {
+      for (let cx = Math.floor((bump.x - radius) / 8); cx <= Math.floor((bump.x + radius) / 8); cx++) {
+        const k = key(cx, cz)
+        if (!cells.has(k)) cells.set(k, [])
+        cells.get(k)!.push(bump)
+      }
+    }
+  }
   const profile = (x: number, z: number) => {
-    const nearby = cells.get(cell(x, z))
+    const nearby = cells.get(key(Math.floor(x / 8), Math.floor(z / 8)))
     if (!nearby) return null
     let rise = 0, dx = 0, dz = 0
     for (const bump of nearby) {
@@ -110,14 +136,14 @@ export function buildMoguls(grid: TerrainGrid, runs: Run[], surface: SurfaceFiel
     }
     return rise > 0 ? { rise, dx, dz } : null
   }
-  const sampleTerrain: SampleTerrain = (x, z) => {
-    const base = grid.sampleTerrain(x, z)
+  type Sample = NonNullable<ReturnType<SampleTerrain>>
+  const apply = (base: Sample, x: number, z: number): Sample => {
     const bump = profile(x, z)
-    if (!base || !bump) return base
+    if (!bump) return base
     const gx = -base.normal.x / base.normal.y + bump.dx
     const gz = -base.normal.z / base.normal.y + bump.dz
     const length = Math.hypot(gx, 1, gz)
-    return { height: base.height + bump.rise, mogulHeight: bump.rise, normal: { x: -gx / length, y: 1 / length, z: -gz / length } }
+    return { ...base, height: base.height + bump.rise, mogulHeight: (base.mogulHeight ?? 0) + bump.rise, normal: { x: -gx / length, y: 1 / length, z: -gz / length } }
   }
-  return { bumps, sampleTerrain, onMogul: (x: number, z: number) => (profile(x, z)?.rise ?? 0) > 0.07 }
+  return { bumps, profile, apply }
 }

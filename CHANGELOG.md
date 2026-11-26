@@ -2,6 +2,36 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.24 (2026-11-25): Apex events and competition mechanics
+
+### Added
+
+- Apex events, a new section at the top of Challenges, each with a line of real history and its rules. The course, gates, crowd and props appear only while you race that event, never in free ski.
+- **Racing.**
+  - A start gate for every race: 3, 2, 1, GO. Push just after GO for a fast start; push before it and the count begins again.
+  - Gate grades: a carved pass close to the turning pole is **Tight** and gives a little speed, a skidded one gives none. The results count tight, clean and skidded gates.
+  - The **racing line assist** (Settings, on by default): steer toward the next gate and it pulls you onto the arc round the pole. Steering away gets no help.
+  - A **ghost** of your best run in each single-run race to chase. The split pop-ups show the gap to your best split.
+- **Shoot the Chute**: from the summit down the Chute to the old upper parking lot. No gates, a radar on the steep lower pitch, and a crash is a DNF. The crowd and parked cars line the finish, and Eric Pehota's 151 km/h is the benchmark.
+- **Apex Downhill**: the FIS Gunbarrel downhill, from the summit start house to the old upper lot.
+  - Downhill gates with orange safety netting on the Gunbarrel pitch.
+  - Split clocks at the top and bottom of Gunbarrel, plus a speed trap.
+  - A missed gate disqualifies and a crash is a DNF.
+- **Apex Slalom**: a "slalom factory" on Okanagan Run with tight gates, two runs and a combined time.
+- **Teck Open GS**: red and blue gates down Old Mill to the timing hut.
+- **Kristi's Moguls**: a new mechanic on the real Nor-Am course, a straight 220 m lane on Kristi's steady pitch.
+  - Tap left or right on each bump and your skier holds the line.
+  - Hit the beat (shown on the beat strip) and the speed climbs, so the bumps come faster. A miss drops the speed back, and three in a row and you are out.
+  - Trick off the top and bottom airs.
+  - Judged out of 100: turns 60, air 20, speed 20.
+  - The bumps are laid on Kristi's only while the comp runs.
+- **Aerials** at the Aerial Site, switched to its aerial layout for the event only. Your two best jumps count, each scored as degree of difficulty (flips, spins, a grab) times form (the landing).
+- **Match Your Time** (the 50th anniversary race): ski Maverick twice. The score is the difference between the two runs.
+
+### Fixed
+
+- Starting a challenge from a chair no longer leaves the camera at the lift.
+
 ## 0.9.23 (2026-11-25): Runs pass B (glades, moguls, grooming, summit landmarks)
 
 From the Apex research handoff (`docs/review/apex-terrain-handoff.md`, `run-profiles.json`).

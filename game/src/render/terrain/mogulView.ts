@@ -1,5 +1,9 @@
 import * as THREE from 'three'
-import { pointOnMogul, type buildMoguls, type Mogul } from '../../world/moguls'
+import { pointOnMogul, type Mogul } from '../../world/moguls'
+import type { SampleTerrain } from '../../sim'
+
+/** Bumps and the bumped surface they sit on (a run's mogul field or an event's). */
+type MogulField = { bumps: readonly Mogul[]; sampleTerrain: SampleTerrain }
 
 /** How the bumps are drawn at a graphics level. The physics always uses every bump. */
 export interface MogulDetail {
@@ -25,7 +29,7 @@ export const MOGUL_DETAIL: Record<'low' | 'medium' | 'high', MogulDetail> = {
  * draws (and shadows) the fields around it. Each vertex sits on the bumped
  * surface the skis feel.
  */
-export function createMogulView(field: ReturnType<typeof buildMoguls>, material: THREE.Material, detail: MogulDetail = MOGUL_DETAIL.high) {
+export function createMogulView(field: MogulField, material: THREE.Material, detail: MogulDetail = MOGUL_DETAIL.high) {
   const group = new THREE.Group()
   group.name = 'moguls'
   const byChunk = new Map<number, Mogul[]>()
@@ -58,7 +62,7 @@ export function createMogulView(field: ReturnType<typeof buildMoguls>, material:
   }
 }
 
-function bumpGeometry(bumps: Mogul[], field: ReturnType<typeof buildMoguls>, detail: MogulDetail): THREE.BufferGeometry {
+function bumpGeometry(bumps: Mogul[], field: MogulField, detail: MogulDetail): THREE.BufferGeometry {
   const { segments, rings } = detail
   const positions: number[] = [], normals: number[] = [], indices: number[] = []
   for (const bump of bumps) {

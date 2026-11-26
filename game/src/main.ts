@@ -53,6 +53,9 @@ import { QUALITY, createSettingsPanel, lighterQuality, readSettings, resolveQual
 import { lowerAutoCap, readAutoCap } from './app/autoCap'
 import { showGraphicsProblem } from './app/graphicsFail'
 import { createSession, type Challenge, type SessionEvent } from './app/session'
+import { createRaceDirector } from './app/raceDirector'
+import { createCompDirector } from './app/compDirector'
+import { createRaceHud } from './ui/raceHud'
 import { createGoals, type Goals } from './app/goals'
 import { renderChallenges, renderResults, renderTitle, setTitleStatus } from './ui/goalsPanels'
 import { GATE_PENALTY, progressAlong } from './world/challenges'
@@ -108,7 +111,7 @@ const lighting = createLighting()
 const scene = new THREE.Scene()
 if (params.has('perf')) Object.assign(window, { __scene: scene })
 // `?test`: handles for the headless smoke test.
-if (params.has('test')) Object.assign(window, { __game: { scene, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals }, get npcs() { return npcs }, get snowDeform() { return stage.snowDeform } } })
+if (params.has('test')) Object.assign(window, { __game: { scene, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals }, get npcs() { return npcs }, get snowDeform() { return stage.snowDeform }, startEvent(id: string) { const next = goals?.eventById(id); if (next) startChallenge(next); return Boolean(next) } } })
 const sun = addSceneLights(scene, lighting, quality.shadowRange)
 sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize)
 const sky = createSky(lighting)
@@ -157,6 +160,9 @@ const gearDrops = createGearDrops(scene)
 const effects = createSnowEffects(scene, lighting, pixelRatio, quality)
 effects.setBoard(outfit.model === 'snowboard')
 const tricks = createTrickFeed(ui.trick)
+const raceHud = createRaceHud()
+const race = createRaceDirector({ hud: raceHud, show: (title, detail, kind) => tricks.show(title, detail, kind), assistOn: () => settings.raceAssist })
+const comp = createCompDirector({ hud: raceHud, show: (title, detail, kind) => tricks.show(title, detail, kind), onOut: () => endChallenge('Out of the line: three misses in a row') })
 const coach = createCoach(ui.coach, () => (controls.gamepad ? 'pad' : mobile ? 'touch' : 'keys'), { onExit: () => (tutorialLine = null), toTop: (message) => transition(message, 1.1, spawn) })
 /** The bunny-hill line while the tutorial runs: reaching its end puts you back at the top. */
 let tutorialLine: Point2[] | null = null
@@ -534,6 +540,8 @@ function spawn(keepCamera = false) {
   else skier = createSkier(stage.slope)
   clock.accumulator = 0
   session = createSession(challenge)
+  race.begin(challenge, session)
+  comp.begin(challenge)
   goals?.resetGates()
   tricks.resetTotal()
   effects.clear()
@@ -543,16 +551,22 @@ function spawn(keepCamera = false) {
   gearDrops.clear()
   skier.missingSkis = false
   skier.missingPoles = false
-  if (!keepCamera) rig.snap()
+  if (!keepCamera) {
+    // A lift's held shot (arrival or boarding) must not outlive the ride: starting an event from a chair left the camera behind.
+    rig.releaseShot()
+    rig.snap()
+  }
   if (challenge.kind !== 'free') {
     const best = goals?.progress.bests[challenge.id]
-    const score = challenge.kind === 'park'
+    const score = challenge.kind === 'park' || (challenge.kind === 'event' && ['moguls', 'aerials'].includes(challenge.course.def.format))
     ui.title.textContent =
       challenge.kind === 'park'
         ? `${challenge.site.name} · score attack`
         : challenge.kind === 'slalom'
           ? `${challenge.run.name} · slalom · gate 1/${challenge.gates.length}`
-          : `${challenge.run.name} · timed run`
+          : challenge.kind === 'event'
+            ? eventTitle(challenge, 0)
+            : `${challenge.run.name} · timed run`
     ui.best.textContent = best === undefined ? '–' : score ? `${best.toLocaleString()}` : formatTime(best)
   } else if (course?.startRun) {
     const best = bests[course.startRun.name]
@@ -596,6 +610,8 @@ function setFreeSki() {
   challenge = { kind: 'free' }
   goals?.activate(challenge)
   session = createSession(challenge)
+  race.end()
+  comp.end()
 }
 
 function openPanel(panel: HTMLElement) {
@@ -617,7 +633,53 @@ function openChallenges() {
   openPanel(ui.challenges)
 }
 
+/** HUD title during an event: its name, then the next gate or which run of two. */
+function eventTitle(event: Extract<Challenge, { kind: 'event' }>, passed: number): string {
+  const { def } = event.course
+  if (def.format === 'match') return event.firstRun === undefined ? `${def.name} · run 1 sets the time` : `${def.name} · run 2 · match ${formatTime(event.firstRun)}`
+  const run = def.format === 'twoRun' ? ` · run ${event.firstRun === undefined ? 1 : 2}` : ''
+  if (!event.gates.length) return `${def.name}${run}`
+  return `${def.name}${run} · ${passed < event.gates.length ? `gate ${passed + 1}/${event.gates.length}` : 'to the finish'}`
+}
+
 function onSessionEvent(event: SessionEvent) {
+  if (challenge.kind === 'event') {
+    const current = challenge
+    if (event.type === 'gate') {
+      goals?.markGate(event.index, event.result)
+      race.onGate(event, skier)
+      ui.title.textContent = eventTitle(current, event.index + 1)
+      return
+    }
+    if (event.type === 'split') {
+      const best = goals?.progress.bests[`${current.id}:split${event.index + 1}`]
+      const delta = best === undefined ? '' : ` · ${event.time <= best ? '-' : '+'}${Math.abs(event.time - best).toFixed(2)}`
+      tricks.show(`Split ${event.index + 1}`, `${formatTime(event.time)}${delta}`, 'bank')
+      return
+    }
+    if (event.type === 'trap') {
+      tricks.show('Radar', `${Math.round(event.speed * 3.6)} km/h`, 'bank')
+      return
+    }
+    if (event.type === 'disqualified') {
+      endChallenge(`Disqualified: missed gate ${event.gate + 1}`)
+      return
+    }
+    const twoRuns = current.course.def.format === 'match' || current.course.def.format === 'twoRun'
+    if (event.type === 'finish' && twoRuns && current.firstRun === undefined && goals) {
+      // Run one: back to the start for run two (to match it, or to add to it).
+      const first = session.total
+      const next = goals.event(current.course, first)
+      transition(`Run 1: ${formatTime(first)}
+${current.course.def.format === 'match' ? 'Now match it' : 'Run 2'}`, 2, () => startChallenge(next))
+      return
+    }
+    if (event.type === 'finish') {
+      goals?.recordSplits(current.id, session.stats.splits)
+      endChallenge(null)
+    } else if (event.type === 'offCourse') endChallenge('Left the course')
+    return
+  }
   if (event.type === 'gate') {
     goals?.markGate(event.index, event.result)
     if (event.result === 'miss') tricks.show('Missed gate', `+${GATE_PENALTY} s`, 'crash')
@@ -662,8 +724,18 @@ function coachTips() {
 let resultsNext: (() => void) | null = null
 function endChallenge(failed: string | null) {
   if (!goals || challenge.kind === 'free') return
+  session.abandon()
   const finished = challenge
-  const result = goals.finish(session, tricks.total, failed)
+  const judged = comp.score(session.stats.time)
+  const result = goals.finish(session, judged ? judged.total : tricks.total, failed)
+  if (judged && !failed) result.lines.unshift(...judged.lines)
+  comp.end()
+  race.finished(result.improved && !failed)
+  if (finished.kind === 'event' && finished.gates.length && !failed) {
+    const g = race.grades
+    result.lines.push(['Tight / clean / skidded gates', `${g.tight} / ${g.clean} / ${g.skid}`])
+  }
+  race.end()
   if (finished.kind === 'park') {
     const { perfect, clean, railMetres, bestName } = tricks.stats
     result.lines.push(['Perfect / clean landings', `${perfect} / ${clean}`], ['Rail and box distance', `${railMetres.toFixed(1)} m`])
@@ -676,7 +748,7 @@ function endChallenge(failed: string | null) {
     setFreeSki()
   }
   renderResults(ui.results, result, {
-    retry: () => startChallenge(finished),
+    retry: () => startChallenge(finished.kind === 'event' && goals ? goals.event(finished.course) : finished),
     next: resultsNext,
     nextLabel: 'Keep skiing',
     challenges: () => {
@@ -1037,11 +1109,14 @@ function tick(dt: number, frameMs: number) {
       pause = null
       done()
     }
+  } else if ((race.input(input, skier, dt), comp.input(input, skier, race.holding), race.holding)) {
+    // Held in the start gate until GO.
   } else {
     perf.begin()
     steps = advance(clock, skier, input, stage.slope.sampleTerrain, dt, stage.env, stage.trunks ? checkTreeContact : undefined)
     perf.lap('sim')
     if (tricks.onTrick(skier.trick) && skier.trick?.kind === 'air') {
+      comp.onTrick(skier.trick)
       rig.landingImpulse(skier.trick)
       haptics.landing(skier.trick)
     }
@@ -1049,9 +1124,12 @@ function tick(dt: number, frameMs: number) {
     if (skier.mode === 'crashed' && !crashShown) {
       crashShown = true
       tricks.drop()
+      // Speed events: a fall between start and finish is a DNF, as in a real race.
+      if (challenge.kind === 'event' && challenge.course.def.bailIsDnf && session.timing && !session.finished) endChallenge('Crashed: DNF')
     }
     if (skier.mode !== 'crashed') crashShown = false
     for (const event of session.step(skier, dt)) onSessionEvent(event)
+    race.record(skier)
     coach.update(skier, input, dt)
     coachTips()
     checkEvents()
@@ -1067,6 +1145,7 @@ function tick(dt: number, frameMs: number) {
       }
     }
   }
+  goals?.setGhost(race.ghost())
   if (goals && !pause) {
     const found = goals.frame(skier, dt, Boolean(ride), camera.position)
     if (found) {

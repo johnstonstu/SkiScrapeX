@@ -56,13 +56,13 @@ Expensive shader work goes behind a define (like `SNOW_DETAIL`). Expensive geome
 ### Runs from the Apex research handoff (PR #101, `docs/review/apex-terrain-handoff.md`)
 
 - [x] 0.9.18, pass A: south-face runs, Wildside names and Wildly Easy, Upper/Lower splits, Wishbone merge, Grandmother's blue, Chaser, neutral names for unknown traces.
-- [x] Pass B (branch `runs-pass-b`, unreleased): glades thinned into lanes and labelled; moguls on Sunbowl, Make My Day, Old Mill, Gunbarrel, K2; chop on Crusher and Hanks, packed Grandmother's; summit orange slat fence, Tooth/Tusk signpost, padded lift towers (already in `lifts.glb`, now tested); run widths and pitches tested against `run-profiles.json`.
+- [x] Pass B (0.9.23): glades thinned into lanes and labelled; moguls on Sunbowl, Make My Day, Old Mill, Gunbarrel, K2; chop on Crusher and Hanks, packed Grandmother's; summit orange slat fence, Tooth/Tusk signpost, padded lift towers (already in `lifts.glb`, now tested); run widths and pitches tested against `run-profiles.json`.
   - [x] Glades: Any Which Way, Granny's, Fools Gold, Hidden Gold thinned (lanes down the fall line), on the map and HUD, with trail-head boards.
   - [x] Moguls on Sunbowl, Make My Day, Old Mill, Gunbarrel and K2.
   - [x] Crusher and Hanks ungroomed (chop, no corduroy); Grandmother's packed (no corduroy).
   - [x] Landmarks: summit slat fence, Tooth/Tusk signpost, padded towers.
   - [x] `tests/runProfiles.test.ts`: widths and pitches against `run-profiles.json`.
-- [ ] Events: Shoot the Chute and the Mars downhill (`docs/review/apex-events/game-event-ideas.md`).
+- [x] Events: Shoot the Chute and the Mars downhill (`docs/review/apex-events/game-event-ideas.md`), plus the Apex Slalom, Teck Open GS, Kristi's Moguls (tap-to-turn rhythm), Aerials and Match Your Time, with a shared race system (start gate, gate grades, line assist, ghosts). Next candidates from the same doc: dual moguls against a ghost, Torchlight Parade (needs night), Dummy Downhill, Boardercross heats against AI.
 - [ ] Distant forest: apron tree density (the LiDAR ring is sparser than our cover already), with the performance pass.
 
 ### Queued (from Stu's scenery-blender playtest, 2026-11-25)

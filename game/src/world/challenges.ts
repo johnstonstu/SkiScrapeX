@@ -120,8 +120,8 @@ export function* paceBot(
 }
 
 /** Run the pace bot to the end in one go. */
-export function paceBotSync(line: Point2[], terrain: SampleTerrain, env: SkiEnv): number | null {
-  const bot = paceBot(line, terrain, env, BOT_SPEED_CAP, 420, Infinity)
+export function paceBotSync(line: Point2[], terrain: SampleTerrain, env: SkiEnv, cap = BOT_SPEED_CAP): number | null {
+  const bot = paceBot(line, terrain, env, cap, 420, Infinity)
   let step = bot.next()
   while (!step.done) step = bot.next()
   return step.value
@@ -166,6 +166,8 @@ export interface Gate {
   side: -1 | 1
   /** Distance along the line, metres. */
   s: number
+  /** Pole spacing either side of the centre; GATE_HALF_WIDTH when unset. */
+  halfWidth?: number
 }
 
 /** Pole spacing either side of the gate centre. */
@@ -203,14 +205,24 @@ export function buildSlalom(line: Point2[], options: { start?: number; spacing?:
  * Only crossings in the direction of travel count.
  */
 export function gateCrossing(px: number, pz: number, x: number, z: number, gate: Gate): 'pass' | 'miss' | null {
+  const lateral = gateLateral(px, pz, x, z, gate)
+  if (lateral === null) return null
+  return Math.abs(lateral) <= (gate.halfWidth ?? GATE_HALF_WIDTH) ? 'pass' : 'miss'
+}
+
+/**
+ * Where across the gate line the move from (px, pz) to (x, z) crossed it,
+ * metres along (dirZ, -dirX) from the gate centre, or null when it did not
+ * cross in the direction of travel.
+ */
+export function gateLateral(px: number, pz: number, x: number, z: number, gate: Gate): number | null {
   const before = (px - gate.x) * gate.dirX + (pz - gate.z) * gate.dirZ
   const after = (x - gate.x) * gate.dirX + (z - gate.z) * gate.dirZ
   if (!(before < 0 && after >= 0)) return null
   const t = before / (before - after)
   const cx = px + (x - px) * t - gate.x
   const cz = pz + (z - pz) * t - gate.z
-  const lateral = cx * gate.dirZ - cz * gate.dirX
-  return Math.abs(lateral) <= GATE_HALF_WIDTH ? 'pass' : 'miss'
+  return cx * gate.dirZ - cz * gate.dirX
 }
 
 /** Distance along a polyline of the nearest point, and how far off the line the point is. */

@@ -26,6 +26,10 @@ export interface Stage {
   env: SkiEnv
   /** Deformable snow: imprints from the skis, and the patch that draws them (Medium and up). */
   snowDeform?: { stamper: ReturnType<typeof createStamper>; patch: ReturnType<typeof createSnowPatchView> }
+  /** Lay an event's own terrain (the mogul comp's bumps) over the ground while it runs; null removes it. */
+  setEventTerrain?(layer: ((base: NonNullable<ReturnType<Slope['sampleTerrain']>>, x: number, z: number) => NonNullable<ReturnType<Slope['sampleTerrain']>>) | null): void
+  /** Use a park layout for an event without saving it (null puts the player's layout back). */
+  eventLayout?(siteName: string, layout: string | null): void
   /** Per-frame scenery update around the camera. */
   update(camera: THREE.Vector3): void
   /** One line for the info overlay. */
