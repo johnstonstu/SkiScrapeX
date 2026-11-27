@@ -1,12 +1,15 @@
 import { FIXED_DT, PHYSICS } from './constants'
 import type { SampleTerrain } from './slopes'
 import { stepSkier, type SkiEnv, type SkiInput, type SkiState } from './skier'
+import { recordStep, type PoseHistory } from './interpolate'
 
 export interface SimClock {
   accumulator: number
   /** Seconds already integrated. Useful for tests and the HUD. */
   time: number
   fixedDt: number
+  /** When set, `advance` keeps the last two steps for render smoothing (see interpolate.ts). */
+  history?: PoseHistory
 }
 
 export function createClock(): SimClock {
@@ -34,11 +37,18 @@ export function advance(
   let steps = 0
   while (clock.accumulator >= clock.fixedDt - 1e-9 && steps < PHYSICS.maxSubsteps) {
     const fromX = state.x, fromZ = state.z
+    if (clock.history) recordStep(clock.history, state, 'before')
     stepSkier(state, input, sampleTerrain, clock.fixedDt, env)
     afterStep?.(fromX, fromZ)
+    if (clock.history) recordStep(clock.history, state, 'after')
     clock.accumulator -= clock.fixedDt
     clock.time += clock.fixedDt
     steps += 1
   }
   return steps
+}
+
+/** How far (0..1) the render sits between the previous step and the newest. */
+export function renderAlpha(clock: SimClock): number {
+  return Math.min(1, Math.max(0, clock.accumulator / clock.fixedDt))
 }

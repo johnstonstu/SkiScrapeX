@@ -2,7 +2,7 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
-## 0.9.42 (unreleased): Park lines and rolling starts
+## 0.9.44 (unreleased): Park lines and rolling starts
 
 Every park now drops you in straight above a line you can ride without turning, and every event starts rolling.
 
@@ -17,6 +17,42 @@ Every park now drops you in straight above a line you can ride without turning, 
 - **Rolling event starts.** Every race leaves the gate at 22 km/h at least, and on the Chute and the Downhill the racer double-poles along the summit cat track until the course drops away. Hands-off, the Chute's slowest point in its first 300 m goes from 12 to 24 km/h. Timed runs and slaloms push off at 18 km/h.
 
 Tests: `tests/parkLines.test.ts` rides every Apex park's main line hands-off (every jump in the sweet spot, no crash, under 3 m of drift, no overlap between parks) and checks the jump windows; `tests/eventStarts.test.ts` covers the rolling starts.
+
+## 0.9.42 (unreleased): main.ts split into game systems
+
+No change to how the game plays. Builds on 0.9.41.
+
+### Changed
+
+- **Session state in one place.** The stage, skier, course, challenge, session, lift ride, fade, goals and other skiers were 13 loose variables in `main.ts`. They are now one `GameState` (`src/app/game/state.ts`) that the systems share.
+- **Systems in their own modules** under `src/app/game/`: lift rides (boarding, skip, arrival shot, unloading), challenge flow (session events, results, run cards, fades, the per-frame world checks), the HUD, graphics setup (renderer, GPU reset, shader warm-up) and the frame driver. `main.ts` goes from 1,698 to about 1,100 lines.
+- **One frame, in named phases.** `tick` now reads as menus, music, play (sim, ride, fade or start gate), the world around the skier, then drawing, each its own function in the same order as before.
+- `scripts/smoke-modes.mjs` walks a built game through every mode (title, chair arrival and unload, pause, lift ride, event, park, test slopes, tutorial) and fails on any page error. On this change its output matches 0.9.41 apart from frame-timing noise.
+
+## 0.9.41 (unreleased): Smooth motion between physics steps
+
+The rider and camera now move evenly on any screen refresh rate. Builds on 0.9.40.
+
+### Changed
+
+- **Rendering blends the last two physics steps.** The sim runs at a fixed 120 Hz. A 75, 90 or 144 Hz screen (or a dropped frame) gets 0, 1 or 2 steps a frame, and drawing only the newest step moved the rider in uneven jumps that read as a loose, shaky ride. The rider, camera, spray and shadow focus now draw a blend between the last two steps, at most one step (8 ms) behind the sim. In a headless run with the frame clock held at 144 Hz, frame-to-frame unevenness of the rider's motion drops from 41% to 2% (90 Hz: 26% to 2%). Physics, scoring and sounds still use the newest step, so nothing about how the skis behave changes.
+- `?nosmooth` turns the blend off for side-by-side comparison.
+
+## 0.9.40 (unreleased): Arcade turning on every input
+
+Holding left or right now links turns on any pitch, and keys, controller and touch steer the same way.
+
+### Changed
+
+- **One steering model for every input.** Held keys used to keep turning past straight across the hill and wind round uphill and backwards (up to 180° on a held key). Keys, sticks and touch now all aim the skis at an angle off the fall line. A held direction settles just short of straight across (86°, was 100° on sticks), and the other direction turns back down through the fall line. On a 20° pitch with 1.2 s holds, keys used to average 26 km/h against 31 km/h on a stick. Both now average 41 km/h. Only a nearly stopped skier (under 1.5 m/s) on gentle ground can still spin to face any way, so a slow cat track no longer turns you round.
+- **Turns carve instead of sliding out.** The skis may lead the direction of travel by at most 16° while turning, and below 45 km/h the edge pulls the path round up to 30% harder (fading out by 85 km/h). Washouts need a grip ratio of 2.8 (was 1.9). In held linked turns on a 30° pitch, skidding drops from 20-30% of the time to under 1%, and washouts from 7-15 per 12 s to none. At 80 km/h the path reaches 60° in 1.0-1.1 s instead of 1.4-1.8 s.
+- **Facing downhill is fast, across the hill is slow.** Turns no longer burn speed in a skid, so speed comes from how far across the hill you hold. To stop, brake, or brake while turning for a hockey stop. A held turn settles in a traverse rather than turning uphill to a stop.
+- **Stick tuck and brake need a mostly vertical push.** A phone or controller stick pushed mostly sideways is a turn even if the thumb drifts down, so a hard turn no longer catches the brake. A push within about 55° of vertical still tucks or brakes.
+- **Snow changes the edge, not the steering.** Linked turns now swing about the same on groomers, ice and powder. In a 15° test, powder reaches 53° per turn against 61° on a groomer (it was 42°), and ice reaches 49° (was 44°). Powder turns a bit quicker (`powderTurnDepth` 0.11 to 0.2) and ice grips a little more (1.2 g, was 1.0). What changes is a hammered edge. Each snow now has its own washout point: a groomer holds (no washouts in short hard turns at 75 km/h on 28°, was 14), park snow nearly holds, ice lets go (19 washouts), and powder never washes out but plows. Ice on a 28° pitch still slides in linked turns (about 30% of the time).
+- **Trees knock you aside instead of down.** A tree now crashes you only when you hit it at 29 km/h or more straight into the trunk (was 20 km/h). Below that you shoulder off it: you lose some speed, bounce clear, and the skis point where you're now going, with a thump and a rumble. For 2.5 s after getting up, no tree can crash you, and you get up with at least 7 m of clear line downhill (was 3.5 m). In a dense test glade with linked turns, crashes at a 25 km/h cap went from 6 to 0 per 90 s, and repeat crashes from 1 to 0.
+- **Looser follow camera.** The steady camera swings more slowly and keeps looking down the fall line further into a traverse. With 2.5 s holds it peaks at 48° off the fall line, down from 60°.
+
+Values marked "guess" in `src/sim/constants.ts`, `src/player/input.ts` and `src/player/camera.ts` are first guesses, to tune in play. `npm run tune` now includes `tuning/inputs.test.ts` (keys, pad and touch on skis and the board, and each snow) and `tuning/trees.test.ts` (a dense glade), and the tune scripts print their tables again.
 
 ## 0.9.39 (2026-11-27): Smaller rider, fewer forest draws
 

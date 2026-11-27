@@ -5,7 +5,7 @@
  * env vars offset every kicker's lip and landing angles for experiments.
  */
 import { expect, it } from 'vitest'
-import { FIXED_DT, createSkiState, createSteadySlope, stepSkier, type SkiInput } from '../src/sim'
+import { FIXED_DT, PHYSICS, createSkiState, createSteadySlope, stepSkier, type SkiInput } from '../src/sim'
 import { buildParkOverlay, FEATURES, footprintOf, type PlacedFeature } from '../src/world/park'
 
 const IDLE: SkiInput = { steer: 0, brake: 0, tuck: false }
@@ -38,7 +38,7 @@ it('jumps', () => {
       rows.push(`${id.padEnd(9)} ${String(kmh).padStart(3)} km/h pop=${pop ? 'y' : 'n'}  lip ${vLip.toFixed(0)} km/h vy ${vy0.toFixed(1)}  air ${(t - t0).toFixed(2)} s  peak +${top.toFixed(2)} m (${(y0 + top - ground).toFixed(1)} over slope)  dist ${(s.z - z0).toFixed(1)} m  ${s.trick?.grade ?? '-'} efh ${(s.trick?.efh ?? 0).toFixed(2)}`)
     } }
   }
-  console.log(rows.join('\n'))
+  process.stdout.write(rows.join('\n') + '\n')
 })
 
 it('turn response', () => {
@@ -63,7 +63,7 @@ it('turn response', () => {
     const f = (k: string) => (marks[k] === undefined ? '  -  ' : marks[k].toFixed(2))
     rows.push(`${v} m/s ${mode.padEnd(5)} skis 10/30/60°: ${f('h10')} ${f('h30')} ${f('h60')} s   path 10/30/60°: ${f('p10')} ${f('p30')} ${f('p60')} s`)
   }
-  console.log(rows.join('\n'))
+  process.stdout.write(rows.join('\n') + '\n')
 })
 
 it('camera lag', () => {
@@ -89,7 +89,7 @@ it('camera lag', () => {
     }
     rows.push(`travel ${w} rate ${rate} @${v} m/s  skis 10/30°: ${marks.s10?.toFixed(2)} ${marks.s30?.toFixed(2)}  camera 10/30°: ${marks.c10?.toFixed(2)} ${marks.c30?.toFixed(2)}`)
   }
-  console.log(rows.join('\n'))
+  process.stdout.write(rows.join('\n') + '\n')
 })
 
 it('turn radius vs speed', () => {
@@ -138,26 +138,27 @@ it('turn radius vs speed', () => {
 it('turn to stop from 30 km/h', () => {
   const slope = createSteadySlope(15, { width: 400, depth: 400 })
   const angle = 15 * Math.PI / 180
-  for (const turnModel of ['classic', 'wide'] as const) for (const maneuver of ['uphill', 'hockey stop']) {
+  for (const turnModel of ['classic', 'wide'] as const) for (const maneuver of ['turn then brake', 'hockey stop']) {
     const state = createSkiState({ x: 200, z: 100, heading: 0 })
     state.y = slope.sampleTerrain(state.x, state.z)!.height
     state.vy = -Math.sin(angle) * 30 / 3.6
     state.vz = Math.cos(angle) * 30 / 3.6
     let distance = 0
-    let uphill = false
+    let across = false
     for (let tick = 0; tick < 10 / FIXED_DT; tick++) {
       const { x, y, z } = state
-      if (state.heading >= Math.PI * 0.8) uphill = true
+      // Since 0.9.40 a held key settles across the hill instead of winding uphill; the brake stops.
+      if (state.heading >= (PHYSICS.maxTraverseDeg - 6) * Math.PI / 180) across = true
       const input = maneuver === 'hockey stop'
         ? { ...IDLE, steer: 1, brake: 1 }
-        : { ...IDLE, steer: uphill ? 0 : 1, directionalSteering: true }
+        : { ...IDLE, steer: 1, brake: across ? 1 : 0, directionalSteering: true }
       stepSkier(state, input, slope.sampleTerrain, FIXED_DT, { turnModel })
       distance += Math.hypot(state.x - x, state.y - y, state.z - z)
       if (state.speed < 0.25) break
     }
-    console.log(`${turnModel} ${maneuver}: ${distance.toFixed(1)} m, final speed ${(state.speed * 3.6).toFixed(1)} km/h`)
+    process.stdout.write(`${turnModel} ${maneuver}: ${distance.toFixed(1)} m, final speed ${(state.speed * 3.6).toFixed(1)} km/h\n`)
     expect(state.speed).toBeLessThan(0.25)
     // A real hockey stop is 0.5 to 0.8 g: 4.4 to 7 m from 30 km/h (2026-11-25 playtest; it was 4 m, about 0.9 g).
-    expect(distance).toBeLessThanOrEqual(maneuver === 'uphill' ? 25.5 : 6.5)
+    expect(distance).toBeLessThanOrEqual(maneuver === 'turn then brake' ? 25.5 : 6.5)
   }
 })
