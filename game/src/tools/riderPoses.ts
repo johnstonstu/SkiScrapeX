@@ -32,7 +32,7 @@ export const LAB_POSES: LabPose[] = [
       return { ...idle, steer: Math.sign(s.edgeAngle) }
     },
   },
-  { label: 'Tuck', setup: (s) => ((s.speed = 20), { ...idle, tuck: true }) },
+  { label: 'Tuck', setup: (s) => ((s.speed = 20), (s.tuck = true), (s.tuckTime = 2), { ...idle, tuck: true }) },
   { label: 'Snowplough', setup: (s) => ((s.speed = 3), { ...idle, brake: 1 }) },
   { label: 'Pushing', animated: true, setup: (s) => ((s.speed = 0.8), { ...idle, tuck: true }) },
   { label: 'Skating', animated: true, setup: (s) => ((s.speed = 2.5), { ...idle, tuck: true }) },
@@ -105,6 +105,17 @@ export const LAB_POSES: LabPose[] = [
       s.crashed = 1.5
       s.crashSpeed = 18
       s.crashAge = t % 1.15
+      return idle
+    },
+  },
+  {
+    label: 'Getting up',
+    setup: (s) => {
+      // The end of a crash: the rider is up on the gear, about to stand.
+      s.speed = 0
+      s.crashed = 0.12
+      s.crashSpeed = 10
+      s.crashAge = 2
       return idle
     },
   },
