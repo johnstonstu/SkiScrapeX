@@ -80,7 +80,7 @@ it('runs', () => {
   const env: SkiEnv = { turnModel, sampleSurface }
   for (const run of pickableRuns(resort).filter((r) => ['Grandfather\'s Trail', 'Okanagan Run', 'Ridge Run', 'Gunbarrel', 'The Great Wall', 'Kristi\'s Run', 'Make My Day', 'Juniper'].includes(r.name))) {
     const line = run.parts.reduce((a, b) => (polylineLength(b) > polylineLength(a) ? b : a))
-    for (const cap of [12, 18]) console.log(run.name.padEnd(22), run.difficulty?.padEnd(13), `cap ${cap}`, fmt(follow(line, sampleTerrain, env, cap)))
+    for (const cap of [12, 18]) process.stdout.write('\n' + [run.name.padEnd(22), run.difficulty?.padEnd(13), `cap ${cap}`, fmt(follow(line, sampleTerrain, env, cap))].join(' '))
   }
 }, 120000)
 
@@ -107,7 +107,7 @@ it('parks', () => {
   for (const layout of LAYOUTS) {
     const overlay = buildParkOverlay(placeFeatures(site, layout.id), sampleTerrain, grid.heightAt)
     const env: SkiEnv = { turnModel, sampleSurface: createSurfaceSampler(grid, surface, canopy, { inPark: overlay.inside, onMogul }), rails: overlay.rails }
-    for (const cap of [7, 9, 11]) console.log(`Claim Jumper ${layout.label.padEnd(12)} cap ${cap * 3.6} km/h`, fmt(follow(site.line, overlay.sampleTerrain, env, cap, 200)))
+    for (const cap of [7, 9, 11]) process.stdout.write('\n' + [`Claim Jumper ${layout.label.padEnd(12)} cap ${cap * 3.6} km/h`, fmt(follow(site.line, overlay.sampleTerrain, env, cap, 200))].join(' '))
   }
 }, 120000)
 
