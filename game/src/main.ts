@@ -22,6 +22,7 @@ import { SIGHT_LINE } from './render/scenery/forestView'
 import { PROGRESS_RENAMES } from './world/corrections'
 import { addSceneLights, createLighting, createSky, followSun } from './render/lighting'
 import { applyWeather, weatherGust, weatherPreset, type WeatherPreset } from './render/weather'
+import { createSkyEnvironment, driftClouds, hazeDensity, installAtmosphere, setCloudShadows, setHaze } from './render/atmosphere'
 import { createControls } from './player/input'
 import { createCameraRig } from './player/camera'
 import { createSkiAudio } from './player/audio'
@@ -49,7 +50,7 @@ import type { Stage } from './app/stage'
 import { VERSION } from './app/version'
 import { createFrameWatch } from './app/adaptive'
 import { classifyHardware, probeHardware } from './app/hardware'
-import { setSnowDetail } from './fx'
+import { setForestShadeRange, setSnowDetail } from './fx'
 import { setTextureAnisotropy } from './render/textureBudget'
 import { QUALITY, createSettingsPanel, lighterQuality, minimalHud, readSettings, resolveQuality, shadowsOn, writeSettings, type Settings } from './app/settings'
 import { lowerAutoCap, readAutoCap } from './app/autoCap'
@@ -117,13 +118,16 @@ perf.graphics({ level: quality.level, reason: qualityReason, renderer: hardware?
 setSnowDetail(quality.snowDetail)
 console.info(`SkiScrapex graphics: ${quality.level} (${qualityReason})`, hardware?.renderer ?? '')
 const frameWatch = createFrameWatch()
+// Shared haze and colour grade: before any material compiles.
+installAtmosphere()
+setCloudShadows(quality.snowDetail)
 const pixelRatio = Math.min(window.devicePixelRatio, quality.pixelRatioMax)
 const renderer = createRenderer(ui.canvas, quality.antialias)
 setTextureAnisotropy(Math.min(quality.anisotropy, renderer.capabilities.getMaxAnisotropy()))
 watchForGpuReset(ui.canvas, quality, settings)
 renderer.setPixelRatio(pixelRatio)
 renderer.outputColorSpace = THREE.SRGBColorSpace
-renderer.toneMapping = THREE.ACESFilmicToneMapping
+renderer.toneMapping = THREE.CustomToneMapping
 renderer.toneMappingExposure = 1.0
 renderer.shadowMap.enabled = shadowsOn(settings, quality) && !params.has('noshadows')
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
@@ -132,10 +136,13 @@ const lighting = createLighting()
 const scene = new THREE.Scene()
 if (params.has('perf')) Object.assign(window, { __scene: scene })
 // `?test`: handles for the headless smoke test.
-if (params.has('test')) Object.assign(window, { __game: { scene, get camera() { return camera }, get rider() { return skierView.object }, get skier() { return game.skier }, get challenge() { return game.challenge }, get goals() { return game.goals }, get npcs() { return game.npcs }, get snowDeform() { return game.stage.snowDeform }, get tricks() { return tricks }, startEvent(id: string) { const next = game.goals?.eventById(id); if (next) flow.startChallenge(next); return Boolean(next) } } })
+if (params.has('test')) Object.assign(window, { __game: { scene, three: THREE, renderer, get camera() { return camera }, get rider() { return skierView.object }, get skier() { return game.skier }, get challenge() { return game.challenge }, get goals() { return game.goals }, get npcs() { return game.npcs }, get snowDeform() { return game.stage.snowDeform }, get tricks() { return tricks }, startEvent(id: string) { const next = game.goals?.eventById(id); if (next) flow.startChallenge(next); return Boolean(next) } } })
 const sun = addSceneLights(scene, lighting, quality.shadowRange)
 sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize)
 const sky = createSky(lighting)
+// Sky and snow light for the physically based materials (rider, metal, cars).
+const skyEnvironment = createSkyEnvironment(renderer)
+scene.environmentIntensity = 0.55
 scene.add(sky)
 const camera = new THREE.PerspectiveCamera(58, 1, 0.25, 25000)
 const rig = createCameraRig(camera, ui.canvas)
@@ -250,6 +257,7 @@ function applySetting(key?: keyof Settings) {
   if (all || key === 'cameraStyle') rig.setStyle(settings.cameraStyle)
   if (all || key === 'weather') {
     weatherLive = applyWeather(settings.weather, lighting, scene, sun, sky)
+    scene.environment = skyEnvironment.update(lighting, weatherLive.sunIntensity)
     effects.setWeather(weatherLive.snowDensity, weatherLive.windEast, weatherLive.windSouth, lighting)
     ui.weatherCue.hidden = settings.weather !== 'flat'
     if (game.stageReady && game.stage.snow) {
@@ -268,11 +276,17 @@ function applySetting(key?: keyof Settings) {
   if (all || key === 'viewDistance') setViewDistance?.(settings.viewDistance)
   if (all || key === 'landingAssist') if (game.stageReady) game.stage.env.assist = settings.landingAssist
   if (key === 'npcs') game.npcs?.setVisible(settings.npcs)
+  if (all || key === 'shadows') syncForestShade()
   if (key === 'shadows') {
     renderer.shadowMap.enabled = shadowsOn(settings, quality)
     // Materials compile with or without shadow code; recompile them.
     recompileMaterials(scene)
   }
+}
+/** Canopy shade on the snow takes over where the shadow map ends (everywhere when shadows are off). */
+function syncForestShade() {
+  if (shadowsOn(settings, quality) && !params.has('noshadows')) setForestShadeRange(quality.shadowRange * 0.55, quality.shadowRange * 0.9)
+  else setForestShadeRange(-1, 0)
 }
 /** The pocket player's screen and lyrics; on lifts the line sits by the rider's ear. */
 function updatePocket() {
@@ -1035,7 +1049,8 @@ function present(dt: number, frameMs: number, input: ReturnType<typeof controls.
   if (!game.ride && !game.pause) haptics.update(game.skier, performance.now())
   const gust = weatherGust(weatherLive, performance.now() * 0.001)
   effects.setWeather(weatherLive.snowDensity * (1 + gust.strength * 0.2), gust.windEast, gust.windSouth, lighting)
-  if (scene.fog instanceof THREE.Fog) scene.fog.far = gust.fogFar
+  setHaze(scene, hazeDensity(gust.visibility))
+  driftClouds(dt, gust.windEast, gust.windSouth)
   effects.update(dt, view, game.ride ? null : ground, camera, game.stage.snow, !renderer.shadowMap.enabled && rig.mode !== 'first')
   stepDeepSnow(dt, game.ride ? null : ground)
   // The landing ring is a third-person aid; in first person it fills the view.
