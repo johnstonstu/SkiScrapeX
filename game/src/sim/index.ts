@@ -1,7 +1,9 @@
 export { ANG_MAX, LOAD_MAX, carve } from './carve'
 export type { CarveInput, CarveResult, CarveStatus } from './carve'
 export { FIXED_DT, FIXED_HZ, PHYSICS, steerYawRate } from './constants'
-export { advance, createClock } from './loop'
+export { advance, createClock, renderAlpha } from './loop'
+export { blendState, createPoseHistory, lerpAngle } from './interpolate'
+export type { PoseHistory } from './interpolate'
 export type { SimClock } from './loop'
 export {
   PRESETS,

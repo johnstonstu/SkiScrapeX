@@ -2,7 +2,7 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
-## 0.9.41 (unreleased): Rider animation, part 1 (grabs, carving, landings, crashes)
+## 0.9.45 (unreleased): Rider animation (grabs, carving, landings, crashes, idles, slow speed, terrain style)
 
 Driven by the rider's physics state; steering and physics are unchanged.
 
@@ -14,6 +14,54 @@ Driven by the rider's physics state; steering and physics are unchanged.
 - **Landings absorb.** A landing folds the hips back and the chest down by how hard it hits, then the legs push back up.
 - **Close calls.** Landing across the skis or board, very hard, or with a landing graded sketchy, the rider rocks, windmills the arms and skips one ski before catching it.
 - **Getting up after a crash.** Over the last 0.85 s of a crash the rider gathers the gear under the hips and comes up to a crouch, a hand off the snow, before standing (it used to fade straight from lying down to skiing). New rider lab pose: Getting up.
+- **Idle moves.** Stopped for a couple of seconds, the rider plays one of a dozen moves every few seconds: a look round, a shiver with the arms hugged in, straightening the goggles, a stretch, knocking snow off the skis, leaning on the poles, shifting from foot to foot, a glance at the watch, little hops on a board. Now and then (rarely) they crack a beer from the jacket pocket and take two long sips, or smoke a cigarette with three drags. On the chair: beer, smoke, shivers, goggles, looking round and swinging the legs. The can and cigarette are small code-built props in the right hand. Setting off fades any move out in a quarter second. Rider lab: `?idle=beer&idlet=4` (any move name, seconds in).
+- **Pushing.** Heading up a slope the push becomes a herringbone (tips out, inside edges, short lifted steps, poles behind). Nearly stopped on the flat, a push uses either double poles or alternate arms with a parallel shuffle, picked each time.
+- **No snap into a tuck.** On gentle snow the skating strokes fade out over the 2.5 m/s past the push speed instead of stopping dead, and the tuck starts as a high half tuck and folds down over the first second held and as the speed builds (sooner on steep snow). The racing tuck's hands sit higher, out of the thighs. The rider lab's Tuck pose now really tucks.
+- **Snowboard at a crawl.** Below about 10 km/h the board wiggles under the rider; holding push or steer under about 6 km/h, the rider hops the board along.
+- **Style from the terrain.** Steeps keep the rider low and forward with the hands out front and the chest further down the hill; powder sits back a little on a narrower stance with a bounce; ice goes low with the arms wide; speed compacts the stance with the hands forward.
+
+## 0.9.43 (unreleased): Quickdraw bowl layout
+
+### Changed
+
+- **The bowl is reachable from the chair.** Toilet Bowl, Chaser and the two Essendales start where Grandmother's Trail meets the lip of the bowl under the summit ridge, 300 to 420 m from the Quickdraw top, instead of 530 to 620 m away past a flat stretch of ridge where you ran out of speed. Toilet Bowl now drops through the middle of the headwall. The Essendales start a little way down the face, reached by short falling traverses from the Toilet Bowl entrance. A bot skiing from the chair without poling never drops below 13 km/h on the way in (it fell to 3 km/h before).
+- **Chaser is in the bowl**, between Crusher and Toilet Bowl, where Stu skis it. The short cut by the Poma it used to name is unnamed again.
+- **Traced runs join the runs around them.** The LiDAR-traced runs stopped 20 to 40 m short of the run they leave or feed, and some of those gaps held a band of trees you had to ski through (the tops of Jackpot, ShootOut, Any Which Way Glades and Highway 97C, the bottom of L14). Each gap within 50 m now gets a short cleared link.
+## 0.9.42 (unreleased): main.ts split into game systems
+
+No change to how the game plays. Builds on 0.9.41.
+
+### Changed
+
+- **Session state in one place.** The stage, skier, course, challenge, session, lift ride, fade, goals and other skiers were 13 loose variables in `main.ts`. They are now one `GameState` (`src/app/game/state.ts`) that the systems share.
+- **Systems in their own modules** under `src/app/game/`: lift rides (boarding, skip, arrival shot, unloading), challenge flow (session events, results, run cards, fades, the per-frame world checks), the HUD, graphics setup (renderer, GPU reset, shader warm-up) and the frame driver. `main.ts` goes from 1,698 to about 1,100 lines.
+- **One frame, in named phases.** `tick` now reads as menus, music, play (sim, ride, fade or start gate), the world around the skier, then drawing, each its own function in the same order as before.
+- `scripts/smoke-modes.mjs` walks a built game through every mode (title, chair arrival and unload, pause, lift ride, event, park, test slopes, tutorial) and fails on any page error. On this change its output matches 0.9.41 apart from frame-timing noise.
+
+## 0.9.41 (unreleased): Smooth motion between physics steps
+
+The rider and camera now move evenly on any screen refresh rate. Builds on 0.9.40.
+
+### Changed
+
+- **Rendering blends the last two physics steps.** The sim runs at a fixed 120 Hz. A 75, 90 or 144 Hz screen (or a dropped frame) gets 0, 1 or 2 steps a frame, and drawing only the newest step moved the rider in uneven jumps that read as a loose, shaky ride. The rider, camera, spray and shadow focus now draw a blend between the last two steps, at most one step (8 ms) behind the sim. In a headless run with the frame clock held at 144 Hz, frame-to-frame unevenness of the rider's motion drops from 41% to 2% (90 Hz: 26% to 2%). Physics, scoring and sounds still use the newest step, so nothing about how the skis behave changes.
+- `?nosmooth` turns the blend off for side-by-side comparison.
+
+## 0.9.40 (unreleased): Arcade turning on every input
+
+Holding left or right now links turns on any pitch, and keys, controller and touch steer the same way.
+
+### Changed
+
+- **One steering model for every input.** Held keys used to keep turning past straight across the hill and wind round uphill and backwards (up to 180° on a held key). Keys, sticks and touch now all aim the skis at an angle off the fall line. A held direction settles just short of straight across (86°, was 100° on sticks), and the other direction turns back down through the fall line. On a 20° pitch with 1.2 s holds, keys used to average 26 km/h against 31 km/h on a stick. Both now average 41 km/h. Only a nearly stopped skier (under 1.5 m/s) on gentle ground can still spin to face any way, so a slow cat track no longer turns you round.
+- **Turns carve instead of sliding out.** The skis may lead the direction of travel by at most 16° while turning, and below 45 km/h the edge pulls the path round up to 30% harder (fading out by 85 km/h). Washouts need a grip ratio of 2.8 (was 1.9). In held linked turns on a 30° pitch, skidding drops from 20-30% of the time to under 1%, and washouts from 7-15 per 12 s to none. At 80 km/h the path reaches 60° in 1.0-1.1 s instead of 1.4-1.8 s.
+- **Facing downhill is fast, across the hill is slow.** Turns no longer burn speed in a skid, so speed comes from how far across the hill you hold. To stop, brake, or brake while turning for a hockey stop. A held turn settles in a traverse rather than turning uphill to a stop.
+- **Stick tuck and brake need a mostly vertical push.** A phone or controller stick pushed mostly sideways is a turn even if the thumb drifts down, so a hard turn no longer catches the brake. A push within about 55° of vertical still tucks or brakes.
+- **Snow changes the edge, not the steering.** Linked turns now swing about the same on groomers, ice and powder. In a 15° test, powder reaches 53° per turn against 61° on a groomer (it was 42°), and ice reaches 49° (was 44°). Powder turns a bit quicker (`powderTurnDepth` 0.11 to 0.2) and ice grips a little more (1.2 g, was 1.0). What changes is a hammered edge. Each snow now has its own washout point: a groomer holds (no washouts in short hard turns at 75 km/h on 28°, was 14), park snow nearly holds, ice lets go (19 washouts), and powder never washes out but plows. Ice on a 28° pitch still slides in linked turns (about 30% of the time).
+- **Trees knock you aside instead of down.** A tree now crashes you only when you hit it at 29 km/h or more straight into the trunk (was 20 km/h). Below that you shoulder off it: you lose some speed, bounce clear, and the skis point where you're now going, with a thump and a rumble. For 2.5 s after getting up, no tree can crash you, and you get up with at least 7 m of clear line downhill (was 3.5 m). In a dense test glade with linked turns, crashes at a 25 km/h cap went from 6 to 0 per 90 s, and repeat crashes from 1 to 0.
+- **Looser follow camera.** The steady camera swings more slowly and keeps looking down the fall line further into a traverse. With 2.5 s holds it peaks at 48° off the fall line, down from 60°.
+
+Values marked "guess" in `src/sim/constants.ts`, `src/player/input.ts` and `src/player/camera.ts` are first guesses, to tune in play. `npm run tune` now includes `tuning/inputs.test.ts` (keys, pad and touch on skis and the board, and each snow) and `tuning/trees.test.ts` (a dense glade), and the tune scripts print their tables again.
 
 ## 0.9.39 (2026-11-27): Smaller rider, fewer forest draws
 

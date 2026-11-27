@@ -1,19 +1,23 @@
 /**
  * SkiScrapex entry: renderer, scene and player setup, then the frame loop.
- * World assembly lives in app/apexStage.ts, menus, HUD pieces and the trick
- * feed in app/, the ski model in sim/, world data in world/ and drawing in
- * render/.
+ *
+ * Session state (stage, skier, course, challenge, lift ride, fade) lives in
+ * one `GameState` (app/game/state.ts) that the systems share. Lift rides,
+ * challenge flow, the HUD, graphics setup and the frame driver are in
+ * app/game/; world assembly in app/apexStage.ts; menus, HUD pieces and the
+ * trick feed in app/ and ui/; the ski model in sim/, world data in world/ and
+ * drawing in render/. `tick` below runs one frame in a fixed order: menus,
+ * music, play (sim, ride or fade), the world around the skier, then drawing.
  */
 import { buildDemoPark } from './app/demoPark'
 import * as THREE from 'three'
 import './ui/theme.css'
 import './ui/hud.css'
 import './ui/menus.css'
-import { PHYSICS, PRESETS, advance, beginCrash, createClock, createPreset, createSkier, landingSpot, resetSkier, skiFrame, type SkiState, type SurfaceSample } from './sim'
+import { PHYSICS, PRESETS, advance, blendState, createClock, createSkiState, createPoseHistory, renderAlpha, createPreset, createSkier, landingSpot, resetSkier, skiFrame, type SkiState, type SurfaceSample } from './sim'
 import { createSkierView, type SkierPose } from './render/rider/skierView'
 import { createLandingMarker } from './render/rider/landingMarker'
 import { createSlopeView } from './render/terrain/slopeView'
-import { sampleRide, type RidePath } from './render/scenery/liftView'
 import { SIGHT_LINE } from './render/scenery/forestView'
 import { PROGRESS_RENAMES } from './world/corrections'
 import { addSceneLights, createLighting, createSky, followSun } from './render/lighting'
@@ -28,15 +32,13 @@ import { createSnowEffects } from './player/effects'
 import { createMinimap } from './ui/minimap'
 import { SKI_MODELS, createStylePanel, readOutfit, writeOutfit } from './ui/riderPanel'
 import { loadWorld, type World } from './world/loadWorld'
-import { chooseExit, type ExitSpot } from './app/liftExit'
-import { chooseCourse, courseForRun, headingFor, liftAtBottom, nearestOnPolyline, pickableRuns, pointAlong, type Course as RunCourse, type Lift, type Run } from './world/resort'
-import { approachAim, featureAhead, type ParkSite } from './world/park'
-import { pushOutOfRing } from './world/buildings'
+import { courseForRun, headingFor, pickableRuns, pointAlong, type Course as RunCourse, type Run } from './world/resort'
+import { approachAim, type ParkSite } from './world/park'
 import { resolveTreeContact } from './world/treeSkiing'
 import { createPerfProbe } from './app/perf'
 import { $, getUi } from './app/dom'
-import { escapeHtml, formatTime } from './app/format'
-import { KEYS, readJson, writeJson } from './app/storage'
+import { formatTime } from './app/format'
+import { KEYS, readJson } from './app/storage'
 import { createTrickFeed } from './app/tricks'
 import { buildParkMenu, buildRunMenu, renderTrailDetail, syncTrailListSelection } from './app/menus'
 import { createTrailMap, type TrailSelection } from './ui/trailMap'
@@ -49,10 +51,9 @@ import { createFrameWatch } from './app/adaptive'
 import { classifyHardware, probeHardware } from './app/hardware'
 import { setSnowDetail } from './fx'
 import { setTextureAnisotropy } from './render/textureBudget'
-import { QUALITY, createSettingsPanel, lighterQuality, minimalHud, readSettings, resolveQuality, shadowsOn, writeSettings, type QualityLevel, type Settings } from './app/settings'
+import { QUALITY, createSettingsPanel, lighterQuality, minimalHud, readSettings, resolveQuality, shadowsOn, writeSettings, type Settings } from './app/settings'
 import { lowerAutoCap, readAutoCap } from './app/autoCap'
-import { showGraphicsProblem } from './app/graphicsFail'
-import { createSession, type Challenge, type SessionEvent } from './app/session'
+import { createSession } from './app/session'
 import { createRaceDirector } from './app/raceDirector'
 import { createRunout } from './app/runout'
 import { isRaceFormat } from './world/events'
@@ -60,36 +61,38 @@ import { createCompDirector } from './app/compDirector'
 import { createRaceHud } from './ui/raceHud'
 import { createHudPeek } from './ui/hudPeek'
 import { createScreenWake, fullscreenSupported, onFullscreenChange, toggleFullscreen } from './app/screen'
-import { createGoals, type Goals } from './app/goals'
-import { renderChallenges, renderResults, renderTitle, setTitleStatus } from './ui/goalsPanels'
+import { createGoals } from './app/goals'
+import { renderChallenges, renderTitle, setTitleStatus } from './ui/goalsPanels'
 import { holdRiderAsset } from './render/rider/riderSkin'
-import { GATE_PENALTY, progressAlong } from './world/challenges'
 import { createCoach } from './app/tutorial'
-import { createNpcs, type Npcs } from './app/npcs'
+import { createNpcs } from './app/npcs'
 import { createPauseGuide } from './app/pauseGuide'
 import { createMenuNavigation } from './app/menuNavigation'
 import { createParkHud } from './app/parkHud'
-import type { Point2 } from './world/resort'
 import { createPocketPlayer } from './ui/pocketPlayer'
+import { createGameState } from './app/game/state'
+import { createLiftRides } from './app/game/liftRide'
+import { createChallengeFlow } from './app/game/challengeFlow'
+import { createHud } from './app/game/hud'
+import { startFrameLoop } from './app/game/frameLoop'
+import { createRenderer, fitToWindow, nextPaint, recompileMaterials, warmShaders, watchForGpuReset } from './app/game/graphics'
 import './ui/hudMinimal.css'
 
 const params = new URLSearchParams(location.search)
 const turnModel = (params.get('turns') ?? params.get('turn')) === 'wide' ? 'wide' : 'classic'
 const perf = createPerfProbe(params.has('perf'))
 const ui = getUi()
-/** Last speed shown in the HUD, so the readout and bar only change when it does. */
-let shownKmh = -1
 ui.version.textContent = `v${VERSION}`
 ui.hudVersion.textContent = `v${VERSION}`
 
 const controls = createControls(document.body)
 /** Touch screen at start-up: picks the graphics level, fixed for the session. */
 const touchDevice = controls.touch
-/** Touch controls showing now: follows the input last used. */
-let mobile = controls.touch
+/** Session state shared with the systems in app/game/. */
+const game = createGameState(controls.touch)
 const settings = readSettings()
 /** Minimal in-run screen (phones by default): run name, clock and map only when they matter. */
-let hudMin = minimalHud(settings, mobile)
+let hudMin = minimalHud(settings, game.mobile)
 /** Whether the player wants the resort map; it starts off on the minimal screen. */
 let mapWanted = !hudMin
 const hudPeek = createHudPeek()
@@ -114,9 +117,9 @@ setSnowDetail(quality.snowDetail)
 console.info(`SkiScrapex graphics: ${quality.level} (${qualityReason})`, hardware?.renderer ?? '')
 const frameWatch = createFrameWatch()
 const pixelRatio = Math.min(window.devicePixelRatio, quality.pixelRatioMax)
-const renderer = createRenderer()
+const renderer = createRenderer(ui.canvas, quality.antialias)
 setTextureAnisotropy(Math.min(quality.anisotropy, renderer.capabilities.getMaxAnisotropy()))
-watchForGpuReset()
+watchForGpuReset(ui.canvas, quality, settings)
 renderer.setPixelRatio(pixelRatio)
 renderer.outputColorSpace = THREE.SRGBColorSpace
 renderer.toneMapping = THREE.ACESFilmicToneMapping
@@ -128,7 +131,7 @@ const lighting = createLighting()
 const scene = new THREE.Scene()
 if (params.has('perf')) Object.assign(window, { __scene: scene })
 // `?test`: handles for the headless smoke test.
-if (params.has('test')) Object.assign(window, { __game: { scene, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals }, get npcs() { return npcs }, get snowDeform() { return stage.snowDeform }, get tricks() { return tricks }, startEvent(id: string) { const next = goals?.eventById(id); if (next) startChallenge(next); return Boolean(next) } } })
+if (params.has('test')) Object.assign(window, { __game: { scene, get camera() { return camera }, get rider() { return skierView.object }, get skier() { return game.skier }, get challenge() { return game.challenge }, get goals() { return game.goals }, get npcs() { return game.npcs }, get snowDeform() { return game.stage.snowDeform }, get tricks() { return tricks }, startEvent(id: string) { const next = game.goals?.eventById(id); if (next) flow.startChallenge(next); return Boolean(next) } } })
 const sun = addSceneLights(scene, lighting, quality.shadowRange)
 sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize)
 const sky = createSky(lighting)
@@ -145,8 +148,6 @@ scene.add(landingMarker.object)
 const sunFocus = new THREE.Vector3()
 const outfit = readOutfit()
 skierView.setColours(outfit)
-let goals: Goals | null = null
-let npcs: Npcs | null = null
 const stylePanel = createStylePanel(
   ui.style,
   outfit,
@@ -154,10 +155,10 @@ const stylePanel = createStylePanel(
     skierView.setColours(next)
     effects.setBoard(next.model === 'snowboard')
     writeOutfit(next)
-    if (stage) stage.env.ski = SKI_MODELS[next.model]
+    if (game.stage) game.stage.env.ski = SKI_MODELS[next.model]
   },
-  () => goals?.unlocked() ?? new Set(),
-  (id) => goals?.hint(id) ?? '',
+  () => game.goals?.unlocked() ?? new Set(),
+  (id) => game.goals?.hint(id) ?? '',
 )
 /** Side panels open over the game (and the title screen). */
 const sidePanels = [ui.runs, ui.style, ui.settings, ui.challenges]
@@ -211,10 +212,15 @@ const raceHud = createRaceHud()
 /** Braking after the finish line before the result shows. */
 const runout = createRunout()
 const race = createRaceDirector({ hud: raceHud, show: (title, detail, kind) => tricks.show(title, detail, kind), assistOn: () => settings.raceAssist })
-const comp = createCompDirector({ hud: raceHud, show: (title, detail, kind) => tricks.show(title, detail, kind), onOut: () => endChallenge('Out of the line: three misses in a row') })
-const coach = createCoach(ui.coach, () => (controls.gamepad ? 'pad' : mobile ? 'touch' : 'keys'), { onExit: () => (tutorialLine = null), toTop: (message) => transition(message, 1.1, spawn) })
-/** The bunny-hill line while the tutorial runs: reaching its end puts you back at the top. */
-let tutorialLine: Point2[] | null = null
+const comp = createCompDirector({ hud: raceHud, show: (title, detail, kind) => tricks.show(title, detail, kind), onOut: () => flow.endChallenge('Out of the line: three misses in a row') })
+const coach = createCoach(ui.coach, () => (controls.gamepad ? 'pad' : game.mobile ? 'touch' : 'keys'), { onExit: () => (game.tutorialLine = null), toTop: (message) => flow.transition(message, 1.1, spawn) })
+// Free-ski bests by run name; renamed runs keep their best.
+const bests = Object.fromEntries(
+  Object.entries(readJson<Record<string, number>>(KEYS.bests, {})).map(([name, time]) => [PROGRESS_RENAMES[PROGRESS_RENAMES[name] ?? name] ?? PROGRESS_RENAMES[name] ?? name, time]),
+)
+const lifts = createLiftRides(game, { ui, rig, effects, sound, haptics, coach, controls, setFreeSki: () => flow.setFreeSki(), spawn })
+const flow = createChallengeFlow(game, { ui, controls, tricks, race, comp, runout, coach, stylePanel, bests, hideOverlays, leaveDemoPark, openChallenges, spawn, startRide: (lift) => lifts.startRide(lift) })
+const hud = createHud(game, { ui, renderer, parkHud, hudPeek, quality, qualityReason, hardware })
 let setViewDistance: ((scale: number) => void) | null = null
 /** Apply one setting (or all of them) without a reload. */
 function applySetting(key?: keyof Settings) {
@@ -227,11 +233,11 @@ function applySetting(key?: keyof Settings) {
   if (all || key === 'musicVolume') music.setVolume(settings.musicVolume)
   if (all || key === 'fov') rig.setFov(settings.fov)
   if (all || key === 'hud') {
-    hudMin = minimalHud(settings, mobile)
+    hudMin = minimalHud(settings, game.mobile)
     document.body.classList.toggle('hud-min', hudMin)
     if (key === 'hud') {
       mapWanted = !hudMin
-      if (stageReady && stage.world) ui.mapPanel.hidden = !mapWanted
+      if (game.stageReady && game.stage.world) ui.mapPanel.hidden = !mapWanted
     }
   }
   if (all || key === 'cameraShake') {
@@ -243,9 +249,9 @@ function applySetting(key?: keyof Settings) {
     weatherLive = applyWeather(settings.weather, lighting, scene, sun, sky)
     effects.setWeather(weatherLive.snowDensity, weatherLive.windEast, weatherLive.windSouth, lighting)
     ui.weatherCue.hidden = settings.weather !== 'flat'
-    if (stageReady && stage.snow) {
-      stage.snow.setSun(lighting.sunDirection, lighting.sunColor)
-      stage.snow.setFog(lighting.fogDensity, lighting.fogColor)
+    if (game.stageReady && game.stage.snow) {
+      game.stage.snow.setSun(lighting.sunDirection, lighting.sunColor)
+      game.stage.snow.setFog(lighting.fogDensity, lighting.fogColor)
     }
   }
   // Choosing a graphics level by hand clears the step-down after a GPU reset.
@@ -257,26 +263,23 @@ function applySetting(key?: keyof Settings) {
     }
   }
   if (all || key === 'viewDistance') setViewDistance?.(settings.viewDistance)
-  if (all || key === 'landingAssist') if (stageReady) stage.env.assist = settings.landingAssist
-  if (key === 'npcs') npcs?.setVisible(settings.npcs)
+  if (all || key === 'landingAssist') if (game.stageReady) game.stage.env.assist = settings.landingAssist
+  if (key === 'npcs') game.npcs?.setVisible(settings.npcs)
   if (key === 'shadows') {
     renderer.shadowMap.enabled = shadowsOn(settings, quality)
     // Materials compile with or without shadow code; recompile them.
-    scene.traverse((object) => {
-      const material = (object as THREE.Mesh).material
-      for (const m of Array.isArray(material) ? material : material ? [material] : []) m.needsUpdate = true
-    })
+    recompileMaterials(scene)
   }
 }
 /** The pocket player's screen and lyrics; on lifts the line sits by the rider's ear. */
 function updatePocket() {
   let head: { x: number; y: number } | null = null
-  if (ride && rig.mode !== 'first') {
+  if (game.ride && rig.mode !== 'first') {
     skierView.eye.getWorldPosition(headOnScreen).project(camera)
     const { x, y, z } = headOnScreen
     if (z < 1 && Math.abs(x) < 0.95 && Math.abs(y) < 0.95) head = { x: ((x + 1) / 2) * window.innerWidth, y: ((1 - y) / 2) * window.innerHeight }
   }
-  pocket.update({ riding: Boolean(ride), head, hideLyrics: menuWasOpen || !ui.titleScreen.hidden, lyricsOn: settings.lyrics })
+  pocket.update({ riding: Boolean(game.ride), head, hideLyrics: menuWasOpen || !ui.titleScreen.hidden, lyricsOn: settings.lyrics })
 }
 createSettingsPanel(ui.settings, settings, quality.level, (next, key) => {
   writeSettings(next)
@@ -284,22 +287,22 @@ createSettingsPanel(ui.settings, settings, quality.level, (next, key) => {
 }, hardwareTier?.reason)
 const TOUCH_HELP = 'Stick: steer · up tuck · down brake · in the air spin and flip. Hold <b>Jump</b> to crouch, release to pop'
 const KEYS_HELP = '<kbd>WASD</kbd> or arrow keys to ski · <kbd>Space</kbd> jump · <kbd>Esc</kbd> pause'
-let defaultHelp = mobile ? TOUCH_HELP : KEYS_HELP
+let defaultHelp = game.mobile ? TOUCH_HELP : KEYS_HELP
 /** Touch or keyboard layout: body class, minimal screen on Auto, hints and the controls guide. */
 function applyInputMode() {
-  document.body.classList.toggle('touch', mobile)
-  hudMin = minimalHud(settings, mobile)
+  document.body.classList.toggle('touch', game.mobile)
+  hudMin = minimalHud(settings, game.mobile)
   document.body.classList.toggle('hud-min', hudMin)
-  defaultHelp = mobile ? TOUCH_HELP : KEYS_HELP
+  defaultHelp = game.mobile ? TOUCH_HELP : KEYS_HELP
   if (!controls.gamepad) ui.help.innerHTML = defaultHelp
-  guide.select(controls.gamepad ? 'pad' : mobile ? 'touch' : 'keys')
-  $('#runs .menu-lead').textContent = mobile
+  guide.select(controls.gamepad ? 'pad' : game.mobile ? 'touch' : 'keys')
+  $('#runs .menu-lead').textContent = game.mobile
     ? 'Tap a trail on the map to go there, or pick one from the list.'
     : 'Hover a trail for its name. Click to go there, or pick one from the list.'
 }
 applyInputMode()
 controls.onTouchChange((touch) => {
-  mobile = touch
+  game.mobile = touch
   applyInputMode()
 })
 let padHelpShown = false
@@ -314,47 +317,30 @@ function showPadHelp() {
     : defaultHelp
 }
 
-interface Ride {
-  lift: Lift
-  path: RidePath
-  s: number
-  /** Getting off at the top: stand up and glide down the unload ramp. */
-  unload: { t: number; from: THREE.Vector3; to: THREE.Vector3; yaw: number; face: number } | null
-  /** Where the rider leaves the lift, which way they go and where they stop, worked out once per ride. */
-  exit?: { from: THREE.Vector3; yaw: number; lineYaw: number; spot: ExitSpot }
-}
 
-/** Seconds of ride left after Skip, so you arrive at the top and get off. */
-const SKIP_LEAD = 2.2
-/** Seconds of chair ride shown when a free-ski session starts. */
-const ARRIVAL_SECONDS = 4.5
-const UNLOAD_TIME = 2.2
 
-let stage: Stage
-let stageReady = false
 applySetting()
-let course: RunCourse | null = null
-let skier: SkiState
 const clock = createClock()
-let challenge: Challenge = { kind: 'free' }
-let session = createSession(challenge)
-let pause: { until: number; then: () => void } | null = null
-let ride: Ride | null = null
-// Free-ski bests by run name; renamed runs keep their best.
-const bests = Object.fromEntries(
-  Object.entries(readJson<Record<string, number>>(KEYS.bests, {})).map(([name, time]) => [PROGRESS_RENAMES[PROGRESS_RENAMES[name] ?? name] ?? PROGRESS_RENAMES[name] ?? name, time]),
-)
-let elapsed = 0
+// Render smoothing: the rider and camera draw a blend of the last two physics steps.
+clock.history = createPoseHistory()
+/** `?nosmooth` draws the newest step as before, for side-by-side comparison. */
+const smoothMotion = !params.has('nosmooth')
+const viewState = createSkiState()
+const viewAir = {} as NonNullable<SkiState['air']>
+/** The skier as drawn this frame: the sim state with motion blended between steps. */
+function skierForView(): SkiState {
+  return smoothMotion ?  blendState(clock.history!, game.skier, renderAlpha(clock), viewState, viewAir) : game.skier
+}
 let menuWasOpen = false
 let titleSpin = 2.4
 let titleWasShown = false
 let minimap: ReturnType<typeof createMinimap> | null = null
 let trailMap: ReturnType<typeof createTrailMap> | null = null
 let devView: ReturnType<typeof createSlopeView> | null = null
-const ridePoint = new THREE.Vector3()
 let pitchLocked = false
 let crashShown = false
 
+const resize = () => fitToWindow(camera, renderer)
 window.addEventListener('resize', resize)
 for (const [id, action] of [
   ['#btn-menu', 'pause'],
@@ -408,7 +394,7 @@ function titleActions() {
   return {
     play: () => {
       ui.titleScreen.hidden = true
-      arriveByChair()
+      lifts.arriveByChair()
     },
     learn: () => startTutorial(),
     challenges: () => openChallenges(),
@@ -419,27 +405,11 @@ function titleActions() {
 
 function showTitle() {
   hideOverlays()
-  renderTitle(ui.titleScreen, goals?.summary() ?? null, Boolean(goals), titleActions(), !coach.done)
+  renderTitle(ui.titleScreen, game.goals?.summary() ?? null, Boolean(game.goals), titleActions(), !coach.done)
   ui.titleScreen.hidden = false
 }
 
-/**
- * Compile every material's program before the first frames, so the first sight
- * of a new material (park features, cliffs, gear, other skiers) does not stall a
- * frame mid-run. Capped at 4 s; a failure only costs the warm-up, not the game.
- */
-async function warmShaders() {
-  try {
-    await Promise.race([renderer.compileAsync(scene, camera), new Promise((resolve) => setTimeout(resolve, 4000))])
-  } catch (error) {
-    console.warn('Shader warm-up failed; programs will compile on first use.', error)
-  }
-}
 
-/** Resolves after the browser has painted the current DOM. */
-function nextPaint() {
-  return new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)))
-}
 
 async function boot() {
   // Review links (`?park`, `?ride`, `?at`) and test slopes go straight in.
@@ -470,7 +440,7 @@ async function boot() {
       startApex(world, scenery)
       perf.phase('startApex')
       setTitleStatus(ui.titleScreen, 'Preparing shaders…', 0.95)
-      await warmShaders()
+      await warmShaders(renderer, scene, camera)
       perf.phase('shaders')
       if (!skipTitle) showTitle()
     } catch (error) {
@@ -481,37 +451,29 @@ async function boot() {
       setTimeout(() => (ui.status.textContent = ''), 5000)
     }
   }
-  let last = performance.now()
-  let smoothed = 16.7
-  const frame = (now: number) => {
-    const rawMs = now - last
-    const dt = Math.min(PHYSICS.maxFrameDt, Math.max(0, rawMs / 1000))
-    last = now
-    smoothed += (dt * 1000 - smoothed) * 0.05
-    if (frameWatch.sample(rawMs, stageReady && !ride && !pause && ui.titleScreen.hidden && !overlaysOpen())) lightenForSlowFrames()
-    tick(dt, smoothed)
-    requestAnimationFrame(frame)
-  }
-  requestAnimationFrame(frame)
+  startFrameLoop((dt, smoothedMs, rawMs) => {
+    if (frameWatch.sample(rawMs, game.stageReady && !game.ride && !game.pause && ui.titleScreen.hidden && !overlaysOpen())) lightenForSlowFrames()
+    tick(dt, smoothedMs)
+  })
 }
 
 function startApex(world: World, scenery?: SceneryAssets) {
   ui.status.textContent = 'Building the village…'
   scene.add(apexRoot)
   const apex = buildApexStage(world, apexRoot, lighting, { quality, viewDistance: settings.viewDistance, ski: SKI_MODELS[outfit.model], phase: perf.phase, scenery })
-  stage = apex.stage
-  stage.env.assist = settings.landingAssist
-  stageReady = true
+  game.stage = apex.stage
+  game.stage.env.assist = settings.landingAssist
+  game.stageReady = true
   applySetting('weather')
   setViewDistance = apex.setViewDistance
   perf.phase('stage')
-  goals = createGoals({ world, stage, scene: apexRoot, parkSites: apex.parkSites, runNameAt: apex.surface.runNameAt, version: VERSION })
+  game.goals = createGoals({ world, stage: game.stage, scene: apexRoot, parkSites: apex.parkSites, runNameAt: apex.surface.runNameAt, version: VERSION })
   perf.phase('goals')
-  npcs = createNpcs(apexRoot, goals.routes(), stage.slope.sampleTerrain, { sampleSurface: stage.env.sampleSurface }, quality.npcCount, world.course.spawn)
-  npcs.setVisible(settings.npcs)
+  game.npcs = createNpcs(apexRoot, game.goals.routes(), game.stage.slope.sampleTerrain, { sampleSurface: game.stage.env.sampleSurface }, quality.npcCount, world.course.spawn)
+  game.npcs.setVisible(settings.npcs)
   perf.phase('npcs')
   stylePanel.refresh()
-  course = spawnOverride(world.course, world.resort.runs, apex.surface.runNameAt)
+  game.course = spawnOverride(world.course, world.resort.runs, apex.surface.runNameAt)
   ui.credits.innerHTML =
     'Elevation and canopy: LidarBC, <a href="https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc">OGL-BC</a>' +
     (world.horizon ? '; horizon: NRCan MRDEM, <a href="https://open.canada.ca/en/open-government-licence-canada">OGL-Canada</a>. ' : '. ') +
@@ -525,8 +487,8 @@ function startApex(world: World, scenery?: SceneryAssets) {
   const mapRuns = [...runs, ...resort.runs.filter((run) => run.glade)]
   const skiRun = (run: Run) => {
     leaveDemoPark()
-    setFreeSki()
-    course = (run.glade ? courseForGlade(run, grid.heightAt) : null) ?? courseForRun(resort, run)
+    flow.setFreeSki()
+    game.course = (run.glade ? courseForGlade(run, grid.heightAt) : null) ?? courseForRun(resort, run)
     restartFromMenu()
   }
   const tripTrail = (selection: TrailSelection) => {
@@ -553,7 +515,7 @@ function startApex(world: World, scenery?: SceneryAssets) {
     onTrip: tripTrail,
   })
   buildRunMenu(ui.runList, runs, skiRun, (run) => selectTrail({ kind: 'run', run }))
-  apexStage = stage
+  apexStage = game.stage
   buildParkMenu(ui.runList, apex.parkSites, startPark, apex.setLayout, enterDemoPark, (site) => selectTrail({ kind: 'park', site }))
   if (params.has('demo')) queueMicrotask(enterDemoPark)
   const parkParam = params.get('park')?.toLowerCase()
@@ -567,7 +529,7 @@ function startApex(world: World, scenery?: SceneryAssets) {
   // `?ride=<lift name>` starts on that lift, for review.
   const rideName = params.get('ride')?.toLowerCase()
   const rideLift = rideName ? resort.lifts.find((lift) => lift.name.toLowerCase().startsWith(rideName)) : null
-  if (rideLift) startRide(rideLift)
+  if (rideLift) lifts.startRide(rideLift)
 }
 
 function startDev(id: (typeof PRESETS)[number]['id']) {
@@ -577,9 +539,9 @@ function startDev(id: (typeof PRESETS)[number]['id']) {
   devView = createSlopeView(slope)
   scene.add(devView.object)
   ui.titleScreen.hidden = true
-  stage = { slope, world: null, trunks: null, buildings: null, snow: null, ride: null, features: () => [], env: { ski: SKI_MODELS[outfit.model], assist: settings.landingAssist }, update() {}, describe: () => '' }
-  stageReady = true
-  course = null
+  game.stage = { slope, world: null, trunks: null, buildings: null, snow: null, ride: null, features: () => [], env: { ski: SKI_MODELS[outfit.model], assist: settings.landingAssist }, update() {}, describe: () => '' }
+  game.stageReady = true
+  game.course = null
   ui.title.textContent = `Test slope · ${slope.label}`
   if (ui.status.textContent === 'Loading…') ui.status.textContent = ''
   ui.mapPanel.hidden = true
@@ -600,7 +562,7 @@ function startDev(id: (typeof PRESETS)[number]['id']) {
 
 function restartFromMenu() {
   hideOverlays()
-  pause = null
+  game.pause = null
   ui.fade.classList.remove('on')
   spawn()
 }
@@ -612,7 +574,7 @@ let demo: ReturnType<typeof buildDemoPark> | null = null
 
 function enterDemoPark() {
   if (!apexStage) return
-  setFreeSki()
+  flow.setFreeSki()
   if (!demo) {
     demo = buildDemoPark(lighting, SKI_MODELS[outfit.model], settings.landingAssist, quality.level === 'low' ? 0.55 : 0.4)
     scene.add(demo.root)
@@ -621,9 +583,9 @@ function enterDemoPark() {
   demo.stage.env.assist = settings.landingAssist
   apexRoot.visible = false
   demo.root.visible = true
-  stage = demo.stage
+  game.stage = demo.stage
   ui.mapPanel.hidden = true
-  course = {
+  game.course = {
     spawn: { ...demo.spawn },
     startLift: null,
     startRun: { id: 'demo-park', name: 'Demo park', difficulty: 'park', groomed: true, kind: 'line', parts: [] },
@@ -636,16 +598,16 @@ function leaveDemoPark() {
   if (!demo?.root.visible || !apexStage) return
   demo.root.visible = false
   apexRoot.visible = true
-  stage = apexStage
+  game.stage = apexStage
   ui.mapPanel.hidden = !mapWanted
 }
 
 function startPark(site: ParkSite) {
   leaveDemoPark()
-  setFreeSki()
+  flow.setFreeSki()
   const [x, z] = pointAlong(site.line, 4)
   const [ax, az] = pointAlong(site.line, 16)
-  course = {
+  game.course = {
     spawn: { x, z, heading: headingFor(ax - x, az - z) },
     startLift: null,
     startRun: { id: site.id, name: site.name, difficulty: 'park', groomed: true, kind: 'line', parts: [site.line] },
@@ -655,95 +617,70 @@ function startPark(site: ParkSite) {
 
 /** `keepCamera`: coming off a lift, ease the camera from its arrival shot instead of cutting. */
 function spawn(keepCamera = false) {
-  stage.env.turnModel = turnModel
+  game.stage.env.turnModel = turnModel
   // Judged comps score every air off their features, even a short straight one.
-  stage.env.judgedAirs = challenge.kind === 'event' && !isRaceFormat(challenge.course.def.format)
-  ride = null
+  game.stage.env.judgedAirs = game.challenge.kind === 'event' && !isRaceFormat(game.challenge.course.def.format)
+  game.ride = null
   ui.ride.hidden = true
-  if (course) stage.slope.spawn = course.spawn
-  if (skier) resetSkier(skier, stage.slope)
-  else skier = createSkier(stage.slope)
+  if (game.course) game.stage.slope.spawn = game.course.spawn
+  if (game.skier) resetSkier(game.skier, game.stage.slope)
+  else game.skier = createSkier(game.stage.slope)
   clock.accumulator = 0
-  session = createSession(challenge)
+  game.session = createSession(game.challenge)
   runout.cancel()
-  race.begin(challenge, session)
-  comp.begin(challenge)
-  goals?.resetGates()
+  race.begin(game.challenge, game.session)
+  comp.begin(game.challenge)
+  game.goals?.resetGates()
   hudPeek.poke(performance.now())
   tricks.resetTotal()
   // Races are timed, not judged: no trick cards or combos on the course.
-  tricks.setMuted(challenge.kind === 'event' && isRaceFormat(challenge.course.def.format))
+  tricks.setMuted(game.challenge.kind === 'event' && isRaceFormat(game.challenge.course.def.format))
   effects.clear()
-  stage.snowDeform?.stamper.reset()
+  game.stage.snowDeform?.stamper.reset()
   sound.reset()
   haptics.reset()
   gearDrops.clear()
-  skier.missingSkis = false
-  skier.missingPoles = false
+  game.skier.missingSkis = false
+  game.skier.missingPoles = false
   if (!keepCamera) {
     // A lift's held shot (arrival or boarding) must not outlive the ride: starting an event from a chair left the camera behind.
     rig.releaseShot()
     rig.snap()
   }
-  if (challenge.kind !== 'free') {
-    const best = goals?.progress.bests[challenge.id]
-    const score = challenge.kind === 'park' || (challenge.kind === 'event' && ['moguls', 'aerials'].includes(challenge.course.def.format))
+  if (game.challenge.kind !== 'free') {
+    const best = game.goals?.progress.bests[game.challenge.id]
+    const score = game.challenge.kind === 'park' || (game.challenge.kind === 'event' && ['moguls', 'aerials'].includes(game.challenge.course.def.format))
     ui.title.textContent =
-      challenge.kind === 'park'
-        ? `${challenge.site.name} · score attack`
-        : challenge.kind === 'slalom'
-          ? `${challenge.run.name} · slalom · gate 1/${challenge.gates.length}`
-          : challenge.kind === 'event'
-            ? eventTitle(challenge, 0)
-            : `${challenge.run.name} · timed run`
+      game.challenge.kind === 'park'
+        ? `${game.challenge.site.name} · score attack`
+        : game.challenge.kind === 'slalom'
+          ? `${game.challenge.run.name} · slalom · gate 1/${game.challenge.gates.length}`
+          : game.challenge.kind === 'event'
+            ? flow.eventTitle(game.challenge, 0)
+            : `${game.challenge.run.name} · timed run`
     ui.best.textContent = best === undefined ? '–' : score ? `${best.toLocaleString()}` : formatTime(best)
-  } else if (course?.startRun) {
-    const best = bests[course.startRun.name]
-    ui.title.textContent = `${course.startRun.name}${course.startLift ? ` · from ${course.startLift.name}` : ''}`
+  } else if (game.course?.startRun) {
+    const best = bests[game.course.startRun.name]
+    ui.title.textContent = `${game.course.startRun.name}${game.course.startLift ? ` · from ${game.course.startLift.name}` : ''}`
     ui.best.textContent = best ? formatTime(best) : '–'
   }
 }
 
 function startTutorial() {
   leaveDemoPark()
-  const bunny = goals?.tutorial()
+  const bunny = game.goals?.tutorial()
   if (!bunny) return
-  setFreeSki()
-  course = bunny.course
-  tutorialLine = bunny.line
+  flow.setFreeSki()
+  game.course = bunny.course
+  game.tutorialLine = bunny.line
   hideOverlays()
-  pause = null
+  game.pause = null
   ui.fade.classList.remove('on')
   spawn()
   coach.start()
 }
 
-/** Start (or retry) a challenge from its start line. */
-function startChallenge(next: Challenge) {
-  leaveDemoPark()
-  coach.stop()
-  tutorialLine = null
-  challenge = next
-  goals?.activate(next)
-  const start = goals?.courseFor(next)
-  if (start) course = start
-  hideOverlays()
-  pause = null
-  ui.fade.classList.remove('on')
-  spawn()
-}
 
-/** Back to free skiing from wherever the skier is. */
-function setFreeSki() {
-  if (challenge.kind === 'free') return
-  challenge = { kind: 'free' }
-  goals?.activate(challenge)
-  session = createSession(challenge)
-  runout.cancel()
-  tricks.setMuted(false)
-  race.end()
-  comp.end()
-}
 
 function openPanel(panel: HTMLElement) {
   for (const other of sidePanels) other.hidden = other !== panel
@@ -759,326 +696,24 @@ function closeSidePanels() {
 }
 
 function openChallenges() {
-  if (!goals) return
-  renderChallenges(ui.challenges, goals.challengeData(startChallenge), goals.progress, () => (ui.challenges.hidden = true))
+  if (!game.goals) return
+  renderChallenges(ui.challenges, game.goals.challengeData(flow.startChallenge), game.goals.progress, () => (ui.challenges.hidden = true))
   openPanel(ui.challenges)
 }
 
-/** HUD title during an event: its name, then the next gate or which run of two. */
-function eventTitle(event: Extract<Challenge, { kind: 'event' }>, passed: number): string {
-  const { def } = event.course
-  if (def.format === 'match') return event.firstRun === undefined ? `${def.name} · run 1 sets the time` : `${def.name} · run 2 · match ${formatTime(event.firstRun)}`
-  const run = def.format === 'twoRun' ? ` · run ${event.firstRun === undefined ? 1 : 2}` : ''
-  if (!event.gates.length) return `${def.name}${run}`
-  return `${def.name}${run} · ${passed < event.gates.length ? `gate ${passed + 1}/${event.gates.length}` : 'to the finish'}`
-}
 
-function onSessionEvent(event: SessionEvent) {
-  if (challenge.kind === 'event') {
-    const current = challenge
-    if (event.type === 'gate') {
-      goals?.markGate(event.index, event.result)
-      race.onGate(event, skier)
-      ui.title.textContent = eventTitle(current, event.index + 1)
-      return
-    }
-    if (event.type === 'split') {
-      const best = goals?.progress.bests[`${current.id}:split${event.index + 1}`]
-      const delta = best === undefined ? '' : ` · ${event.time <= best ? '-' : '+'}${Math.abs(event.time - best).toFixed(2)}`
-      tricks.show(`Split ${event.index + 1}`, `${formatTime(event.time)}${delta}`, 'bank')
-      return
-    }
-    if (event.type === 'trap') {
-      tricks.show('Radar', `${Math.round(event.speed * 3.6)} km/h`, 'bank')
-      return
-    }
-    if (event.type === 'disqualified') {
-      endChallenge(`Disqualified: missed gate ${event.gate + 1}`)
-      return
-    }
-    const twoRuns = current.course.def.format === 'match' || current.course.def.format === 'twoRun'
-    if (event.type === 'finish' && twoRuns && current.firstRun === undefined && goals) {
-      // Run one: back to the start for run two (to match it, or to add to it).
-      const first = session.total
-      const next = goals.event(current.course, first)
-      crossLine(() =>
-        transition(`Run 1: ${formatTime(first)}
-${current.course.def.format === 'match' ? 'Now match it' : 'Run 2'}`, 2, () => startChallenge(next)),
-      )
-      return
-    }
-    if (event.type === 'finish') {
-      goals?.recordSplits(current.id, session.stats.splits)
-      crossLine(() => endChallenge(null))
-    } else if (event.type === 'offCourse') endChallenge('Left the course')
-    else if (event.type === 'stalled') endChallenge('No progress: DNF')
-    return
-  }
-  if (event.type === 'gate') {
-    goals?.markGate(event.index, event.result)
-    if (event.result === 'miss') tricks.show('Missed gate', `+${GATE_PENALTY} s`, 'crash')
-    if (challenge.kind === 'slalom') {
-      const next = Math.min(event.index + 2, event.total)
-      ui.title.textContent = `${challenge.run.name} · slalom · ${event.index + 1 < event.total ? `gate ${next}/${event.total}` : 'to the finish'}${session.stats.gatesMissed ? ` · ${session.stats.gatesMissed} missed` : ''}`
-    }
-  } else if (event.type === 'finish') {
-    if (challenge.kind === 'park') endChallenge(null)
-    else crossLine(() => endChallenge(null))
-  } else if (event.type === 'stalled') endChallenge('No progress: DNF')
-  else endChallenge('Left the course')
-}
 
-/** Over the line: the clock has stopped. Brake to a stop, then `then` shows the result. */
-function crossLine(then: () => void) {
-  tricks.show('Finish', formatTime(session.total), 'bank')
-  runout.start(then)
-}
 
-/** One-time tips the first time something happens. Each shows once ever. */
-function coachTips() {
-  if (!stage.world || coach.active) return
-  const kind = skier.surface.kind
-  const pitchDeg = (skier.pitch * 180) / Math.PI
-  if (skier.mode === 'crashed') coach.tip('crash', 'Wipeout', `You get back up by yourself. ${mobile ? 'Pause' : '<kbd>R</kbd>'} restarts the run.`)
-  else if (skier.missingSkis || skier.missingPoles) {
-    coach.tip('gear', 'Yard sale', 'Ski over your scattered gear to pick it up.')
-  }
-  else if (kind === 'powder' && skier.sink > 0.12)
-    coach.tip('powder', 'Deep snow', 'Powder is slower and turns take longer. Keep some speed and make round turns. Powder skis (Rider) float better.')
-  else if (kind === 'forest') coach.tip('trees', 'Tree skiing', 'Look for the gap between trunks. Glancing hits slide past. A hard hit can still cause a wipeout.')
-  else if (kind === 'ice') coach.tip('ice', 'Wind crust', 'The wind has scoured this snow hard. Edges hold less, so keep turns gentle until you are back on soft snow.')
-  else if (kind === 'rock') coach.tip('rock', 'Thin cover', 'Rocks are poking through. It is slow and grabby; pick a line back onto the snow.')
-  else if (skier.grounded && Math.abs(pitchDeg) > 28 && skier.speed > 7)
-    coach.tip('steep', 'Steep pitch', 'Finish each turn across the hill to control your speed. A skidded turn brakes; a carved one keeps your speed.')
-  else if (skier.rail)
-    coach.tip(
-      'rail',
-      'On a rail',
-      `Steer gently to stay on. ${mobile || controls.gamepad ? 'Push the stick up or down' : 'Hold <kbd>W</kbd> or <kbd>S</kbd>'} for a nose or tail press: more points, harder to balance. Come onto it sideways for a slide.`,
-    )
-  else if (stage.features().length && skier.grounded) {
-    const travel = Math.hypot(skier.vx, skier.vz)
-    const next = travel > 2 ? featureAhead(stage.features(), skier.x, skier.z, skier.vx / travel, skier.vz / travel, 35) : null
-    if (next)
-      coach.tip('park', 'Terrain park', `The speed window for the next jump shows on screen. Hold ${mobile ? 'Jump' : controls.gamepad ? '<kbd>A</kbd>' : '<kbd>Space</kbd>'} on the run-in and let go at the lip.`)
-  }
-}
 
-let resultsNext: (() => void) | null = null
-function endChallenge(failed: string | null) {
-  if (!goals || challenge.kind === 'free') return
-  session.abandon()
-  const finished = challenge
-  const judged = comp.score(session.stats.time)
-  const result = goals.finish(session, judged ? judged.total : tricks.total, failed)
-  if (judged && !failed) result.lines.unshift(...judged.lines)
-  comp.end()
-  race.finished(result.improved && !failed)
-  if (finished.kind === 'event' && finished.gates.length && !failed) {
-    const g = race.grades
-    result.lines.push(['Tight / clean / skidded gates', `${g.tight} / ${g.clean} / ${g.skid}`])
-  }
-  race.end()
-  if (finished.kind === 'park') {
-    const { perfect, clean, railMetres, bestName } = tricks.stats
-    result.lines.push(['Perfect / clean landings', `${perfect} / ${clean}`], ['Rail and box distance', `${railMetres.toFixed(1)} m`])
-    if (bestName) result.lines.push(['Best trick', bestName])
-  }
-  if (result.unlockedNow.length) stylePanel.refresh()
-  resultsNext = () => {
-    ui.results.hidden = true
-    resultsNext = null
-    setFreeSki()
-  }
-  renderResults(ui.results, result, {
-    retry: () => startChallenge(finished.kind === 'event' && goals ? goals.event(finished.course) : finished),
-    next: resultsNext,
-    nextLabel: 'Keep skiing',
-    challenges: () => {
-      ui.results.hidden = true
-      setFreeSki()
-      openChallenges()
-    },
-  })
-  ui.results.hidden = false
-}
 
-let runCardTimer = 0
-function showRunCard(name: string, time: number, record: boolean) {
-  const { stats } = session
-  const points = tricks.total
-  ui.runCard.innerHTML =
-    `<strong>${escapeHtml(name)}</strong>` +
-    `<span class="run-card-time">${formatTime(time)}${record ? '<em>Best</em>' : ''}</span>` +
-    '<span class="run-card-stats">' +
-    `<span><b>${Math.round(stats.topSpeed * 3.6)}</b>km/h top</span>` +
-    `<span><b>${Math.round(stats.distance)}</b>m skied</span>` +
-    `<span><b>${Math.round(stats.vertical)}</b>m vertical</span>` +
-    (points ? `<span><b>${points.toLocaleString()}</b>points</span>` : '') +
-    '</span>'
-  // Replay the entry animation when a new card replaces one still showing.
-  ui.runCard.hidden = true
-  void ui.runCard.offsetWidth
-  ui.runCard.hidden = false
-  window.clearTimeout(runCardTimer)
-  runCardTimer = window.setTimeout(() => (ui.runCard.hidden = true), 8000)
-}
 
-/** Short fade with a message, then `then`. Physics pauses meanwhile. */
-function transition(message: string, seconds: number, then: () => void) {
-  if (pause) return
-  ui.fadeText.textContent = message
-  ui.fade.classList.add('on')
-  pause = {
-    until: elapsed + seconds,
-    then: () => {
-      then()
-      ui.fade.classList.remove('on')
-    },
-  }
-}
 
-function startRide(lift: Lift) {
-  setFreeSki()
-  coach.tip(
-    'lift',
-    'Lift ride',
-    mobile ? 'Push the stick up to speed the ride up, or tap Skip to go straight to the top.' : controls.gamepad ? 'Hold the stick up to speed up, or press <kbd>B</kbd> to skip to the top.' : 'Hold <kbd>W</kbd> to speed up. Press <kbd>Enter</kbd> or select Skip to go to the top.',
-  )
-  const path = stage.ride?.(lift) ?? null
-  if (!path) {
-    finishRide(lift)
-    return
-  }
-  ride = { lift, path, s: path.boardingDistance, unload: null }
-  ui.title.textContent = `Riding ${lift.name}`
-  ui.best.textContent = '–'
-  ui.ride.hidden = false
-  effects.clear()
-  stage.snowDeform?.stamper.reset()
-  sound.reset()
-  haptics.reset()
-  rig.snap()
-}
 
-/**
- * Free skiing starts at the top of Quickdraw: ride the last few seconds of the
- * chair into the top station and step off, so every session opens with the
- * arrival rather than a skier standing in the snow.
- */
-function arriveByChair() {
-  const lift = stage.world?.resort.lifts.find((l) => /quickdraw/i.test(l.name))
-  if (!lift || !stage.ride) return
-  setFreeSki()
-  // Lifts do not run behind the title screen: put a chair a few seconds from the top.
-  stage.advanceLifts?.(0)
-  const path = stage.ride(lift)
-  if (!path) return
-  const at = Math.max(0, path.total - path.speed * ARRIVAL_SECONDS)
-  stage.alignChair?.(lift, at)
-  startRide(lift)
-  if (!ride) return
-  ride.s = at
-  arrivalShot(ride)
-  rig.snap()
-}
 
-/** Skip: jump to just before the top and ride in. A second press steps straight off. */
-function skipRide() {
-  if (!ride) return
-  if (ride.unload) {
-    finishRide(ride.lift, ride.unload)
-    return
-  }
-  const lead = ride.path.speed * SKIP_LEAD
-  if (ride.s < ride.path.total - lead) {
-    // Jump whole chair spacings so the rider is still sitting on a chair.
-    const spacing = ride.path.spacing ?? 0
-    const jump = ride.path.total - lead - ride.s
-    ride.s += spacing > 0 ? Math.floor(jump / spacing) * spacing : jump
-    rig.snap()
-  } else beginUnload(ride)
-}
 
-/**
- * The end of the ride and the way off it (`chooseExit`): a spot past the
- * station with room to head off either way, facing down the fall line.
- */
-function exitPlan(current: Ride): NonNullable<Ride['exit']> {
-  if (current.exit) return current.exit
-  const from = new THREE.Vector3()
-  const lineYaw = sampleRide(current.path, current.path.total, from)
-  const line = current.lift.line
-  const spot = chooseExit(from.x, from.z, lineYaw, {
-    aerial: current.path.aerial,
-    sample: stage.slope.sampleTerrain,
-    blocked: (x, z) => Boolean(stage.buildings?.hit(x, z) || stage.trunks?.hit(x, z, 1.2)),
-    lineDistanceSq: (x, z) => nearestOnPolyline(x, z, line).distanceSq,
-  })
-  current.exit = { from, yaw: spot.yaw, lineYaw, spot }
-  return current.exit
-}
 
-/** Off the chair (or the T-bar) at the top: glide from the seat to the end of the ramp. */
-function beginUnload(current: Ride) {
-  const { from, yaw, spot } = exitPlan(current)
-  const ground = stage.slope.sampleTerrain(spot.x, spot.z)
-  if (!ground) {
-    finishRide(current.lift)
-    return
-  }
-  current.unload = { t: 0, from: from.clone(), to: new THREE.Vector3(spot.x, ground.height, spot.z), yaw, face: spot.face }
-  ui.rideText.textContent = `Top of ${current.lift.name}`
-}
 
-/**
- * Arrival shot: the camera waits beside the top station's exit and watches the
- * rider come out and step off, instead of following through the terminal.
- */
-function arrivalShot(current: Ride) {
-  const { from, yaw } = exitPlan(current)
-  const aerial = current.path.aerial
-  const remaining = current.path.total - current.s
-  if (!current.unload && remaining > (aerial ? 30 : 8) && !rig.holding) {
-    rig.releaseShot()
-    return
-  }
-  // Ahead of the exit, off to the left of the way out (the operator hut sits on the right at Quickdraw).
-  const ahead = aerial ? 16 : 9
-  const aside = aerial ? -9 : -6
-  const sx = Math.cos(yaw)
-  const sz = -Math.sin(yaw)
-  shotPos.set(from.x + Math.sin(yaw) * ahead + sx * aside, 0, from.z + Math.cos(yaw) * ahead + sz * aside)
-  const ground = stage.slope.sampleTerrain(shotPos.x, shotPos.z)?.height ?? from.y
-  shotPos.y = Math.max(ground + 3.4, from.y + 1.6)
-  shotLook.set(skier.x, skier.y + 1.1, skier.z)
-  rig.holdShot(shotPos, shotLook)
-}
-const shotPos = new THREE.Vector3()
-const shotLook = new THREE.Vector3()
 
-/**
- * Top of the lift: you are standing at the end of the unload ramp, free to
- * pick a way down. The course (for the HUD and run times) is the run that
- * starts nearest, as before.
- */
-function finishRide(lift: Lift, at?: { to: THREE.Vector3; yaw: number; face?: number }) {
-  ride = null
-  ui.ride.hidden = true
-  const world = stage.world
-  if (world) course = chooseCourse(world.resort, world.grid.heightAt, lift.name, course?.startRun?.name ?? 'Grandfather')
-  const face = at ? (at.face ?? at.yaw) : 0
-  if (course && at) course = { ...course, spawn: { x: at.to.x, z: at.to.z, heading: Math.atan2(-Math.sin(face), Math.cos(face)) } }
-  spawn(Boolean(at))
-  if (at) {
-    ui.title.textContent = `Top of ${lift.name}`
-    // Facing down the fall line with a little way on, ready to turn either way.
-    const glide = /t-?bar|platter|drag|carpet|rope_tow/i.test(lift.type) ? 0.6 : 1.5
-    skier.vx = Math.sin(face) * glide
-    skier.vz = Math.cos(face) * glide
-    rig.releaseShot()
-  }
-}
 
 function handleActions() {
   for (const action of controls.takeActions()) {
@@ -1091,7 +726,7 @@ function handleActions() {
       }
       if (!ui.titleScreen.hidden) continue
       if (!ui.results.hidden) {
-        resultsNext?.()
+        flow.dismissResults()
         continue
       }
       const closing = !ui.menu.hidden
@@ -1100,31 +735,31 @@ function handleActions() {
         $('#pause-location').textContent = ui.title.textContent
         ui.menu.classList.remove('show-guide')
         $('#btn-guide').setAttribute('aria-expanded', 'false')
-        $('#btn-map').hidden = !stage.world
+        $('#btn-map').hidden = !game.stage.world
         $('#btn-map').setAttribute('aria-pressed', String(!ui.mapPanel.hidden))
-        $('#btn-challenges').hidden = !goals
+        $('#btn-challenges').hidden = !game.goals
         $('#btn-title').hidden = !apexStage
-        guide.select(controls.gamepad ? 'pad' : mobile ? 'touch' : 'keys')
+        guide.select(controls.gamepad ? 'pad' : game.mobile ? 'touch' : 'keys')
         $('#btn-resume').focus()
       }
     } else if (action === 'title') {
-      if (!stage.world && apexStage?.world) {
+      if (!game.stage.world && apexStage?.world) {
         leaveDemoPark()
-        setFreeSki()
-        course = apexStage.world.course
+        flow.setFreeSki()
+        game.course = apexStage.world.course
         spawn()
       }
-      if (stage.world) showTitle()
+      if (game.stage.world) showTitle()
     } else if (action === 'reset') {
       if (!ui.titleScreen.hidden) continue
       ui.menu.hidden = ui.results.hidden = true
       closeSidePanels()
-      pause = null
+      game.pause = null
       ui.fade.classList.remove('on')
       spawn()
     } else if (action === 'camera') {
       const next = rig.mode === 'follow' ? 'first' : rig.mode === 'first' ? 'orbit' : 'follow'
-      rig.setMode(next, skier)
+      rig.setMode(next, game.skier)
       skierView.setFirstPerson(next === 'first')
       document.body.classList.toggle('first-person', next === 'first')
       $('#camera-label').textContent = `Camera · ${next === 'first' ? 'First person' : next === 'orbit' ? 'Orbit' : 'Follow'}`
@@ -1138,7 +773,7 @@ function handleActions() {
     } else if (action === 'debug') {
       ui.debug.hidden = !ui.debug.hidden
       $('#btn-info').setAttribute('aria-pressed', String(!ui.debug.hidden))
-    } else if (action === 'map' && stage.world) {
+    } else if (action === 'map' && game.stage.world) {
       mapWanted = ui.mapPanel.hidden
       ui.mapPanel.hidden = !mapWanted
       $('#btn-map').setAttribute('aria-pressed', String(!ui.mapPanel.hidden))
@@ -1152,15 +787,40 @@ function handleActions() {
         closeSidePanels()
         if (!ui.menu.hidden) $('#btn-resume').focus()
       }
-    } else if (action === 'skip' && ride && !overlaysOpen()) skipRide()
-    else if (action.startsWith('slope') && !stage.world) {
+    } else if (action === 'skip' && game.ride && !overlaysOpen()) lifts.skipRide()
+    else if (action.startsWith('slope') && !game.stage.world) {
       const preset = PRESETS[Number(action.slice(5)) - 1]
       if (preset) startDev(preset.id)
     }
   }
 }
 
+/**
+ * One frame. The order is fixed: menus and actions, music, then either the
+ * menu backdrop or play (the sim or a lift ride or a fade), the world around
+ * the skier, and last everything drawn (views, camera, effects, HUD).
+ */
 function tick(dt: number, frameMs: number) {
+  const menuOpen = syncMenus()
+  updateMusic(dt, menuOpen)
+  if (menuOpen) {
+    drawMenuBackdrop(dt)
+    renderer.render(scene, camera)
+    return
+  }
+  if (titleWasShown) {
+    titleWasShown = false
+    rig.snap()
+  }
+  game.elapsed += dt
+  const input = readPlayInput()
+  const { steps, pose } = stepPlay(dt, input)
+  stepWorld(dt)
+  present(dt, frameMs, input, pose, steps)
+}
+
+/** Gamepad menu navigation, queued actions, and what changes when a menu opens or closes. Returns whether a menu is open. */
+function syncMenus(): boolean {
   const overlay = activeOverlay()
   menuNavigation.sync(overlay)
   for (const command of controls.pollGamepad(Boolean(overlay))) {
@@ -1176,101 +836,113 @@ function tick(dt: number, frameMs: number) {
   screenWake.set(!menuOpen)
   if (menuOpen !== menuWasOpen) {
     controls.clear()
-    skier.jumpHeld = false
-    skier.popCharge = 0
-    skier.windup = 0
+    game.skier.jumpHeld = false
+    game.skier.popCharge = 0
+    game.skier.windup = 0
     menuWasOpen = menuOpen
     sound.pause(menuOpen)
     document.body.classList.toggle('paused', menuOpen)
     $('#btn-menu').setAttribute('aria-expanded', String(menuOpen))
     if (!menuOpen) ui.canvas.focus()
   }
+  return menuOpen
+}
+
+function updateMusic(dt: number, menuOpen: boolean) {
   music.update({
     dt,
     menu: menuOpen,
-    riding: Boolean(ride),
-    speed: skier.speed,
-    slopeDeg: (skier.pitch * 180) / Math.PI,
-    airborne: !skier.grounded && !skier.rail,
-    airTime: skier.air?.time ?? 0,
-    onRail: Boolean(skier.rail),
-    inPark: skier.surface.kind === 'park',
-    crashed: skier.crashed > 0,
-    trickSeq: skier.trick?.seq ?? 0,
+    riding: Boolean(game.ride),
+    speed: game.skier.speed,
+    slopeDeg: (game.skier.pitch * 180) / Math.PI,
+    airborne: !game.skier.grounded && !game.skier.rail,
+    airTime: game.skier.air?.time ?? 0,
+    onRail: Boolean(game.skier.rail),
+    inPark: game.skier.surface.kind === 'park',
+    crashed: game.skier.crashed > 0,
+    trickSeq: game.skier.trick?.seq ?? 0,
   })
-  if (menuOpen) {
-    if (!ui.titleScreen.hidden && stage.world) {
-      // Title backdrop: a slow pan around the view from where the skier stands.
-      titleSpin += dt * 0.035
-      camera.position.set(skier.x, skier.y + 16, skier.z)
-      camera.lookAt(skier.x + Math.sin(titleSpin) * 500, skier.y - 70, skier.z + Math.cos(titleSpin) * 500)
-      sky.position.copy(camera.position)
-      SIGHT_LINE.from.value.copy(camera.position)
-      SIGHT_LINE.to.value.copy(camera.position)
-      stage.update(camera.position)
-      if (settings.npcs) npcs?.update(dt, camera.position, skier)
-      titleWasShown = true
-    } else {
-      if (titleWasShown) {
-        titleWasShown = false
-        rig.snap()
-      }
-      rig.update(skier, stage.slope.sampleTerrain, 0, ride ? undefined : cameraBlocked, skierView.eye, skierView.object, null)
+}
+
+/** Behind the title: a slow pan from where the skier stands. Behind other menus: the paused follow camera. */
+function drawMenuBackdrop(dt: number) {
+  if (!ui.titleScreen.hidden && game.stage.world) {
+    // Title backdrop: a slow pan around the view from where the skier stands.
+    titleSpin += dt * 0.035
+    camera.position.set(game.skier.x, game.skier.y + 16, game.skier.z)
+    camera.lookAt(game.skier.x + Math.sin(titleSpin) * 500, game.skier.y - 70, game.skier.z + Math.cos(titleSpin) * 500)
+    sky.position.copy(camera.position)
+    SIGHT_LINE.from.value.copy(camera.position)
+    SIGHT_LINE.to.value.copy(camera.position)
+    game.stage.update(camera.position)
+    if (settings.npcs) game.npcs?.update(dt, camera.position, game.skier)
+    titleWasShown = true
+  } else {
+    if (titleWasShown) {
+      titleWasShown = false
+      rig.snap()
     }
-    renderer.render(scene, camera)
-    return
+    rig.update(skierForView(), game.stage.slope.sampleTerrain, 0, game.ride ? undefined : cameraBlocked, skierView.eye, skierView.object, null)
   }
-  if (titleWasShown) {
-    titleWasShown = false
-    rig.snap()
-  }
-  elapsed += dt
+}
+
+function readPlayInput() {
   const input = controls.read()
   // A tuck (W) held into a jump should not become a flip: flips need a fresh press in the air.
-  if (skier && !skier.grounded) {
+  if (game.skier && !game.skier.grounded) {
     if (pitchLocked && !input.pitch) pitchLocked = false
     if (pitchLocked) input.pitch = 0
   } else pitchLocked = Boolean(input.pitch)
+  return input
+}
+
+/** Advance play one frame: a lift ride, a fade, the start gate, or the ski sim and what reacts to it. */
+function stepPlay(dt: number, input: ReturnType<typeof controls.read>): { steps: number; pose: SkierPose } {
   let steps = 0
-  stage.advanceLifts?.(dt, ride && input.tuck ? ride.lift.id : undefined)
+  game.stage.advanceLifts?.(dt, game.ride && input.tuck ? game.ride.lift.id : undefined)
   let pose: SkierPose = 'ski'
-  if (ride) {
-    pose = stepRide(dt, input.tuck)
-    if (ride) arrivalShot(ride)
-  } else if (pause) {
-    if (elapsed >= pause.until) {
-      const done = pause.then
-      pause = null
+  if (game.ride) {
+    pose = lifts.stepRide(dt, input.tuck)
+    if (game.ride) lifts.arrivalShot(game.ride)
+  } else if (game.pause) {
+    if (game.elapsed >= game.pause.until) {
+      const done = game.pause.then
+      game.pause = null
       done()
     }
-  } else if ((race.input(input, skier, dt), comp.input(input, skier, race.holding, dt), runout.input(input), race.holding)) {
+  } else if ((race.input(input, game.skier, dt), comp.input(input, game.skier, race.holding, dt), runout.input(input), race.holding)) {
     // Held in the start gate until GO.
   } else {
     perf.begin()
-    steps = advance(clock, skier, input, stage.slope.sampleTerrain, dt, stage.env, stage.trunks ? checkTreeContact : undefined)
+    steps = advance(clock, game.skier, input, game.stage.slope.sampleTerrain, dt, game.stage.env, game.stage.trunks ? checkTreeContact : undefined)
     perf.lap('sim')
-    if (tricks.onTrick(skier.trick) && skier.trick?.kind === 'air') {
-      comp.onTrick(skier.trick)
-      rig.landingImpulse(skier.trick)
-      haptics.landing(skier.trick)
+    if (tricks.onTrick(game.skier.trick) && game.skier.trick?.kind === 'air') {
+      comp.onTrick(game.skier.trick)
+      rig.landingImpulse(game.skier.trick)
+      haptics.landing(game.skier.trick)
     }
-    tricks.update(dt, skier.grounded && !skier.rail)
-    if (skier.mode === 'crashed' && !crashShown) {
+    tricks.update(dt, game.skier.grounded && !game.skier.rail)
+    if (game.skier.mode === 'crashed' && !crashShown) {
       crashShown = true
       tricks.drop()
       // Speed events: a fall between start and finish is a DNF, as in a real race.
-      if (challenge.kind === 'event' && challenge.course.def.bailIsDnf && session.timing && !session.finished) endChallenge('Crashed: DNF')
+      if (game.challenge.kind === 'event' && game.challenge.course.def.bailIsDnf && game.session.timing && !game.session.finished) flow.endChallenge('Crashed: DNF')
     }
-    if (skier.mode !== 'crashed') crashShown = false
-    for (const event of session.step(skier, dt)) onSessionEvent(event)
-    runout.step(skier, dt)
-    race.record(skier)
-    coach.update(skier, input, dt)
-    coachTips()
-    checkEvents()
+    if (game.skier.mode !== 'crashed') crashShown = false
+    for (const event of game.session.step(game.skier, dt)) flow.onSessionEvent(event)
+    runout.step(game.skier, dt)
+    race.record(game.skier)
+    coach.update(game.skier, input, dt)
+    flow.coachTips()
+    flow.checkEvents()
   }
-  if (settings.npcs && !pause) {
-    for (const contact of npcs?.update(dt, camera.position, skier) ?? []) {
+  return { steps, pose }
+}
+
+/** Other skiers, goals and the ghost: they run during rides too, not in a fade. */
+function stepWorld(dt: number) {
+  if (settings.npcs && !game.pause) {
+    for (const contact of game.npcs?.update(dt, camera.position, game.skier) ?? []) {
       if (contact.kind === 'nearMiss') {
         sound.nearMiss(contact.closing)
         haptics.nearMiss(contact.closing)
@@ -1280,73 +952,78 @@ function tick(dt: number, frameMs: number) {
       }
     }
   }
-  goals?.setGhost(race.ghost())
-  if (goals && !pause) {
-    const found = goals.frame(skier, dt, Boolean(ride), camera.position)
+  game.goals?.setGhost(race.ghost())
+  if (game.goals && !game.pause) {
+    const found = game.goals.frame(game.skier, dt, Boolean(game.ride), camera.position)
     if (found) {
       tricks.show(found.title, found.detail, 'bank')
       if (found.detail.includes('unlocked')) stylePanel.refresh()
     }
   }
 
-  const ground = ride ? null : stage.slope.sampleTerrain(skier.x, skier.z)
-  skierView.update(skier, input, ground, pose, dt)
-  if (!pause) {
+}
+
+/** Everything drawn this frame, from the smoothed skier: rider, gear, camera, light, scenery, sound, effects, HUD. */
+function present(dt: number, frameMs: number, input: ReturnType<typeof controls.read>, pose: SkierPose, steps: number) {
+  const ground = game.ride ? null : game.stage.slope.sampleTerrain(game.skier.x, game.skier.z)
+  const view = skierForView()
+  skierView.update(view, input, game.ride ? null : game.stage.slope.sampleTerrain(view.x, view.z), pose, dt)
+  if (!game.pause) {
     gearDrops.update(
-      skier,
-      (x, z) => stage.slope.sampleTerrain(x, z)?.height ?? null,
+      game.skier,
+      (x, z) => game.stage.slope.sampleTerrain(x, z)?.height ?? null,
       outfit.model === 'snowboard',
       dt,
     )
   }
-  const travel = Math.hypot(skier.vx, skier.vz)
+  const travel = Math.hypot(game.skier.vx, game.skier.vz)
   const approach =
-    !ride && !pause && skier.grounded && !skier.rail && skier.crashed <= 0 && travel > 3
+    !game.ride && !game.pause && game.skier.grounded && !game.skier.rail && game.skier.crashed <= 0 && travel > 3
       ? approachAim(
-          stage.features(),
-          stage.env.rails ?? [],
-          skier.x,
-          skier.z,
-          skier.vx / travel,
-          skier.vz / travel,
+          game.stage.features(),
+          game.stage.env.rails ?? [],
+          game.skier.x,
+          game.skier.z,
+          game.skier.vx / travel,
+          game.skier.vz / travel,
           40,
         )
       : null
   rig.update(
-    skier,
-    stage.slope.sampleTerrain,
+    view,
+    game.stage.slope.sampleTerrain,
     dt,
-    ride ? undefined : cameraBlocked,
+    game.ride ? undefined : cameraBlocked,
     skierView.eye,
     skierView.object,
     approach ? { x: approach.x, z: approach.z, strength: approach.kind === 'rail' ? 0.2 : 0.14 } : null,
   )
   sky.position.copy(camera.position)
   // Shadow box sits ahead of the skier along the view.
-  sunFocus.set(skier.x - camera.position.x, 0, skier.z - camera.position.z).setLength(35)
-  sunFocus.x += skier.x
-  sunFocus.y += skier.y
-  sunFocus.z += skier.z
+  sunFocus.set(view.x - camera.position.x, 0, view.z - camera.position.z).setLength(35)
+  sunFocus.x += view.x
+  sunFocus.y += view.y
+  sunFocus.z += view.z
   followSun(sun, lighting, sunFocus)
   perf.begin()
   SIGHT_LINE.from.value.copy(camera.position)
-  SIGHT_LINE.to.value.set(skier.x, skier.y + 1.1, skier.z)
-  stage.update(camera.position)
+  SIGHT_LINE.to.value.set(view.x, view.y + 1.1, view.z)
+  game.stage.update(camera.position)
   perf.lap('update')
-  sound.update(skier, Boolean(ride))
-  if (!ride && !pause) haptics.update(skier, performance.now())
+  sound.update(game.skier, Boolean(game.ride))
+  if (!game.ride && !game.pause) haptics.update(game.skier, performance.now())
   const gust = weatherGust(weatherLive, performance.now() * 0.001)
   effects.setWeather(weatherLive.snowDensity * (1 + gust.strength * 0.2), gust.windEast, gust.windSouth, lighting)
   if (scene.fog instanceof THREE.Fog) scene.fog.far = gust.fogFar
-  effects.update(dt, skier, ride ? null : ground, camera, stage.snow, !renderer.shadowMap.enabled && rig.mode !== 'first')
-  stepDeepSnow(dt, ride ? null : ground)
+  effects.update(dt, view, game.ride ? null : ground, camera, game.stage.snow, !renderer.shadowMap.enabled && rig.mode !== 'first')
+  stepDeepSnow(dt, game.ride ? null : ground)
   // The landing ring is a third-person aid; in first person it fills the view.
-  landingMarker.update(settings.landingRing && rig.mode !== 'first' && skier.air && !ride ? landingSpot(skier, skier.air, stage.slope.sampleTerrain, PHYSICS.gravity) : null, skier.air?.time ?? 0, dt)
+  landingMarker.update(settings.landingRing && rig.mode !== 'first' && game.skier.air && !game.ride ? landingSpot(game.skier, game.skier.air, game.stage.slope.sampleTerrain, PHYSICS.gravity) : null, game.skier.air?.time ?? 0, dt)
   if (!ui.mapPanel.hidden) {
     const focus = rig.focus
-    minimap?.draw(skier, ride?.lift.name, focus ? { x: camera.position.x, z: camera.position.z, tx: focus.x, tz: focus.z } : undefined)
+    minimap?.draw(game.skier, game.ride?.lift.name, focus ? { x: camera.position.x, z: camera.position.z, tx: focus.x, tz: focus.z } : undefined)
   }
-  updateHud(frameMs, steps)
+  hud.update(frameMs, steps)
   updatePocket()
   perf.begin()
   renderer.render(scene, camera)
@@ -1356,263 +1033,49 @@ function tick(dt: number, frameMs: number) {
 
 /** Ski imprints into the deformable snow field, and the patch that draws them. */
 function stepDeepSnow(dt: number, ground: SurfaceSample | null) {
-  const deep = stage.snowDeform
+  const deep = game.stage.snowDeform
   if (!deep) return
-  if (ground && !skier.offMap) {
+  if (ground && !game.skier.offMap) {
     const board = outfit.model === 'snowboard'
-    const { side } = skiFrame(skier.heading, ground.normal)
-    const fast = Math.min(1, skier.speed / 6)
+    const { side } = skiFrame(game.skier.heading, ground.normal)
+    const fast = Math.min(1, game.skier.speed / 6)
     deep.stamper.push({
-      x: skier.x,
-      z: skier.z,
+      x: game.skier.x,
+      z: game.skier.z,
       sideX: side.x,
       sideZ: side.z,
       stance: board ? 0 : 0.16,
       boardWidth: board ? 0.27 : 0,
-      sink: skier.sink,
-      loose: skier.surface.depth,
-      skid: Math.min(1, (skier.mode === 'braking' ? Math.max(skier.skid, 0.7) : skier.skid) * fast),
-      grounded: skier.grounded && !skier.rail && skier.crashed <= 0 && skier.y - ground.height < 0.4,
-      crashed: skier.crashed > 0 && skier.grounded,
+      sink: game.skier.sink,
+      loose: game.skier.surface.depth,
+      skid: Math.min(1, (game.skier.mode === 'braking' ? Math.max(game.skier.skid, 0.7) : game.skier.skid) * fast),
+      grounded: game.skier.grounded && !game.skier.rail && game.skier.crashed <= 0 && game.skier.y - ground.height < 0.4,
+      crashed: game.skier.crashed > 0 && game.skier.grounded,
     })
   }
   deep.stamper.step(dt)
-  deep.patch?.update(skier.x, skier.z)
+  deep.patch?.update(game.skier.x, game.skier.z)
   effects.setDeepSnowPatch(Boolean(deep.patch?.mesh.visible))
 }
 
-/** Move the rider along the lift. Hold tuck to fast-forward. */
-function stepRide(dt: number, fast: boolean): SkierPose {
-  const current = ride!
-  if (current.unload) return stepUnload(current, current.unload, dt)
-  const speed = current.path.speed * (fast ? 6 : 1)
-  current.s += speed * dt
-  const yaw = sampleRide(current.path, current.s, ridePoint)
-  Object.assign(skier, {
-    x: ridePoint.x + (current.path.aerial ? Math.cos(yaw) * 0.32 : 0),
-    y: ridePoint.y,
-    z: ridePoint.z - (current.path.aerial ? Math.sin(yaw) * 0.32 : 0),
-    vx: Math.sin(yaw) * speed,
-    vy: 0,
-    vz: Math.cos(yaw) * speed,
-    speed,
-    heading: Math.atan2(-Math.sin(yaw), Math.cos(yaw)),
-  })
-  ui.rideText.textContent = `Riding ${current.lift.name} · ${Math.ceil(Math.max(0, current.path.total - current.s) / speed)} s${fast ? ' ▸▸' : mobile ? ' · push up to speed up' : ' · hold W to speed up'}`
-  if (current.s >= current.path.total) beginUnload(current)
-  return current.path.aerial ? 'sit' : 'stand'
-}
 
-/** Stand up off the seat and glide down the ramp, then hand over control. */
-function stepUnload(current: Ride, unload: NonNullable<Ride['unload']>, dt: number): SkierPose {
-  unload.t += dt
-  if (!current.path.aerial) return stepSurfaceUnload(current, unload)
-  const k = Math.min(1, unload.t / UNLOAD_TIME)
-  // Ease in from the seat, carry a little speed off the end.
-  const along = k * k * (3 - 2 * k) * 0.7 + k * 0.3
-  const x = unload.from.x + (unload.to.x - unload.from.x) * along
-  const z = unload.from.z + (unload.to.z - unload.from.z) * along
-  const ground = stage.slope.sampleTerrain(x, z)?.height ?? unload.to.y
-  // Off a chair the seat drops to the snow in the first third; a T-bar is already on it.
-  const drop = current.path.aerial ? Math.min(1, along * 3) : 1
-  const y = Math.max(ground, unload.from.y + (ground - unload.from.y) * drop)
-  // Off the ramp, slow and turn to face down the hill: a short skid to a ready stance.
-  const settle = Math.max(0, (k - 0.55) / 0.45)
-  const ease = settle * settle * (3 - 2 * settle)
-  const yaw = unload.yaw + Math.atan2(Math.sin(unload.face - unload.yaw), Math.cos(unload.face - unload.yaw)) * ease
-  const speed = 2.5 - 1 * ease
-  Object.assign(skier, {
-    x,
-    y,
-    z,
-    vx: Math.sin(yaw) * speed,
-    vy: 0,
-    vz: Math.cos(yaw) * speed,
-    speed,
-    heading: Math.atan2(-Math.sin(yaw), Math.cos(yaw)),
-  })
-  if (k >= 1) finishRide(current.lift, unload)
-  // Sitting until the skis touch, then standing: the rider view crossfades between them.
-  return current.path.aerial && drop < 0.6 ? 'sit' : 'stand'
-}
 
-/**
- * T-bar and carpet: hold on to the top, let the bar go so it swings round the
- * bullwheel, and drift aside to a stop facing away from the lift, ready to
- * pick a way down.
- */
-function stepSurfaceUnload(current: Ride, unload: NonNullable<Ride['unload']>): SkierPose {
-  const hold = 0.45
-  const total = 2.1
-  const lineYaw = current.exit?.lineYaw ?? unload.yaw
-  const t = unload.t
-  let x: number
-  let z: number
-  let yaw: number
-  let speed: number
-  if (t < hold) {
-    // Still holding the bar: a last metre along the lift line.
-    const k = t / hold
-    x = unload.from.x + Math.sin(lineYaw) * k
-    z = unload.from.z + Math.cos(lineYaw) * k
-    yaw = lineYaw
-    speed = current.path.speed
-  } else {
-    // Let go: carry on, curving aside, slowing to a stop.
-    const k = Math.min(1, (t - hold) / (total - hold))
-    const e = 1 - (1 - k) * (1 - k)
-    const startX = unload.from.x + Math.sin(lineYaw)
-    const startZ = unload.from.z + Math.cos(lineYaw)
-    // Curve off the line, then round to face down the hill at the stop.
-    const out = lineYaw + Math.atan2(Math.sin(unload.yaw - lineYaw), Math.cos(unload.yaw - lineYaw)) * Math.min(1, e * 1.6)
-    const settle = Math.max(0, (e - 0.6) / 0.4)
-    yaw = out + Math.atan2(Math.sin(unload.face - out), Math.cos(unload.face - out)) * settle * settle * (3 - 2 * settle)
-    x = startX + (unload.to.x - startX) * e
-    z = startZ + (unload.to.z - startZ) * e
-    speed = current.path.speed * (1 - k) + 0.3 * k
-  }
-  const ground = stage.slope.sampleTerrain(x, z)?.height ?? unload.to.y
-  Object.assign(skier, {
-    x,
-    y: ground,
-    z,
-    vx: Math.sin(yaw) * speed,
-    vy: 0,
-    vz: Math.cos(yaw) * speed,
-    speed,
-    heading: Math.atan2(-Math.sin(yaw), Math.cos(yaw)),
-  })
-  if (t >= total) finishRide(current.lift, { to: new THREE.Vector3(x, ground, z), yaw, face: unload.face })
-  return t < hold ? 'stand' : 'ski'
-}
 
 function cameraBlocked(x: number, z: number): boolean {
-  return Boolean(stage.trunks?.hit(x, z, 1.6) || stage.buildings?.hit(x, z))
+  return Boolean(game.stage.trunks?.hit(x, z, 1.6) || game.stage.buildings?.hit(x, z))
 }
 
 function checkTreeContact(fromX: number, fromZ: number) {
-  const impact = resolveTreeContact(skier, fromX, fromZ, stage.trunks!, stage.slope.sampleTerrain)
-  if (impact !== null) tricks.show('Tree!', `${Math.round(impact * 3.6)} km/h impact`, 'crash')
-}
-
-function checkEvents() {
-  if (skier.offMap) {
-    transition('Off the map', 1.2, spawn)
-    return
-  }
-  const world = stage.world
-  if (!world) return
-  const wipe = (what: string, into: number) => {
-    const kmh = Math.round(Math.max(into, skier.speed) * 3.6)
-    beginCrash(skier, Math.max(into, Math.hypot(skier.vx, skier.vz)))
-    skier.vx *= -0.15
-    skier.vz *= -0.15
-    tricks.show(what, `${kmh} km/h`, 'crash')
-  }
-  if (skier.crashed > 0) return
-  const building = stage.buildings?.hit(skier.x, skier.z)
-  if (building) {
-    // Step back outside the wall so getting up (or a slow nudge) is not another hit.
-    const out = pushOutOfRing(skier.x, skier.z, building.ring)
-    const into = skier.vx * -out.nx + skier.vz * -out.nz
-    skier.x = out.x
-    skier.z = out.z
-    const ground = stage.slope.sampleTerrain(skier.x, skier.z)
-    if (ground && skier.grounded) skier.y = ground.height
-    if (into * 3.6 > 15) {
-      wipe('Ran into a building', into)
-      return
-    }
-    // Slow: lose the speed into the wall and slide along it.
-    if (into > 0) {
-      skier.vx += out.nx * into
-      skier.vz += out.nz * into
-    }
-  }
-  // Trail-head posts: same placement as signView (skier's right, ~6 m down the line).
-  if (skier.grounded && skier.speed > 6) {
-    for (const run of world.resort.runs) {
-      if (run.kind !== 'line' || !run.name || run.name === 'Unnamed run' || !run.parts[0]) continue
-      const line = run.parts[0]
-      const [x0, z0] = pointAlong(line, 6)
-      const [x1, z1] = pointAlong(line, 14)
-      const length = Math.hypot(x1 - x0, z1 - z0) || 1
-      const sx = x0 - ((z1 - z0) / length) * 9
-      const sz = z0 + ((x1 - x0) / length) * 9
-      if (Math.hypot(skier.x - sx, skier.z - sz) > 0.9) continue
-      const nx = (skier.x - sx) / Math.max(0.05, Math.hypot(skier.x - sx, skier.z - sz))
-      const nz = (skier.z - sz) / Math.max(0.05, Math.hypot(skier.x - sx, skier.z - sz))
-      const into = Math.max(0, -(skier.vx * nx + skier.vz * nz))
-      if (into < 4) {
-        skier.x = sx + nx * 1.05
-        skier.z = sz + nz * 1.05
-        skier.vx += nx * into
-        skier.vz += nz * into
-        break
-      }
-      skier.x = sx + nx * 1.1
-      skier.z = sz + nz * 1.1
-      wipe('Hit a trail sign', into)
-      return
-    }
-  }
-  // Tutorial: the bottom of the bunny hill sends you back to the top.
-  if (tutorialLine && coach.active) {
-    const { off } = progressAlong(skier.x, skier.z, tutorialLine)
-    const end = tutorialLine[tutorialLine.length - 1]
-    if (Math.hypot(end[0] - skier.x, end[1] - skier.z) < 18 || off > 70) {
-      transition('Back to the top', 0.9, spawn)
-      return
-    }
-    return
-  }
-  if (challenge.kind === 'free' && session.stats.time > 10) {
-    const lift = liftAtBottom(world.resort, skier.x, skier.z, 24)
-    if (lift) {
-      const time = session.total
-      const name = course?.startRun?.name ?? 'Apex'
-      const record = !bests[name] || time < bests[name]
-      if (record) {
-        bests[name] = time
-        writeJson(KEYS.bests, bests)
-      }
-      goals?.freeRun(session)
-      showRunCard(name, time, record)
-      transition(`${name}\n${formatTime(time)}${record ? ' · best!' : ''}`, 1.8, () => startRide(lift))
-    }
+  const hit = resolveTreeContact(game.skier, fromX, fromZ, game.stage.trunks!, game.stage.slope.sampleTerrain)
+  if (hit?.kind === 'crash') tricks.show('Tree!', `${Math.round(hit.into * 3.6)} km/h impact`, 'crash')
+  else if (hit?.kind === 'brush') {
+    // Knocked aside, still riding: a thump like a skier bump, no crash.
+    sound.nearMiss(hit.into * 0.8)
+    haptics.nearMiss(hit.into * 1.2)
   }
 }
 
-function updateHud(frameMs: number, steps: number) {
-  const kmh = Math.round(skier.speed * 3.6)
-  if (kmh !== shownKmh) {
-    shownKmh = kmh
-    ui.speed.textContent = `${kmh}`
-    ui.speedo.style.setProperty('--speed', Math.min(1, kmh / 100).toFixed(2))
-  }
-  parkHud.update(skier, stage.features(), !ride && !pause, stage.env.rails ?? [])
-  ui.time.textContent = formatTime(session.total)
-  const now = performance.now()
-  hudPeek.update(ui.title.textContent ?? '', now)
-  // Timed runs, parks and events keep the clock up; free skiing shows it on a change.
-  document.body.classList.toggle('hud-peek', hudPeek.visible(now, challenge.kind !== 'free' || !stage.world))
-  document.body.classList.toggle('airborne', !skier.grounded || Boolean(skier.rail))
-  if (!ui.debug.hidden) {
-    const deg = (rad: number) => `${Math.round((rad * 180) / Math.PI)}°`
-    const world = stage.world
-    const ground = world?.grid.heightAt(skier.x, skier.z)
-    const elevation = world && ground !== undefined ? `${Math.round(ground + world.manifest.originElevation)} m` : '–'
-    ui.debug.textContent = [
-      `${skier.mode} · pitch ${deg(skier.pitch)} · edge ${deg(Math.abs(skier.edgeAngle))} · skid ${Math.round(skier.skid * 100)}%`,
-      `elev ${elevation} · x ${skier.x.toFixed(0)} z ${skier.z.toFixed(0)}`,
-      `${frameMs.toFixed(1)} ms · ${steps} steps · ${renderer.info.render.calls} draws · ${(renderer.info.render.triangles / 1000).toFixed(0)}k tris`,
-      stage.describe(),
-      `graphics ${quality.level} (${qualityReason}) · shadows ${renderer.shadowMap.enabled ? 'on' : 'off'} · pixel ratio ${renderer.getPixelRatio().toFixed(2)}`,
-      hardware?.renderer ?? 'graphics chip unknown',
-      `v${VERSION}`,
-    ].join('\n')
-  }
-}
+
 
 /** `?at=x,z[,heading°]` spawns there, titled with the run underfoot. */
 function spawnOverride(start: RunCourse, runs: readonly Run[], runNameAt: (x: number, z: number) => string): RunCourse {
@@ -1624,58 +1087,8 @@ function spawnOverride(start: RunCourse, runs: readonly Run[], runNameAt: (x: nu
   return { spawn: { x: at[0], z: at[1], heading: ((at[2] ?? 0) * Math.PI) / 180 }, startLift: null, startRun: run }
 }
 
-function resize() {
-  const width = window.innerWidth
-  const height = window.innerHeight
-  camera.aspect = width / Math.max(1, height)
-  camera.updateProjectionMatrix()
-  renderer.setSize(width, height, false)
-}
 
-/**
- * The WebGL renderer, or a clear message when the browser will not give us
- * one. Chrome refuses new WebGL contexts for a while after its graphics
- * process crashes or resets repeatedly; only restarting the browser clears it.
- */
-function createRenderer(): THREE.WebGLRenderer {
-  try {
-    return new THREE.WebGLRenderer({ canvas: ui.canvas, antialias: quality.antialias, powerPreference: 'high-performance' })
-  } catch (error) {
-    showGraphicsProblem(
-      '3D graphics are not available',
-      'The browser would not start WebGL. If the game worked before, the browser has probably switched 3D off after a graphics crash: quit it completely and reopen it. ' +
-        'Otherwise check that hardware acceleration is turned on in the browser settings.',
-      false,
-    )
-    throw error
-  }
-}
 
-/**
- * A lost WebGL context (the graphics chip reset, often from running out of
- * time or memory) leaves menus and sound working over a blank screen. Say so,
- * remember the level that was running so Auto starts lighter next time, and
- * offer a reload.
- */
-function watchForGpuReset() {
-  ui.canvas.addEventListener('webglcontextlost', (event) => {
-    event.preventDefault()
-    lowerAutoCap(lighterQuality(quality.level))
-    const next = lighterQuality(quality.level)
-    const auto = settings.quality === 'auto'
-    if (!auto && next !== quality.level) {
-      settings.quality = next
-      writeSettings(settings)
-    }
-    showGraphicsProblem(
-      'The graphics chip reset',
-      quality.level === 'low'
-        ? 'This happened on Low graphics. Reload to try again; if it keeps happening, quit and reopen the browser.'
-        : `Reload to continue on ${QUALITY[next].level[0].toUpperCase()}${QUALITY[next].level.slice(1)} graphics, which is lighter on this computer. You can change it back in Settings.`,
-      true,
-    )
-  })
-}
 
 /**
  * Auto graphics found the game too slow to play: render fewer pixels and drop
@@ -1687,10 +1100,7 @@ function lightenForSlowFrames() {
   resize()
   if (renderer.shadowMap.enabled) {
     renderer.shadowMap.enabled = false
-    scene.traverse((object) => {
-      const material = (object as THREE.Mesh).material
-      for (const m of Array.isArray(material) ? material : material ? [material] : []) m.needsUpdate = true
-    })
+    recompileMaterials(scene)
   }
   const next = lighterQuality(quality.level)
   lowerAutoCap(next)

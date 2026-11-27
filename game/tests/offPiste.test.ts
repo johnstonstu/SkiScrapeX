@@ -69,13 +69,14 @@ describe('skiing through trees', () => {
 
   it('catches a swept head-on hit and gets up with a clear downhill route', () => {
     const { state, impact } = contact(20, 9)
-    expect(impact).toBeCloseTo(9)
+    expect(impact?.kind).toBe('crash')
+    expect(impact?.into).toBeCloseTo(9)
     expect(state.crashed).toBeGreaterThan(0)
     expect(state.x).toBeLessThan(20) // The first recovery side is blocked.
     for (let frame = 0; frame < 500; frame++) {
       const x = state.x, z = state.z
       stepSkier(state, { ...idle, tuck: true }, grid.sampleTerrain, FIXED_DT)
-      expect(resolveTreeContact(state, x, z, trunks, grid.sampleTerrain)).toBeNull()
+      expect(resolveTreeContact(state, x, z, trunks, grid.sampleTerrain)?.kind).not.toBe('crash')
     }
     expect(state.crashed).toBe(0)
     expect(state.z).toBeGreaterThan(23)
@@ -83,13 +84,30 @@ describe('skiing through trees', () => {
 
   it('slides past glancing hits and nudges slow square contacts sideways', () => {
     const glance = contact(20.62, 9)
-    expect(glance.impact).toBeNull()
+    expect(glance.impact?.kind).not.toBe('crash')
     expect(glance.state.vz).toBeGreaterThan(7)
     expect(glance.state.vx).toBeGreaterThan(0)
     const slow = contact(20, 2)
-    expect(slow.impact).toBeNull()
+    expect(slow.impact?.kind).not.toBe('crash')
     expect(Math.abs(slow.state.vx)).toBeGreaterThan(0.6)
     expect(slow.state.crashed).toBe(0)
+  })
+
+  it('knocks a rider aside below a hard hit instead of crashing them (0.9.40)', () => {
+    const knock = contact(20, 7)
+    expect(knock.impact?.kind).toBe('brush')
+    expect(knock.state.crashed).toBe(0)
+    expect(knock.state.speed).toBeGreaterThan(0.5)
+  })
+
+  it('never crashes into a tree again just after getting up', () => {
+    const { state } = contact(20, 9)
+    while (state.crashed > 0) stepSkier(state, idle, grid.sampleTerrain, FIXED_DT)
+    expect(state.crashGrace).toBeGreaterThan(2)
+    state.x = 20; state.z = 21; state.vx = 0; state.vz = state.speed = 12
+    const again = resolveTreeContact(state, 20, 18, trunks, grid.sampleTerrain)
+    expect(again?.kind).toBe('brush')
+    expect(state.crashed).toBe(0)
   })
 
   it('spaces canopy trunks while leaving forest cover', () => {

@@ -34,6 +34,8 @@ export type Action = 'reset' | 'camera' | 'debug' | 'map' | 'runs' | 'skip' | 's
 const STICK_RANGE_PX = 60
 /** Vertical offset past which the stick means tuck (up) or brake (down). */
 const STICK_VERTICAL_PX = 28
+/** The vertical push must be at least this share of the sideways push to count (about 55° off vertical). Guess, tune in play. */
+const STICK_VERTICAL_SHARE = 0.7
 /** Keyboard steering ramps like an analog stick: a tap is a light edge, a hold commits. */
 const KEY_RISE = 11
 const KEY_RELEASE = 10
@@ -230,8 +232,13 @@ export function createControls(root: HTMLElement): Controls {
       const stickX = stick.pointer !== null ? analog(stick.x) : analog(pad.x)
       const stickY = stick.pointer !== null ? stick.y : pad.y
 
-      const up = has('ArrowUp') || has('KeyW') || stickY * STICK_RANGE_PX < -STICK_VERTICAL_PX
-      const down = has('ArrowDown') || has('KeyS') || stickY * STICK_RANGE_PX > STICK_VERTICAL_PX || pad.brake > 0.3
+      // A stick pushed mostly sideways is a turn, even if the thumb drifts down or up:
+      // only a push within about 55° of vertical tucks or brakes, so a phone or pad
+      // turn no longer catches the brake and skids out (keys already worked this way).
+      const rawX = stick.pointer !== null ? stick.x : pad.x
+      const vertical = Math.abs(stickY) * STICK_RANGE_PX > STICK_VERTICAL_PX && Math.abs(stickY) >= STICK_VERTICAL_SHARE * Math.abs(rawX)
+      const up = has('ArrowUp') || has('KeyW') || (vertical && stickY < 0)
+      const down = has('ArrowDown') || has('KeyS') || (vertical && stickY > 0) || pad.brake > 0.3
       const stickPitch = Math.abs(stickY) > 0.45 ? -stickY : 0
       const keyPitch = (has('ArrowUp') || has('KeyW') ? 1 : 0) - (has('ArrowDown') || has('KeyS') ? 1 : 0)
       const second = has('KeyK') || pad.second
@@ -251,7 +258,7 @@ export function createControls(root: HTMLElement): Controls {
       return {
         steer: keyMean !== 0 ? keyMean : stickX,
         directionalSteering: keyMean !== 0,
-        brake: down ? Math.max(pad.brake > 0.3 ? pad.brake : 0, brakeKey || stickY * STICK_RANGE_PX > STICK_VERTICAL_PX ? 1 : 0) : 0,
+        brake: down ? Math.max(pad.brake > 0.3 ? pad.brake : 0, brakeKey || (vertical && stickY > 0) ? 1 : 0) : 0,
         tuck: up && !down,
         jump,
         grab,
