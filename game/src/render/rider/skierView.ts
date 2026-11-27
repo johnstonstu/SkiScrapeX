@@ -235,6 +235,11 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
   const plow = new Spring()
   const skate = new Spring()
   const herring = new Spring()
+  const steepStyle = new Spring()
+  const powderStyle = new Spring()
+  const iceStyle = new Spring()
+  const fastStyle = new Spring()
+  let powderPhase = 0
   let wasSkating = false
   let wigglePhase = 0
   /** Board hop cycle, 0 to 1 (0: not hopping). */
@@ -1103,12 +1108,22 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // fall line, not the skis: the chest turns only CHEST_FOLLOW of the way with the
       // skis (less in a hockey stop), so it stays down the hill in short and long turns.
       // Riding switch the skier looks back over a shoulder instead (switchLook).
+      // Riding style from the terrain: steeps keep the rider low and forward with the
+      // hands out front and the chest facing down the hill; powder sits back a little
+      // on a narrower stance with a bounce; ice goes low with the arms wide; speed
+      // compacts the stance with the hands forward.
+      steepStyle.step(skiing ? smooth(Math.min(1, Math.max(0, (slopeSin - 0.26) / 0.24))) : 0, dt, 1.2, 1)
+      powderStyle.step(skiing ? Math.min(1, state.surface.depth / 0.3) : 0, dt, 1.2, 1)
+      iceStyle.step(skiing && state.surface.kind === 'ice' ? 1 : 0, dt, 1.5, 1)
+      fastStyle.step(skiing ? smooth(Math.min(1, Math.max(0, (speed - 12) / 10))) : 0, dt, 1, 1)
+      if (powderStyle.x > 0.01 && speed > 3) powderPhase += dt * (5 + speed * 0.15)
       let wantCounter = 0
       if (skiing && ground && speed > 1.5 && !boarding && !state.ridingSwitch) {
         const fall = fallLineHeading(ground.normal)
         if (fall !== null) {
           const off = Math.atan2(Math.sin(state.heading - fall), Math.cos(state.heading - fall))
-          wantCounter = Math.max(-MAX_COUNTER, Math.min(MAX_COUNTER, off * (1 - (braking ? CHEST_FOLLOW * 0.5 : CHEST_FOLLOW))))
+          const follow = (braking ? CHEST_FOLLOW * 0.5 : CHEST_FOLLOW) * (1 - steepStyle.x * 0.5)
+          wantCounter = Math.max(-MAX_COUNTER, Math.min(MAX_COUNTER, off * (1 - follow)))
         }
       }
       counter.step(wantCounter, dt, 3.5, 0.85)
@@ -1154,16 +1169,18 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       )
       wantCrouch += doublePole * dp.crunch * 0.3
       wantCrouch += ip.crouch + hopDip * 0.35
+      wantCrouch += steepStyle.x * 0.1 + iceStyle.x * 0.06 + fastStyle.x * 0.08 +
+        powderStyle.x * Math.sin(powderPhase) * 0.07 * Math.min(1, speed / 6)
       crouch.step(Math.min(1.05, wantCrouch), dt, 3, 0.6)
       const flex = Math.max(0, Math.min(1.1, crouch.x))
       // Hips back in a tuck and a hockey stop, forward over the skis in a press.
-      fore.step(tuck.x * 0.16 + brake.x * 0.05 - press.x * 0.05 + skate.x * 0.03, dt, 2.5, 0.9)
+      fore.step(tuck.x * 0.16 + brake.x * 0.05 - press.x * 0.05 + skate.x * 0.03 + powderStyle.x * 0.04 - steepStyle.x * 0.02, dt, 2.5, 0.9)
 
       // ---- Skis ----
       // The stance opens a little as the lean builds: with the hips leaning over the
       // middle of it, the outside leg extends and the inside leg folds, more the
       // higher the edge (about 12 cm of difference at 45°).
-      const halfStance = 0.13 + brake.x * 0.03 + plow.x * 0.14 + skate.x * 0.03 - railBlend.x * 0.04 - tuck.x * 0.015 +
+      const halfStance = 0.13 - powderStyle.x * 0.035 + iceStyle.x * 0.015 + brake.x * 0.03 + plow.x * 0.14 + skate.x * 0.03 - railBlend.x * 0.04 - tuck.x * 0.015 +
         Math.min(1, Math.abs(incline.x)) * 0.02
       const lead = incline.x * 0.12
       // Skis drift under the outside of the turn so the body can incline.
@@ -1383,6 +1400,10 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         hand.x += side * Math.max(0, armFlare.x) * 0.14
         hand.y += Math.max(0, armFlare.x) * 0.05
         hand.z -= Math.max(0, armFlare.x) * 0.04
+        // Terrain style: hands out front on steeps and at speed, wide on ice.
+        hand.x += side * (iceStyle.x * 0.08 + steepStyle.x * 0.03)
+        hand.z += steepStyle.x * 0.07 + fastStyle.x * 0.05
+        hand.y += steepStyle.x * 0.03 - fastStyle.x * 0.03
         // Close call: arms windmill out and up for balance.
         if (bobbleEnv > 0.01) {
           const swing = Math.sin(bobbleAge * 11 + side * 1.7)
