@@ -4,7 +4,14 @@
   "Carve left": {},
   "Carve right": {},
   "Linked turns": {},
-  "Tuck": {},
+  "Tuck": {
+    "shin_R>forearm_R": 1.6,
+    "shin_L>forearm_L": 1.6,
+    "forearm_L>shin_L": 1.6,
+    "forearm_R>shin_R": 1.6,
+    "forearm_R>thigh_R": 1,
+    "forearm_L>thigh_L": 1
+  },
   "Snowplough": {},
   "Pushing": {},
   "Skating": {},

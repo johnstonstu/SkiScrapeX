@@ -32,7 +32,7 @@ export const LAB_POSES: LabPose[] = [
       return { ...idle, steer: Math.sign(s.edgeAngle) }
     },
   },
-  { label: 'Tuck', setup: (s) => ((s.speed = 20), { ...idle, tuck: true }) },
+  { label: 'Tuck', setup: (s) => ((s.speed = 20), (s.tuck = true), (s.tuckTime = 2), { ...idle, tuck: true }) },
   { label: 'Snowplough', setup: (s) => ((s.speed = 3), { ...idle, brake: 1 }) },
   { label: 'Pushing', animated: true, setup: (s) => ((s.speed = 0.8), { ...idle, tuck: true }) },
   { label: 'Skating', animated: true, setup: (s) => ((s.speed = 2.5), { ...idle, tuck: true }) },

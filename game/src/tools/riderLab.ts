@@ -16,6 +16,7 @@ import { createCameraRig } from '../player/camera'
 import { createSkierView } from '../render/rider/skierView'
 import { createClipCheck, type ClipCheck } from '../render/rider/riderClipping'
 import { LAB_POSES, stepLabPose } from './riderPoses'
+import type { IdleKind } from '../render/rider/idles'
 import { addSceneLights, createLighting } from '../render/lighting'
 import { DEFAULT_OUTFIT, readOutfit, SKI_MODELS } from '../ui/riderPanel'
 
@@ -98,13 +99,20 @@ function runPoses() {
   resize()
 
   const animate = params.has('anim')
+  // `?idle=beer` plays that idle move on every stopped rider (see render/rider/idles.ts);
+  // `idlet` is how many seconds into it a still shows (with `anim` it loops).
+  const idleKind = params.get('idle') as IdleKind | null
   let time = 0
   const step = (dt: number) => {
     time += dt
-    for (const { pose, view, state } of riders) stepLabPose(pose, state, view, time, dt)
+    for (const { pose, view, state } of riders) {
+      if (idleKind && view.idles.current === null) view.idles.play(idleKind)
+      stepLabPose(pose, state, view, time, dt)
+    }
   }
   // Let the smoothing settle so a screenshot shows the held pose.
-  for (let i = 0; i < 180; i++) step(1 / 60)
+  const settle = idleKind ? Math.round(Number(params.get('idlet') ?? 3) * 60) : 180
+  for (let i = 0; i < settle; i++) step(1 / 60)
   const clip = params.has('clip') ? createClipView(riders) : null
   let last = performance.now()
   let frame = 0

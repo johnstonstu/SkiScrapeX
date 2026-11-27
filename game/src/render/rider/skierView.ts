@@ -7,6 +7,7 @@ import { DOUBLE_POLE_CYCLE, doublePolePose } from './doublePole'
 import { applyCrashPose } from './skierCrashPose'
 import { applySitPose } from './skierLiftPose'
 import type { RiderAsset } from './riderSkin'
+import { createIdlePlayer, type IdlePose } from './idles'
 
 export { SKI_GRAPHICS, type RiderLook, type SkiGraphic } from './skierModel'
 export { Spring } from './spring'
@@ -81,6 +82,8 @@ const BOARD_HAND_FLOOR = 0.14
  */
 export const BOARD_LEAN = 0.8
 const BOARD_INCLINE_HZ = 4
+/** Board: seconds for one hop along the flat. */
+const BOARD_HOP_TIME = 0.75
 /** Board: extra crouch on the heel edge (sitting into the turn) and on the toe edge (knees driven in). */
 const BOARD_HEEL_CROUCH = 0.28
 const BOARD_TOE_CROUCH = 0.12
@@ -189,6 +192,8 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
   /** Ski groups, left then right; each carries its boot (the ankle sits at ANKLE_IN_SKI). */
   skis: readonly THREE.Object3D[]
   withRestPose: (fn: () => void) => void
+  /** Idle moves while stopped or on a chair (`play` forces one, for the rider lab). */
+  idles: ReturnType<typeof createIdlePlayer>
   /** True once the skinned body has replaced the code-built one. */
   readonly skinned: boolean
 } {
@@ -200,6 +205,8 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
     rig.loadSkin().catch((error: unknown) => console.error('Rider model failed to load; keeping the code-built rider.', error))
   }
   const { root, skis, boardGroup, body, hips, spine, chest, head, legs, arms } = rig
+  const idles = createIdlePlayer()
+  const props = createIdleProps(arms[1].hand)
 
   // ---- Working state --------------------------------------------------------
   const down = new THREE.Vector3(0, -1, 0)
@@ -227,6 +234,14 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
   const brake = new Spring()
   const plow = new Spring()
   const skate = new Spring()
+  const herring = new Spring()
+  let wasSkating = false
+  let wigglePhase = 0
+  /** Board hop cycle, 0 to 1 (0: not hopping). */
+  let boardHop = 0
+  /** 1: this push uses alternate arms; 0: double poles. */
+  let strideStyle = 0
+  let strideBlend = 0
   const airBlend = new Spring()
   const railBlend = new Spring()
   const press = new Spring()
@@ -775,6 +790,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
     bones: rig.bones,
     skis: rig.skis,
     withRestPose: rig.withRestPose,
+    idles,
     get skinned() {
       return rig.skinned
     },
@@ -856,6 +872,12 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       }
       resetJoints()
 
+      // Idle moves: stopped on snow (not pushing, braking or turning), on a surface lift or a chair.
+      const stopped = pose === 'stand' || (pose === 'ski' && !crashed && state.grounded && !rail && !air &&
+        state.speed < 0.5 && !input.tuck && input.brake < 0.2 && Math.abs(input.steer) < 0.05 && !input.jump)
+      const ip = idles.step(dt, { active: !rig.firstPerson && (pose === 'sit' || stopped), sitting: pose === 'sit', boarding })
+      props.show(ip)
+
       if (pose === 'sit') {
         ridePhase += dt * 1.55
         applySitPose({
@@ -870,7 +892,20 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
           placeArm,
           fitLegs,
           scratch: v1,
+          legSwing: ip.legSwing,
         })
+        if (ip.kind) {
+          head.rotation.x += ip.headX
+          head.rotation.y += ip.headY
+          head.rotation.z += ip.headZ
+          spine.rotation.x += ip.spineX * 0.5
+          for (let i = 0; i < 2; i++) {
+            const h = ip.hands[i]
+            if (!h) continue
+            const side = arms[i].side
+            placeArm(i, v1.set(side * 0.2, -0.2, 0.34).lerp(v2.set(h.x, h.y, h.z), h.w).clone(), new THREE.Vector3(side * 0.3, 0.2, 1.2))
+          }
+        }
         applyFade(dt)
         rig.applyCloth()
         return
@@ -903,14 +938,29 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       const speed = state.speed
       const still = skiing && speed < 0.5
       const tucked = skiing && state.tuck && speed >= PHYSICS.skateMaxSpeed
-      // A half tuck when cruising, folding all the way down as the speed builds.
-      const tuckDepth = tucked ? 0.68 + 0.32 * Math.min(1, Math.max(0, (speed - 8) / 9)) : 0
+      // How steep the snow is (sine of the slope) and how much the rider is heading up it.
+      const slopeSin = ground ? Math.min(1, Math.hypot(ground.normal.x, ground.normal.z)) : 0
+      const uphill = ground && ground.normal.y > 0.3
+        ? (ground.normal.x * Math.sin(state.heading) - ground.normal.z * Math.cos(state.heading)) / ground.normal.y
+        : 0
+      // The tuck settles in: from a high half tuck it folds down as the speed builds
+      // and over the first second held (it used to drop straight to 70% the moment
+      // the push turned into a tuck). Steeper snow folds sooner.
+      const tuckIn = smooth(Math.min(1, Math.max(0, state.tuckTime - PHYSICS.tuckHold) / 0.9))
+      const tuckDepth = tucked
+        ? (0.42 + 0.58 * Math.min(1, Math.max(0, (speed - 7) / 10 + slopeSin * 0.8))) * (0.55 + 0.45 * tuckIn)
+        : 0
       // A forward tap at cruising speed: one double-pole stroke.
       const poleStroke = skiing && state.poling && !boarding
       const braking = skiing && input.brake > 0.2 && speed > 1
       // Slow braking is a snowplough; faster it is a hockey stop (the sim turns the skis across).
       const plowing = braking && speed < 6 && !boarding
-      const skating = skiing && input.tuck && !braking && speed < PHYSICS.skateMaxSpeed && !boarding
+      // Skating: below the push speed, and on gentle snow a few more strokes past it
+      // that fade as the tuck comes in (it snapped from skating to a tuck).
+      const skateFade = speed < PHYSICS.skateMaxSpeed ? 1 : slopeSin < 0.12 ? 1 - smooth(Math.min(1, (speed - PHYSICS.skateMaxSpeed) / 2.5)) : 0
+      const skating = skiing && input.tuck && !braking && skateFade > 0.02 && !boarding
+      // Heading up a slope, the push becomes a herringbone: tips out, inside edges, short steps.
+      const herringbone = skating ? smooth(Math.min(1, Math.max(0, (uphill - 0.04) / 0.1))) : 0
       const charging = skiing && state.popCharge > 0
       const edge = skiing ? state.edgeAngle * stance : 0
       // The edge the legs and hips show: quick onto the edge, softer off it. The
@@ -1025,11 +1075,17 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       const grabbing = Boolean(air?.grab && input.grab)
       if (grabbing && air?.grab) lastGrab = air.grab
       grabBlend += ((grabbing ? 1 : 0) - grabBlend) * ease(14, dt)
-      tuck.step(tuckDepth, dt, 1.9, 0.9)
+      tuck.step(tuckDepth, dt, 1.4, 0.95)
       poling.step(poleStroke ? 1 : 0, dt, 3.2, 0.9)
       brake.step(braking && !plowing ? 1 : 0, dt, 2.6, 0.85)
       plow.step(plowing ? 1 : 0, dt, 2.4, 0.95)
-      skate.step(skating ? 1 : 0, dt, 2, 1)
+      skate.step(skating ? skateFade : 0, dt, 2, 1)
+      herring.step(herringbone, dt, 2, 1)
+      // Pushing style for this push (picked when the push starts): double poles or
+      // alternate arms (a diagonal stride) when nearly stopped.
+      if (skating && !wasSkating) strideStyle = Math.random() < 0.5 ? 1 : 0
+      wasSkating = skating
+      strideBlend += (strideStyle - strideBlend) * ease(4, dt)
       airBlend.step(air ? 1 : 0, dt, 2.6, 0.8)
       railBlend.step(rail ? 1 : 0, dt, 3, 0.85)
       spinLead += ((air ? Math.max(-1, Math.min(1, air.spinRate / 8)) : 0) - spinLead) * ease(6, dt)
@@ -1058,13 +1114,24 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       counter.step(wantCounter, dt, 3.5, 0.85)
 
       // Pushing on the flat: double-pole when nearly stopped, skate as speed builds.
-      const doublePole = Math.max(skate.x * Math.max(0, Math.min(1, (2.4 - speed) / 1.2)), poling.x)
+      const doublePole = Math.max(skate.x * Math.max(0, Math.min(1, (2.4 - speed) / 1.2)) * (1 - strideBlend) * (1 - herring.x), poling.x)
       const skateAmount = Math.max(0, skate.x - doublePole)
-      if (skateAmount > 0.01) skatePhase += dt * (4 + speed * 0.9)
+      if (skateAmount > 0.01) skatePhase += dt * (4 + speed * 0.9 - herring.x * 1.5)
       const stride = Math.sin(skatePhase) * skateAmount
       if (doublePole > 0.01) dpPhase = (dpPhase + dt / DOUBLE_POLE_CYCLE) % 1
       const dp = doublePolePose(dpPhase, speed)
 
+      // Board at a crawl: strapped in, the rider wiggles the board along and, pushing
+      // to get going (tuck or steer held), hops it forward.
+      const crawl = boarding && skiing ? smooth(Math.min(1, Math.max(0, (3 - speed) / 2.2))) : 0
+      const wantHop = crawl > 0.5 && speed < 1.6 && (input.tuck || Math.abs(input.steer) > 0.3)
+      if (crawl > 0.01) wigglePhase += dt * (4.5 + speed)
+      if (wantHop || boardHop > 0) boardHop += dt / BOARD_HOP_TIME
+      if (boardHop >= 1) boardHop = wantHop ? boardHop - 1 : 0
+      const hopUp = boardHop > 0.3 ? Math.sin(((boardHop - 0.3) / 0.7) * Math.PI) : 0
+      const hopDip = boardHop > 0 && boardHop < 0.3 ? Math.sin((boardHop / 0.3) * Math.PI) : 0
+      if (boarding) root.position.y += hopUp * 0.12
+      const wiggle = crawl * Math.sin(wigglePhase) * 0.11 * (1 - hopUp)
       // Athletic base flex, plus terrain absorption, edging, tuck, braking and pop.
       // A board rider cruises taller (about 35° of knee bend) and sits lower on the heel edge.
       let wantCrouch = pose === 'stand' ? 0.12 : still ? (boarding ? 0.15 : 0.22) : boarding ? 0.2 : 0.32
@@ -1086,6 +1153,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         rail ? 0.42 : 0,
       )
       wantCrouch += doublePole * dp.crunch * 0.3
+      wantCrouch += ip.crouch + hopDip * 0.35
       crouch.step(Math.min(1.05, wantCrouch), dt, 3, 0.6)
       const flex = Math.max(0, Math.min(1.1, crouch.x))
       // Hips back in a tuck and a hockey stop, forward over the skis in a press.
@@ -1110,6 +1178,8 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       const edgeRoom = 0.32 + 0.28 * THREE.MathUtils.clamp((Math.abs(incline.x) - 0.15) / 0.3, 0, 1)
       const edgeVisual = pose === 'ski' && !air ? Math.sign(edgeShown) * Math.min(Math.abs(edgeShown), Math.abs(incline.x) + edgeRoom) : 0
       for (const ski of skis) ski.rotation.z = edgeVisual
+      skis[0].position.y += ip.skiLift[0]
+      skis[1].position.y += ip.skiLift[1]
       if (plow.x > 0.01) {
         // Snowplough: tips together, tails out, both skis on their inside edges.
         skis[0].rotation.y -= 0.26 * plow.x
@@ -1123,11 +1193,16 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
           const s = legs[i].side
           const push = Math.max(0, s * stride)
           const recover = Math.max(0, -s * Math.cos(skatePhase)) * skateAmount
-          skis[i].rotation.y += s * (0.16 + 0.14 * push) * skateAmount
-          skis[i].rotation.z += s * 0.22 * push
-          skis[i].position.x += s * 0.2 * push
-          skis[i].position.z -= 0.14 * push
-          skis[i].position.y += 0.06 * recover * (1 - push)
+          // A herringbone opens the V wider and rolls both skis onto their inside edges;
+          // the steps are short and lifted instead of a long glide.
+          const h = herring.x
+          // Nearly stopped on the flat with alternate arms, the skis stay parallel (a shuffle).
+          const shuffle = strideBlend * Math.max(0, Math.min(1, (2.6 - speed) / 1.2)) * (1 - h)
+          skis[i].rotation.y += s * ((0.16 + 0.14 * push) * (1 - shuffle) + 0.32 * h) * skateAmount
+          skis[i].rotation.z += s * (0.22 * push * (1 - h) + 0.2 * h * skateAmount)
+          skis[i].position.x += s * (0.2 * push * (1 - h) * (1 - shuffle) + 0.06 * h * skateAmount)
+          skis[i].position.z -= 0.14 * push * (1 - h) - shuffle * 0.12 * push
+          skis[i].position.y += (0.06 * (1 - h) + 0.1 * h) * recover * (1 - push)
         }
       }
       if (Math.abs(press.x) > 0.01 && !air) {
@@ -1192,7 +1267,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         const ollie = air ? -0.24 * Math.max(0, 1 - air.time / 0.27) * stance : 0
         placeBoard(
           shift * 0.6, 0.02 + 0.13 * Math.abs(Math.sin(roll)) + lift + Math.abs(press.x) * 0.07,
-          -press.x * 0.1, roll, 0, ollie + grabTilt + (air ? 0 : press.x * 0.28),
+          -press.x * 0.1, roll, wiggle + hopUp * 0.12, ollie + grabTilt + (air ? 0 : press.x * 0.28) - hopUp * 0.1,
         )
       }
 
@@ -1204,10 +1279,11 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // The whole body leans with the physics (about the snow under the skis or board).
       // Close call: the body rocks side to side as the rider catches the landing.
       const wobble = bobbleEnv * Math.sin(bobbleAge * 13) * 0.12 + bobbleEnv * bobbleSide * 0.06
-      body.rotation.z = incline.x + (rail ? rail.balance * 0.32 : 0) + stride * 0.12 + sway + wobble
+      body.rotation.z = incline.x + (rail ? rail.balance * 0.32 : 0) + stride * 0.12 + sway + wobble + ip.sway
+      root.position.y += ip.hop
       // A landing folds the chest down; a close call rocks it back first.
       const landBend = Math.max(0, landFold.x) * 0.35 - bobbleEnv * Math.cos(bobbleAge * 9) * 0.18
-      const bend = 0.12 + flex * 0.72 + landBend + tuck.x * 0.6 + press.x * 0.18 + skateAmount * 0.18 + plow.x * 0.05 + doublePole * dp.crunch
+      const bend = 0.12 + flex * 0.72 + landBend + herring.x * 0.2 + tuck.x * 0.6 + press.x * 0.18 + skateAmount * 0.18 + plow.x * 0.05 + doublePole * dp.crunch
       legFollow += ((skiing ? 1 : 0) - legFollow) * ease(10, dt)
       if (boarding) {
         // Facing the toes, open a little toward the nose. In the hips' frame +Z is
@@ -1242,7 +1318,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         chest.rotation.z = counterTilt * 0.3
       }
       const upperTwist = boarding
-        ? 0.45 - switchLook * 0.78 + look.x * 0.28 + spinLead * 0.5 - boardLead.x
+        ? 0.45 - switchLook * 0.78 + look.x * 0.28 + spinLead * 0.5 - boardLead.x - wiggle * 1.4
         : counter.x * 0.7 + spinLead * 0.5 + switchLook * 0.25 + railLook * 0.55 - stride * 0.12
       spine.rotation.y = upperTwist * 0.55
       chest.rotation.y = upperTwist * 0.45
@@ -1256,6 +1332,15 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
           idle * Math.sin(state.time * 0.37) * 0.35
       // On snow the head stays near level with the horizon, whatever the body does.
       head.rotation.z = levelHead() * HEAD_LEVEL * legFollow
+      if (ip.kind) {
+        spine.rotation.x += ip.spineX * 0.6
+        chest.rotation.x += ip.spineX * 0.4
+        spine.rotation.z += ip.spineZ * 0.6
+        chest.rotation.z += ip.spineZ * 0.4
+        head.rotation.x += ip.headX
+        head.rotation.y += ip.headY
+        head.rotation.z += ip.headZ
+      }
 
       const grabSpecs = grabBlend > 0.02 && air ? grabSpecsFor(lastGrab, boarding) : []
       if (grabSpecs.length > 0) foldForGrab(grabSpecs, grabBlend, `${lastGrab}`)
@@ -1314,7 +1399,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         hand.z -= side * stride * 0.2
         hand.y += Math.abs(stride) * 0.04
         // Racing tuck: fists together in front of the chin, elbows inside the knees.
-        hand.lerp(v2.set(side * 0.085, 0.2, 0.36), Math.max(0, Math.min(1, tuck.x)))
+        hand.lerp(v2.set(side * 0.1, 0.27, 0.43), Math.max(0, Math.min(1, tuck.x)))
         hand.lerp(v2.set(side * 0.38, 0.0, 0.3), brake.x * 0.7)
         hand.lerp(v2.set(side * 0.34, -0.02, 0.44), plow.x * 0.6)
         // Double pole: both arms reach, drive down past the hips, swing back through.
@@ -1361,6 +1446,8 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
             }
           }
         }
+        const idleTarget = ip.hands[i]
+        if (idleTarget) hand.lerp(v2.set(idleTarget.x, idleTarget.y, idleTarget.z), idleTarget.w)
         const handLocal = hand.clone()
         // Pole tip: carried just off the snow behind the boots, planted on a plant,
         // under the arms in a tuck.
@@ -1371,10 +1458,14 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
           // Each pole plants beside the boots as its arm comes forward, then pushes back.
           const reach = Math.max(0, -side * stride)
           tipTarget.lerp(v2.set(side * 0.5, 0, 0.3 - (1 - reach) * 0.9), skateAmount)
+          // Herringbone: poles planted behind and wide, pushing up the hill.
+          tipTarget.lerp(v2.set(side * 0.6, 0, -0.45 - reach * 0.2), herring.x)
         }
         tipTarget.lerp(v2.set(side * 0.42, dp.tipY, dp.tipZ), doublePole)
         tipTarget.lerp(v2.set(side * 0.22, 0.95, -1.15), Math.max(0, Math.min(1, tuck.x)))
         tipTarget.lerp(v2.set(side * 0.9, 0.3, -0.5), Math.max(0, Math.min(1, Math.max(airBlend.x, railBlend.x))))
+        // A hand busy with an idle lets its pole hang from the strap, tip just off the snow.
+        if (idleTarget) tipTarget.lerp(v2.set(side * 0.3, 0.02, 0.2), idleTarget.w)
         placeArm(i, handLocal, tipTarget.clone())
       }
       if (grabSpecs.length > 0) {
@@ -1389,6 +1480,51 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       }
       applyFade(dt)
       rig.applyCloth()
+    },
+  }
+}
+
+/**
+ * Idle props in the right hand: a can of beer and a cigarette (with an ember).
+ * Built in code, hidden unless an idle move holds one.
+ */
+function createIdleProps(hand: THREE.Object3D) {
+  const can = new THREE.Group()
+  can.name = 'idle-can'
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.031, 0.031, 0.118, 14), new THREE.MeshStandardMaterial({ color: '#c8ccd2', metalness: 0.75, roughness: 0.3 }))
+  const label = new THREE.Mesh(new THREE.CylinderGeometry(0.0315, 0.0315, 0.07, 14, 1, true), new THREE.MeshStandardMaterial({ color: '#1f5fbf', roughness: 0.5 }))
+  const tab = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.003, 0.02), new THREE.MeshStandardMaterial({ color: '#9aa0a8', metalness: 0.8, roughness: 0.3 }))
+  tab.position.set(0, 0.06, 0.008)
+  can.add(body, label, tab)
+  // In the fist: the bone hangs down -Y; the can sits across the palm, top toward the thumb.
+  can.position.set(0, -0.085, 0.035)
+  can.rotation.set(0.25, 0, 0)
+  const cigarette = new THREE.Group()
+  cigarette.name = 'idle-cigarette'
+  const paper = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.075, 8), new THREE.MeshStandardMaterial({ color: '#f2efe8', roughness: 0.8 }))
+  const filter = new THREE.Mesh(new THREE.CylinderGeometry(0.0047, 0.0047, 0.022, 8), new THREE.MeshStandardMaterial({ color: '#c98a3c', roughness: 0.8 }))
+  filter.position.y = -0.048
+  const emberMaterial = new THREE.MeshStandardMaterial({ color: '#331100', emissive: new THREE.Color('#ff5a1a'), emissiveIntensity: 1.2 })
+  const ember = new THREE.Mesh(new THREE.SphereGeometry(0.0052, 8, 6), emberMaterial)
+  ember.position.y = 0.04
+  cigarette.add(paper, filter, ember)
+  // Pinched between the fingers, pointing forward out of the fist.
+  cigarette.position.set(0, -0.1, 0.03)
+  cigarette.rotation.set(Math.PI / 2, 0, 0)
+  for (const prop of [can, cigarette]) {
+    prop.visible = false
+    prop.traverse((o) => (o.castShadow = true))
+    hand.add(prop)
+  }
+  return {
+    show(pose: IdlePose) {
+      can.visible = pose.prop === 'can'
+      tab.rotation.x = pose.canOpen ? -0.9 : 0
+      // Tipped up to drink.
+      can.rotation.x = 0.25 - pose.sip * 1.3
+      cigarette.visible = pose.prop === 'cigarette'
+      // The ember brightens on a drag.
+      emberMaterial.emissiveIntensity = pose.kind === 'smoke' && pose.hands[1] && Math.abs(pose.hands[1].y - 0.33) < 0.03 ? 3 : 1.2
     },
   }
 }
