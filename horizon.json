@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "columns": 454,
+  "rows": 444,
+  "stepMetres": 60,
+  "originX": -11972.5,
+  "originZ": -11972.5,
+  "originElevation": 1600,
+  "heightEncoding": "float32-le",
+  "heightFile": "horizon.f32",
+  "heightSha256": "648f7fbbfee1d9452bc2eea282d84c9cd29fab27957efd4f2188377c1bf854ee",
+  "canopyFile": "horizon-canopy.u8",
+  "canopyEncoding": "uint8 surface minus ground in metres * 4 (MRDEM DSM - DTM)",
+  "horizontalCRS": "EPSG:2955",
+  "verticalCRS": "EPSG:6647",
+  "source": "NRCan CanElevation MRDEM-30 DTM and DSM (COG)",
+  "sourceUrls": [
+    "https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dtm.tif",
+    "https://canelevation-dem.s3.ca-central-1.amazonaws.com/mrdem-30/mrdem-30-dsm.tif"
+  ],
+  "attribution": "Contains information licensed under the Open Government Licence \u2013 Canada.",
+  "packedHeights": {
+    "file": "horizon.delta.bin",
+    "encoding": "plane-delta16-gzip-v1",
+    "sha256": "34cff88c4d1dd0e75ec533e5d10a85fab19e6b2323719cff872a91b6c6d0b09d"
+  },
+  "packedCanopy": {
+    "file": "horizon-canopy.u8.gz.bin",
+    "encoding": "gzip-v1"
+  }
+}

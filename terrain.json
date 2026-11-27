@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "columns": 644,
+  "rows": 528,
+  "stepMetres": 5,
+  "originEasting": 286882.5,
+  "originNorthing": 5475437.5,
+  "originElevation": 1600,
+  "horizontalCRS": "EPSG:2955",
+  "verticalCRS": "EPSG:6647",
+  "minimumElevation": 1598.8575439453125,
+  "maximumElevation": 2176.216796875,
+  "heightEncoding": "float32-le",
+  "heightSha256": "38935768bafb00d46ca6ef2ebb5b4ee48584b3f8329631bd677b6fdc15c7f97f",
+  "attribution": "Contains information licensed under the Open Government Licence \u2013 British Columbia.",
+  "sources": [
+    {
+      "id": "082e031_3_2_3",
+      "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dem/bc_082e031_3_2_3_xli1m_utm11_20250706_20250726.tif",
+      "sha256": "01ae005b2dbd33e71b88c86d4f410e782cecad18527d3b7c9ee9713305d30748"
+    },
+    {
+      "id": "082e031_3_2_4",
+      "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dem/bc_082e031_3_2_4_xli1m_utm11_20250726_20250726.tif",
+      "sha256": "6bfc73cdd8fd45424136fc97b285a7920a1c615bf1684b2bb7d35304a5a3f8b0"
+    },
+    {
+      "id": "082e031_3_4_1",
+      "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dem/bc_082e031_3_4_1_xli1m_utm11_20250726_20250726.tif",
+      "sha256": "9801b70f2ca6c5ec1dcf66e3f6be50bf0671e2a32bb24295138cae001e058f92"
+    },
+    {
+      "id": "082e031_3_4_2",
+      "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dem/bc_082e031_3_4_2_xli1m_utm11_20250726_20250726.tif",
+      "sha256": "58854d587f1b544fd809b467f2421d7973f88335bff03628f1716d4d819e45f1"
+    },
+    {
+      "id": "082e031_3_4_3",
+      "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dem/bc_082e031_3_4_3_xli1m_utm11_20250726_20250726.tif",
+      "sha256": "e3efff9588bdea423af5b2eb3340231ef05e2eb663aba769284315f07fa01246"
+    },
+    {
+      "id": "082e031_3_4_4",
+      "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dem/bc_082e031_3_4_4_xli1m_utm11_20250726_20250726.tif",
+      "sha256": "12db8534de98ccd58e7dcd3a23192a7c01c70e23e6c2ae786a63130aaad5f78f"
+    },
+    {
+      "id": "082e031_4_1_3",
+      "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dem/bc_082e031_4_1_3_xli1m_utm11_20250717_20250726.tif",
+      "sha256": "d4017cf47374ded5bfc450981ecc0ba3c8052c22c8e9434adeff1bf7a11f1542"
+    },
+    {
+      "id": "082e031_4_3_1",
+      "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dem/bc_082e031_4_3_1_xli1m_utm11_20250717_20250726.tif",
+      "sha256": "cf7f0e0ca6e0e11b3daac3f7f54ec0e411af4b4df8c1cd1078b0b6cc2ecad387"
+    },
+    {
+      "id": "082e031_4_3_3",
+      "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dem/bc_082e031_4_3_3_xli1m_utm11_20250717_20250726.tif",
+      "sha256": "1bdeffe5bd9fe4ee7156bf5da38a68dc9db177de828df64fbe8204f72802bed5"
+    }
+  ],
+  "canopy": {
+    "coverFile": "canopy-cover.u8",
+    "heightFile": "canopy-height.u8",
+    "coverEncoding": "uint8 share of 1 m cells taller than minHeightMetres, 0..255",
+    "heightEncoding": "uint8 tallest canopy in metres * 4",
+    "heightScale": 4,
+    "minHeightMetres": 2.5,
+    "invalidShare": 0.0,
+    "method": "LidarBC 2025 surface model minus bare earth at 1 m, aggregated to the height grid",
+    "sources": [
+      {
+        "id": "082e031_3_2_3",
+        "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dsm/bc_082e031_3_2_3_xli1m_utm11_20250706_20250726_dsm.tif",
+        "sha256": "f04b90ee8dcd71e1d42447361b4cae373890b27189b522604eb6468a8761b6c9"
+      },
+      {
+        "id": "082e031_3_2_4",
+        "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dsm/bc_082e031_3_2_4_xli1m_utm11_20250726_20250726_dsm.tif",
+        "sha256": "374297faac2141ac684c8ebc9d655837328e08facb3384b7524898ac0facc588"
+      },
+      {
+        "id": "082e031_3_4_1",
+        "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dsm/bc_082e031_3_4_1_xli1m_utm11_20250726_20250726_dsm.tif",
+        "sha256": "9ac6e16b58b484eb7a2c3128386410d9d38cf9538846b5f519d8e9486d97cf0f"
+      },
+      {
+        "id": "082e031_3_4_2",
+        "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dsm/bc_082e031_3_4_2_xli1m_utm11_20250726_20250726_dsm.tif",
+        "sha256": "a2ce3287909dc3bdc0e9385dba377c73fd3c0855a6f2cafb2f52a4b8ec7ade72"
+      },
+      {
+        "id": "082e031_3_4_3",
+        "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dsm/bc_082e031_3_4_3_xli1m_utm11_20250726_20250726_dsm.tif",
+        "sha256": "1637603665bad8bbb42b97da3a5746f63698c51d3fc51ec9794c55a60e6d5e3d"
+      },
+      {
+        "id": "082e031_3_4_4",
+        "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dsm/bc_082e031_3_4_4_xli1m_utm11_20250726_20250726_dsm.tif",
+        "sha256": "64c7e50083ade1e8b280c889b5471cb739f0f009cb46443863d9333e2f213000"
+      },
+      {
+        "id": "082e031_4_1_3",
+        "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dsm/bc_082e031_4_1_3_xli1m_utm11_20250717_20250726_dsm.tif",
+        "sha256": "978f4a7607ec220738e6a86de8fbb865de904ba8e3b4f2b6d7ed0130394e0b61"
+      },
+      {
+        "id": "082e031_4_3_1",
+        "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dsm/bc_082e031_4_3_1_xli1m_utm11_20250717_20250726_dsm.tif",
+        "sha256": "7e3c00b8299b200977efca71da103a184a00a08751f21ef26516670c411fbca9"
+      },
+      {
+        "id": "082e031_4_3_3",
+        "url": "https://nrs.objectstore.gov.bc.ca/gdwuts/082/082e/2025/dsm/bc_082e031_4_3_3_xli1m_utm11_20250717_20250726_dsm.tif",
+        "sha256": "91d9eb900ecdd31e3acd135184cfa9f0764cd462c90bc67efe4f2bdae70ba94f"
+      }
+    ],
+    "packed": {
+      "coverFile": "canopy-cover.u8.gz.bin",
+      "heightFile": "canopy-height.u8.gz.bin",
+      "encoding": "gzip-v1"
+    }
+  },
+  "detail": {
+    "file": "heights-2m.u16",
+    "columns": 1608,
+    "rows": 1318,
+    "stepMetres": 2,
+    "encoding": "uint16-le centimetres above baseElevation; 65535 is a hole",
+    "baseElevation": 1598.8575439453125,
+    "scale": 100,
+    "hole": 65535,
+    "smoothingSigmaMetres": 1.5,
+    "holeShare": 0.0,
+    "sha256": "a48574d5374a25d959757f616e8d33c2c6be07493b799150aae9ed87d84f19e8",
+    "method": "LidarBC 2025 1 m bare earth, Gaussian smoothed, 2 x 2 block mean; origin matches the 5 m grid",
+    "packedHeights": {
+      "file": "heights-2m.delta.bin",
+      "encoding": "plane-delta16-gzip-v1",
+      "sha256": "107e3719a2f8d6df68e43a5c33a978df2313fb8c140563917f55fc80a39cf945"
+    }
+  },
+  "packedHeights": {
+    "file": "heights-5m.delta.bin",
+    "encoding": "plane-delta16-gzip-v1",
+    "sha256": "8a68d5bb668eb28d2b439bfccae4a7e84ea752cb20a31456ea37dfb519743d63"
+  }
+}
