@@ -2,6 +2,20 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.35 (unreleased): Minimal screen on phones
+
+First part of the mobile pass. On a phone the HUD, map, tips and buttons covered close to half the screen in portrait.
+
+### Added
+
+- **Settings, Screen while skiing: Auto, Minimal or Full.** Auto is Minimal on touch screens and Full elsewhere, so desktop is unchanged.
+- **Minimal screen.** One slim row at the top: speed on the left and an icon-only pause on the right. The run name and clock show as a pill between them for a few seconds when the run changes (a new run, a restart, the top of a lift), and stay up for timed runs, parks and events.
+- **Music player in the pause menu.** The ♪ button is hidden on the minimal screen; Pause, Music player opens it.
+
+### Changed
+
+- **Minimal screen:** the resort map starts off (Pause, Resort map turns it on, tucked under the pause button); Grab only shows in the air or on a rail; Jump and Grab are lighter and sized to the screen; tips, lessons and the park cue sit under the top row and are smaller; the trick feed is smaller; the controls hint sits low on the left; the data credits move from the bottom of the run to the title screen and the foot of the pause menu.
+
 ## 0.9.34 (2026-11-26): Softer snowboard lean
 
 ### Fixed

@@ -1,0 +1,135 @@
+/*
+ * Minimal in-run screen (`body.hud-min`, Settings > Screen while skiing; Auto
+ * on touch screens). One slim top row: speed on the left, an icon-only pause on
+ * the right, and the run name and clock as a pill in the middle that shows when
+ * the run changes (`.hud-peek`) and stays for timed runs, parks and events. The
+ * map starts off, the music player lives in the pause menu, Grab only shows in
+ * the air and the data credits move to the title and pause screens.
+ * Loaded after hud.css and pocketPlayer.css; selectors start with `body` so they win.
+ */
+
+/* Top row. */
+body.hud-min {
+  --row-h: 2.75rem;
+  --below-row: calc(var(--safe-t) + var(--row-h) + 0.6rem);
+}
+
+body.hud-min #speedo {
+  top: var(--safe-t);
+  bottom: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  height: var(--row-h);
+  padding: 0 0.85rem 0 0.75rem;
+  border-radius: 999px;
+  background: rgba(8, 18, 28, 0.42);
+  text-shadow: none;
+}
+body.hud-min #speed { font-size: 1.7rem; font-weight: 400; line-height: var(--row-h); }
+body.hud-min #speedo small { padding: 0; font-size: 0.6rem; }
+body.hud-min #speedo .speed-bar { display: none; }
+
+body.hud-min #btn-player { display: none; }
+body.hud-min #btn-menu {
+  justify-content: center;
+  gap: 0;
+  width: var(--row-h);
+  min-height: var(--row-h);
+  height: var(--row-h);
+  padding: 0;
+  font-size: 0;
+  background: rgba(8, 18, 28, 0.42);
+}
+body.hud-min #btn-menu kbd { display: none; }
+body.hud-min .pause-glyph::before, body.hud-min .pause-glyph::after { width: 3.5px; height: 14px; }
+
+/* Run name and clock: a pill between speed and pause. */
+body.hud-min #hud {
+  top: calc(var(--safe-t) + 0.4rem);
+  left: 50%;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  max-width: calc(100vw - 2 * var(--safe-l) - 12rem);
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(8, 18, 28, 0.5);
+  text-shadow: none;
+  opacity: 0;
+  transform: translate(-50%, -0.4rem);
+  transition: opacity 280ms var(--ease), transform 280ms var(--ease);
+}
+body.hud-min.hud-peek #hud { opacity: 1; transform: translate(-50%, 0); }
+body.hud-min #run-name { min-width: 0; margin: 0; font-size: 0.82rem; }
+body.hud-min .readouts { flex: none; gap: 0; }
+body.hud-min .readouts span { font-size: 0.95rem; font-weight: 500; }
+body.hud-min .readouts small, body.hud-min .readout-best, body.hud-min .hud-version, body.hud-min .weather-cue { display: none; }
+/* The test slopes keep their picker. */
+body.hud-min:has(#slopes:not([hidden])) #hud { flex-wrap: wrap; border-radius: var(--radius); }
+
+/* Map, when turned on from pause: tucked under the pause button. */
+body.hud-min #map-panel { top: var(--below-row); bottom: auto; transform: scale(0.7); transform-origin: top right; }
+
+/* Cards under the top row: the park cue first, coaching below it. */
+body.hud-min #hint.park-cue {
+  top: var(--below-row);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(17rem, calc(100vw - 2rem));
+  padding: 0.4rem 0.7rem 0.55rem;
+  background: rgba(8, 18, 28, 0.66);
+}
+body.hud-min .park-cue-title { font-size: 0.86rem; }
+body.hud-min #coach {
+  top: var(--below-row);
+  width: min(24rem, calc(100vw - 2rem));
+  padding: 0.5rem 0.75rem 0.55rem;
+  background: rgba(8, 18, 28, 0.72);
+  box-shadow: none;
+}
+body.hud-min:has(#hint:not([hidden])) #coach { top: calc(var(--below-row) + 4.6rem); }
+body.hud-min #coach h3 { font-size: 0.9rem; }
+body.hud-min #coach p { font-size: 0.78rem; line-height: 1.35; }
+body.hud-min #coach .coach-count { margin-bottom: 0.3rem; }
+body.hud-min .coach-buttons { margin-top: 0.4rem; }
+body.hud-min .coach-buttons button { min-height: 2.75rem; }
+
+/* Trick feed: a little smaller so it does not sit on the rider. */
+body.hud-min #trick { top: 22%; padding: 0.9rem clamp(1rem, 6vw, 2.4rem); }
+body.hud-min #trick strong { font-size: clamp(1.4rem, 5.5vw, 2.1rem); }
+
+/* Controls hint: low on the left, out of the way, then gone. */
+body.hud-min.touch #help {
+  top: auto;
+  bottom: calc(var(--safe-b) + 0.4rem);
+  left: var(--safe-l);
+  right: auto;
+  max-width: calc(100vw - var(--safe-l) - 8rem);
+  transform: none;
+  text-align: left;
+}
+
+/* Data credits: on the title screen and at the foot of the pause menu, not over the run. */
+body.hud-min #credits { display: none; }
+body.hud-min:has(#title-screen:not([hidden])) #credits:not(:empty) { display: block; }
+.pause-credits { display: none; }
+body.hud-min .pause-credits:not(:empty) { display: block; margin: 1.6rem 0 0; font-size: 0.66rem; line-height: 1.4; color: var(--faint); }
+.pause-credits a { color: inherit; }
+
+/* Touch buttons: lighter, sized to the screen, Grab only in the air or on a rail. */
+body.hud-min #touch .hold {
+  width: clamp(4.2rem, 17vmin, 5.2rem);
+  height: clamp(4.2rem, 17vmin, 5.2rem);
+  border-color: rgba(255, 255, 255, 0.38);
+  background: rgba(8, 18, 28, 0.18);
+  transition: background 90ms, transform 90ms, opacity 160ms var(--ease);
+}
+body.hud-min #touch .hold.on { background: var(--accent); }
+body.hud-min #touch .grab {
+  width: clamp(3.6rem, 14vmin, 4.2rem);
+  height: clamp(3.6rem, 14vmin, 4.2rem);
+  bottom: calc(2.8rem + env(safe-area-inset-bottom) + clamp(4.2rem, 17vmin, 5.2rem) + 1rem);
+}
+/* A held Grab stays live through the landing so its release still arrives. */
+body.hud-min:not(.airborne) #touch .grab:not(.on) { opacity: 0; pointer-events: none; }
