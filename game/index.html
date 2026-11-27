@@ -44,6 +44,7 @@
               <button type="button" id="btn-pause-player">Music player <kbd>P</kbd></button>
               <button type="button" id="btn-info" aria-pressed="false">Performance info <kbd>I</kbd></button>
             </div>
+            <button type="button" id="btn-guide" aria-expanded="false" aria-controls="guide-title">Controls</button>
             <button type="button" id="btn-title" class="pause-exit">Main menu</button>
           </nav>
           <section class="pause-guide" aria-labelledby="guide-title">
@@ -66,7 +67,7 @@
     <p id="status" role="status">Loading…</p>
     <p id="help"></p>
     <p id="credits"></p>
-    <section id="runs" class="menu-shell" hidden aria-label="Choose a run">
+    <section id="runs" class="menu-shell" hidden aria-label="Choose a run" data-view="map">
       <header>
         <div>
           <h2>Runs &amp; parks</h2>
@@ -74,6 +75,10 @@
         </div>
         <button type="button" id="btn-close-runs" class="close" aria-label="Close"><kbd>Esc</kbd><span>Back</span></button>
       </header>
+      <div class="runs-view chips" role="group" aria-label="Show">
+        <button type="button" data-view="map" aria-pressed="true">Map</button>
+        <button type="button" data-view="list" aria-pressed="false">List</button>
+      </div>
       <div class="menu-layout">
         <div class="trail-stage">
           <canvas id="trail-map" aria-label="Trail map of Apex"></canvas>

@@ -2,6 +2,20 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.36 (unreleased): Menus on phones
+
+Second part of the mobile pass.
+
+### Changed
+
+- **Runs & parks.** On a portrait phone a Map / List switch shows one at a time at full size, instead of a squeezed map with a sliver of list under it. In landscape the map and list sit side by side. On touch the lead reads "Tap a trail", not "Hover" and "Click".
+- **Rider & gear.** In landscape the preview sits beside the swatches; in portrait it is a third of the screen with the swatches scrolling under it. The preview reshapes when the phone turns.
+- **Challenges.** Event stories are behind "About this event", closed on phones and open elsewhere.
+- **Pause menu on phones.** One column with the controls guide behind a Controls button. In landscape the actions sit in two columns with a one-line heading, so Resume, every menu and the toggles fit on screen.
+- **Menu headers in landscape** are shorter and drop the lead line, so the map, preview and lists get the height.
+- **Tap targets.** Chips, park layouts, guide tabs, Back, pause toggles, run rows, result buttons and the trail Go button are at least 44 px on touch; rider swatches are 40 px.
+- **Touch wording.** The lift tip says to push the stick up (there is no Tuck button); the radio setting no longer says "P opens the player"; key hints are hidden on result buttons.
+
 ## 0.9.35 (unreleased): Minimal screen on phones
 
 First part of the mobile pass. On a phone the HUD, map, tips and buttons covered close to half the screen in portrait.

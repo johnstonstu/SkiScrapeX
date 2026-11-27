@@ -353,6 +353,21 @@ for (const [id, action] of [
 ] as const) {
   $(id).addEventListener('click', () => controls.push(action))
 }
+// Runs on a narrow portrait screen: the map or the list, one at a time.
+for (const tab of document.querySelectorAll<HTMLButtonElement>('.runs-view button')) {
+  tab.addEventListener('click', () => {
+    ui.runs.dataset.view = tab.dataset.view
+    for (const other of document.querySelectorAll('.runs-view button')) other.setAttribute('aria-pressed', String(other === tab))
+    trailMap?.resize()
+  })
+}
+// Small screens keep the controls guide behind a button in the pause menu.
+$('#btn-guide').addEventListener('click', () => {
+  const open = ui.menu.classList.toggle('show-guide')
+  $('#btn-guide').setAttribute('aria-expanded', String(open))
+  if (open) $('.pause-guide').scrollIntoView({ behavior: 'smooth', block: 'start' })
+})
+if (mobile) $('#runs .menu-lead').textContent = 'Tap a trail on the map to go there, or pick one from the list.'
 // From the pause menu: back to skiing with the player open.
 $('#btn-pause-player').addEventListener('click', () => {
   controls.push('pause')
@@ -886,7 +901,7 @@ function startRide(lift: Lift) {
   coach.tip(
     'lift',
     'Lift ride',
-    mobile ? 'Hold Tuck to speed the ride up, or tap Skip to go straight to the top.' : controls.gamepad ? 'Hold the stick up to speed up, or press <kbd>B</kbd> to skip to the top.' : 'Hold <kbd>W</kbd> to speed up. Press <kbd>Enter</kbd> or select Skip to go to the top.',
+    mobile ? 'Push the stick up to speed the ride up, or tap Skip to go straight to the top.' : controls.gamepad ? 'Hold the stick up to speed up, or press <kbd>B</kbd> to skip to the top.' : 'Hold <kbd>W</kbd> to speed up. Press <kbd>Enter</kbd> or select Skip to go to the top.',
   )
   const path = stage.ride?.(lift) ?? null
   if (!path) {
@@ -1041,6 +1056,8 @@ function handleActions() {
       ui.menu.hidden = closing
       if (!closing) {
         $('#pause-location').textContent = ui.title.textContent
+        ui.menu.classList.remove('show-guide')
+        $('#btn-guide').setAttribute('aria-expanded', 'false')
         $('#btn-map').hidden = !stage.world
         $('#btn-map').setAttribute('aria-pressed', String(!ui.mapPanel.hidden))
         $('#btn-challenges').hidden = !goals

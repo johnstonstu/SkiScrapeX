@@ -82,14 +82,18 @@ export function createRiderPreview(host: HTMLElement) {
       running = true
       last = performance.now()
       resize()
+      // Turning a phone while the panel is open changes the stage's shape.
+      window.addEventListener('resize', resize)
       requestAnimationFrame(tick)
     },
     stop() {
       running = false
+      window.removeEventListener('resize', resize)
     },
     resize,
     dispose() {
       running = false
+      window.removeEventListener('resize', resize)
       renderer.dispose()
       canvas.remove()
     },
