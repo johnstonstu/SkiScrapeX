@@ -429,22 +429,51 @@ button.challenge .target { grid-column: 3; font-size: 0.72rem; color: var(--fain
 .result-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
 .result-buttons button { min-width: 8rem; }
 
+/* Event stories: a disclosure, collapsed on small screens (goalsPanels.ts). */
+.challenge-group .event-about summary { width: max-content; padding: 0.2rem 0; color: var(--muted); font-weight: 600; cursor: pointer; list-style: none; }
+.challenge-group .event-about summary::-webkit-details-marker { display: none; }
+.challenge-group .event-about summary::before { content: "▸"; display: inline-block; width: 1em; color: var(--accent); transition: transform var(--fast) var(--ease); }
+.challenge-group .event-about[open] summary::before { transform: rotate(90deg); }
+.challenge-group .event-about p { margin: 0.2rem 0 0; }
+
+/* Only on small screens: the Runs map/list switch and the pause Controls button. */
+.runs-view, #btn-guide { display: none !important; }
+
 /* ---------- Responsive ---------- */
-@media (max-width: 900px) {
+/* Portrait tablets and phones: one column. Landscape keeps two side by side. */
+@media (max-width: 900px) and (orientation: portrait) {
   .menu-layout, .rider-layout { grid-template-columns: minmax(0, 1fr); }
   .trail-stage { min-height: 16rem; }
-  .rider-stage { min-height: 14rem; order: -1; }
+  .rider-stage { min-height: 0; height: min(34vh, 22rem); order: -1; }
   .menu-side { max-height: min(42vh, 24rem); }
+}
+/* Phones in portrait: Runs shows the map or the list, not a squeezed bit of each. */
+@media (max-width: 760px) and (orientation: portrait) {
+  .runs-view { display: inline-flex !important; align-self: center; margin: 0.8rem 0 0; }
+  .runs-view button { min-width: 6rem; }
+  #runs .menu-layout { grid-template-rows: minmax(0, 1fr); }
+  #runs[data-view="map"] .menu-side, #runs[data-view="list"] .trail-stage { display: none; }
+  #runs[data-view="list"] .menu-side { max-height: none; }
+  .rider-layout { grid-template-rows: auto minmax(0, 1fr); }
+  .rider-layout .menu-side { max-height: none; }
 }
 @media (max-width: 760px) {
   #title-screen { padding-left: var(--safe-l); justify-content: flex-end; padding-bottom: calc(var(--safe-b) + 1.5rem); background: linear-gradient(0deg, rgba(5, 13, 21, 0.9) 0%, rgba(5, 13, 21, 0.65) 55%, rgba(5, 13, 21, 0.15) 85%); }
   .title-card h1 { font-size: clamp(2.6rem, 13vw, 3.6rem); }
   .title-summary { margin-top: 1.2rem; }
   .stat { min-width: 0; flex: 1; }
+  .challenge-group .event-about { margin-left: 0.9rem; }
+}
+/* Phones either way round: one pause column, the controls guide behind a button. */
+@media (max-width: 680px), (max-height: 520px) {
+  .pause-body { grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
+  #btn-guide { display: flex !important; }
+  #btn-guide::after { content: "▾"; color: var(--faint); transition: transform var(--fast) var(--ease); }
+  #pause-menu.show-guide #btn-guide::after { transform: rotate(180deg); }
+  #pause-menu:not(.show-guide) .pause-guide { display: none; }
+  .pause-toggles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 680px) {
-  .pause-body { grid-template-columns: minmax(0, 1fr); }
-  .pause-toggles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #control-guide, .guide-group:last-of-type dl { grid-template-columns: minmax(0, 1fr); }
   .settings-row { grid-template-columns: minmax(0, 1fr); }
   .settings-row .chips { justify-self: start; }
@@ -460,3 +489,42 @@ button.challenge .target { grid-column: 3; font-size: 0.72rem; color: var(--fain
   .title-buttons { margin-top: 0.8rem; }
   .title-summary { display: none; }
 }
+/* Phones in landscape: short headers so the map, preview and lists get the height. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .menu-shell > header { padding: 0.2rem 0.4rem 0.6rem; align-items: center; }
+  .menu-shell > header h2 { font-size: 1.7rem; }
+  .menu-lead { display: none; }
+  .menu-layout { padding-top: 0.6rem; gap: 0.6rem; }
+  .menu-layout:not(.rider-layout) { grid-template-columns: minmax(0, 1.3fr) minmax(14rem, 1fr); }
+  .rider-layout { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
+  .rider-stage { min-height: 0; }
+  .trail-legend { display: none; }
+  .trail-detail { left: 0.5rem; right: 0.5rem; bottom: 0.5rem; max-width: none; padding: 0.5rem 0.5rem 0.5rem 0.8rem; }
+  .pause-card { justify-content: flex-start; }
+  .pause-heading { margin-bottom: 0.8rem; }
+  .pause-heading h2 { font-size: 2rem; }
+  .pause-actions > button { font-size: 1.05rem; }
+  #pause-menu #btn-resume { font-size: 1.25rem; }
+  /* Two columns so Resume, every menu and the toggles fit without scrolling. */
+  .pause-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 2.5rem; }
+  #btn-resume, .pause-toggles { grid-column: 1 / -1; }
+  .pause-toggles { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0.4rem 0; padding: 0.4rem 0; }
+  .pause-heading > div { display: flex; align-items: baseline; gap: 0.9rem; min-width: 0; }
+  .pause-heading p { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pause-toggles { order: 1; }
+  #pause-menu .pause-exit { order: 2; }
+  #settings.menu-shell > :not(header), #challenges.menu-shell > :not(header) { width: min(46rem, 100%); }
+}
+
+/* Touch: 44 px targets for everything you tap in a menu. */
+.touch :is(.chips, .parks .layouts, #control-tabs, .segmented) button,
+.touch .menu-shell > header .close,
+.touch .pause-toggles button,
+.touch #run-list .run,
+.touch .result-buttons button,
+.touch .trail-go { min-height: 2.75rem; }
+.touch .parks .layouts { flex-wrap: wrap; }
+.touch .swatches { gap: 0.55rem; }
+.touch .swatches button { width: 2.5rem; height: 2.5rem; }
+.touch .challenge-group .event-about summary { min-height: 2.75rem; display: flex; align-items: center; }
+.touch:not(.pad-navigation) .result-buttons kbd { display: none; }

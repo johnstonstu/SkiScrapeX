@@ -324,7 +324,7 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
     slider('Volume', 'volume', 0, 1, 0.05, percent)
     chips('Music', 'music', [[true, 'On'], [false, 'Off']], 'Follows how you ski: calm on lifts, driving on steeps, punchy in the park')
     if (settings.music) {
-      chips('Music source', 'musicSource', [['procedural', 'Procedural'], ['tracks', 'Tracks'], ['radio', 'Radio']], 'Radio plays Chair 9 FM songs; P opens the player')
+      chips('Music source', 'musicSource', [['procedural', 'Procedural'], ['tracks', 'Tracks'], ['radio', 'Radio']], 'Radio plays Chair 9 FM songs on the music player')
       if (settings.musicSource === 'radio') chips('Radio songs', 'radioMix', [['all', 'Shuffle all'], ['vocal', 'Sing-along'], ['instrumental', 'Instrumental']])
       chips('Lyrics', 'lyrics', [[true, 'On'], [false, 'Off']], 'Sing-along lines on screen, by your head on lifts. Also on the player')
       slider('Music volume', 'musicVolume', 0, 1, 0.05, percent)

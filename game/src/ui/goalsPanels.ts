@@ -109,6 +109,9 @@ function targetText(row: ChallengeRow): string {
   return `Gold ${value(row.targets.gold)}`
 }
 
+/** Phones in either orientation: the same breakpoints as menus.css. */
+const SMALL_SCREEN = '(max-width: 760px), (max-height: 520px)'
+
 export function renderChallenges(panel: HTMLElement, data: ChallengeData, progress: Progress, close: () => void): void {
   panel.innerHTML =
     '<header><div><h2>Challenges</h2><p class="menu-lead">Timed runs, parks, slalom and the mountain checklist.</p></div>' +
@@ -132,9 +135,11 @@ export function renderChallenges(panel: HTMLElement, data: ChallengeData, progre
       item.disabled = row.targets === null
       block.append(item)
       if (row.story || row.rules) {
-        const about = document.createElement('p')
+        // Collapsed on small screens so the list of events fits; open elsewhere.
+        const about = document.createElement('details')
         about.className = 'event-about'
-        about.innerHTML = `${row.story ? escapeHtml(row.story) : ''}${row.rules ? ` <strong>${escapeHtml(row.rules)}</strong>` : ''}`
+        about.open = !matchMedia(SMALL_SCREEN).matches
+        about.innerHTML = `<summary>About this event</summary><p>${row.story ? escapeHtml(row.story) : ''}${row.rules ? ` <strong>${escapeHtml(row.rules)}</strong>` : ''}</p>`
         block.append(about)
       }
     }
