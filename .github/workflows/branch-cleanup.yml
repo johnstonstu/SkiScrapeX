@@ -1,0 +1,96 @@
+name: Branch cleanup
+
+# Run by hand from the Actions tab. Dry run is on by default and only prints
+# what would happen.
+#
+# 1. Each branch in `archive` is tagged with an annotated tag of the same name
+#    (so links and PR images that use the name keep working), then deleted.
+# 2. Every branch already merged into main is deleted, plus any in `extra`.
+#    main, data and data-* are never touched, nor is any branch that is the
+#    head of an open pull request.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Only print what would be tagged and deleted'
+        type: boolean
+        default: true
+      archive:
+        description: 'Branches to keep as same-name tags, then delete (space separated)'
+        required: false
+        default: 'docs/apex-terrain-events-handoff docs/playtest-2026-11-25 pr-images/rider-angulation pr-media/runs-pass-b'
+      extra:
+        description: 'Unmerged branches to delete as well, for work that landed another way (space separated)'
+        required: false
+        default: 'claude/project-thread-ncjxs9'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: branch-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set tagger
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Clean up branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+          ARCHIVE: ${{ inputs.archive }}
+          EXTRA: ${{ inputs.extra }}
+        run: |
+          set -euo pipefail
+          git fetch origin --prune '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*'
+
+          protected() {
+            case "$1" in main|data|data-*) return 0 ;; esac
+            grep -qxF "$1" open-heads.txt
+          }
+          run() {
+            if [ "$DRY_RUN" = 1 ]; then echo "  would run: $*"; else "$@"; fi
+          }
+
+          gh pr list --repo "$GITHUB_REPOSITORY" --state open --json headRefName --jq '.[].headRefName' > open-heads.txt
+          echo "Open pull request branches (kept):"; sed 's/^/  /' open-heads.txt
+
+          echo "Archive as tags:"
+          for b in $ARCHIVE; do
+            if ! git show-ref --verify --quiet "refs/remotes/origin/$b"; then echo "  $b: no such branch, skipped"; continue; fi
+            if protected "$b"; then echo "  $b: protected, skipped"; continue; fi
+            if git show-ref --verify --quiet "refs/tags/$b"; then
+              if [ "$(git rev-parse "refs/tags/$b^{commit}")" != "$(git rev-parse "refs/remotes/origin/$b")" ]; then
+                echo "  $b: a tag of this name points elsewhere, skipped"; continue
+              fi
+              echo "  $b: tag already there"
+            else
+              echo "  $b: tag $(git rev-parse --short "refs/remotes/origin/$b")"
+              run git tag -a "$b" -m "Archived branch $b ($(date -u +%F))" "refs/remotes/origin/$b"
+              run git push origin "refs/tags/$b"
+            fi
+            run git push origin --delete "refs/heads/$b"
+          done
+
+          echo "Delete:"
+          merged=$(git branch -r --merged origin/main --format='%(refname:lstrip=3)' | grep -vx HEAD || true)
+          for b in $merged $EXTRA; do
+            case " $ARCHIVE " in *" $b "*) continue ;; esac
+            if ! git show-ref --verify --quiet "refs/remotes/origin/$b"; then echo "  $b: no such branch, skipped"; continue; fi
+            if protected "$b"; then echo "  $b: kept"; continue; fi
+            echo "  $b"
+            run git push origin --delete "refs/heads/$b"
+          done
