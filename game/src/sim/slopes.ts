@@ -20,6 +20,8 @@ export interface Spawn {
   z: number
   /** Radians. 0 faces +Z (south, down a south-falling slope). Positive is the skier's right. */
   heading: number
+  /** A rolling start: speed along the heading on the snow, m/s (a park drop-in). Standing when unset. */
+  speed?: number
 }
 
 export interface Slope {

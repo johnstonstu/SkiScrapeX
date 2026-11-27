@@ -7,6 +7,7 @@ import type { Goals } from '../goals'
 import type { Npcs } from '../npcs'
 import { createSession, type Challenge, type Session } from '../session'
 import type { Stage } from '../stage'
+import type { PaceCue } from '../parkPace'
 
 /** A lift ride in progress. */
 export interface Ride {
@@ -43,6 +44,8 @@ export interface GameState {
   pause: Pause | null
   /** On a lift (physics paused, the ride moves the rider). */
   ride: Ride | null
+  /** The park assist's view of the next jump (predicted lip speed against its window), for the park cue. */
+  paceCue: PaceCue | null
   /** Game seconds while not in a menu. */
   elapsed: number
   /** The bunny-hill line while the tutorial runs: reaching its end puts you back at the top. */
@@ -65,6 +68,7 @@ export function createGameState(mobile: boolean): GameState {
     session: createSession(challenge),
     pause: null,
     ride: null,
+    paceCue: null,
     elapsed: 0,
     tutorialLine: null,
     goals: null,

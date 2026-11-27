@@ -2,14 +2,29 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
-## 0.9.45 (unreleased): Terrain detail by distance
+## 0.9.46 (unreleased): Terrain detail by distance
 
-About 500,000 fewer triangles a frame on Medium, with the same look. Builds on 0.9.44.
+About 500,000 fewer triangles a frame on Medium, with the same look. Builds on 0.9.45.
 
 ### Changed
 
 - **Far terrain uses fewer triangles.** The coarse terrain was one 5 m mesh drawn at full detail across the whole 3.2 by 2.6 km crop, about 680,000 triangles every frame. It is now cut into 160 m tiles. Each tile draws every vertex within 420 m of the camera, every second vertex to 950 m, every fourth to 1.8 km and every eighth beyond that. Short skirts hang under tile edges only where two neighbours differ, so no cracks show. Everything is still one draw call, and the index list is rebuilt only when a tile changes detail. The 2 m close-up tiles, the physics and the snow shading are unchanged.
 - Triangles a frame (headless, same views), before and after: Medium start 1.23M to 0.74M, village 1.66M to 1.14M, forest 1.56M to 1.06M, summit 1.24M to 0.74M. Low village 751k to 625k. Draw calls are unchanged.
+## 0.9.44 (unreleased): Park lines and rolling starts
+
+Every park now drops you in straight above a line you can ride without turning, and every event starts rolling.
+
+### Changed
+
+- **Straight drop-in for every park.** Each park gets a straight axis down its steepest clean fall (`dropInLine` in `world/park.ts`), and a park run starts at its top, facing straight down it, already at 22 km/h. Before, Claim Jumper started 200 m above its features facing about 80° off them, and Prospector's features followed the L2 trace through two uphill kinks.
+- **Three lanes in every park.** Each station is main line in the middle, a jib lane on the left and a bigger lane on the right, 9 m apart. The main line needs no steering; turning takes you into the other lanes. Prospector now sits beside Claim Jumper on its skier's left (their lanes used to cross).
+- **Jumps paced along the line.** Rows are placed where a rider coasting down the main line reaches each lip at a good speed, and the speed window on each sign is worked out from that jump's own shape on that slope (end of the deck to the bottom of the landing).
+- **Park speed assist (with Landing assist on).** On a run-in the speed eases toward the next jump's sweet spot, and at takeoff the lip speed is trimmed into the window, so pointing it down the main line lands every jump on the slope. Tuck to carry more, brake to scrub. Ahead of a rail or box it eases to slide speed.
+- **Speed cue, in and out.** The cue above shows the speed you will have at the lip (not your current speed) against the landing window, which lane you are in, and after the jump where you landed: Sweet spot, Cased the deck, or Overshot. A sweet-spot landing scores 25% more.
+- **Combos link down a line.** While another park feature is coming up, the combo stays open four times longer before it banks, so a full run of features can be one combo.
+- **Rolling event starts.** Every race leaves the gate at 22 km/h at least, and on the Chute and the Downhill the racer double-poles along the summit cat track until the course drops away. Hands-off, the Chute's slowest point in its first 300 m goes from 12 to 24 km/h. Timed runs and slaloms push off at 18 km/h.
+
+Tests: `tests/parkLines.test.ts` rides every Apex park's main line hands-off (every jump in the sweet spot, no crash, under 3 m of drift, no overlap between parks) and checks the jump windows; `tests/eventStarts.test.ts` covers the rolling starts.
 
 ## 0.9.43 (unreleased): Quickdraw bowl layout
 
