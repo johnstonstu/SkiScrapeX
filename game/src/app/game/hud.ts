@@ -30,7 +30,7 @@ export function createHud(game: GameState, deps: HudDeps) {
       ui.speed.textContent = `${kmh}`
       ui.speedo.style.setProperty('--speed', Math.min(1, kmh / 100).toFixed(2))
     }
-    parkHud.update(game.skier, game.stage.features(), !game.ride && !game.pause, game.stage.env.rails ?? [])
+    parkHud.update(game.skier, game.stage.features(), !game.ride && !game.pause, game.stage.env.rails ?? [], game.paceCue)
     ui.time.textContent = formatTime(game.session.total)
     const now = performance.now()
     hudPeek.update(ui.title.textContent ?? '', now)

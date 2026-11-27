@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import type { Rail } from '../../sim'
-import type { ParkOverlay, PlacedFeature } from '../../world/park'
+import { featureSign, type ParkOverlay, type PlacedFeature } from '../../world/park'
 import { SnowMaterial } from '../../fx'
 import type { Lighting } from '../lighting'
 import { createStaticBatch } from './mergeStatic'
@@ -81,9 +81,9 @@ export function createParkView(
     }
     const signX = feature.x - feature.dirZ * (feature.halfWidth + 3)
     const signZ = feature.z + feature.dirX * (feature.halfWidth + 3)
-    const [name, speed] = feature.spec.label.split(' · ')
+    const [name, detail] = featureSign(feature)
     const slide = feature.spec.kind === 'box' || feature.spec.kind.toLowerCase().includes('rail')
-    addSign(name, speed ?? (slide ? 'Pop on · balance · pop off' : 'Absorb the crest'), slide ? '#96dfd7' : '#ffdc69',
+    addSign(name, detail, slide ? '#96dfd7' : '#ffdc69',
       signX, signZ, Math.atan2(-feature.dirX, -feature.dirZ))
   }
 
