@@ -4,6 +4,11 @@ import { compactTreeShapes, distantTree, treeShapes } from './treeShapes'
 
 /** Metres a chunk must move past the near distance before it drops back to stand-ins. */
 const NEAR_HYSTERESIS = 30
+/**
+ * Side of the square tiles that merge far chunks, metres (4 x 4 forest chunks,
+ * 2 x 2 apron chunks). A tile whose chunks are all past `mid` draws as one batch.
+ */
+const FAR_TILE = 768
 
 export interface ForestDetail {
   /** Full conifer inside this radius, metres. */
@@ -24,7 +29,8 @@ export interface ForestDetail {
  * tinted by species and thinned with distance. Chunks inside `near` hand their
  * trees to one instanced pool per species (spruce, fir, pine, snag,
  * krummholz, snow ghost), so detail costs six draw calls however many chunks
- * are close.
+ * are close. Past `mid`, chunks are drawn together a tile at a time (FAR_TILE),
+ * the same trees in one draw call instead of one per chunk.
  */
 /**
  * Camera and skier positions for the sight-line fade, shared by every forest
@@ -100,7 +106,8 @@ export function createForestView(forest: Forest, detail: ForestDetail) {
     }
     return color
   }
-  const batches: { far: THREE.InstancedMesh; trees: Tree[]; cx: number; cz: number; y: number; n: number; near: boolean }[] = []
+  interface Batch { far: THREE.InstancedMesh; trees: Tree[]; cx: number; cz: number; y: number; n: number; near: boolean; distant: boolean }
+  const batches: Batch[] = []
   for (const chunk of forest.chunks) {
     const n = chunk.trees.length
     if (!n) continue
@@ -120,7 +127,48 @@ export function createForestView(forest: Forest, detail: ForestDetail) {
     far.castShadow = true
     far.count = 0
     group.add(far)
-    batches.push({ far, trees: chunk.trees, cx: chunk.cx, cz: chunk.cz, y: y / n, n, near: false })
+    batches.push({ far, trees: chunk.trees, cx: chunk.cx, cz: chunk.cz, y: y / n, n, near: false, distant: false })
+  }
+
+  // Far tiles: each holds the `farShare` of every member chunk's stand-ins, copied
+  // from the chunks' own instance buffers, so a merged tile draws exactly what its
+  // chunks would. Rebuilt only when the share changes (the view distance setting).
+  const tileMembers = new Map<string, Batch[]>()
+  for (const batch of batches) {
+    const key = `${Math.floor(batch.cx / FAR_TILE)},${Math.floor(batch.cz / FAR_TILE)}`
+    const list = tileMembers.get(key) ?? []
+    list.push(batch)
+    tileMembers.set(key, list)
+  }
+  const tiles: { members: Batch[]; mesh: THREE.InstancedMesh | null; share: number }[] = []
+  for (const members of tileMembers.values()) if (members.length > 1) tiles.push({ members, mesh: null, share: -1 })
+  const buildTile = (tile: (typeof tiles)[number]) => {
+    const keep = (batch: Batch) => Math.ceil(batch.n * detail.farShare)
+    const total = tile.members.reduce((sum, batch) => sum + keep(batch), 0)
+    if (!tile.mesh || tile.mesh.instanceMatrix.count < total) {
+      if (tile.mesh) {
+        group.remove(tile.mesh)
+        tile.mesh.dispose()
+      }
+      tile.mesh = new THREE.InstancedMesh(lowest, material, total)
+      tile.mesh.castShadow = true
+      tile.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(total * 3), 3)
+      group.add(tile.mesh)
+    }
+    const matrices = tile.mesh.instanceMatrix.array as Float32Array
+    const colours = tile.mesh.instanceColor!.array as Float32Array
+    let at = 0
+    for (const batch of tile.members) {
+      const k = keep(batch)
+      matrices.set((batch.far.instanceMatrix.array as Float32Array).subarray(0, k * 16), at * 16)
+      colours.set((batch.far.instanceColor!.array as Float32Array).subarray(0, k * 3), at * 3)
+      at += k
+    }
+    tile.mesh.count = total
+    tile.mesh.instanceMatrix.needsUpdate = true
+    tile.mesh.instanceColor!.needsUpdate = true
+    tile.mesh.computeBoundingSphere()
+    tile.share = detail.farShare
   }
 
   // Near pools, one per species, grown on demand.
@@ -199,10 +247,19 @@ export function createForestView(forest: Forest, detail: ForestDetail) {
         } else {
           batch.far.count = Math.ceil(batch.n * detail.farShare)
         }
-        const geometry = near || closeToSkier || d < detail.mid ? simple : lowest
+        batch.distant = !near && !closeToSkier && d >= detail.mid
+        const geometry = batch.distant ? lowest : simple
         if (batch.far.geometry !== geometry) batch.far.geometry = geometry
         batch.far.visible = batch.far.count > 0
         drawn += batch.far.count
+      }
+      for (const tile of tiles) {
+        const merged = tile.members.every((batch) => batch.distant)
+        if (merged) {
+          if (tile.share !== detail.farShare) buildTile(tile)
+          for (const batch of tile.members) batch.far.visible = false
+        }
+        if (tile.mesh) tile.mesh.visible = merged && tile.mesh.count > 0
       }
       if (changed) fillPools()
     },
@@ -212,6 +269,7 @@ export function createForestView(forest: Forest, detail: ForestDetail) {
       lowest.dispose()
       material.dispose()
       for (const batch of batches) batch.far.dispose()
+      for (const tile of tiles) tile.mesh?.dispose()
       for (const mesh of pools) mesh.dispose()
     },
   }

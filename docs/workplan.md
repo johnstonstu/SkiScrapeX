@@ -63,7 +63,7 @@ Expensive shader work goes behind a define (like `SNOW_DETAIL`). Expensive geome
   - [x] Landmarks: summit slat fence, Tooth/Tusk signpost, padded towers.
   - [x] `tests/runProfiles.test.ts`: widths and pitches against `run-profiles.json`.
 - [x] Events: Shoot the Chute and the Mars downhill (`docs/review/apex-events/game-event-ideas.md`), plus the Apex Slalom, Teck Open GS, Kristi's Moguls (tap-to-turn rhythm), Aerials and Match Your Time, with a shared race system (start gate, gate grades, line assist, ghosts). Next candidates from the same doc: dual moguls against a ghost, Torchlight Parade (needs night), Dummy Downhill, Boardercross heats against AI.
-- [ ] Distant forest: apron tree density (the LiDAR ring is sparser than our cover already), with the performance pass.
+- [ ] Distant forest: apron tree density (the LiDAR ring is sparser than our cover already). Far chunks now draw a 768 m tile at a time (0.9.39), which leaves room for it.
 
 ### Mobile pass (2026-11-26)
 
@@ -145,13 +145,14 @@ Goal: a local recognises Apex at a glance. Ship this in batches of four to eight
 2. **Trees**
    - [ ] Denser forest (#21), clumping (#23), variety (#22).
    - [ ] Heavier snow on branches below the summit (#20), snow ghosts at the summit (#19).
-   - [ ] Keep trees off terminals and buildings (#24), fix the spire tree (#25).
+   - [ ] Keep trees off terminals and buildings (#24).
+   - [x] The spire tree (#25): gone since the 0.8.7 height caps, checked in 0.9.39.
 3. **Snow and light**
    - [ ] Snow surfaces (#41), corduroy (#42), finish snow detail and blending (#69).
    - [ ] Longer shadow range on High and Ultra (#40).
    - [ ] Better sky, sun and haze; clouds that move.
 4. **Lifts**
-   - [ ] Stock's terminals (#28), T-bar (#29, #9), Magic Carpet (#30), lift-maze details (#31).
+   - [ ] Stock's terminals (#28), T-bar (#29), Magic Carpet (#30), lift-maze details (#31). The T-bar base artefact (#9) is gone, checked in 0.9.39.
    - [ ] Riders on chairs and in lift lines.
 5. **Village**
    - [ ] Hand-modelled hero buildings: day lodge, Gunbarrel Saloon, ticket office (#32).
@@ -163,7 +164,7 @@ Goal: a local recognises Apex at a glance. Ship this in batches of four to eight
 Goal: strangers can play it and tell us what is wrong.
 
 - [ ] Real phones (#50): frame rate on a mid-range Android and an older iPhone, touch layout size, opacity and a left-handed option, tilt steering as an option.
-- [ ] Smaller download (#51): heights as differences from a plane, about 3.9 MB to 1.4 MB for the 2 m grid; first load under about 10 MB; show the mountain while the forest and village build.
+- [x] Smaller download (#51): packed heights (0.9.17), packed horizon and gzip canopy (0.9.38), rider model 3.3 MB to about 1 MB for the first rider (0.9.39). About 5 MB before the title. Still open: show the mountain while the forest and village build.
 - [ ] Installable with offline play (#54).
 - [ ] Accessibility (#55): remappable keys, colour-blind-safe run colours and hints, reduced motion, readable text.
 - [ ] Feedback link and error capture (#56); CONTRIBUTING and issue templates (#57); CI on pull requests (#49).

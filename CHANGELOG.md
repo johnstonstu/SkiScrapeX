@@ -2,6 +2,20 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.39 (2026-11-27): Smaller rider, fewer forest draws
+
+Closes out the phase 1 performance and load items.
+
+### Changed
+
+- **Rider model 3.3 MB to about 0.57 MB.** The geometry is meshopt-compressed with 8-bit normals and tangents and 16-bit UVs and skin weights (positions stay full precision). The maps for every outfit used to be inside the GLB; each garment's mask and normal map is now its own JPEG, fetched the first time a rider wears it. The player's first rider costs about 1.05 MB instead of 3.3 MB, and the skin swaps in once the outfit's maps are in. The Rider & gear menu fetches the whole wardrobe when it opens, so picking a style shows it textured. Rider lab screenshots match 0.9.38 pixel for pixel. `npm run pack:rider` packs a fresh Blender export.
+- **Distant forest merged into tiles.** Past the mid distance, forest chunks draw together a 768 m tile at a time (same trees, same stand-ins), instead of one draw call per chunk. A tile splits back into chunks as soon as any of them comes closer. Headless counts against 0.9.38: Low start 204 to 134 draws, village 412 to 276, summit 211 to 139; High start 259 to 201, village 464 to 298. The forest spot (all trees close) stays about the same. Screenshots match 0.9.38.
+
+### Checked
+
+- The oversized spire tree behind the summit hut (#25) is gone: no tree within 200 m of the Quickdraw top is over 11 m.
+- The T-bar base (#9) has no flat brown triangle or black strips; the Blender T-bar terminal stands there now.
+
 ## 0.9.38 (2026-11-26): Lighter village and smaller first download
 
 ### Changed

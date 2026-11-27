@@ -29,6 +29,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## meshoptimizer
+
+The game bundles three.js's copy of the meshoptimizer decoder
+(`three/addons/libs/meshopt_decoder.module.js`) to read the compressed rider
+model, and `scripts/pack-rider.mjs` uses the `meshoptimizer` npm package to
+write it. Both are [meshoptimizer](https://github.com/zeux/meshoptimizer) by
+Arseny Kapoulkine, MIT License, Copyright (c) 2016-2025 Arseny Kapoulkine.
+The full MIT text is the same as the ski-coach notice above.
+
 ## Not copied
 
 [alpine-challenge](https://github.com/mikaelguillin/alpine-challenge) and

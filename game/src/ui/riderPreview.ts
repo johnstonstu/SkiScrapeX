@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { createSkiState, type SkiInput } from '../sim'
 import { createSkierView } from '../render/rider/skierView'
+import { loadGarmentMaps, loadRiderAsset } from '../render/rider/riderSkin'
 import type { Outfit } from './riderPanel'
 
 const idle: SkiInput = { steer: 0, brake: 0, tuck: false }
@@ -36,6 +37,8 @@ export function createRiderPreview(host: HTMLElement) {
 
   const view = createSkierView()
   scene.add(view.object)
+  // The wardrobe: fetch every style's maps now so picking one shows it textured.
+  loadRiderAsset().then((asset) => loadGarmentMaps(asset)).catch(() => {})
   const state = createSkiState({ x: 0, y: 0, z: 0, heading: 0 })
   state.speed = 4
   state.grounded = true

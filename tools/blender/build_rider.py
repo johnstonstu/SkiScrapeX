@@ -1,7 +1,9 @@
 """
 Builds the SkiScrapeX rider: an armature on the game's bind pose and every
 garment style as a skinned mesh, bakes its maps, and exports
-game/public/models/rider.glb.
+game/public/models/rider.glb. Then run `npm run pack:rider` in game/: it moves
+the maps out to game/public/models/rider/*.jpg (loaded per outfit) and
+meshopt-compresses the geometry.
 
 Run inside Blender (the Blender MCP or the Text editor):
     ns = {"REPO": r"<repo>"}

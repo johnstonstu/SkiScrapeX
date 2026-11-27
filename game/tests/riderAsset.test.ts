@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
 import { GLOVE_STYLES, HEADWEAR, JACKET_STYLES, PANTS_STYLES } from '../src/render/rider/riderSkin'
@@ -85,6 +85,27 @@ describe('rider model asset', () => {
       tris('head_face') + tris('head_goggles')
     // The code-built body it replaced was about 15.5k triangles.
     expect(heaviest).toBeLessThan(10000)
-    expect(statSync(GLB).size).toBeLessThan(3.5 * 1024 * 1024)
+    // Geometry only, meshopt-compressed (scripts/pack-rider.mjs); the maps are separate files.
+    expect(statSync(GLB).size).toBeLessThan(1024 * 1024)
+  })
+
+  it('keeps its maps outside the GLB, one mask and normal map per garment, loaded per outfit', () => {
+    expect(gltf.extensionsRequired).toContain('EXT_meshopt_compression')
+    expect(gltf.images ?? []).toHaveLength(0)
+    const outfit = { jacket: 0, pants: 0, gloves: 0, head: 0 }
+    for (const material of gltf.materials) {
+      if (material.name.endsWith('|lens')) continue
+      const extras = material.extras ?? {}
+      for (const file of [extras.mask, extras.normal]) {
+        expect(file, material.name).toMatch(/^rider\/[a-z_]+\.jpg$/)
+        expect(existsSync(new URL(`../public/models/${file}`, import.meta.url)), file).toBe(true)
+      }
+      const size = statSync(new URL(`../public/models/${extras.mask}`, import.meta.url)).size + statSync(new URL(`../public/models/${extras.normal}`, import.meta.url)).size
+      const [kind] = material.name.split('_') as [keyof typeof outfit]
+      if (kind in outfit) outfit[kind] = Math.max(outfit[kind], size)
+    }
+    // The heaviest outfit's maps (face and goggles count under head) stay well under the old all-in-one 1.5 MB.
+    const heaviest = outfit.jacket + outfit.pants + outfit.gloves + outfit.head * 3
+    expect(heaviest).toBeLessThan(700 * 1024)
   })
 })

@@ -2,21 +2,25 @@
   "name": "skiscrapex-game",
   "private": true,
   "license": "MIT",
-  "version": "0.9.38",
+  "version": "0.9.39",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "preview": "vite preview",
-    "tune": "vitest run --config tuning/vitest.config.ts"
+    "tune": "vitest run --config tuning/vitest.config.ts",
+    "pack:rider": "node scripts/pack-rider.mjs"
   },
   "dependencies": {
     "three": "0.180.0"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.2.1",
+    "@gltf-transform/extensions": "^4.2.1",
     "@types/node": "^22.19.0",
     "@types/three": "^0.180.0",
+    "meshoptimizer": "^0.22.0",
     "typescript": "^5.9.3",
     "vite": "^6.4.1",
     "vitest": "^5.1.1"
