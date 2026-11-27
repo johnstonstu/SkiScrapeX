@@ -118,6 +118,10 @@ export interface QualityProfile {
   sprayParticles: number
   snowflakes: number
   trackResolution: number
+  /** Powder clouds (landings, crashes, deep turns). Each is a large transparent quad, so this is a fill-rate budget. */
+  powderClouds: number
+  /** Speed streaks at the edges of the view at high speed; 0 is off. */
+  speedStreaks: number
   /** Deformable snow around the player: radius and vertex spacing in metres, or null (trenches only in the physics). */
   snowPatch: { radius: number; spacing: number } | null
   /** Village props: High full; Medium thinned cars/decks; Low hut only. */
@@ -145,6 +149,8 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     sprayParticles: 900,
     snowflakes: 1600,
     trackResolution: 256,
+    powderClouds: 48,
+    speedStreaks: 120,
     snowPatch: null,
     villageDetail: 'lite',
     anisotropy: 2,
@@ -166,6 +172,8 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     sprayParticles: 1400,
     snowflakes: 2800,
     trackResolution: 512,
+    powderClouds: 96,
+    speedStreaks: 220,
     snowPatch: { radius: 8, spacing: 0.12 },
     villageDetail: 'mid',
     anisotropy: 4,
@@ -187,6 +195,8 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     sprayParticles: 2048,
     snowflakes: 4200,
     trackResolution: 512,
+    powderClouds: 160,
+    speedStreaks: 360,
     snowPatch: { radius: 12, spacing: 0.1 },
     villageDetail: 'full',
     anisotropy: 8,

@@ -8,3 +8,7 @@ export { Snowfall } from './particles/Snowfall';
 export type { SnowfallOptions } from './particles/Snowfall';
 export { SkiTracks } from './tracks/SkiTracks';
 export type { TrackInput, SkiTracksOptions } from './tracks/SkiTracks';
+export { SnowPuff } from './particles/SnowPuff';
+export type { PuffBurst, SnowPuffOptions } from './particles/SnowPuff';
+export { SpeedStreaks } from './particles/SpeedStreaks';
+export type { SpeedStreaksOptions } from './particles/SpeedStreaks';

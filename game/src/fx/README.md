@@ -54,7 +54,7 @@ The track map is a separate single-channel-in-red stamp. Where it is non-zero th
 
 ### `SnowSpray`
 
-Ski kick-up. A fixed pool (default 2048) of camera-facing streaks. The CPU integrates them because the spawn rate, size and direction come from the ski inputs. Drawing is one mesh. The pool never grows.
+Ski kick-up. A fixed pool (default 2048) of camera-facing streaks. The CPU integrates them because the spawn rate, size and direction come from the ski inputs. Drawing is one instanced quad: each live flake is written once (it used to be six vertices per flake) and only the live range is uploaded. The pool never grows. `setLight(lit, shade)` tints flakes from the scene's sun and sky so spray does not glow at dusk.
 
 ```ts
 const spray = new SnowSpray({ maxParticles: 2048, gravity: 7, drag: 1.7 });
@@ -69,6 +69,27 @@ spray.clear();
 ```
 
 `skid` (0–1) is a sideways scrub: more flakes, bigger, thrown up and back. `carving` (0–1) is an edged turn: fewer, smaller, stretched streaks thrown along `lateral` (the outside of the turn, on the snow). `velocity` is metres per second. Pass one entry per ski. The vectors are read immediately and not retained.
+
+### `SnowPuff`
+
+Powder clouds: soft billows that bloom, drift and thin out after a landing, a crash, a deep-snow turn or a hard skidded stop. A small fixed pool (48 / 96 / 160 on Low / Medium / High) of camera-facing quads in one instanced draw, with a cheap value-noise edge and a top-lit gradient so they read as volume without scene lights. They are large and transparent, so the pool size is a fill-rate budget. When the pool is full the oldest cloud is reused.
+
+```ts
+const puffs = new SnowPuff({ maxPuffs: 96 });
+scene.add(puffs.object);
+puffs.burst(position, velocity, { count: 8, size: 0.6, spread: 3, rise: 1.2, life: 1.6, opacity: 0.6 });
+puffs.trail(dt, position, velocity, ratePerSecond, size, opacity); // a plume behind the rider
+puffs.update(dt);
+```
+
+### `SpeedStreaks`
+
+Sense of speed: faint snow streaks that fly past toward the edges of the view from about 50 km/h, full by about 90 km/h. Seeds are fixed in the world and wrap in a box around the camera; each is a short line smeared along the rider's velocity. Motion is in the vertex shader, the buffer is fixed, and it is one additive line draw. The middle of the screen stays clear for the rider. Off with `prefers-reduced-motion`.
+
+```ts
+const streaks = new SpeedStreaks({ count: 360, boxMetres: 26 });
+streaks.update(dt, camera.position, riderVelocity, strength01);
+```
 
 ### `Snowfall`
 
