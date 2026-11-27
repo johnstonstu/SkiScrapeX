@@ -233,7 +233,9 @@ export function followHeading(style: CameraStyle, state: SkiState, sampleTerrain
     // Slow to swing, so linked turns move the skier across a still view;
     // quicker when the skier is heading well off the view (a long traverse).
     const off = Math.abs(Math.atan2(Math.sin(targetHeading - heading), Math.cos(targetHeading - heading)))
-    rate = (spinning ? 3 : 1.3) + 5 * THREE.MathUtils.clamp((off - 0.9) / 0.9, 0, 1)
+    // 0.9.40: looser (1.3 to 1.0) and the catch-up starts later (0.9 to 1.2 rad off), so
+    // the view stays on the fall line through held turns. Guesses, tune in play.
+    rate = (spinning ? 3 : 1.0) + 5 * THREE.MathUtils.clamp((off - 1.2) / 0.9, 0, 1)
   } else {
     // Mostly the ski heading, so the view turns when you steer rather than
     // when the path has caught up; travel keeps it steady through skids.
@@ -254,9 +256,10 @@ export function steadyHeading(state: SkiState, sampleTerrain: SampleTerrain, aim
   if (!ground) return aim
   const fall = fallLineHeading(ground.normal)
   if (fall === null) return aim
-  const steep = THREE.MathUtils.clamp(Math.hypot(ground.normal.x, ground.normal.z) / 0.2, 0, 1)
+  // Full pull from about 9° (was 12°), and it holds further into a traverse (0.6π to 0.75π).
+  const steep = THREE.MathUtils.clamp(Math.hypot(ground.normal.x, ground.normal.z) / 0.15, 0, 1)
   const off = Math.abs(Math.atan2(Math.sin(fall - aim), Math.cos(fall - aim)))
-  const pull = 0.8 * steep * Math.max(0, 1 - off / (Math.PI * 0.6))
+  const pull = 0.85 * steep * Math.max(0, 1 - off / (Math.PI * 0.75))
   return blendAngle(aim, fall, pull)
 }
 
