@@ -1,8 +1,13 @@
 /**
  * SkiScrapex entry: renderer, scene and player setup, then the frame loop.
- * World assembly lives in app/apexStage.ts, menus, HUD pieces and the trick
- * feed in app/, the ski model in sim/, world data in world/ and drawing in
- * render/.
+ *
+ * Session state (stage, skier, course, challenge, lift ride, fade) lives in
+ * one `GameState` (app/game/state.ts) that the systems share. Lift rides,
+ * challenge flow, the HUD, graphics setup and the frame driver are in
+ * app/game/; world assembly in app/apexStage.ts; menus, HUD pieces and the
+ * trick feed in app/ and ui/; the ski model in sim/, world data in world/ and
+ * drawing in render/. `tick` below runs one frame in a fixed order: menus,
+ * music, play (sim, ride or fade), the world around the skier, then drawing.
  */
 import { buildDemoPark } from './app/demoPark'
 import * as THREE from 'three'

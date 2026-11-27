@@ -2,6 +2,17 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.42 (unreleased): main.ts split into game systems
+
+No change to how the game plays. Builds on 0.9.41.
+
+### Changed
+
+- **Session state in one place.** The stage, skier, course, challenge, session, lift ride, fade, goals and other skiers were 13 loose variables in `main.ts`. They are now one `GameState` (`src/app/game/state.ts`) that the systems share.
+- **Systems in their own modules** under `src/app/game/`: lift rides (boarding, skip, arrival shot, unloading), challenge flow (session events, results, run cards, fades, the per-frame world checks), the HUD, graphics setup (renderer, GPU reset, shader warm-up) and the frame driver. `main.ts` goes from 1,698 to about 1,100 lines.
+- **One frame, in named phases.** `tick` now reads as menus, music, play (sim, ride, fade or start gate), the world around the skier, then drawing, each its own function in the same order as before.
+- `scripts/smoke-modes.mjs` walks a built game through every mode (title, chair arrival and unload, pause, lift ride, event, park, test slopes, tutorial) and fails on any page error. On this change its output matches 0.9.41 apart from frame-timing noise.
+
 ## 0.9.41 (unreleased): Smooth motion between physics steps
 
 The rider and camera now move evenly on any screen refresh rate. Builds on 0.9.40.
