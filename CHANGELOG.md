@@ -2,6 +2,18 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.47 (unreleased): Lighter forest, triangle budget
+
+About 40,000 to 70,000 fewer triangles a frame on Medium and High, with the same look up close. Builds on 0.9.46.
+
+### Changed
+
+- **Compact trees in the outer near ring.** Medium and High drew full conifers (113 to 280 triangles each) for every tree within the near radius, measured to the centre of 192 m chunks. Chunks whose nearest edge is more than 60 m away (90 m on High) now use the compact shapes Low already uses (about a third of the triangles). No compact tree is ever closer to the camera than that.
+- **Lean stand-ins further out.** Past 260 m (340 m on High) the mid-distance stand-ins drop from three cones and a trunk (20 triangles) to two cones (8). Low is unchanged.
+- Both follow the view distance setting.
+- Triangles a frame on Medium (headless, same views), 0.9.46 to 0.9.47: start 739k to 694k, village 1.15M to 1.11M, forest 1.06M to 1.01M, summit 745k to 681k, far 772k to 700k. Draw calls change by 0 to 6.
+- `scripts/perf-spots.mjs --budget` fails when a standard spot draws more triangles than its level allows (Low 750k, Medium 1.25M, High 1.5M, about 15% over today), so growth shows up in review.
+
 ## 0.9.46 (unreleased): Terrain detail by distance
 
 About 500,000 fewer triangles a frame on Medium, with the same look. Builds on 0.9.45.
