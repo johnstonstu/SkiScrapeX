@@ -4,7 +4,7 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 
 ## Workflow
 
-- Feature work happens on branches. `main` only moves at milestones the maintainer has played; each merge bumps `game/package.json`, adds a `CHANGELOG.md` entry and gets a `vX.Y.Z` tag.
+- Feature work happens on branches. `main` only moves at milestones the maintainer has played; each merge bumps `game/package.json`, adds a `CHANGELOG.md` entry and gets a `vX.Y.Z` tag. The `Tag release` workflow creates the tag on the merge commit when the version changes, with the changelog heading as its message.
 - Run `npm test` and `npm run build` in `game/` before pushing.
 - Generated terrain is never on `main`. The **Build Apex data** workflow builds LidarBC terrain and canopy, the NRCan MRDEM horizon and the OSM export, and force-pushes them to the orphan `data` branch. The OSM step retries public Overpass mirrors, then the main OSM map API. If that export is not usable the job fails and the data branch keeps its last good build. The Pages build will not deploy unless the built `features.json` has buildings and four lifts. Fetch the data branch for local work:
 

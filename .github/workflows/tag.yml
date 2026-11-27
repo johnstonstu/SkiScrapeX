@@ -1,0 +1,65 @@
+name: Tag release
+
+# Tags main with vX.Y.Z when a push changes the version in game/package.json.
+# The tag message comes from the CHANGELOG.md heading for that version.
+#
+# Run it by hand with `backfill` to tag older merge commits, for example
+# "v0.9.35=d3d19ff v0.9.36=69ee94d". Tags that already exist are skipped.
+#
+# Tags pushed with GITHUB_TOKEN do not start other workflows, and the site and
+# data workflows only listen to main, so this never causes a second deploy.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: 'Tags to create, as space separated vX.Y.Z=commit pairs. Leave empty to re-run the check for the latest push to main.'
+        required: false
+        default: 'v0.9.35=d3d19ff v0.9.36=69ee94d v0.9.37=ecde489 v0.9.38=0d8bd1b'
+      dry_run:
+        description: 'Only print what would be tagged'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          # Full history, so the previous push and backfill commits are present.
+          fetch-depth: 0
+
+      - name: Set tagger
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Tag pushed version
+        if: github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: bash .github/scripts/tag-release.sh push "$BEFORE" "$AFTER"
+
+      - name: Tag by hand
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          PAIRS: ${{ inputs.backfill }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: |
+          if [ -n "$PAIRS" ]; then
+            bash .github/scripts/tag-release.sh backfill "$PAIRS"
+          else
+            bash .github/scripts/tag-release.sh push "" "$(git rev-parse HEAD)"
+          fi
