@@ -65,6 +65,14 @@ Expensive shader work goes behind a define (like `SNOW_DETAIL`). Expensive geome
 - [x] Events: Shoot the Chute and the Mars downhill (`docs/review/apex-events/game-event-ideas.md`), plus the Apex Slalom, Teck Open GS, Kristi's Moguls (tap-to-turn rhythm), Aerials and Match Your Time, with a shared race system (start gate, gate grades, line assist, ghosts). Next candidates from the same doc: dual moguls against a ghost, Torchlight Parade (needs night), Dummy Downhill, Boardercross heats against AI.
 - [ ] Distant forest: apron tree density (the LiDAR ring is sparser than our cover already), with the performance pass.
 
+### Mobile pass (2026-11-26)
+
+Audit at iPhone SE and iPhone 15 (portrait and landscape) and iPad portrait. `?touch` forces the touch layout on desktop.
+
+- [x] 0.9.35: minimal in-run screen (Settings, Screen while skiing; Auto is minimal on touch).
+- [ ] 0.9.36, menus: Runs as Map / List on portrait phones and side by side in landscape; Rider preview beside the swatches in landscape; Challenges descriptions collapse; compact pause menu with the controls guide behind a button; touch wording ("Tap", not "Hover" or "Click"); 44 px tap targets.
+- [ ] 0.9.37, sizing and platform: layouts for phone portrait, short landscape and tablet (iPad gets the desktop menus with touch controls); `dvh`/`svh` instead of `100vh`; re-detect touch when the input changes; fullscreen and wake lock on Android; a web app manifest for iOS home screen.
+
 ### Queued (from Stu's scenery-blender playtest, 2026-11-25)
 
 - [x] Groomer tracks: two clean carve lines, one per ski, instead of the single track drawn now. Deep snow trenches are behaving well, leave them.

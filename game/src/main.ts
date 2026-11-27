@@ -49,7 +49,7 @@ import { createFrameWatch } from './app/adaptive'
 import { classifyHardware, probeHardware } from './app/hardware'
 import { setSnowDetail } from './fx'
 import { setTextureAnisotropy } from './render/textureBudget'
-import { QUALITY, createSettingsPanel, lighterQuality, readSettings, resolveQuality, shadowsOn, writeSettings, type QualityLevel, type Settings } from './app/settings'
+import { QUALITY, createSettingsPanel, lighterQuality, minimalHud, readSettings, resolveQuality, shadowsOn, writeSettings, type QualityLevel, type Settings } from './app/settings'
 import { lowerAutoCap, readAutoCap } from './app/autoCap'
 import { showGraphicsProblem } from './app/graphicsFail'
 import { createSession, type Challenge, type SessionEvent } from './app/session'
@@ -58,6 +58,7 @@ import { createRunout } from './app/runout'
 import { isRaceFormat } from './world/events'
 import { createCompDirector } from './app/compDirector'
 import { createRaceHud } from './ui/raceHud'
+import { createHudPeek } from './ui/hudPeek'
 import { createGoals, type Goals } from './app/goals'
 import { renderChallenges, renderResults, renderTitle, setTitleStatus } from './ui/goalsPanels'
 import { GATE_PENALTY, progressAlong } from './world/challenges'
@@ -68,6 +69,7 @@ import { createMenuNavigation } from './app/menuNavigation'
 import { createParkHud } from './app/parkHud'
 import type { Point2 } from './world/resort'
 import { createPocketPlayer } from './ui/pocketPlayer'
+import './ui/hudMinimal.css'
 
 const params = new URLSearchParams(location.search)
 const turnModel = (params.get('turns') ?? params.get('turn')) === 'wide' ? 'wide' : 'classic'
@@ -81,6 +83,11 @@ ui.hudVersion.textContent = `v${VERSION}`
 const controls = createControls(document.body)
 const mobile = controls.touch
 const settings = readSettings()
+/** Minimal in-run screen (phones by default): run name, clock and map only when they matter. */
+let hudMin = minimalHud(settings, mobile)
+/** Whether the player wants the resort map; it starts off on the minimal screen. */
+let mapWanted = !hudMin
+const hudPeek = createHudPeek()
 let weatherLive: WeatherPreset = weatherPreset(settings.weather)
 // Quality is fixed for the session (it shapes geometry and buffers); the rest applies live.
 // Auto graphics start from what this machine can do, capped by what it has
@@ -212,6 +219,14 @@ function applySetting(key?: keyof Settings) {
   if (all || key === 'radioMix') music.setMix(settings.radioMix)
   if (all || key === 'musicVolume') music.setVolume(settings.musicVolume)
   if (all || key === 'fov') rig.setFov(settings.fov)
+  if (all || key === 'hud') {
+    hudMin = minimalHud(settings, mobile)
+    document.body.classList.toggle('hud-min', hudMin)
+    if (key === 'hud') {
+      mapWanted = !hudMin
+      if (stageReady && stage.world) ui.mapPanel.hidden = !mapWanted
+    }
+  }
   if (all || key === 'cameraShake') {
     rig.setShake(settings.cameraShake ? 1 : 0)
     haptics.setEnabled(settings.cameraShake)
@@ -338,6 +353,11 @@ for (const [id, action] of [
 ] as const) {
   $(id).addEventListener('click', () => controls.push(action))
 }
+// From the pause menu: back to skiing with the player open.
+$('#btn-pause-player').addEventListener('click', () => {
+  controls.push('pause')
+  controls.push('player')
+})
 resize()
 boot()
 
@@ -439,7 +459,8 @@ function startApex(world: World, scenery?: SceneryAssets) {
     'Elevation and canopy: LidarBC, <a href="https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc">OGL-BC</a>' +
     (world.horizon ? '; horizon: NRCan MRDEM, <a href="https://open.canada.ca/en/open-government-licence-canada">OGL-Canada</a>. ' : '. ') +
     `Runs, lifts and buildings © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.`
-  ui.mapPanel.hidden = false
+  $('#pause-credits').innerHTML = ui.credits.innerHTML
+  ui.mapPanel.hidden = !mapWanted
   const { grid, resort } = world
   perf.phase('credits')
   const runs = pickableRuns(resort)
@@ -559,7 +580,7 @@ function leaveDemoPark() {
   demo.root.visible = false
   apexRoot.visible = true
   stage = apexStage
-  ui.mapPanel.hidden = false
+  ui.mapPanel.hidden = !mapWanted
 }
 
 function startPark(site: ParkSite) {
@@ -591,6 +612,7 @@ function spawn(keepCamera = false) {
   race.begin(challenge, session)
   comp.begin(challenge)
   goals?.resetGates()
+  hudPeek.poke(performance.now())
   tricks.resetTotal()
   // Races are timed, not judged: no trick cards or combos on the course.
   tricks.setMuted(challenge.kind === 'event' && isRaceFormat(challenge.course.def.format))
@@ -1058,7 +1080,8 @@ function handleActions() {
       ui.debug.hidden = !ui.debug.hidden
       $('#btn-info').setAttribute('aria-pressed', String(!ui.debug.hidden))
     } else if (action === 'map' && stage.world) {
-      ui.mapPanel.hidden = !ui.mapPanel.hidden
+      mapWanted = ui.mapPanel.hidden
+      ui.mapPanel.hidden = !mapWanted
       $('#btn-map').setAttribute('aria-pressed', String(!ui.mapPanel.hidden))
     } else if (action === 'runs' || action === 'style' || action === 'settings' || action === 'challenges') {
       if ((action === 'runs' || action === 'challenges') && !apexStage) continue
@@ -1508,6 +1531,11 @@ function updateHud(frameMs: number, steps: number) {
   }
   parkHud.update(skier, stage.features(), !ride && !pause, stage.env.rails ?? [])
   ui.time.textContent = formatTime(session.total)
+  const now = performance.now()
+  hudPeek.update(ui.title.textContent ?? '', now)
+  // Timed runs, parks and events keep the clock up; free skiing shows it on a change.
+  document.body.classList.toggle('hud-peek', hudPeek.visible(now, challenge.kind !== 'free' || !stage.world))
+  document.body.classList.toggle('airborne', !skier.grounded || Boolean(skier.rail))
   if (!ui.debug.hidden) {
     const deg = (rad: number) => `${Math.round((rad * 180) / Math.PI)}°`
     const world = stage.world

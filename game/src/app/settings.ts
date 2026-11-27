@@ -41,6 +41,8 @@ export interface Settings {
   npcs: boolean
   /** Race events: steering toward the next gate is pulled onto the racing line. */
   raceAssist: boolean
+  /** Screen while skiing. Auto is minimal on touch screens and full elsewhere. */
+  hud: 'auto' | 'minimal' | 'full'
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -63,6 +65,7 @@ export const DEFAULT_SETTINGS: Settings = {
   landingAssist: true,
   npcs: true,
   raceAssist: true,
+  hud: 'auto',
 }
 
 export function readSettings(): Settings {
@@ -75,8 +78,14 @@ export function readSettings(): Settings {
   if (typeof settings.lyrics !== 'boolean') settings.lyrics = DEFAULT_SETTINGS.lyrics
   if (!['all', 'vocal', 'instrumental'].includes(settings.radioMix)) settings.radioMix = DEFAULT_SETTINGS.radioMix
   if (typeof settings.musicVolume !== 'number' || !Number.isFinite(settings.musicVolume)) settings.musicVolume = DEFAULT_SETTINGS.musicVolume
+  if (!['auto', 'minimal', 'full'].includes(settings.hud)) settings.hud = DEFAULT_SETTINGS.hud
   if (!settings.weather || !['clear', 'snow', 'storm', 'flat'].includes(settings.weather)) settings.weather = 'snow'
   return settings
+}
+
+/** Whether the minimal in-run screen is used: speed and pause only, everything else when it matters. */
+export function minimalHud(settings: Pick<Settings, 'hud'>, touch: boolean): boolean {
+  return settings.hud === 'minimal' || (settings.hud === 'auto' && touch)
 }
 
 /** Whether shadows draw, from the setting and the graphics profile. */
@@ -302,6 +311,8 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
       ['flat', 'Flat light'],
     ])
     chips('Other skiers', 'npcs', [[true, 'On'], [false, 'Off']])
+    heading('Screen')
+    chips('Screen while skiing', 'hud', [['auto', 'Auto'], ['minimal', 'Minimal'], ['full', 'Full']], 'Minimal shows speed and pause; the run, clock and map appear when they matter. Auto is minimal on touch screens')
     heading('Camera')
     slider('Field of view', 'fov', 48, 75, 1, (v) => `${v}°`)
     chips('Camera follow', 'cameraStyle', [['steady', 'Steady'], ['tight', 'Tight']], 'Steady looks down the hill, tight turns with the skis')
