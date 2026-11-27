@@ -59,6 +59,7 @@ import { isRaceFormat } from './world/events'
 import { createCompDirector } from './app/compDirector'
 import { createRaceHud } from './ui/raceHud'
 import { createHudPeek } from './ui/hudPeek'
+import { createScreenWake, fullscreenSupported, onFullscreenChange, toggleFullscreen } from './app/screen'
 import { createGoals, type Goals } from './app/goals'
 import { renderChallenges, renderResults, renderTitle, setTitleStatus } from './ui/goalsPanels'
 import { GATE_PENALTY, progressAlong } from './world/challenges'
@@ -81,7 +82,10 @@ ui.version.textContent = `v${VERSION}`
 ui.hudVersion.textContent = `v${VERSION}`
 
 const controls = createControls(document.body)
-const mobile = controls.touch
+/** Touch screen at start-up: picks the graphics level, fixed for the session. */
+const touchDevice = controls.touch
+/** Touch controls showing now: follows the input last used. */
+let mobile = controls.touch
 const settings = readSettings()
 /** Minimal in-run screen (phones by default): run name, clock and map only when they matter. */
 let hudMin = minimalHud(settings, mobile)
@@ -92,13 +96,13 @@ let weatherLive: WeatherPreset = weatherPreset(settings.weather)
 // Quality is fixed for the session (it shapes geometry and buffers); the rest applies live.
 // Auto graphics start from what this machine can do, capped by what it has
 // struggled with before (a GPU reset or slow frames).
-const hardware = probeHardware(mobile)
+const hardware = probeHardware(touchDevice)
 const hardwareTier = hardware ? classifyHardware(hardware) : null
 const autoCap = readAutoCap()
 // `?quality=low|medium|high` tries a level for one load without saving it.
 const qualityParam = params.get('quality')
 const forcedQuality = qualityParam === 'low' || qualityParam === 'medium' || qualityParam === 'high' ? qualityParam : null
-const quality = forcedQuality ? QUALITY[forcedQuality] : resolveQuality(settings, mobile, hardwareTier?.level ?? null, autoCap)
+const quality = forcedQuality ? QUALITY[forcedQuality] : resolveQuality(settings, touchDevice, hardwareTier?.level ?? null, autoCap)
 const qualityReason = forcedQuality
   ? 'set by ?quality'
   : settings.quality === 'auto'
@@ -275,12 +279,26 @@ createSettingsPanel(ui.settings, settings, quality.level, (next, key) => {
   writeSettings(next)
   applySetting(key)
 }, hardwareTier?.reason)
-document.body.classList.toggle('touch', mobile)
-const defaultHelp = mobile
-  ? 'Stick: steer · up tuck · down brake · in the air spin and flip. Hold <b>Jump</b> to crouch, release to pop'
-  : '<kbd>WASD</kbd> or arrow keys to ski · <kbd>Space</kbd> jump · <kbd>Esc</kbd> pause'
-ui.help.innerHTML = defaultHelp
-if (mobile) guide.select('touch')
+const TOUCH_HELP = 'Stick: steer · up tuck · down brake · in the air spin and flip. Hold <b>Jump</b> to crouch, release to pop'
+const KEYS_HELP = '<kbd>WASD</kbd> or arrow keys to ski · <kbd>Space</kbd> jump · <kbd>Esc</kbd> pause'
+let defaultHelp = mobile ? TOUCH_HELP : KEYS_HELP
+/** Touch or keyboard layout: body class, minimal screen on Auto, hints and the controls guide. */
+function applyInputMode() {
+  document.body.classList.toggle('touch', mobile)
+  hudMin = minimalHud(settings, mobile)
+  document.body.classList.toggle('hud-min', hudMin)
+  defaultHelp = mobile ? TOUCH_HELP : KEYS_HELP
+  if (!controls.gamepad) ui.help.innerHTML = defaultHelp
+  guide.select(controls.gamepad ? 'pad' : mobile ? 'touch' : 'keys')
+  $('#runs .menu-lead').textContent = mobile
+    ? 'Tap a trail on the map to go there, or pick one from the list.'
+    : 'Hover a trail for its name. Click to go there, or pick one from the list.'
+}
+applyInputMode()
+controls.onTouchChange((touch) => {
+  mobile = touch
+  applyInputMode()
+})
 let padHelpShown = false
 /** Follow the last used input without taking away access to other control guides. */
 function showPadHelp() {
@@ -367,7 +385,14 @@ $('#btn-guide').addEventListener('click', () => {
   $('#btn-guide').setAttribute('aria-expanded', String(open))
   if (open) $('.pause-guide').scrollIntoView({ behavior: 'smooth', block: 'start' })
 })
-if (mobile) $('#runs .menu-lead').textContent = 'Tap a trail on the map to go there, or pick one from the list.'
+// Fullscreen where the browser allows it (not iPhone Safari: add to the home screen there).
+if (fullscreenSupported()) {
+  const button = $('#btn-fullscreen')
+  button.hidden = false
+  button.addEventListener('click', () => void toggleFullscreen())
+  onFullscreenChange((on) => button.setAttribute('aria-pressed', String(on)))
+}
+const screenWake = createScreenWake()
 // From the pause menu: back to skiing with the player open.
 $('#btn-pause-player').addEventListener('click', () => {
   controls.push('pause')
@@ -1130,6 +1155,8 @@ function tick(dt: number, frameMs: number) {
   menuNavigation.sync(nextOverlay)
   showPadHelp()
   const menuOpen = Boolean(nextOverlay)
+  // Keep the screen on while skiing; menus and the title let it sleep.
+  screenWake.set(!menuOpen)
   if (menuOpen !== menuWasOpen) {
     controls.clear()
     skier.jumpHeld = false
@@ -1354,7 +1381,7 @@ function stepRide(dt: number, fast: boolean): SkierPose {
     speed,
     heading: Math.atan2(-Math.sin(yaw), Math.cos(yaw)),
   })
-  ui.rideText.textContent = `Riding ${current.lift.name} · ${Math.ceil(Math.max(0, current.path.total - current.s) / speed)} s${fast ? ' ▸▸' : mobile ? ' · hold Tuck to speed up' : ' · hold W to speed up'}`
+  ui.rideText.textContent = `Riding ${current.lift.name} · ${Math.ceil(Math.max(0, current.path.total - current.s) / speed)} s${fast ? ' ▸▸' : mobile ? ' · push up to speed up' : ' · hold W to speed up'}`
   if (current.s >= current.path.total) beginUnload(current)
   return current.path.aerial ? 'sit' : 'stand'
 }
