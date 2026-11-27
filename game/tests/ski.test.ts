@@ -55,14 +55,20 @@ function testSlope(pitchDeg: number): Slope {
 }
 
 describe('milestone 3 ski feel', () => {
-  it('turns in the pressed direction even when already across the fall line', () => {
+  it('holds a traverse instead of winding uphill, on keys and sticks alike', () => {
+    // 0.9.40: keys used to keep turning past the traverse and spin the skier uphill
+    // and backwards; every input now aims at a heading off the fall line.
     const slope = testSlope(15)
-    for (const steer of [-1, 1]) {
+    const limit = (PHYSICS.maxTraverseDeg * Math.PI) / 180
+    for (const directionalSteering of [true, false]) for (const steer of [-1, 1]) {
       const state = createSkier(slope)
       const heading = steer * (115 * Math.PI) / 180
       state.heading = heading
-      run(state, slope.sampleTerrain, { ...IDLE, steer, directionalSteering: true }, 0.1)
-      expect((state.heading - heading) * steer).toBeGreaterThan(0)
+      run(state, slope.sampleTerrain, { ...IDLE, steer, directionalSteering }, 0.5)
+      expect((state.heading - heading) * steer).toBeLessThanOrEqual(1e-9)
+      // Pressing the other way turns back down through the fall line.
+      run(state, slope.sampleTerrain, { ...IDLE, steer: -steer, directionalSteering }, 0.5)
+      expect(Math.abs(state.heading)).toBeLessThan(limit)
     }
   })
 

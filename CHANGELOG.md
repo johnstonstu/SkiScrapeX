@@ -2,6 +2,20 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.40 (unreleased): Arcade turning on every input
+
+Holding left or right now links turns on any pitch, and keys, controller and touch steer the same way.
+
+### Changed
+
+- **One steering model for every input.** Held keys used to keep turning past straight across the hill and wind round uphill and backwards (up to 180° on a held key). Keys, sticks and touch now all aim the skis at an angle off the fall line. A held direction settles just short of straight across (86°, was 100° on sticks), and the other direction turns back down through the fall line. On a 20° pitch with 1.2 s holds, keys used to average 26 km/h against 31 km/h on a stick. Both now average 41 km/h. Only a nearly stopped skier (under 1.5 m/s) on gentle ground can still spin to face any way, so a slow cat track no longer turns you round.
+- **Turns carve instead of sliding out.** The skis may lead the direction of travel by at most 16° while turning, and below 45 km/h the edge pulls the path round up to 30% harder (fading out by 85 km/h). Washouts need a grip ratio of 2.8 (was 1.9). In held linked turns on a 30° pitch, skidding drops from 20-30% of the time to under 1%, and washouts from 7-15 per 12 s to none. At 80 km/h the path reaches 60° in 1.0-1.1 s instead of 1.4-1.8 s.
+- **Facing downhill is fast, across the hill is slow.** Turns no longer burn speed in a skid, so speed comes from how far across the hill you hold. To stop, brake, or brake while turning for a hockey stop. A held turn settles in a traverse rather than turning uphill to a stop.
+- **Stick tuck and brake need a mostly vertical push.** A phone or controller stick pushed mostly sideways is a turn even if the thumb drifts down, so a hard turn no longer catches the brake. A push within about 55° of vertical still tucks or brakes.
+- **Looser follow camera.** The steady camera swings more slowly and keeps looking down the fall line further into a traverse. With 2.5 s holds it peaks at 48° off the fall line, down from 60°.
+
+Values marked "guess" in `src/sim/constants.ts`, `src/player/input.ts` and `src/player/camera.ts` are first guesses, to tune in play. `npm run tune` now includes `tuning/inputs.test.ts`, which compares keys, pad and touch on skis and the board, and the tune scripts print their tables again.
+
 ## 0.9.39 (2026-11-27): Smaller rider, fewer forest draws
 
 Closes out the phase 1 performance and load items.

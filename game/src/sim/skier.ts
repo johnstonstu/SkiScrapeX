@@ -381,8 +381,21 @@ function stepGround(
     const yawRate = skiYawRate(speed, steerMag, edgeRad, sidecut, env.turnModel) * Math.min(1, powderYaw)
     // Slow on gentle ground (cat tracks, flats) the stick just turns, so you can
     // face any way; on a real pitch it aims at a traverse even when stopped.
-    const gentle = speed < PHYSICS.skateMaxSpeed && Math.hypot(n.x, n.z) < PHYSICS.turnAroundSlopeSin
-    travelBearing = slewHeading(travelBearing, steer, yawRate, dt, directionalSteering || gentle ? null : fallLineHeading(n))
+    // Every input (keys, pad, touch) aims at a traverse measured from the fall line,
+    // so holding one way settles across the hill and the other way links the turn.
+    const gentle = speed < PHYSICS.turnAroundSpeed && Math.hypot(n.x, n.z) < PHYSICS.turnAroundSlopeSin
+    const before = travelBearing
+    travelBearing = slewHeading(travelBearing, steer, yawRate, dt, gentle ? null : fallLineHeading(n))
+    // Arcade carve: the skis may not swing further across the path than
+    // `maxLeadDeg`, so the turn rounds out on the edge instead of sliding out.
+    if (speed > PHYSICS.skateMaxSpeed && state.washout <= 0) {
+      const cap = (PHYSICS.maxLeadDeg * Math.PI) / 180
+      const leadBefore = wrapAngle(before - travel)
+      const lead = wrapAngle(travelBearing - travel)
+      if (Math.abs(lead) > cap && Math.abs(lead) > Math.abs(leadBefore)) {
+        travelBearing = wrapAngle(travel + Math.sign(lead) * Math.max(cap, Math.abs(leadBefore)))
+      }
+    }
   }
 
   state.heading = wrapAngle(travelBearing - stanceOffset)
@@ -447,7 +460,11 @@ function stepGround(
   const attack = planarSpeed > 0.02 ? Math.min(Math.abs(Math.atan2(across, along)), Math.PI / 2) : 0
   if (planarSpeed > 0.02 && spareGrip > 0) {
     const misalign = Math.atan2(across, along)
-    const maxDelta = ((spareGrip * Math.max(Math.cos(attack), 0.2)) / planarSpeed) * dt
+    // Full assist up to `carveAssistKmh[0]`, none by `[1]`, so fast turns still need room.
+    const [assistFull, assistNone] = PHYSICS.carveAssistKmh
+    const assistShare = clamp((assistNone - planarSpeed * 3.6) / (assistNone - assistFull), 0, 1)
+    const assist = braking ? 1 : 1 + (PHYSICS.carveAssist - 1) * assistShare
+    const maxDelta = ((assist * spareGrip * Math.max(Math.cos(attack), 0.2)) / planarSpeed) * dt
     const delta = clamp(misalign, -maxDelta, maxDelta)
     const cosine = Math.cos(delta)
     const sine = Math.sin(delta)
