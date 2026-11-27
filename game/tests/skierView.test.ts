@@ -286,7 +286,8 @@ describe('rider legs', () => {
   it('stands in an athletic stance rather than a squat, and folds deeper in a tuck', () => {
     const standing = pose((s) => ((s.speed = 0), idle)).legs
     const cruising = pose((s) => ((s.speed = 10), idle)).legs
-    const tucked = pose((s) => ((s.speed = 20), (s.tuck = true), { ...idle, tuck: true })).legs
+    // Held a while (the tuck settles in over its first second).
+    const tucked = pose((s) => ((s.speed = 20), (s.tuck = true), (s.tuckTime = 2), { ...idle, tuck: true })).legs
     for (const leg of standing) expect(leg.bend).toBeLessThan(65) // the old fit was ~80°
     for (const leg of cruising) expect(leg.bend).toBeLessThan(68)
     for (let i = 0; i < 2; i++) expect(tucked[i].bend).toBeGreaterThan(cruising[i].bend + 25)

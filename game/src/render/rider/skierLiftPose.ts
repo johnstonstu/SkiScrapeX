@@ -13,9 +13,11 @@ export function applySitPose(args: {
   placeArm: (hand: number, handPos: THREE.Vector3, tip: THREE.Vector3, inRoot?: boolean, floor?: number) => void
   fitLegs: () => void
   scratch: THREE.Vector3
+  /** Extra leg swing from an idle move, metres. */
+  legSwing?: number
 }) {
   const { ridePhase, boarding, hips, spine, chest, head, skis, placeBoard, placeArm, fitLegs, scratch } = args
-  const swing = Math.sin(ridePhase) * 0.045
+  const swing = Math.sin(ridePhase) * 0.045 + (args.legSwing ?? 0)
   hips.position.set(0, 0.5, 0)
   spine.rotation.x = -0.1
   chest.rotation.x = -0.04

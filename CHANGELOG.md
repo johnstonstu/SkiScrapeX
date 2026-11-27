@@ -2,6 +2,24 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.45 (unreleased): Rider animation (grabs, carving, landings, crashes, idles, slow speed, terrain style)
+
+Driven by the rider's physics state; steering and physics are unchanged.
+
+### Changed
+
+- **Grabs take hold of the gear.** The hand used to hang 15 to 65 cm short (beside the knee) because only the arm moved. A grab now brings the skis or board up toward the hand and folds the back down to it, with the gear tilted toward the grabbed end and rolled onto an edge where that is the cheaper move, while keeping the knees off the chest. Every grab on skis and board reaches (new `tests/riderGrabs.test.ts`), and grab clipping is lower than before (Truck driver is now clean). The search costs about 0.1 ms a frame and only runs mid-grab.
+- **Ski knee drive.** In a 50° carve the outside leg locked straight (6° of knee bend). The hips now drop until the longer leg keeps at least 26°, so both knees flex into the turn.
+- **Snowboard heelside and toeside read differently.** Heelside the rider sits lower into the highbacks with both hands forward over the toes; toeside the knees drive in, the front hand reaches low toward the snow and the back hand trails. The shoulders lead the turn.
+- **Landings absorb.** A landing folds the hips back and the chest down by how hard it hits, then the legs push back up.
+- **Close calls.** Landing across the skis or board, very hard, or with a landing graded sketchy, the rider rocks, windmills the arms and skips one ski before catching it.
+- **Getting up after a crash.** Over the last 0.85 s of a crash the rider gathers the gear under the hips and comes up to a crouch, a hand off the snow, before standing (it used to fade straight from lying down to skiing). New rider lab pose: Getting up.
+- **Idle moves.** Stopped for a couple of seconds, the rider plays one of a dozen moves every few seconds: a look round, a shiver with the arms hugged in, straightening the goggles, a stretch, knocking snow off the skis, leaning on the poles, shifting from foot to foot, a glance at the watch, little hops on a board. Now and then (rarely) they crack a beer from the jacket pocket and take two long sips, or smoke a cigarette with three drags. On the chair: beer, smoke, shivers, goggles, looking round and swinging the legs. The can and cigarette are small code-built props in the right hand. Setting off fades any move out in a quarter second. Rider lab: `?idle=beer&idlet=4` (any move name, seconds in).
+- **Pushing.** Heading up a slope the push becomes a herringbone (tips out, inside edges, short lifted steps, poles behind). Nearly stopped on the flat, a push uses either double poles or alternate arms with a parallel shuffle, picked each time.
+- **No snap into a tuck.** On gentle snow the skating strokes fade out over the 2.5 m/s past the push speed instead of stopping dead, and the tuck starts as a high half tuck and folds down over the first second held and as the speed builds (sooner on steep snow). The racing tuck's hands sit higher, out of the thighs. The rider lab's Tuck pose now really tucks.
+- **Snowboard at a crawl.** Below about 10 km/h the board wiggles under the rider; holding push or steer under about 6 km/h, the rider hops the board along.
+- **Style from the terrain.** Steeps keep the rider low and forward with the hands out front and the chest further down the hill; powder sits back a little on a narrower stance with a bounce; ice goes low with the arms wide; speed compacts the stance with the hands forward.
+
 ## 0.9.44 (unreleased): Park lines and rolling starts
 
 Every park now drops you in straight above a line you can ride without turning, and every event starts rolling.
