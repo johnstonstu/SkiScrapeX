@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 import numpy as np
 from osgeo import gdal, osr
 
-from height_packing import pack_heights
+from height_packing import gzip_bytes, pack_heights
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / 'data' / 'raw'
@@ -265,6 +265,14 @@ def main():
         canopy, cover_bytes, height_bytes = build_canopy(ground_tiles, paths, metadata['columns'], metadata['rows'])
         (OUTPUT / canopy['coverFile']).write_bytes(cover_bytes)
         (OUTPUT / canopy['heightFile']).write_bytes(height_bytes)
+        # Gzip copies for the browser (canopy-cover.u8 340 kB to about 180 kB).
+        (OUTPUT / 'canopy-cover.u8.gz.bin').write_bytes(gzip_bytes(cover_bytes))
+        (OUTPUT / 'canopy-height.u8.gz.bin').write_bytes(gzip_bytes(height_bytes))
+        canopy['packed'] = {
+            'coverFile': 'canopy-cover.u8.gz.bin',
+            'heightFile': 'canopy-height.u8.gz.bin',
+            'encoding': 'gzip-v1',
+        }
         metadata['canopy'] = canopy
         print(f"Canopy: {sum(cover_bytes) / 255 / len(cover_bytes):.0%} mean cover")
     except Exception as error:  # canopy is optional; the game falls back to a procedural forest

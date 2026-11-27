@@ -94,3 +94,21 @@ async function loadFromDisk(
     vi.unstubAllGlobals()
   }
 }
+
+const horizonMeta = existsSync(DATA + 'horizon.json') ? JSON.parse(readFileSync(DATA + 'horizon.json', 'utf8')) : undefined
+it.runIf(Boolean(manifest?.canopy?.packed && horizonMeta?.packedHeights && horizonMeta?.packedCanopy &&
+  existsSync(DATA + 'features.json')))('loads the gzip canopy and packed horizon like the raw files', async () => {
+  const packed = await loadFromDisk(manifest!)
+  const raw = await loadFromDisk(manifest!, { gzipSupported: false })
+  const { coverFile, heightFile } = manifest!.canopy!.packed!
+  expect(packed.requests).toEqual(expect.arrayContaining([coverFile, heightFile, horizonMeta.packedHeights.file, horizonMeta.packedCanopy.file]))
+  expect(packed.requests).not.toContain(manifest!.canopy!.coverFile)
+  expect(packed.requests).not.toContain(horizonMeta.heightFile)
+  expect(raw.requests).toContain(horizonMeta.heightFile)
+  const same = (a: ArrayBufferView, b: ArrayBufferView) =>
+    Buffer.from(a.buffer, a.byteOffset, a.byteLength).equals(Buffer.from(b.buffer, b.byteOffset, b.byteLength))
+  expect(same(packed.world.canopy!.cover, raw.world.canopy!.cover)).toBe(true)
+  expect(same(packed.world.canopy!.height, raw.world.canopy!.height)).toBe(true)
+  expect(same(packed.world.horizon!.heights, raw.world.horizon!.heights)).toBe(true)
+  expect(same(packed.world.horizon!.canopy!, raw.world.horizon!.canopy!)).toBe(true)
+})

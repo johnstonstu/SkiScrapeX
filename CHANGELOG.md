@@ -2,7 +2,17 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
-## 0.9.37 (unreleased): Phone screen, fullscreen and home screen
+## 0.9.38 (2026-11-26): Lighter village and smaller first download
+
+### Changed
+
+- **Park hardware batched.** Rails, posts and boxes bake into one mesh per material (a box segment was six draw calls). At the village spot, Low goes from 1,072 to about 415 draws and High from 1,121 to about 465.
+- **Lean tree stand-ins on Low.** Between near and mid, Low draws two-cone trees without a trunk.
+- **Rider model loads later.** The 3.3 MB rider model starts once the height grids are in, instead of competing with them.
+- **Smaller downloads.** A packed horizon (`horizon.delta.bin`) and gzip canopy grids, with fallback to the raw files. Bytes before the title screen drop from about 9.1 MB to 5.2 MB.
+- **Title progress bar**, and the "Building the village" message paints before the build.
+
+## 0.9.37 (2026-11-26): Phone screen, fullscreen and home screen
 
 Last part of the mobile pass.
 
@@ -18,7 +28,7 @@ Last part of the mobile pass.
 - **Game view height** uses `dvh`, so it fits when a phone browser's toolbars slide in and out.
 - **Lift ride on touch** says "push up to speed up" (there is no Tuck button).
 
-## 0.9.36 (unreleased): Menus on phones
+## 0.9.36 (2026-11-26): Menus on phones
 
 Second part of the mobile pass.
 
@@ -32,7 +42,7 @@ Second part of the mobile pass.
 - **Tap targets.** Chips, park layouts, guide tabs, Back, pause toggles, run rows, result buttons and the trail Go button are at least 44 px on touch; rider swatches are 40 px.
 - **Touch wording.** The lift tip says to push the stick up (there is no Tuck button); the radio setting no longer says "P opens the player"; key hints are hidden on result buttons.
 
-## 0.9.35 (unreleased): Minimal screen on phones
+## 0.9.35 (2026-11-26): Minimal screen on phones
 
 First part of the mobile pass. On a phone the HUD, map, tips and buttons covered close to half the screen in portrait.
 
