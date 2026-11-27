@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { loadDiskGrid } from './diskGrid'
 import { downhill, resortFromFeatures, type Resort } from '../src/world/resort'
-import { overlayRuns } from '../src/world/runOverlay'
+import { joinOverlayEnds, overlayRuns } from '../src/world/runOverlay'
 import { applyCorrections } from '../src/world/corrections'
 import { gladeRuns } from '../src/world/glades'
 import { buildSurface, type Canopy, type SurfaceField } from '../src/world/surface'
@@ -36,6 +36,8 @@ export function loadApexWorld(dir = 'public/data/'): ApexWorld {
   const resort = resortFromFeatures(JSON.parse(readFileSync(`${dir}features.json`, 'utf8')), grid.heightAt)
   resort.runs.push(...overlayRuns((part) => downhill(part, grid.heightAt)))
   applyCorrections(resort)
+  // Link the traces to the runs they leave and feed (after the splits, so they join the cut runs).
+  joinOverlayEnds(resort, grid.heightAt)
   resort.runs.push(...gladeRuns())
   resort.runs = resort.runs.filter((run) => run.parts.some((part) => part.some(([x, z]) => Number.isFinite(grid.heightAt(x, z)))))
   const surface = buildSurface(grid, resort, 2.5, [], { canopyCover: canopy.cover })

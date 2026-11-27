@@ -1,4 +1,4 @@
-import type { Run } from './resort'
+import { downhill, type Point2, type Resort, type Run } from './resort'
 
 /**
  * Runs OpenStreetMap does not map at Apex, found as cleared corridors in the
@@ -9,6 +9,7 @@ import type { Run } from './resort'
  * docs/runs-overlay.png. docs/run-names.md has the evidence for each name: L8
  * Highway 97C and L12 Mini-Colorado match the trail map; L15 Crusher is the
  * likeliest of its neighbours. The rest are cuts the trail maps do not name.
+ * `P-` refs are drawn lines (fall lines over open ground), not canopy traces.
  */
 export interface OverlayRun {
   ref: string
@@ -20,6 +21,11 @@ export interface OverlayRun {
   length: number
   drop: number
   points: [number, number][]
+  /**
+   * Optional way in: a gently falling traverse from where skiers arrive to the
+   * run's top, cleared like the run and added as its second part.
+   */
+  entry?: [number, number][]
 }
 
 export const OVERLAY_RUNS: OverlayRun[] = [
@@ -31,7 +37,7 @@ export const OVERLAY_RUNS: OverlayRun[] = [
   { ref: 'W6', name: 'Showdown', difficulty: 'advanced', groomed: false, pitch: 23.7, length: 218, drop: 89, points: [[2395, 2185], [2410, 2190], [2440, 2220], [2465, 2275], [2465, 2310], [2475, 2325], [2475, 2340], [2490, 2355]] },
   { ref: 'L1', name: 'Unnamed cut L1', difficulty: 'intermediate', groomed: true, pitch: 16.6, length: 198, drop: 53, points: [[2060, 560], [2065, 555], [2125, 555], [2145, 545], [2230, 545], [2250, 550]] },
   { ref: 'L2', name: 'Prospector', difficulty: 'intermediate', groomed: true, pitch: 16.5, length: 447, drop: 61, points: [[1700, 610], [1730, 610], [1735, 605], [1750, 610], [1775, 610], [1780, 605], [1790, 610], [1795, 635], [1815, 655], [1815, 680], [1840, 695], [1880, 690], [1980, 610], [2000, 605], [2035, 610]] },
-  { ref: 'L3', name: 'Chaser', difficulty: 'advanced', groomed: false, pitch: 23.6, length: 156, drop: 51, points: [[1475, 715], [1475, 700], [1490, 685], [1490, 660], [1480, 650], [1485, 630], [1475, 620], [1485, 600], [1485, 580]] },
+  { ref: 'L3', name: 'Unnamed cut L3', difficulty: 'advanced', groomed: false, pitch: 23.6, length: 156, drop: 51, points: [[1475, 715], [1475, 700], [1490, 685], [1490, 660], [1480, 650], [1485, 630], [1475, 620], [1485, 600], [1485, 580]] },
   { ref: 'L4', name: 'Unnamed cut L4', difficulty: 'intermediate', groomed: false, pitch: 19.1, length: 558, drop: 170, points: [[1925, 860], [2030, 790], [2105, 755], [2190, 690], [2255, 650], [2355, 600], [2375, 600]] },
   { ref: 'L5', name: 'Unnamed cut L5', difficulty: 'intermediate', groomed: true, pitch: 17.8, length: 471, drop: 135, points: [[2030, 860], [2065, 840], [2080, 840], [2115, 810], [2140, 810], [2205, 780], [2225, 780], [2260, 765], [2315, 720], [2345, 715], [2400, 645]] },
   { ref: 'L6', name: 'Unnamed cut L6', difficulty: 'easy', groomed: false, pitch: 15.6, length: 213, drop: 54, points: [[2225, 875], [2300, 840], [2365, 775], [2375, 775], [2385, 760]] },
@@ -44,11 +50,22 @@ export const OVERLAY_RUNS: OverlayRun[] = [
   { ref: 'L13', name: 'Unnamed cut L13', difficulty: 'expert', groomed: false, pitch: 33.4, length: 270, drop: 56, points: [[1635, 1590], [1665, 1600], [1675, 1610], [1720, 1605], [1735, 1630], [1760, 1630], [1765, 1635], [1770, 1665], [1760, 1690], [1740, 1710], [1720, 1715]] },
   { ref: 'L14', name: 'Unnamed cut L14', difficulty: 'expert', groomed: false, pitch: 32.5, length: 158, drop: 68, points: [[1835, 1590], [1845, 1600], [1865, 1605], [1880, 1620], [1905, 1610], [1915, 1615], [1920, 1620], [1925, 1670]] },
   { ref: 'L15', name: 'Crusher', difficulty: 'advanced', groomed: true, pitch: 24.7, length: 507, drop: 196, points: [[1610, 1730], [1635, 1775], [1635, 1785], [1665, 1810], [1675, 1830], [1670, 1845], [1685, 1870], [1705, 1865], [1820, 1865], [1855, 1885], [1860, 1880], [1900, 1880], [1915, 1890], [1945, 1895], [1975, 1930]] },
+  // The Quickdraw bowl: the north-east-facing horseshoe under the Grandmother's ridge that drains to
+  // the top of Stock's, facing back toward Beaconsfield. Bowl pass (2026-11-27): the research drafts
+  // started Toilet Bowl and both Essendales 500 to 600 m from the chair, past a 300 m ridge flat, so
+  // they were hard to reach. Chaser and Toilet Bowl now drop off the lip where Grandmother's reaches
+  // it; the Essendales start a little way down the headwall, reached by short falling traverses from
+  // the Toilet Bowl entrance (the ridge beyond is flat). Trail-map order from the north: Crusher,
+  // Chaser, Toilet Bowl, Essendale Ward 1 and 2, then Tooth Tusk and Sweet Sue off the Hang 'em High
+  // ridge. Lines are LiDAR fall lines down the
+  // open headwall to the bowl floor (low canopy all the way). Chaser's place is Stu's (2026-11-27:
+  // "the bowl side ... Toilet Bowl, Chaser, Crusher, Tooth, Tusk"); its exact line is a guess.
+  { ref: 'P-CH', name: 'Chaser', difficulty: 'advanced', groomed: false, pitch: 26.2, length: 220, drop: 108, points: [[1612, 1858], [1665, 1872], [1760, 1876], [1830, 1878]] },
+  { ref: 'P-TB', name: 'Toilet Bowl', difficulty: 'advanced', groomed: false, pitch: 25.0, length: 384, drop: 179, points: [[1645, 1932], [1715, 1930], [1818, 1912], [1918, 1905], [1952, 1911], [1980, 1922], [2006, 1946], [2005, 1955]] },
+  { ref: 'P-EW1', name: 'Essendale Ward 1', difficulty: 'advanced', groomed: false, pitch: 30.7, length: 280, drop: 166, points: [[1740, 2005], [1790, 1985], [1830, 1970], [1900, 1948], [1955, 1946], [1995, 1951], [2008, 1957]], entry: [[1680, 1931], [1712, 1968], [1740, 2005]] },
+  { ref: 'P-EW2', name: 'Essendale Ward 2', difficulty: 'advanced', groomed: false, pitch: 31.2, length: 251, drop: 152, points: [[1790, 2055], [1820, 2030], [1850, 2002], [1899, 1977], [1986, 1956], [2012, 1960]], entry: [[1740, 2005], [1762, 2030], [1790, 2055]] },
   // Apex research handoff (2026-11-24, docs/review/apex-terrain): APPROXIMATE LiDAR fall-line drafts
-  // placed by trail-map order on the upper Quickdraw south face, and a least-cost Wildside line.
-  { ref: 'P-TB', name: 'Toilet Bowl', difficulty: 'advanced', groomed: false, pitch: 29.3, length: 315, drop: 177, points: [[1725, 2054], [1747, 2051], [1808, 2010], [1854, 1971], [1884, 1957], [1932, 1949], [1967, 1952], [1991, 1950], [2008, 1956]] },
-  { ref: 'P-EW1', name: 'Essendale Ward 1', difficulty: 'advanced', groomed: false, pitch: 30.9, length: 289, drop: 173, points: [[1758, 2076], [1790, 2074], [1822, 2044], [1859, 2015], [1895, 1996], [1927, 1984], [1962, 1962], [1988, 1953], [2010, 1957]] },
-  { ref: 'P-EW2', name: 'Essendale Ward 2', difficulty: 'advanced', groomed: false, pitch: 31.6, length: 253, drop: 156, points: [[1812, 2103], [1823, 2106], [1829, 2104], [1846, 2084], [1910, 2037], [1965, 1987], [2003, 1961], [2012, 1960]] },
+  // off the Hang 'em High ridge by trail-map order, and a least-cost Wildside line.
   { ref: 'P-TT', name: 'Tooth Tusk', difficulty: 'expert', groomed: false, pitch: 36.1, length: 202, drop: 147, points: [[1926, 2139], [1942, 2136], [1953, 2131], [1987, 2095], [2060, 2040], [2073, 2034], [2091, 2034]] },
   { ref: 'P-SS', name: 'Sweet Sue', difficulty: 'expert', groomed: false, pitch: 34.8, length: 159, drop: 111, points: [[2041, 2173], [2049, 2172], [2054, 2166], [2070, 2128], [2101, 2076], [2112, 2052], [2123, 2042]] },
   { ref: 'P-WE', name: 'Wildly Easy', difficulty: 'intermediate', groomed: true, pitch: 10.6, length: 294, drop: 55, points: [[2160, 2187], [2161, 2202], [2125, 2212], [2101, 2236], [2031, 2284], [2032, 2290], [2023, 2301], [2010, 2355], [1996, 2379], [1998, 2384], [1986, 2391]] },
@@ -64,6 +81,67 @@ export function overlayRuns(downhill: (part: [number, number][]) => [number, num
     wooded: false,
     moguls: false,
     kind: 'line' as const,
-    parts: [downhill(run.points)],
+    parts: run.entry ? [downhill(run.points), downhill(run.entry)] : [downhill(run.points)],
   }))
+}
+
+/** Trace ends further than this from the run they leave or join get a link. */
+const LINK_MIN = 8
+/** Ends further than this are left alone: a real gap, not a tracing shortfall. */
+const LINK_MAX = 50
+
+/**
+ * Join the overlay runs to the runs they leave and feed. The canopy traces
+ * stop where their clearing meets the neighbouring run's clearing, 20 to 40 m
+ * from its centre line, and some of those gaps hold a band of trees you had to
+ * ski through to get on or off the run. Each end within `LINK_MAX` of another
+ * line run, park line or lift terminal gets a short straight link as an extra
+ * part of the same run, so the corridor (and the trees cleared from it) reaches
+ * the neighbour. The traced line stays the run's first and longest part, so
+ * signs, courses and the run profiles still use it.
+ */
+export function joinOverlayEnds(resort: Resort, heightAt: (x: number, z: number) => number): void {
+  const lines = resort.runs.filter((run) => run.kind === 'line')
+  const parks = (resort.parks ?? []).map((park) => park.line)
+  const terminals = resort.lifts.flatMap((lift) => [lift.top, lift.bottom])
+  for (const run of lines) {
+    if (!run.id.startsWith('lidar/')) continue
+    const main = run.parts[0]
+    if (!main || main.length < 2) continue
+    const others = [...lines.filter((other) => other !== run).flatMap((other) => other.parts), ...parks]
+    // A run with a drawn entry is already joined at the top.
+    const hasEntry = run.parts.length > 1
+    for (const end of hasEntry ? [main[main.length - 1]] : [main[0], main[main.length - 1]]) {
+      let best: { d: number; at: Point2 } = { d: Infinity, at: end }
+      for (const line of others) {
+        const at = closestPoint(end, line)
+        const d = Math.hypot(at[0] - end[0], at[1] - end[1])
+        if (d < best.d) best = { d, at }
+      }
+      for (const terminal of terminals) {
+        const d = Math.hypot(terminal[0] - end[0], terminal[1] - end[1])
+        if (d < best.d) best = { d, at: terminal }
+      }
+      if (best.d < LINK_MIN || best.d > LINK_MAX) continue
+      run.parts.push(downhill([best.at, end], heightAt))
+    }
+  }
+}
+
+/** The point of `line` nearest `p`. */
+function closestPoint(p: Point2, line: Point2[]): Point2 {
+  let best: Point2 = line[0]
+  let bestSq = Infinity
+  for (let i = 1; i < line.length; i++) {
+    const [ax, az] = line[i - 1]
+    const [bx, bz] = line[i]
+    const dx = bx - ax
+    const dz = bz - az
+    const t = Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - az) * dz) / (dx * dx + dz * dz || 1)))
+    const x = ax + dx * t
+    const z = az + dz * t
+    const sq = (x - p[0]) ** 2 + (z - p[1]) ** 2
+    if (sq < bestSq) ((bestSq = sq), (best = [x, z]))
+  }
+  return best
 }
