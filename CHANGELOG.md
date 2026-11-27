@@ -18,6 +18,13 @@ Every park now drops you in straight above a line you can ride without turning, 
 
 Tests: `tests/parkLines.test.ts` rides every Apex park's main line hands-off (every jump in the sweet spot, no crash, under 3 m of drift, no overlap between parks) and checks the jump windows; `tests/eventStarts.test.ts` covers the rolling starts.
 
+## 0.9.43 (unreleased): Quickdraw bowl layout
+
+### Changed
+
+- **The bowl is reachable from the chair.** Toilet Bowl, Chaser and the two Essendales start where Grandmother's Trail meets the lip of the bowl under the summit ridge, 300 to 420 m from the Quickdraw top, instead of 530 to 620 m away past a flat stretch of ridge where you ran out of speed. Toilet Bowl now drops through the middle of the headwall. The Essendales start a little way down the face, reached by short falling traverses from the Toilet Bowl entrance. A bot skiing from the chair without poling never drops below 13 km/h on the way in (it fell to 3 km/h before).
+- **Chaser is in the bowl**, between Crusher and Toilet Bowl, where Stu skis it. The short cut by the Poma it used to name is unnamed again.
+- **Traced runs join the runs around them.** The LiDAR-traced runs stopped 20 to 40 m short of the run they leave or feed, and some of those gaps held a band of trees you had to ski through (the tops of Jackpot, ShootOut, Any Which Way Glades and Highway 97C, the bottom of L14). Each gap within 50 m now gets a short cleared link.
 ## 0.9.42 (unreleased): main.ts split into game systems
 
 No change to how the game plays. Builds on 0.9.41.
