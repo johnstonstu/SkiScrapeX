@@ -2,6 +2,14 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.46 (unreleased): Terrain detail by distance
+
+About 500,000 fewer triangles a frame on Medium, with the same look. Builds on 0.9.45.
+
+### Changed
+
+- **Far terrain uses fewer triangles.** The coarse terrain was one 5 m mesh drawn at full detail across the whole 3.2 by 2.6 km crop, about 680,000 triangles every frame. It is now cut into 160 m tiles. Each tile draws every vertex within 420 m of the camera, every second vertex to 950 m, every fourth to 1.8 km and every eighth beyond that. Short skirts hang under tile edges only where two neighbours differ, so no cracks show. Everything is still one draw call, and the index list is rebuilt only when a tile changes detail. The 2 m close-up tiles, the physics and the snow shading are unchanged.
+- Triangles a frame (headless, same views), before and after: Medium start 1.23M to 0.74M, village 1.66M to 1.14M, forest 1.56M to 1.06M, summit 1.24M to 0.74M. Low village 751k to 625k. Draw calls are unchanged.
 ## 0.9.45 (unreleased): Rider animation (grabs, carving, landings, crashes, idles, slow speed, terrain style)
 
 Driven by the rider's physics state; steering and physics are unchanged.

@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { SnowMaterial } from '../../fx'
 import { createTerrainGrid, type TerrainGrid } from '../../world/terrainGrid'
+import { DEFAULT_LOD, createTerrainLod } from './terrainLod'
 import { buildDetailChunk, chunksNear, detailLayout } from '../../world/detailChunks'
 import type { Canopy, SurfaceField } from '../../world/surface'
 import { looseSnowDepth, MAX_LOOSE_SNOW_DEPTH } from '../../world/snow'
@@ -17,7 +18,12 @@ export interface DetailOptions {
   cache: number
   /** Draw the coarse mesh at every `coarseStride`-th sample (2 halves it to 10 m, for phones). */
   coarseStride: 1 | 2
+  /** Distances (m) where far coarse tiles halve their detail again; see terrainLod.ts. */
+  lodBands?: readonly number[]
 }
+
+/** How far the LOD skirts hang below a tile edge (m): deeper than any gap between strides. */
+const LOD_SKIRT_DEPTH = 30
 
 const DEFAULT_DETAIL: DetailOptions = { near: 140, far: 220, buildsPerFrame: 3, budgetMs: 2.5, cache: 48, coarseStride: 1 }
 
@@ -36,34 +42,51 @@ export function createTerrainView(
   // The mesh may be drawn from a subsampled grid; physics keeps the full one.
   const drawn = options.coarseStride === 2 ? subsample(grid, 2) : grid
   const { columns, rows, step, heights, normals } = drawn
-  const positions = new Float32Array(columns * rows * 3)
-  for (let i = 0; i < columns * rows; i++) {
+  // Grid vertices first, then one hanging copy per tile-edge vertex for the LOD skirts.
+  const lod = createTerrainLod({ columns, rows, step }, { ...DEFAULT_LOD, ...(options.lodBands ? { bands: options.lodBands } : {}) })
+  const gridVertices = columns * rows
+  const vertexCount = gridVertices + lod.skirtVertexCount
+  const positions = new Float32Array(vertexCount * 3)
+  for (let i = 0; i < gridVertices; i++) {
     positions[i * 3] = (i % columns) * step
     positions[i * 3 + 1] = Number.isFinite(heights[i]) ? heights[i] : 0
     positions[i * 3 + 2] = Math.floor(i / columns) * step
   }
-  const indices = new Uint32Array((columns - 1) * (rows - 1) * 6)
-  let cursor = 0
-  for (let row = 0; row < rows - 1; row++) {
-    for (let column = 0; column < columns - 1; column++) {
-      const a = row * columns + column
-      const b = a + 1
-      const c = a + columns
-      const d = c + 1
-      indices[cursor++] = a
-      indices[cursor++] = c
-      indices[cursor++] = b
-      indices[cursor++] = b
-      indices[cursor++] = c
-      indices[cursor++] = d
-    }
-  }
+  const allNormals = new Float32Array(vertexCount * 3)
+  allNormals.set(normals.subarray(0, gridVertices * 3))
+  lod.skirtSource.forEach((from, k) => {
+    const i = gridVertices + k
+    positions[i * 3] = positions[from * 3]
+    positions[i * 3 + 1] = positions[from * 3 + 1] - LOD_SKIRT_DEPTH
+    positions[i * 3 + 2] = positions[from * 3 + 2]
+    allNormals[i * 3] = normals[from * 3]
+    allNormals[i * 3 + 1] = normals[from * 3 + 1]
+    allNormals[i * 3 + 2] = normals[from * 3 + 2]
+  })
+  // The index list changes with the camera (tiles switch stride); rebuilt only when one does.
+  const indices = new Uint32Array(lod.maxIndices)
+  const strides = new Uint8Array(lod.tiles.length)
+  const nextStrides = new Uint8Array(lod.tiles.length)
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3))
-  geometry.setIndex(new THREE.BufferAttribute(indices, 1))
+  geometry.setAttribute('normal', new THREE.BufferAttribute(allNormals, 3))
+  const index = new THREE.BufferAttribute(indices, 1)
+  index.setUsage(THREE.DynamicDrawUsage)
+  geometry.setIndex(index)
+  const refreshLod = (x: number, z: number, force = false) => {
+    lod.strides(x, z, nextStrides)
+    if (!force && nextStrides.every((v, i) => v === strides[i])) return
+    strides.set(nextStrides)
+    const count = lod.fill(strides, indices)
+    index.clearUpdateRanges()
+    index.addUpdateRange(0, count)
+    index.needsUpdate = true
+    geometry.setDrawRange(0, count)
+  }
+  // Until the first update, draw everything near the middle of the crop.
+  refreshLod((columns - 1) * step * 0.5, (rows - 1) * step * 0.5, true)
   // Coarse terrain: cut out where detail tiles draw (aFlags.y).
-  const flags = new Uint8Array(columns * rows * 2)
+  const flags = new Uint8Array(vertexCount * 2)
   for (let i = 1; i < flags.length; i += 2) flags[i] = 255
   geometry.setAttribute('aFlags', new THREE.BufferAttribute(flags, 2, true))
   geometry.computeBoundingSphere()
@@ -156,7 +179,12 @@ export function createTerrainView(
     material,
     /** Move the detail ring; call each frame with the camera position. */
     update(x: number, z: number) {
+      refreshLod(x, z)
       detail?.update(x, z)
+    },
+    /** Coarse triangles drawn now (LOD), for the info overlay. */
+    get coarseTriangles() {
+      return geometry.drawRange.count / 3
     },
     get detailTiles() {
       return detail?.visible ?? 0
