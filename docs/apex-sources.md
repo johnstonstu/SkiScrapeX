@@ -29,7 +29,7 @@ Video could not be watched from here; transcripts and descriptions turned up not
 
 ## Not applied (needs Stu or better sources)
 
-- Sweet Sue, Tooth/Tusk, Essendale and Toilet Bowl sit left of Crusher on the map, between the ridge and the top of Stock's. The canopy scan found no cleared corridors there, so they are probably gladed; their lines would be guesses.
+- Sweet Sue, Tooth/Tusk, Essendale and Toilet Bowl sit left of Crusher on the map, between the ridge and the top of Stock's. The canopy scan found no cleared corridors there (the bowl is mostly open above treeline), so their lines are drawn fall lines; see the bowl pass in `docs/run-names.md`.
 - W1 to W6 are the Wildside lines from Hang'em High down to Grandmother's. The candidates are ShootOut, Gun Slinger, Jackpot, Showdown, Panhandler and Gauntlet, but neither map labels them individually.
 - L10, L13 and L14 lie between named runs where the maps show no run: probably unnamed cuts or glade lines.
 - Glade areas from the 2026/27 map (Fools Gold beside Stock's Chair, Hidden Gold left of Whipsaw, and the Wildside glades) are not mapped as areas yet.
