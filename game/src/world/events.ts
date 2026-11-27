@@ -9,7 +9,7 @@
 import { headingFor, pointAlong, polylineLength, type Point2, type Resort, type Run } from './resort'
 import { mainLine, trimLine, type Gate, type MedalTargets } from './challenges'
 import { buildMogulCourse, type MogulCourse } from './mogulCourse'
-import { parkSitesFromLines } from './park'
+import { parkSitesFromLines, type ParkSite } from './park'
 
 export type EventFormat =
   /** Fastest clock wins; missed gates (if any) disqualify. */
@@ -247,14 +247,15 @@ function nearestIndex(line: Point2[], [x, z]: Point2): number {
 }
 
 /** Join legs into one line, dropping points closer than 1 m to the previous one. */
-export function stitch(resort: Resort, legs: Leg[]): Point2[] {
+/** `parks`: the game's park sites, so a park leg runs down the park's straight drop-in axis like a park run does. */
+export function stitch(resort: Resort, legs: Leg[], parks?: ParkSite[]): Point2[] {
   const out: Point2[] = []
   for (const leg of legs) {
     let line: Point2[]
     if (leg.park) {
-      const site = parkSitesFromLines(resort.parks).find((p) => p.name === leg.run)
+      const site = (parks ?? parkSitesFromLines(resort.parks)).find((p) => p.name === leg.run)
       if (!site) throw new Error(`Event park ${leg.run} is not in the resort`)
-      line = site.line
+      line = site.featureLine ?? site.line
     } else {
       const run: Run | undefined = resort.runs.find((r) => r.name === leg.run)
       if (!run) throw new Error(`Event leg ${leg.run} is not in the resort`)
@@ -328,6 +329,31 @@ export interface EventCourse {
   splits: number[]
   /** The mogul comp's lane, bumps, turns and airs. */
   moguls?: MogulCourse
+  /**
+   * Metres of gentle ground from the start before the course holds a real
+   * pitch (the summit cat track above the Chute and Gunbarrel). The racer is
+   * poled along it. 0 when the course drops straight away, or without terrain.
+   */
+  startFlat?: number
+}
+
+/** Pitch (degrees) and run (metres) that count as the course dropping away from the start. */
+const START_PITCH = 7
+const START_PITCH_RUN = 50
+
+/** Metres from the start until the line first falls at `START_PITCH` or more for `START_PITCH_RUN` metres (capped at 600). */
+export function startFlatLength(line: Point2[], heightAt: (x: number, z: number) => number): number {
+  const total = Math.min(600, polylineLength(line))
+  const steep = Math.tan((START_PITCH * Math.PI) / 180)
+  const h = (s: number) => heightAt(...pointAlong(line, s))
+  let run = 0
+  for (let s = 0; s + 10 <= total; s += 10) {
+    if ((h(s) - h(s + 10)) / 10 >= steep) {
+      run += 10
+      if (run >= START_PITCH_RUN) return Math.max(0, s + 10 - run)
+    } else run = 0
+  }
+  return total
 }
 
 /** Formats raced against the clock on a prepared track, as opposed to the judged ones. */
@@ -352,8 +378,8 @@ export function raceTrack(course: EventCourse): { line: Point2[]; halfWidth: num
   return { line: course.line, halfWidth }
 }
 
-export function buildEventCourse(resort: Resort, def: EventDef): EventCourse {
-  const stitched = trimLine(stitch(resort, def.legs), def.startTrim ?? 0)
+export function buildEventCourse(resort: Resort, def: EventDef, parks?: ParkSite[], heightAt?: (x: number, z: number) => number): EventCourse {
+  const stitched = trimLine(stitch(resort, def.legs, parks), def.startTrim ?? 0)
   const line: Point2[] = def.straight ? [stitched[0], pointAlong(stitched, def.straight)] : stitched
   const length = polylineLength(line)
   const moguls = def.format === 'moguls' ? buildMogulCourse(line[0], line[line.length - 1]) : undefined
@@ -365,6 +391,7 @@ export function buildEventCourse(resort: Resort, def: EventDef): EventCourse {
     trap: def.trap ? [def.trap[0] * length, def.trap[1] * length] : null,
     splits: def.splits.map((share) => share * length),
     moguls,
+    startFlat: heightAt && isRaceFormat(def.format) ? startFlatLength(line, heightAt) : 0,
   }
 }
 

@@ -30,7 +30,7 @@ import { SKI_MODELS, createStylePanel, readOutfit, writeOutfit } from './ui/ride
 import { loadWorld, type World } from './world/loadWorld'
 import { chooseExit, type ExitSpot } from './app/liftExit'
 import { chooseCourse, courseForRun, headingFor, liftAtBottom, nearestOnPolyline, pickableRuns, pointAlong, type Course as RunCourse, type Lift, type Run } from './world/resort'
-import { approachAim, featureAhead, type ParkSite } from './world/park'
+import { approachAim, dropInSpawn, featureAhead, type ParkSite } from './world/park'
 import { pushOutOfRing } from './world/buildings'
 import { resolveTreeContact } from './world/treeSkiing'
 import { createPerfProbe } from './app/perf'
@@ -69,6 +69,7 @@ import { createNpcs, type Npcs } from './app/npcs'
 import { createPauseGuide } from './app/pauseGuide'
 import { createMenuNavigation } from './app/menuNavigation'
 import { createParkHud } from './app/parkHud'
+import { createParkPace, type PaceCue } from './app/parkPace'
 import type { Point2 } from './world/resort'
 import { createPocketPlayer } from './ui/pocketPlayer'
 import './ui/hudMinimal.css'
@@ -207,6 +208,10 @@ const gearDrops = createGearDrops(scene)
 const effects = createSnowEffects(scene, lighting, pixelRatio, quality)
 effects.setBoard(outfit.model === 'snowboard')
 const tricks = createTrickFeed(ui.trick)
+/** Park run-ins: eases the speed toward each jump's sweet spot and reports where jumps land. */
+const parkPace = createParkPace()
+/** The park assist's view of the next jump this frame, for the cue. */
+let paceNow: PaceCue | null = null
 const raceHud = createRaceHud()
 /** Braking after the finish line before the result shows. */
 const runout = createRunout()
@@ -643,10 +648,9 @@ function leaveDemoPark() {
 function startPark(site: ParkSite) {
   leaveDemoPark()
   setFreeSki()
-  const [x, z] = pointAlong(site.line, 4)
-  const [ax, az] = pointAlong(site.line, 16)
   course = {
-    spawn: { x, z, heading: headingFor(ax - x, az - z) },
+    // Dropped in at the top of the park, straight down the main line and already rolling.
+    spawn: dropInSpawn(site),
     startLift: null,
     startRun: { id: site.id, name: site.name, difficulty: 'park', groomed: true, kind: 'line', parts: [site.line] },
   }
@@ -671,6 +675,7 @@ function spawn(keepCamera = false) {
   goals?.resetGates()
   hudPeek.poke(performance.now())
   tricks.resetTotal()
+  parkPace.reset()
   // Races are timed, not judged: no trick cards or combos on the course.
   tricks.setMuted(challenge.kind === 'event' && isRaceFormat(challenge.course.def.format))
   effects.clear()
@@ -1247,14 +1252,31 @@ function tick(dt: number, frameMs: number) {
     // Held in the start gate until GO.
   } else {
     perf.begin()
-    steps = advance(clock, skier, input, stage.slope.sampleTerrain, dt, stage.env, stage.trunks ? checkTreeContact : undefined)
+    // Park features only stand in the parks (and the demo park); the race and mogul courses ride without the assist.
+    const features = stage.features()
+    const parked = features.length > 0 && (challenge.kind !== 'event' || challenge.course.def.format === 'aerials')
+    const paceStrength = parked && settings.landingAssist ? 1 : 0
+    const rails = stage.env.rails ?? []
+    const trees = stage.trunks ? checkTreeContact : undefined
+    // The park assist runs after every physics step (takeoffs are a single step).
+    const afterStep = parked
+      ? (fromX: number, fromZ: number) => {
+          trees?.(fromX, fromZ)
+          parkPace.step(skier, input, features, rails, clock.fixedDt, paceStrength)
+        }
+      : trees
+    steps = advance(clock, skier, input, stage.slope.sampleTerrain, dt, stage.env, afterStep)
+    paceNow = parked ? parkPace.cue : null
+    const landed = parked ? parkPace.takeLanding() : null
+    if (landed) parkHud.landed(landed, performance.now())
     perf.lap('sim')
-    if (tricks.onTrick(skier.trick) && skier.trick?.kind === 'air') {
+    if (tricks.onTrick(skier.trick, landed?.outcome ?? null) && skier.trick?.kind === 'air') {
       comp.onTrick(skier.trick)
       rig.landingImpulse(skier.trick)
       haptics.landing(skier.trick)
     }
-    tricks.update(dt, skier.grounded && !skier.rail)
+    // Riding on toward the next feature holds the combo open, so a whole park line links.
+    tricks.update(dt, skier.grounded && !skier.rail, parked && skier.speed > 3 && Boolean(paceNow || approachAim(features, stage.env.rails ?? [], skier.x, skier.z, -Math.sin(skier.heading), Math.cos(skier.heading), 60)))
     if (skier.mode === 'crashed' && !crashShown) {
       crashShown = true
       tricks.drop()
@@ -1590,7 +1612,7 @@ function updateHud(frameMs: number, steps: number) {
     ui.speed.textContent = `${kmh}`
     ui.speedo.style.setProperty('--speed', Math.min(1, kmh / 100).toFixed(2))
   }
-  parkHud.update(skier, stage.features(), !ride && !pause, stage.env.rails ?? [])
+  parkHud.update(skier, stage.features(), !ride && !pause, stage.env.rails ?? [], paceNow)
   ui.time.textContent = formatTime(session.total)
   const now = performance.now()
   hudPeek.update(ui.title.textContent ?? '', now)

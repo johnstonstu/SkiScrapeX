@@ -223,6 +223,14 @@ export function createSkier(slope: Slope): SkiState {
   if (!ground) throw new Error(`Spawn (${state.x}, ${state.z}) is outside the slope`)
   state.y = ground.height
   state.pitch = pitchOf(ground.normal)
+  const roll = slope.spawn.speed ?? 0
+  if (roll > 0) {
+    const { forward } = skiFrame(state.heading, ground.normal)
+    state.vx = forward.x * roll
+    state.vy = forward.y * roll
+    state.vz = forward.z * roll
+    state.speed = roll
+  }
   return state
 }
 

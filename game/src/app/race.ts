@@ -24,6 +24,12 @@ export const PUSH_WINDOW = 0.3
 export const ANTICIPATE = 0.35
 /** Speed a fast start adds down the line, m/s. */
 export const FAST_START_KICK = 2
+/**
+ * Every racer leaves the gate at least this fast, m/s (about 22 km/h): the
+ * lunge out of the wand and the first skate strides, so no start is a
+ * standing push from zero (Stu, 2026-11-27).
+ */
+export const START_SPEED = 6
 
 export type StartEvent = 'go' | 'fastStart'
 
