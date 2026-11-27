@@ -6,9 +6,15 @@
  *
  * Garment colours come from three slots (base, accent, trim) picked per texel
  * by the baked mask: R = accent, G = trim, B = ambient occlusion.
+ *
+ * The GLB holds only geometry (meshopt-compressed by scripts/pack-rider.mjs).
+ * Each garment's mask and normal map are separate JPEGs under models/rider/,
+ * fetched the first time a rider wears that garment, so the first download is
+ * the default outfit rather than every style in the wardrobe.
  */
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { applyTextureBudget } from '../textureBudget'
 import { createGarmentMaterial, createRiderWeather, type GarmentSurface, type RiderWeather } from './garmentMaterial'
 
@@ -30,17 +36,94 @@ interface GarmentSource {
   normal: THREE.Texture | null
   normalScale: THREE.Vector2
   lens: boolean
+  /** Fetches this garment's mask and normal map into `mask` and `normal` (shared by every rider). */
+  loadMaps?: () => Promise<void>
 }
 
 export interface RiderAsset {
   garments: Map<string, GarmentSource[]>
 }
 
+/** Fetch the maps for these garments (all of them when omitted); resolves once they are on their textures. */
+export function loadGarmentMaps(asset: RiderAsset, names?: Iterable<string>): Promise<void> {
+  const list = names ? [...names] : [...asset.garments.keys()]
+  return Promise.all(
+    list.flatMap((name) => (asset.garments.get(name) ?? []).map((source) => source.loadMaps?.() ?? Promise.resolve())),
+  ).then(() => {})
+}
+
+/** The garments a rider shows for one outfit choice. */
+export function garmentsFor(choice: { jacket: JacketStyle; pants: PantsStyle; gloves: GloveStyle; headwear: Headwear }): string[] {
+  return [`jacket_${choice.jacket}`, `pants_${choice.pants}`, `gloves_${choice.gloves}`, 'head_face', 'head_goggles', `head_${choice.headwear}`]
+}
+
+/** A 1x1 stand-in so a garment's material compiles with its final maps before the JPEGs arrive. */
+function placeholder(rgb: [number, number, number]): THREE.Texture {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 1
+  const context = canvas.getContext('2d')!
+  context.fillStyle = `rgb(${rgb.join(',')})`
+  context.fillRect(0, 0, 1, 1)
+  const texture = new THREE.Texture(canvas)
+  texture.flipY = false // glTF UVs
+  texture.colorSpace = THREE.NoColorSpace // the mask and the normal map are data
+  texture.needsUpdate = true
+  applyTextureBudget(texture)
+  return texture
+}
+
+/** Decodes a JPEG off the main thread where the browser can, without colour management. */
+async function fetchImage(url: string): Promise<TexImageSource> {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`)
+  const blob = await response.blob()
+  if (typeof createImageBitmap === 'function') {
+    try {
+      return await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' })
+    } catch {
+      // Older Safari rejects the options; fall back to an <img>.
+    }
+  }
+  const image = new Image()
+  image.src = URL.createObjectURL(blob)
+  try {
+    await image.decode()
+  } finally {
+    URL.revokeObjectURL(image.src)
+  }
+  return image
+}
+
+/** Gives `source` lazily loaded maps from the file names pack-rider.mjs left in the material's extras. */
+function attachLazyMaps(source: GarmentSource, extras: { mask?: string; normal?: string; normalScale?: number }, base: string) {
+  if (extras.mask) source.mask = placeholder([0, 0, 255]) // all base colour, no occlusion
+  if (extras.normal) {
+    source.normal = placeholder([128, 128, 255]) // flat
+    source.normalScale.setScalar(extras.normalScale ?? 1)
+  }
+  let pending: Promise<void> | null = null
+  source.loadMaps = () =>
+    (pending ??= Promise.all(
+      ([[source.mask, extras.mask], [source.normal, extras.normal]] as const).map(async ([texture, file]) => {
+        if (!texture || !file) return
+        const image = await fetchImage(base + file)
+        texture.source = new THREE.Source(image)
+        texture.needsUpdate = true
+      }),
+    ).then(
+      () => {},
+      (error: unknown) => {
+        pending = null // try again next time the garment is shown
+        console.warn(`Rider textures for ${source.name} failed to load; showing flat colours.`, error)
+      },
+    ))
+}
+
 let assetPromise: Promise<RiderAsset> | null = null
 let gate: Promise<void> = Promise.resolve()
 
 /**
- * Hold the rider GLB download (about 3 MB) until the returned function is
+ * Hold the rider GLB download (about 0.6 MB, plus 0.5 MB of maps for the outfit) until the returned function is
  * called, so it does not compete with the terrain on a slow connection. The
  * code-built body shows until then. Call before any rider is created.
  */
@@ -52,7 +135,8 @@ export function holdRiderAsset(): () => void {
 
 /** Loads and caches the rider GLB; every rider shares its geometry and textures. */
 export function loadRiderAsset(url = `${import.meta.env.BASE_URL}models/rider.glb`): Promise<RiderAsset> {
-  assetPromise ??= gate.then(() => new GLTFLoader().loadAsync(url)).then(
+  const base = url.slice(0, url.lastIndexOf('/') + 1)
+  assetPromise ??= gate.then(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url)).then(
     (gltf) => {
       const garments = new Map<string, GarmentSource[]>()
       gltf.scene.updateMatrixWorld(true)
@@ -68,7 +152,7 @@ export function loadRiderAsset(url = `${import.meta.env.BASE_URL}models/rider.gl
           material.map.needsUpdate = true
         }
         const list = garments.get(garment) ?? []
-        list.push({
+        const source: GarmentSource = {
           name: garment,
           geometry: mesh.geometry,
           boneNames: mesh.skeleton.bones.map((bone) => bone.name),
@@ -76,7 +160,9 @@ export function loadRiderAsset(url = `${import.meta.env.BASE_URL}models/rider.gl
           normal: material.normalMap,
           normalScale: material.normalScale.clone(),
           lens: slot === 'lens',
-        })
+        }
+        if (!material.map && !material.normalMap) attachLazyMaps(source, material.userData, base)
+        list.push(source)
         garments.set(garment, list)
       })
       if (!garments.size) throw new Error(`rider asset ${url} has no skinned garments`)
@@ -182,10 +268,8 @@ export function createRiderSkin(
   return {
     weather,
     apply(choice, colours) {
-      shown = new Set([
-        `jacket_${choice.jacket}`, `pants_${choice.pants}`, `gloves_${choice.gloves}`,
-        'head_face', 'head_goggles', `head_${choice.headwear}`,
-      ])
+      shown = new Set(garmentsFor(choice))
+      void loadGarmentMaps(asset, shown)
       for (const [name, slot] of uniforms) {
         const colour = colours[name.split('_')[0]] ?? colours[name]
         const own = colours[name] ?? colour

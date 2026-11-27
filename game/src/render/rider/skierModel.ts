@@ -16,7 +16,7 @@ import { makeBoardBoot, makeSkiBoot } from './riderBoot'
 import { jacketGeometry, fabricWeave } from './riderCloth'
 import { ClothPhysics } from './clothPhysics'
 import type { RiderSnow } from './riderSnow'
-import { createRiderSkin, loadRiderAsset, type GarmentColours, type GloveStyle, type Headwear, type JacketStyle, type PantsStyle, type RiderAsset, type RiderSkin } from './riderSkin'
+import { createRiderSkin, garmentsFor, loadGarmentMaps, loadRiderAsset, type GarmentColours, type GloveStyle, type Headwear, type JacketStyle, type PantsStyle, type RiderAsset, type RiderSkin } from './riderSkin'
 
 /** Binding centres and boot yaw in the snowboard's local frame. */
 export const BOARD_BINDINGS = [
@@ -197,6 +197,16 @@ export type RiderRig = ReturnType<typeof buildRider>
 export const REST_HIP_HEIGHT = 1.14
 export const REST_ARM_SPREAD = 0.6
 export const REST_LEG_SPREAD = 0.06
+
+/** The garment styles a look wears, with the defaults older saves fall back to. */
+function lookChoice(look: RiderLook): { jacket: JacketStyle; pants: PantsStyle; gloves: GloveStyle; headwear: Headwear } {
+  return {
+    jacket: look.jacketStyle ?? 'shell',
+    pants: look.pantsStyle ?? (look.fit === 'slim' ? 'slim' : 'baggy'),
+    gloves: look.gloves ?? 'mitt',
+    headwear: look.headwear ?? 'helmet',
+  }
+}
 
 export function buildRider() {
   const root = new THREE.Group()
@@ -653,12 +663,7 @@ export function buildRider() {
       head_beanie: { base: look.helmet, accent, trim: dark },
       head_cap: { base: look.helmet, accent, trim: accent },
     }
-    skin.apply({
-      jacket: look.jacketStyle ?? 'shell',
-      pants: look.pantsStyle ?? (look.fit === 'slim' ? 'slim' : 'baggy'),
-      gloves: look.gloves ?? 'mitt',
-      headwear: look.headwear ?? 'helmet',
-    }, colours)
+    skin.apply(lookChoice(look), colours)
     hideProcedural()
   }
 
@@ -714,9 +719,18 @@ export function buildRider() {
       if (lastWeather) rigApi.setWeather(lastWeather.time, lastWeather.wind, lastWeather.snow)
       hideProcedural()
     },
-    /** Load rider.glb and swap it in; the code-built body stays if loading fails. */
+    /**
+     * Load rider.glb and swap it in once the current outfit's maps are in (or
+     * after a few seconds without them); the code-built body stays if loading fails.
+     */
     loadSkin() {
-      return loadRiderAsset().then((asset) => rigApi.attachSkin(asset))
+      return loadRiderAsset().then(async (asset) => {
+        if (lastLook) {
+          const maps = loadGarmentMaps(asset, garmentsFor(lookChoice(lastLook)))
+          await Promise.race([maps, new Promise((resolve) => setTimeout(resolve, 4000))])
+        }
+        rigApi.attachSkin(asset)
+      })
     },
     setFirstPerson(on: boolean) {
       firstPerson = on
