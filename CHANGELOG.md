@@ -2,6 +2,23 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.48 (unreleased): Snow effects
+
+Bigger, livelier snow around the rider, read from the rider's state. Physics and steering are unchanged. Builds on 0.9.47.
+
+### Added
+
+- **Powder clouds.** Soft billows bloom and settle on hard landings, at the start of a crash, behind deep-snow turns and a little on a hard skidded stop. A small fixed pool (48 / 96 / 160 clouds on Low / Medium / High) in one instanced draw, shaded from above so snow on snow still reads.
+- **Speed streaks.** From about 50 km/h (sooner in a tuck) faint snow streaks fly past toward the edges of the view, full by about 90 km/h. One additive line draw (120 / 220 / 360 streaks). The middle of the screen stays clear, and they are off with reduced motion.
+- **Crash ploughing.** A crash throws a burst of spray and leaves a short plume while the body slides.
+
+### Changed
+
+- **Carve spray follows edge angle.** A shallow edge throws a whisper; a laid-over carve at speed throws a fan off the outside ski, which now throws most of it.
+- **Spray is lit by the scene.** Flakes and clouds take their colour from the sun and sky, so they no longer glow at dusk.
+- **Spray is cheaper.** Each live flake is written once as an instance instead of six vertices, and only the live range is uploaded.
+- Draw calls (headless, Medium, same frames as 0.9.47): +0 when nothing is active, +1 for clouds, +1 for streaks at speed. CPU scene update stayed about 0.2 ms a frame.
+
 ## 0.9.47 (unreleased): Lighter forest, triangle budget
 
 About 40,000 to 70,000 fewer triangles a frame on Medium and High, with the same look up close. Builds on 0.9.46.
