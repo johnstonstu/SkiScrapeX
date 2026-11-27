@@ -3,6 +3,19 @@ import { escapeHtml } from './format'
 
 /** A trick must score this much, and be new to the combo, to raise the multiplier. */
 export const COMBO_MIN_POINTS = 100
+/** Seconds on the snow before an open combo banks. */
+export const COMBO_GROUND_TIME = 3
+/**
+ * Riding on toward the next park feature, the combo stays open this much
+ * longer (the ground clock runs at a quarter speed), so a whole line links.
+ */
+export const COMBO_LINE_SLOWDOWN = 0.25
+/** Points for a jump landed in the sweet spot, as a share of the trick. */
+export const SWEET_SPOT_BONUS = 0.25
+
+/** Where a park jump came down, for the trick card. */
+export type LandingSpot = 'sweet' | 'cased' | 'overshot'
+const SPOT_NOTE: Record<LandingSpot, string> = { sweet: 'sweet spot', cased: 'cased', overshot: 'overshot' }
 
 export interface ComboState {
   tricks: string[]
@@ -80,7 +93,8 @@ export function createTrickFeed(element: HTMLElement) {
       muted = on
       if (on) drop()
     },
-    onTrick(trick: TrickEvent | null) {
+    /** `spot`: where a park jump came down; the sweet spot scores a bonus. */
+    onTrick(trick: TrickEvent | null, spot: LandingSpot | null = null) {
       if (!trick || trick.seq === lastSeq) return false
       lastSeq = trick.seq
       if (muted) return true
@@ -90,7 +104,8 @@ export function createTrickFeed(element: HTMLElement) {
         drop()
         return true
       }
-      const points = addToCombo(combo, trick.name, trick.points)
+      const sweet = trick.kind === 'air' && spot === 'sweet'
+      const points = addToCombo(combo, trick.name, Math.round(trick.points * (sweet ? 1 + SWEET_SPOT_BONUS : 1)))
       combo.groundTime = 0
       if (trick.kind === 'rail') stats.railMetres += trick.railMetres
       else if (trick.grade === 'perfect') stats.perfect++
@@ -102,14 +117,19 @@ export function createTrickFeed(element: HTMLElement) {
       const grade = trick.kind === 'rail'
         ? (trick.grade === 'sketchy' ? 'Slipped off' : 'Clean exit')
         : trick.grade === 'perfect' ? 'Perfect landing' : trick.grade === 'sketchy' ? 'Sketchy landing' : 'Clean landing'
-      show(trick.name, grade, trick.grade, `+${points.toLocaleString()}`, combo.multiplier)
+      const note = trick.kind === 'air' && spot ? ` · ${SPOT_NOTE[spot]}${sweet ? ` +${Math.round(SWEET_SPOT_BONUS * 100)}%` : ''}` : ''
+      show(trick.name, grade + note, trick.grade, `+${points.toLocaleString()}`, combo.multiplier)
       return true
     },
-    /** Call every step with whether the skier is on the snow (not air, not rail). */
-    update(dt: number, onSnow: boolean) {
+    /**
+     * Call every step with whether the skier is on the snow (not air, not
+     * rail), and whether a park feature is coming up on the line (the combo
+     * then holds open much longer, so a run of features links).
+     */
+    update(dt: number, onSnow: boolean, lineAhead = false) {
       if (!combo.tricks.length) return
-      if (onSnow) combo.groundTime += dt
-      if (combo.groundTime > 3) {
+      if (onSnow) combo.groundTime += dt * (lineAhead ? COMBO_LINE_SLOWDOWN : 1)
+      if (combo.groundTime > COMBO_GROUND_TIME) {
         const banked = combo.points * combo.multiplier
         combo.total += banked
         show(combo.multiplier > 1 ? `Combo ×${combo.multiplier}` : 'Banked', `${combo.total.toLocaleString()} total`, 'bank', `+${banked.toLocaleString()}`)

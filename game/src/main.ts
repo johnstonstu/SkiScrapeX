@@ -33,7 +33,7 @@ import { createMinimap } from './ui/minimap'
 import { SKI_MODELS, createStylePanel, readOutfit, writeOutfit } from './ui/riderPanel'
 import { loadWorld, type World } from './world/loadWorld'
 import { courseForRun, headingFor, pickableRuns, pointAlong, type Course as RunCourse, type Run } from './world/resort'
-import { approachAim, type ParkSite } from './world/park'
+import { approachAim, dropInSpawn, type ParkSite } from './world/park'
 import { resolveTreeContact } from './world/treeSkiing'
 import { createPerfProbe } from './app/perf'
 import { $, getUi } from './app/dom'
@@ -69,6 +69,7 @@ import { createNpcs } from './app/npcs'
 import { createPauseGuide } from './app/pauseGuide'
 import { createMenuNavigation } from './app/menuNavigation'
 import { createParkHud } from './app/parkHud'
+import { createParkPace } from './app/parkPace'
 import { createPocketPlayer } from './ui/pocketPlayer'
 import { createGameState } from './app/game/state'
 import { createLiftRides } from './app/game/liftRide'
@@ -208,6 +209,8 @@ const gearDrops = createGearDrops(scene)
 const effects = createSnowEffects(scene, lighting, pixelRatio, quality)
 effects.setBoard(outfit.model === 'snowboard')
 const tricks = createTrickFeed(ui.trick)
+/** Park run-ins: eases the speed toward each jump's sweet spot and reports where jumps land. */
+const parkPace = createParkPace()
 const raceHud = createRaceHud()
 /** Braking after the finish line before the result shows. */
 const runout = createRunout()
@@ -605,10 +608,9 @@ function leaveDemoPark() {
 function startPark(site: ParkSite) {
   leaveDemoPark()
   flow.setFreeSki()
-  const [x, z] = pointAlong(site.line, 4)
-  const [ax, az] = pointAlong(site.line, 16)
   game.course = {
-    spawn: { x, z, heading: headingFor(ax - x, az - z) },
+    // Dropped in at the top of the park, straight down the main line and already rolling.
+    spawn: dropInSpawn(site),
     startLift: null,
     startRun: { id: site.id, name: site.name, difficulty: 'park', groomed: true, kind: 'line', parts: [site.line] },
   }
@@ -633,6 +635,7 @@ function spawn(keepCamera = false) {
   game.goals?.resetGates()
   hudPeek.poke(performance.now())
   tricks.resetTotal()
+  parkPace.reset()
   // Races are timed, not judged: no trick cards or combos on the course.
   tricks.setMuted(game.challenge.kind === 'event' && isRaceFormat(game.challenge.course.def.format))
   effects.clear()
@@ -914,14 +917,32 @@ function stepPlay(dt: number, input: ReturnType<typeof controls.read>): { steps:
     // Held in the start gate until GO.
   } else {
     perf.begin()
-    steps = advance(clock, game.skier, input, game.stage.slope.sampleTerrain, dt, game.stage.env, game.stage.trunks ? checkTreeContact : undefined)
+    // Park features only stand in the parks (and the demo park); the race and mogul courses ride without the assist.
+    const features = game.stage.features()
+    const parked = features.length > 0 && (game.challenge.kind !== 'event' || game.challenge.course.def.format === 'aerials')
+    const paceStrength = parked && settings.landingAssist ? 1 : 0
+    const rails = game.stage.env.rails ?? []
+    const trees = game.stage.trunks ? checkTreeContact : undefined
+    // The park assist runs after every physics step (takeoffs are a single step).
+    const afterStep = parked
+      ? (fromX: number, fromZ: number) => {
+          trees?.(fromX, fromZ)
+          parkPace.step(game.skier, input, features, rails, clock.fixedDt, paceStrength)
+        }
+      : trees
+    steps = advance(clock, game.skier, input, game.stage.slope.sampleTerrain, dt, game.stage.env, afterStep)
+    game.paceCue = parked ? parkPace.cue : null
+    const landed = parked ? parkPace.takeLanding() : null
+    if (landed) parkHud.landed(landed, performance.now())
     perf.lap('sim')
-    if (tricks.onTrick(game.skier.trick) && game.skier.trick?.kind === 'air') {
+    if (tricks.onTrick(game.skier.trick, landed?.outcome ?? null) && game.skier.trick?.kind === 'air') {
       comp.onTrick(game.skier.trick)
       rig.landingImpulse(game.skier.trick)
       haptics.landing(game.skier.trick)
     }
-    tricks.update(dt, game.skier.grounded && !game.skier.rail)
+    // Riding on toward the next feature holds the combo open, so a whole park line links.
+    const lineAhead = parked && game.skier.speed > 3 && Boolean(game.paceCue || approachAim(features, rails, game.skier.x, game.skier.z, -Math.sin(game.skier.heading), Math.cos(game.skier.heading), 60))
+    tricks.update(dt, game.skier.grounded && !game.skier.rail, lineAhead)
     if (game.skier.mode === 'crashed' && !crashShown) {
       crashShown = true
       tricks.drop()

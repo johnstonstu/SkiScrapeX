@@ -6,13 +6,18 @@
  */
 import type { SkiInput, SkiState } from '../sim'
 import type { Challenge, Session, SessionEvent } from './session'
-import { FAST_START_KICK, TIGHT_KICK, aimGate, assistSteer, createStartGate, gateAim, gradeGate, kick, steerToward, type GateGrade } from './race'
+import { FAST_START_KICK, START_SPEED, TIGHT_KICK, aimGate, assistSteer, createStartGate, gateAim, gradeGate, kick, steerToward, type GateGrade } from './race'
 import { createGhostRecorder, ghostAt, readGhost, writeGhost, type GhostPose, type GhostTrack } from './ghost'
 import { progressAlong } from '../world/challenges'
 import { PHYSICS } from '../sim/constants'
 
 /** Seconds after GO the racer skates out of the gate on their own if they have not pushed off. */
 export const AUTO_PUSH_SECONDS = 1.5
+/** On the start flats the racer double-poles: pole for this long, then glide this long. */
+export const POLE_STROKE = 0.3
+export const POLE_GLIDE = 0.35
+/** Poling stops at this share of the pole-push top speed (faster is a tuck's job). */
+const POLE_UP_TO = 0.9
 import type { RaceHud } from '../ui/raceHud'
 
 type EventChallenge = Extract<Challenge, { kind: 'event' }>
@@ -78,6 +83,8 @@ export function createRaceDirector(options: {
           session.startClock()
           sinceGo = 0
           hud.setCount('GO!', 'go')
+          // Out of the wand with a push: a rolling start down the course, never from a standstill.
+          launch(skier, event, START_SPEED)
         } else if (start === 'fastStart') {
           kick(skier, FAST_START_KICK)
           show('Fast start', `+${Math.round(FAST_START_KICK * 3.6)} km/h`, 'perfect')
@@ -90,9 +97,12 @@ export function createRaceDirector(options: {
         }
       }
       // Out of the gate: skate the first strides so a start that faces a flat cat track still gets going.
-      if (sinceGo < AUTO_PUSH_SECONDS) {
-        sinceGo += dt
-        if (skier.speed < PHYSICS.skateMaxSpeed && input.brake < PHYSICS.brakeEngage) input.tuck = true
+      sinceGo += dt
+      if (sinceGo < AUTO_PUSH_SECONDS && skier.speed < PHYSICS.skateMaxSpeed && input.brake < PHYSICS.brakeEngage) input.tuck = true
+      // Along the start flats (the summit cat track), keep double-poling until the course drops away.
+      else if (skier.grounded && input.brake < PHYSICS.brakeEngage && skier.speed < PHYSICS.polePushMaxSpeed * POLE_UP_TO) {
+        const along = progressAlong(skier.x, skier.z, event.line).s
+        if (along < (event.course.startFlat ?? 0)) input.tuck = (sinceGo % (POLE_STROKE + POLE_GLIDE)) < POLE_STROKE
       }
       if (!options.assistOn() || !event.gates.length || !skier.grounded) return
       const along = progressAlong(skier.x, skier.z, event.line).s
@@ -126,6 +136,22 @@ export function createRaceDirector(options: {
       if (event && recorder && improved) writeGhost(event.id, recorder.track())
     },
   }
+}
+
+/** Set the racer moving down the course at `speed` (m/s) if slower, along the line's first stretch. */
+export function launch(skier: SkiState, event: EventChallenge, speed: number): void {
+  if (skier.speed >= speed) return
+  const [x0, z0] = event.line[0]
+  const [x1, z1] = event.line[Math.min(1, event.line.length - 1)]
+  const length = Math.hypot(x1 - x0, z1 - z0) || 1
+  // Down the line on the snow: keep the skier's own vertical share so it stays on the slope.
+  const dx = (x1 - x0) / length
+  const dz = (z1 - z0) / length
+  const scale = speed / Math.max(1, Math.hypot(dx, dz))
+  skier.vx = dx * scale
+  skier.vz = dz * scale
+  skier.vy = 0
+  skier.speed = Math.hypot(skier.vx, skier.vy, skier.vz)
 }
 
 export type RaceDirector = ReturnType<typeof createRaceDirector>
