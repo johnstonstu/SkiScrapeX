@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { FIXED_DT, createSkiState, createSteadySlope, fallLineHeading, stepSkier, type SkiEnv } from '../src/sim'
 import { SKI_MODELS } from '../src/ui/riderPanel'
+import { SURFACES } from '../src/sim/surface'
 
 /**
  * 0.9.40 arcade turning: holding left then right links turns on any pitch,
@@ -50,5 +51,35 @@ describe('arcade linked turns', () => {
   it('faster facing down the hill than across it', () => {
     const env = { ski: SKI_MODELS.allMountain }
     expect(linked(20, false, env, 0.8).kmh).toBeGreaterThan(linked(20, false, env, 3).kmh + 4)
+  })
+})
+
+describe('snow under the edge (0.9.40)', () => {
+  const ride = (kind: 'groomed' | 'ice' | 'powder', pitch: number, hold: number, kmh: number) => {
+    const slope = createSteadySlope(pitch, { width: 6000, depth: 6000 })
+    const s = createSkiState({ x: 3000, z: 200, heading: 0 })
+    s.y = slope.sampleTerrain(s.x, s.z)!.height
+    s.surface = SURFACES[kind]
+    s.vy = -Math.sin((pitch * Math.PI) / 180) * kmh / 3.6
+    s.vz = Math.cos((pitch * Math.PI) / 180) * kmh / 3.6
+    let washouts = 0, was = false, peak = 0, swing = 0, swings = 0, last = 1
+    for (let t = 0; t < 10; t += FIXED_DT) {
+      const steer = t < 0.5 ? 0 : Math.floor((t - 0.5) / hold) % 2 === 0 ? 1 : -1
+      if (steer !== last && steer !== 0) { swing += peak; swings++; peak = 0; last = steer }
+      stepSkier(s, { steer, brake: 0, tuck: false }, slope.sampleTerrain, FIXED_DT, { sampleSurface: () => SURFACES[kind] })
+      peak = Math.max(peak, Math.abs(deg(Math.atan2(-s.vx, s.vz))))
+      if (s.washout > 0 && !was) washouts++
+      was = s.washout > 0
+    }
+    return { washouts, swing: swing / Math.max(1, swings) }
+  }
+  it('links turns about the same on groomed, ice and powder', () => {
+    const groomed = ride('groomed', 15, 1.2, 25).swing
+    for (const kind of ['ice', 'powder'] as const) expect(ride(kind, 15, 1.2, 25).swing).toBeGreaterThan(groomed * 0.75)
+  })
+  it('a groomer holds a hammered edge, ice lets go and powder plows instead', () => {
+    expect(ride('groomed', 28, 0.5, 55).washouts).toBe(0)
+    expect(ride('powder', 28, 0.5, 55).washouts).toBe(0)
+    expect(ride('ice', 28, 0.5, 55).washouts).toBeGreaterThan(5)
   })
 })

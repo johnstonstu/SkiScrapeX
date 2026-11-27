@@ -155,6 +155,8 @@ export interface SkiState {
   missingPoles: boolean
   /** Seconds before the rail just left can catch the skier again. */
   railCooldown: number
+  /** Seconds after getting up from a crash in which a tree knocks the rider aside instead of down again. */
+  crashGrace: number
   /** Pitch held off a rail, or off a takeoff without a pop, does not flip until it is let go. */
   flipLock: boolean
   /** Last trick or rail scored; `seq` increases with each one. */
@@ -210,6 +212,7 @@ export function createSkiState(pose?: { x?: number; y?: number; z?: number; head
     missingSkis: false,
     missingPoles: false,
     railCooldown: 0,
+    crashGrace: 0,
     flipLock: false,
     trick: null,
     time: 0,
@@ -262,6 +265,7 @@ export function stepSkier(
   if (!Number.isFinite(dt) || dt <= 0) return
   state.time += dt
   state.railCooldown = Math.max(0, state.railCooldown - dt)
+  state.crashGrace = Math.max(0, state.crashGrace - dt)
   const steer = clamp(input.steer, -1, 1)
   const brake = clamp(input.brake, 0, 1)
   // Forward means different things at different speeds: skate when slow, a pole push
@@ -416,7 +420,7 @@ function stepGround(
   // Washout only softens grip and chatters; it does not tip into a crash on its own.
   if (
     state.sink < PHYSICS.powderNoWashoutSink &&
-    state.gripRatio > PHYSICS.washoutRatio &&
+    state.gripRatio > surface.washoutRatio &&
     edgeDeg > 35 &&
     speed > 8 &&
     state.washout <= 0
@@ -800,6 +804,7 @@ function stepCrashed(state: SkiState, sampleTerrain: SampleTerrain, dt: number):
     const fall = fallLineHeading(facingUp(ground.normal))
     state.ridingSwitch = false
     if (fall !== null) state.heading = fall
+    state.crashGrace = PHYSICS.crashGraceTime
     state.air = null
     state.rail = null
   }
