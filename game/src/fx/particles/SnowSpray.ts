@@ -1,7 +1,9 @@
 import {
   BufferAttribute,
-  BufferGeometry,
+  Color,
   DynamicDrawUsage,
+  InstancedBufferAttribute,
+  InstancedBufferGeometry,
   Mesh,
   NormalBlending,
   ShaderMaterial,
@@ -80,6 +82,8 @@ void main() {
 `;
 
 const fragmentShader = /* glsl */ `
+uniform vec3 uShade;
+uniform vec3 uLit;
 varying vec2 vUv;
 varying float vAlpha;
 
@@ -89,26 +93,22 @@ void main() {
   if (r > 1.0) discard;
   float alpha = (1.0 - smoothstep(0.15, 1.0, r)) * vAlpha;
   if (alpha < 0.03) discard;
-  vec3 color = mix(vec3(0.78, 0.84, 0.9), vec3(0.97, 0.98, 0.99), (1.0 - smoothstep(0.2, 1.0, r)));
+  vec3 color = mix(uShade, uLit, (1.0 - smoothstep(0.2, 1.0, r)));
   gl_FragColor = vec4(color, alpha);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }
 `;
 
-const CORNERS: ReadonlyArray<readonly [number, number]> = [
-  [-0.5, -0.5],
-  [0.5, -0.5],
-  [0.5, 0.5],
-  [-0.5, -0.5],
-  [0.5, 0.5],
-  [-0.5, 0.5],
-];
+/** One quad, drawn once per live flake with instanced attributes. */
+const QUAD = new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0]);
+const QUAD_INDEX = [0, 1, 2, 0, 2, 3];
 
 /**
  * Ski spray from a fixed pool of camera-facing streaks.
  * Simulation is on the CPU because spawn rate, direction and shape come from
- * the ski inputs. Drawing is one mesh. The pool size is the memory bound.
+ * the ski inputs. Drawing is one instanced quad (one draw call), and only live
+ * flakes are written, once each. The pool size is the memory bound.
  */
 export class SnowSpray {
   readonly object: Mesh;
@@ -123,7 +123,8 @@ export class SnowSpray {
   private aliveCount = 0;
   private spawnDebt = 0;
   private enabled = true;
-  private readonly geometry: BufferGeometry;
+  private readonly geometry: InstancedBufferGeometry;
+  private readonly uniforms: { uShade: { value: Color }; uLit: { value: Color } };
   private readonly offsets: Float32Array;
   private readonly velocities: Float32Array;
   private readonly sprites: Float32Array;
@@ -138,36 +139,31 @@ export class SnowSpray {
       spawnY: 0, fall: 0.3, alive: false,
     }));
 
-    const verts = this.max * 6;
-    const positions = new Float32Array(verts * 3);
-    for (let i = 0; i < this.max; i += 1) {
-      for (let k = 0; k < 6; k += 1) {
-        const corner = CORNERS[k];
-        const o = (i * 6 + k) * 3;
-        positions[o] = corner[0];
-        positions[o + 1] = corner[1];
-      }
-    }
-    this.offsets = new Float32Array(verts * 3);
-    this.velocities = new Float32Array(verts * 3);
-    this.sprites = new Float32Array(verts * 3);
+    this.offsets = new Float32Array(this.max * 3);
+    this.velocities = new Float32Array(this.max * 3);
+    this.sprites = new Float32Array(this.max * 3);
 
-    this.geometry = new BufferGeometry();
-    this.geometry.setAttribute('position', new BufferAttribute(positions, 3));
-    const offsetAttr = new BufferAttribute(this.offsets, 3);
-    const velocityAttr = new BufferAttribute(this.velocities, 3);
-    const spriteAttr = new BufferAttribute(this.sprites, 3);
+    this.geometry = new InstancedBufferGeometry();
+    this.geometry.setAttribute('position', new BufferAttribute(QUAD, 3));
+    this.geometry.setIndex(QUAD_INDEX);
+    const offsetAttr = new InstancedBufferAttribute(this.offsets, 3);
+    const velocityAttr = new InstancedBufferAttribute(this.velocities, 3);
+    const spriteAttr = new InstancedBufferAttribute(this.sprites, 3);
     offsetAttr.setUsage(DynamicDrawUsage);
     velocityAttr.setUsage(DynamicDrawUsage);
     spriteAttr.setUsage(DynamicDrawUsage);
     this.geometry.setAttribute('aOffset', offsetAttr);
     this.geometry.setAttribute('aVelocity', velocityAttr);
     this.geometry.setAttribute('aSprite', spriteAttr);
-    this.geometry.setDrawRange(0, 0);
+    this.geometry.instanceCount = 0;
+    this.uniforms = {
+      uShade: { value: new Color(0.78, 0.84, 0.9) },
+      uLit: { value: new Color(0.97, 0.98, 0.99) },
+    };
 
     const material = new ShaderMaterial({
       name: 'snow-spray',
-      uniforms: {},
+      uniforms: this.uniforms,
       vertexShader,
       fragmentShader,
       transparent: true,
@@ -194,11 +190,20 @@ export class SnowSpray {
     if (!enabled) this.object.visible = this.aliveCount > 0;
   }
 
+  /**
+   * Flake colours, linear. `lit` is the sunny side of a flake, `shade` its rim.
+   * Follow the scene's sun and sky so spray does not glow at dusk.
+   */
+  setLight(lit: Color, shade: Color): void {
+    this.uniforms.uLit.value.copy(lit);
+    this.uniforms.uShade.value.copy(shade);
+  }
+
   clear(): void {
     for (const flake of this.pool) flake.alive = false;
     this.aliveCount = 0;
     this.spawnDebt = 0;
-    this.geometry.setDrawRange(0, 0);
+    this.geometry.instanceCount = 0;
     this.object.visible = false;
   }
 
@@ -241,13 +246,13 @@ export class SnowSpray {
     const vy = input.velocity.y;
     const vz = input.velocity.z;
     const speed = Math.hypot(vx, vy, vz);
-    const speed01 = smoothstep(1.4, 12, speed);
+    const speed01 = smoothstep(1.4, 10, speed);
     const skid = clamp01(input.skid);
     const carving = clamp01(input.carving);
     const powder = clamp01(input.powder ?? 0);
-    const rate = (4 + skid * 120 + carving * 52 + powder * (120 + skid * 70)) * speed01 * Math.max(this.amount, 0);
+    const rate = (4 + skid * 120 + carving * (60 + carving * 110) + powder * (120 + skid * 70)) * speed01 * Math.max(this.amount, 0);
     this.spawnDebt += rate * dt;
-    const continuous = Math.min(24, Math.floor(this.spawnDebt));
+    const continuous = Math.min(32, Math.floor(this.spawnDebt));
     const impact = clamp01(input.impact ?? 0);
     const count = continuous + Math.round(impact * 16);
     this.spawnDebt -= continuous;
@@ -272,10 +277,10 @@ export class SnowSpray {
         flake.spawnY = flake.y;
         const backKick = 0.7 + skid * 2.6 + powder * 1.55;
         flake.vx = vx * 0.22 - dirX * backKick + jx * (0.45 + skid * 2);
-        flake.vy = 0.9 + skid * 2.3 + carving * 0.45 + jy * 0.7 + Math.abs(dirY) * 0.3 + powder * (1.1 + jy * 1.8);
+        flake.vy = 0.9 + skid * 2.3 + carving * (0.6 + jy * 1.1) + jy * 0.7 + Math.abs(dirY) * 0.3 + powder * (1.1 + jy * 1.8);
         flake.vz = vz * 0.22 - dirZ * backKick + jz * (0.45 + skid * 2);
         if (hasLateral && lateral) {
-          const side = (carving * 2.6 + skid * 0.65 + powder * (1.1 + skid * 2.0)) * Math.min(speed / 9, 1.6);
+          const side = (carving * (2.2 + jy * 2.2) + skid * 0.65 + powder * (1.1 + skid * 2.0)) * Math.min(speed / 9, 1.6);
           flake.vx += lateral.x * side;
           flake.vy += lateral.y * side * 0.2 + powder * 0.35;
           flake.vz += lateral.z * side;
@@ -285,10 +290,10 @@ export class SnowSpray {
       flake.vy += impact + powder * (0.95 + jy * 2.1);
       flake.age = 0;
       flake.life = 0.6 + Math.random() * 0.45 + skid * 0.2 + powder * 0.38;
-      flake.size = 0.07 + carving * 0.03 + skid * 0.16 + Math.random() * 0.05;
+      flake.size = 0.07 + carving * 0.07 + skid * 0.16 + Math.random() * 0.06;
       flake.size += (powder * 0.4 + impact * 0.2) * jy;
       flake.stretch = (0.06 + carving * 0.14) * (1 - powder * 0.8);
-      flake.peak = (0.42 + skid * 0.28 + carving * 0.08) * (1 - powder * 0.5);
+      flake.peak = (0.42 + skid * 0.28 + carving * 0.3) * (1 - powder * 0.5);
       flake.fall = 0.18 + skid * 0.45;
       flake.alive = true;
       this.aliveCount += 1;
@@ -305,34 +310,31 @@ export class SnowSpray {
   }
 
   private write(): void {
-    let vertex = 0;
+    let n = 0;
     for (const flake of this.pool) {
       if (!flake.alive) continue;
       const t = flake.age / flake.life;
       const fadeIn = Math.min(1, flake.age / 0.04);
-      const alpha = fadeIn * (1 - t) * flake.peak;
-      for (let k = 0; k < 6; k += 1) {
-        const o3 = vertex * 3;
-        this.offsets[o3] = flake.x;
-        this.offsets[o3 + 1] = flake.y;
-        this.offsets[o3 + 2] = flake.z;
-        this.velocities[o3] = flake.vx;
-        this.velocities[o3 + 1] = flake.vy;
-        this.velocities[o3 + 2] = flake.vz;
-        this.sprites[o3] = flake.size;
-        this.sprites[o3 + 1] = flake.stretch;
-        this.sprites[o3 + 2] = alpha;
-        vertex += 1;
-      }
+      const o3 = n * 3;
+      this.offsets[o3] = flake.x;
+      this.offsets[o3 + 1] = flake.y;
+      this.offsets[o3 + 2] = flake.z;
+      this.velocities[o3] = flake.vx;
+      this.velocities[o3 + 1] = flake.vy;
+      this.velocities[o3 + 2] = flake.vz;
+      this.sprites[o3] = flake.size;
+      this.sprites[o3 + 1] = flake.stretch;
+      this.sprites[o3 + 2] = fadeIn * (1 - t) * flake.peak;
+      n += 1;
     }
-    const offsetAttr = this.geometry.getAttribute('aOffset') as BufferAttribute;
-    const velocityAttr = this.geometry.getAttribute('aVelocity') as BufferAttribute;
-    const spriteAttr = this.geometry.getAttribute('aSprite') as BufferAttribute;
-    offsetAttr.needsUpdate = true;
-    velocityAttr.needsUpdate = true;
-    spriteAttr.needsUpdate = true;
-    this.geometry.setDrawRange(0, vertex);
-    this.object.visible = vertex > 0;
+    for (const name of ['aOffset', 'aVelocity', 'aSprite']) {
+      const attr = this.geometry.getAttribute(name) as InstancedBufferAttribute;
+      attr.clearUpdateRanges();
+      attr.addUpdateRange(0, n * 3);
+      attr.needsUpdate = true;
+    }
+    this.geometry.instanceCount = n;
+    this.object.visible = n > 0;
   }
 }
 
