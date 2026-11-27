@@ -9,7 +9,7 @@ import * as THREE from 'three'
 import './ui/theme.css'
 import './ui/hud.css'
 import './ui/menus.css'
-import { PHYSICS, PRESETS, advance, beginCrash, createClock, createPreset, createSkier, landingSpot, resetSkier, skiFrame, type SkiState, type SurfaceSample } from './sim'
+import { PHYSICS, PRESETS, advance, beginCrash, blendState, createClock, createSkiState, createPoseHistory, renderAlpha, createPreset, createSkier, landingSpot, resetSkier, skiFrame, type SkiState, type SurfaceSample } from './sim'
 import { createSkierView, type SkierPose } from './render/rider/skierView'
 import { createLandingMarker } from './render/rider/landingMarker'
 import { createSlopeView } from './render/terrain/slopeView'
@@ -128,7 +128,7 @@ const lighting = createLighting()
 const scene = new THREE.Scene()
 if (params.has('perf')) Object.assign(window, { __scene: scene })
 // `?test`: handles for the headless smoke test.
-if (params.has('test')) Object.assign(window, { __game: { scene, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals }, get npcs() { return npcs }, get snowDeform() { return stage.snowDeform }, get tricks() { return tricks }, startEvent(id: string) { const next = goals?.eventById(id); if (next) startChallenge(next); return Boolean(next) } } })
+if (params.has('test')) Object.assign(window, { __game: { scene, get camera() { return camera }, get rider() { return skierView.object }, get skier() { return skier }, get challenge() { return challenge }, get goals() { return goals }, get npcs() { return npcs }, get snowDeform() { return stage.snowDeform }, get tricks() { return tricks }, startEvent(id: string) { const next = goals?.eventById(id); if (next) startChallenge(next); return Boolean(next) } } })
 const sun = addSceneLights(scene, lighting, quality.shadowRange)
 sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize)
 const sky = createSky(lighting)
@@ -336,6 +336,16 @@ applySetting()
 let course: RunCourse | null = null
 let skier: SkiState
 const clock = createClock()
+// Render smoothing: the rider and camera draw a blend of the last two physics steps.
+clock.history = createPoseHistory()
+/** `?nosmooth` draws the newest step as before, for side-by-side comparison. */
+const smoothMotion = !params.has('nosmooth')
+const viewState = createSkiState()
+const viewAir = {} as NonNullable<SkiState['air']>
+/** The skier as drawn this frame: the sim state with motion blended between steps. */
+function skierForView(): SkiState {
+  return smoothMotion ?  blendState(clock.history!, skier, renderAlpha(clock), viewState, viewAir) : skier
+}
 let challenge: Challenge = { kind: 'free' }
 let session = createSession(challenge)
 let pause: { until: number; then: () => void } | null = null
@@ -1215,7 +1225,7 @@ function tick(dt: number, frameMs: number) {
         titleWasShown = false
         rig.snap()
       }
-      rig.update(skier, stage.slope.sampleTerrain, 0, ride ? undefined : cameraBlocked, skierView.eye, skierView.object, null)
+      rig.update(skierForView(), stage.slope.sampleTerrain, 0, ride ? undefined : cameraBlocked, skierView.eye, skierView.object, null)
     }
     renderer.render(scene, camera)
     return
@@ -1290,7 +1300,8 @@ function tick(dt: number, frameMs: number) {
   }
 
   const ground = ride ? null : stage.slope.sampleTerrain(skier.x, skier.z)
-  skierView.update(skier, input, ground, pose, dt)
+  const view = skierForView()
+  skierView.update(view, input, ride ? null : stage.slope.sampleTerrain(view.x, view.z), pose, dt)
   if (!pause) {
     gearDrops.update(
       skier,
@@ -1313,7 +1324,7 @@ function tick(dt: number, frameMs: number) {
         )
       : null
   rig.update(
-    skier,
+    view,
     stage.slope.sampleTerrain,
     dt,
     ride ? undefined : cameraBlocked,
@@ -1323,14 +1334,14 @@ function tick(dt: number, frameMs: number) {
   )
   sky.position.copy(camera.position)
   // Shadow box sits ahead of the skier along the view.
-  sunFocus.set(skier.x - camera.position.x, 0, skier.z - camera.position.z).setLength(35)
-  sunFocus.x += skier.x
-  sunFocus.y += skier.y
-  sunFocus.z += skier.z
+  sunFocus.set(view.x - camera.position.x, 0, view.z - camera.position.z).setLength(35)
+  sunFocus.x += view.x
+  sunFocus.y += view.y
+  sunFocus.z += view.z
   followSun(sun, lighting, sunFocus)
   perf.begin()
   SIGHT_LINE.from.value.copy(camera.position)
-  SIGHT_LINE.to.value.set(skier.x, skier.y + 1.1, skier.z)
+  SIGHT_LINE.to.value.set(view.x, view.y + 1.1, view.z)
   stage.update(camera.position)
   perf.lap('update')
   sound.update(skier, Boolean(ride))
@@ -1338,7 +1349,7 @@ function tick(dt: number, frameMs: number) {
   const gust = weatherGust(weatherLive, performance.now() * 0.001)
   effects.setWeather(weatherLive.snowDensity * (1 + gust.strength * 0.2), gust.windEast, gust.windSouth, lighting)
   if (scene.fog instanceof THREE.Fog) scene.fog.far = gust.fogFar
-  effects.update(dt, skier, ride ? null : ground, camera, stage.snow, !renderer.shadowMap.enabled && rig.mode !== 'first')
+  effects.update(dt, view, ride ? null : ground, camera, stage.snow, !renderer.shadowMap.enabled && rig.mode !== 'first')
   stepDeepSnow(dt, ride ? null : ground)
   // The landing ring is a third-person aid; in first person it fills the view.
   landingMarker.update(settings.landingRing && rig.mode !== 'first' && skier.air && !ride ? landingSpot(skier, skier.air, stage.slope.sampleTerrain, PHYSICS.gravity) : null, skier.air?.time ?? 0, dt)

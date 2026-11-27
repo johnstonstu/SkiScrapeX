@@ -2,6 +2,15 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.41 (unreleased): Smooth motion between physics steps
+
+The rider and camera now move evenly on any screen refresh rate. Builds on 0.9.40.
+
+### Changed
+
+- **Rendering blends the last two physics steps.** The sim runs at a fixed 120 Hz. A 75, 90 or 144 Hz screen (or a dropped frame) gets 0, 1 or 2 steps a frame, and drawing only the newest step moved the rider in uneven jumps that read as a loose, shaky ride. The rider, camera, spray and shadow focus now draw a blend between the last two steps, at most one step (8 ms) behind the sim. In a headless run with the frame clock held at 144 Hz, frame-to-frame unevenness of the rider's motion drops from 41% to 2% (90 Hz: 26% to 2%). Physics, scoring and sounds still use the newest step, so nothing about how the skis behave changes.
+- `?nosmooth` turns the blend off for side-by-side comparison.
+
 ## 0.9.40 (unreleased): Arcade turning on every input
 
 Holding left or right now links turns on any pitch, and keys, controller and touch steer the same way.
