@@ -73,7 +73,7 @@ const PRESETS: Record<WeatherId, WeatherPreset> = {
     windSouth: 0.9,
     sunIntensity: 0.85,
     hemiIntensity: 0.95,
-    visibility: 5500,
+    visibility: 3500,
     sunGlow: 0.08,
     cloudShadow: 0,
     apply(lighting) {
@@ -94,7 +94,7 @@ const PRESETS: Record<WeatherId, WeatherPreset> = {
     windSouth: 0.1,
     sunIntensity: 0.55,
     hemiIntensity: 1.35,
-    visibility: 11000,
+    visibility: 7000,
     sunGlow: 0.12,
     cloudShadow: 0,
     apply(lighting) {

@@ -67,9 +67,10 @@ vec3 CustomToneMapping( vec3 color ) {
   luma = dot( color, vec3( 0.2126, 0.7152, 0.0722 ) );
   color = max( mix( vec3( luma ), color, 1.08 ), 0.0 );
   // Contrast in perceptual space around mid grey, so whites stay white.
-  vec3 p = pow( max( color, 0.0 ), vec3( 1.0 / 2.2 ) );
+  // (Square root and square stand in for the 2.2 gamma: cheaper on phones, same look.)
+  vec3 p = sqrt( max( color, 0.0 ) );
   p = clamp( p + ( p - 0.5 ) * 0.12 * ( 1.0 - p ), 0.0, 1.0 );
-  return pow( p, vec3( 2.2 ) );
+  return p * p;
 }
 `
 
