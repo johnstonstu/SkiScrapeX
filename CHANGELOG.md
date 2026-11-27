@@ -2,6 +2,19 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.41 (unreleased): Rider animation, part 1 (grabs, carving, landings, crashes)
+
+Driven by the rider's physics state; steering and physics are unchanged.
+
+### Changed
+
+- **Grabs take hold of the gear.** The hand used to hang 15 to 65 cm short (beside the knee) because only the arm moved. A grab now brings the skis or board up toward the hand and folds the back down to it, with the gear tilted toward the grabbed end and rolled onto an edge where that is the cheaper move, while keeping the knees off the chest. Every grab on skis and board reaches (new `tests/riderGrabs.test.ts`), and grab clipping is lower than before (Truck driver is now clean). The search costs about 0.1 ms a frame and only runs mid-grab.
+- **Ski knee drive.** In a 50° carve the outside leg locked straight (6° of knee bend). The hips now drop until the longer leg keeps at least 26°, so both knees flex into the turn.
+- **Snowboard heelside and toeside read differently.** Heelside the rider sits lower into the highbacks with both hands forward over the toes; toeside the knees drive in, the front hand reaches low toward the snow and the back hand trails. The shoulders lead the turn.
+- **Landings absorb.** A landing folds the hips back and the chest down by how hard it hits, then the legs push back up.
+- **Close calls.** Landing across the skis or board, very hard, or with a landing graded sketchy, the rider rocks, windmills the arms and skips one ski before catching it.
+- **Getting up after a crash.** Over the last 0.85 s of a crash the rider gathers the gear under the hips and comes up to a crouch, a hand off the snow, before standing (it used to fade straight from lying down to skiing). New rider lab pose: Getting up.
+
 ## 0.9.39 (2026-11-27): Smaller rider, fewer forest draws
 
 Closes out the phase 1 performance and load items.

@@ -10,41 +10,24 @@
   "Skating": {},
   "Hockey stop": {},
   "Mute grab": {
-    "forearm_L>thigh_L": 5.9,
-    "upperarm_L>spine": 5.5,
-    "forearm_L>shin_L": 5.3,
-    "thigh_L>forearm_L": 3.7,
-    "shin_L>forearm_L": 3.7,
-    "thigh_L>upperarm_L": 3.6,
-    "upperarm_L>thigh_L": 1.6,
-    "upperarm_L>shin_L": 1
+    "chest>thigh_L": 2.6,
+    "chest>shin_L": 2,
+    "chest>thigh_R": 1.2,
+    "thigh_L>thigh_R": 0.9,
+    "pelvis>shin_L": 0.6
   },
   "Japan": {
-    "upperarm_L>spine": 5.8,
-    "forearm_L>thigh_L": 5.7,
-    "shin_L>forearm_L": 4.2,
-    "thigh_L>forearm_L": 3.6,
-    "shin_L>hand_L": 3.3,
-    "hand_L>thigh_L": 3,
-    "forearm_L>shin_L": 3,
-    "hand_L>shin_L": 2.8,
-    "thigh_L>hand_L": 2.3,
-    "forearm_L>spine": 0.9
+    "forearm_R>thigh_R": 5.2,
+    "pelvis>shin_L": 4.9,
+    "thigh_R>forearm_R": 3.7,
+    "shin_L>pelvis": 3.3,
+    "thigh_R>upperarm_R": 3.2,
+    "thigh_L>thigh_R": 1.5,
+    "thigh_R>thigh_L": 1.3,
+    "shin_L>thigh_R": 1,
+    "thigh_R>shin_L": 0.6
   },
-  "Truck driver": {
-    "forearm_R>thigh_R": 5,
-    "forearm_L>thigh_L": 4.9,
-    "forearm_L>shin_L": 4.6,
-    "forearm_R>shin_R": 4.6,
-    "shin_R>forearm_R": 3.8,
-    "shin_L>forearm_L": 3.8,
-    "thigh_R>forearm_R": 3.5,
-    "thigh_L>forearm_L": 3.5,
-    "thigh_L>upperarm_L": 1.8,
-    "thigh_R>upperarm_R": 1.7,
-    "upperarm_R>thigh_R": 0.6,
-    "upperarm_L>thigh_L": 0.6
-  },
+  "Truck driver": {},
   "Rail slide": {
     "thigh_L>thigh_R": 0.8
   },
@@ -65,9 +48,10 @@
     "chest>forearm_R": 3.6,
     "pelvis>snow": 2.1
   },
+  "Getting up": {},
   "Lift sit": {
-    "upperarm_R>spine": 1.4,
-    "upperarm_L>spine": 1.4
+    "upperarm_L>spine": 1.4,
+    "upperarm_R>spine": 1.4
   },
   "Lift stand": {}
 }

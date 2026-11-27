@@ -65,6 +65,17 @@ const SHOULDER_RADIUS = 0.13
 const HEAD_CENTRE = new THREE.Vector3(0, 0.12, 0)
 const HAND_HEAD_GAP = 0.32
 
+/** Seconds before the crash ends that the rider starts getting up. */
+export const GET_UP = 0.85
+/** 0 lying down, 1 crouched on the gear ready to stand. */
+export function getUpShare(crashedLeft: number): number {
+  return THREE.MathUtils.clamp(1 - crashedLeft / GET_UP, 0, 1)
+}
+/** Hips (root space) at the end of the get-up: a low crouch over the gear. */
+const GET_UP_HIPS = new THREE.Vector3(0.02, 0.58, -0.12)
+const v = new THREE.Vector3()
+const q = new THREE.Quaternion()
+
 /** Yard-sale tumble then gather; same numbers as the former inline crash branch. */
 export function applyCrashPose(args: {
   state: SkiState
@@ -122,7 +133,35 @@ export function applyCrashPose(args: {
   skis[0].rotation.set(hard * 0.15 + pitch * 0.3, 0.3 + scatter * 0.5, 0.55 + scatter * 0.7)
   skis[1].rotation.set(-hard * 0.1 - pitch * 0.2, -0.25 - scatter * 0.4, 0.4 + scatter * 0.55)
   if (boarding) placeBoard(0.45 + scatter * 0.2, 0.1 + hard * 0.04, roll * 0.2, 0.75 + hard * 0.25, 0.15 + hard * 0.1)
-  else keepSkisInReach(skis, args.thighs, args.pointInRoot)
+  // Getting up: over the last GET_UP seconds the rider rolls onto the gear,
+  // gets the skis or board under the hips and rises to a low crouch, a hand
+  // pushing off the snow. The ski pose takes it the rest of the way up.
+  const rise = getUpShare(state.crashed)
+  if (rise > 0) {
+    const r = rise * rise * (3 - 2 * rise)
+    hips.position.lerp(GET_UP_HIPS, r)
+    hips.rotation.set(
+      THREE.MathUtils.lerp(hips.rotation.x, 0.35, r),
+      THREE.MathUtils.lerp(hips.rotation.y, 0.25, r),
+      THREE.MathUtils.lerp(hips.rotation.z, 0.12, r),
+    )
+    spine.rotation.x = THREE.MathUtils.lerp(spine.rotation.x, 0.45, r)
+    chest.rotation.x = THREE.MathUtils.lerp(chest.rotation.x, 0.25, r)
+    chest.rotation.z = THREE.MathUtils.lerp(chest.rotation.z, 0.1, r)
+    head.rotation.set(
+      THREE.MathUtils.lerp(head.rotation.x, -0.55, r),
+      THREE.MathUtils.lerp(head.rotation.y, 0.1, r),
+      THREE.MathUtils.lerp(head.rotation.z, 0, r),
+    )
+    if (boarding) placeBoard(THREE.MathUtils.lerp(0.45 + scatter * 0.2, 0, r), 0.1 * (1 - r) + 0.02, 0, THREE.MathUtils.lerp(0.75 + hard * 0.25, -0.25, r), 0)
+    else {
+      skis.forEach((ski, i) => {
+        ski.position.lerp(v.set(i === 0 ? 0.16 : -0.14, 0.03, i === 0 ? 0.08 : -0.06), r)
+        ski.quaternion.slerp(q.identity(), r)
+      })
+    }
+  }
+  if (!boarding) keepSkisInReach(skis, args.thighs, args.pointInRoot)
   fitLegs()
   // Hands on the snow, placed from each shoulder in root space (the snow is
   // y = 0): the top hand props in front of the chest, the one underneath

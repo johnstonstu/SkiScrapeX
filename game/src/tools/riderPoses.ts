@@ -108,6 +108,17 @@ export const LAB_POSES: LabPose[] = [
       return idle
     },
   },
+  {
+    label: 'Getting up',
+    setup: (s) => {
+      // The end of a crash: the rider is up on the gear, about to stand.
+      s.speed = 0
+      s.crashed = 0.12
+      s.crashSpeed = 10
+      s.crashAge = 2
+      return idle
+    },
+  },
   { label: 'Lift sit', pose: 'sit', setup: (s) => ((s.speed = 0), idle) },
   { label: 'Lift stand', pose: 'stand', setup: (s) => ((s.speed = 0), idle) },
 ]

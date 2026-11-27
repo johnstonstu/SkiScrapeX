@@ -37,6 +37,9 @@ const HAND_DROP = 0.1
 const SKI_LIFT = 0.03
 /** Ski stance fore/aft offset of the boots (the ankle sits ANKLE_IN_SKI.z further on). */
 const SKI_FORE = 0.04
+/** Least knee bend a skier's longer leg keeps on snow (radians), and the hip-to-ankle length it allows. */
+const SKI_MIN_KNEE = 0.45
+const SKI_LEG_MAX = Math.sqrt(THIGH_LENGTH ** 2 + SHIN_LENGTH ** 2 + 2 * THIGH_LENGTH * SHIN_LENGTH * Math.cos(SKI_MIN_KNEE))
 /** Carving: how far the hips move from the middle of the stance toward the outside ski (0 to 1). */
 const OUTSIDE_WEIGHT = -0.15
 /** Lean spring, Hz: fast enough to follow the physics lean through a short turn. */
@@ -78,6 +81,11 @@ const BOARD_HAND_FLOOR = 0.14
  */
 export const BOARD_LEAN = 0.8
 const BOARD_INCLINE_HZ = 4
+/** Board: extra crouch on the heel edge (sitting into the turn) and on the toe edge (knees driven in). */
+const BOARD_HEEL_CROUCH = 0.28
+const BOARD_TOE_CROUCH = 0.12
+/** Board: how far the shoulders turn toward the turn, per radian of lean. */
+const BOARD_SHOULDER_LEAD = 0.55
 
 /**
  * Share of the lean the upper body tilts back toward the outside ski: a little
@@ -114,6 +122,43 @@ export function skiHipHeight(flex: number, tuck: number, hipBack: number): numbe
   const back = hipBack + SKI_FORE + ANKLE_IN_SKI.z
   return SKI_LIFT + ANKLE_IN_SKI.y + HIP_SOCKET_DROP + Math.sqrt(Math.max(0.01, chord * chord - back * back))
 }
+
+/** How far a hand reaches from its shoulder in a grab (a little short of a straight arm), metres. */
+const GRAB_REACH = (UPPER_ARM + FORE_ARM) * 0.94
+const GRAB_MAX_ROLL = 0.3
+/** Closest a grab draws a boot to its hip socket (the knee folds to about 150°), metres. */
+const GRAB_MIN_LEG = 0.24
+const ORIGIN = new THREE.Vector3()
+/** Belly (spine frame) and chest (chest frame) points a grab keeps the legs clear of, and by how much (centre to centre), metres. */
+const GRAB_TORSO = [new THREE.Vector3(0, 0.1, 0.06), new THREE.Vector3(0, 0.08, 0.08)] as const
+const GRAB_KNEE_GAP = 0.25
+const GRAB_THIGH_GAP = 0.2
+export type GrabSpec = { hand: number; ski: number; along: number; across: number }
+
+/**
+ * Where each hand takes hold in a grab: which hand, which ski (skis only),
+ * how far along it from the boot (+ toward the tip or nose) and how far
+ * across it (metres).
+ */
+export function grabSpecsFor(grab: string | null, boarding: boolean): GrabSpec[] {
+  if (!grab) return []
+  if (boarding) {
+    if (grab === 'truck') return [{ hand: 0, ski: 0, along: 0.31, across: -0.12 }, { hand: 1, ski: 1, along: -0.31, across: -0.12 }]
+    const frontHand = grab === 'nose' || grab === 'mute' || grab === 'japan'
+    // A Japan is the front hand on the toe edge behind the front foot (the knee tucks
+    // past it); a safety is the back hand on the heel edge.
+    const along = grab === 'nose' ? 0.62 : grab === 'tail' ? -0.62 : grab === 'japan' ? -0.08 : 0.06
+    return [{ hand: frontHand ? 0 : 1, ski: 0, along, across: grab === 'safety' ? 0.12 : -0.12 }]
+  }
+  if (grab === 'truck') return [{ hand: 0, ski: 0, along: 0.42, across: 0 }, { hand: 1, ski: 1, along: 0.42, across: 0 }]
+  const hand = grab === 'mute' || grab === 'japan' || grab === 'nose' ? 0 : 1
+  const ski = grab === 'mute' || grab === 'safety' ? 1 : grab === 'critical' ? 0 : grab === 'japan' ? 1 : hand
+  const along = grab === 'nose' ? 0.72 : grab === 'tail' ? -0.62 : grab === 'japan' ? 0.32 : 0.22
+  return [{ hand, ski, along, across: grab === 'safety' ? -0.07 : grab === 'critical' ? 0.07 : 0 }]
+}
+
+/** How long a close call after a landing lasts, seconds. */
+const BOBBLE_TIME = 1.1
 
 /** Discrete poses that crossfade into each other instead of snapping. */
 type Mode = 'ski' | 'rail' | 'crash' | 'sit' | 'stand'
@@ -186,6 +231,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
   const railBlend = new Spring()
   const press = new Spring()
   const look = new Spring()
+  const boardLead = new Spring()
   const fore = new Spring()
   const clothSide = new Spring()
   const clothBack = new Spring()
@@ -204,6 +250,19 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
   let grabBlend = 0
   let lastGrab: string | null = null
   let wasAir = false
+  /** Close call after a landing: how big (0 to 1), seconds since it began, and which side it throws to. */
+  let bobble = 0
+  let bobbleAge = 10
+  let bobbleSide = 1
+  let lastTrickSeq = -1
+  const startBobble = (amount: number, side: number) => {
+    if (amount < bobble * Math.max(0, 1 - bobbleAge / BOBBLE_TIME)) return
+    bobble = Math.min(1, amount)
+    bobbleAge = 0
+    bobbleSide = side >= 0 ? 1 : -1
+  }
+  /** Chest folding over the knees as a landing is absorbed; decays via spring. */
+  const landFold = new Spring()
   let lastVy = 0
   /** Turn pole plant: seconds since the tip reached for the snow, and when it let go. */
   let plantAge = 10
@@ -364,6 +423,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
   const ankleMid = new THREE.Vector3()
   const glideAnkle = new THREE.Vector3()
   const hipRoot = new THREE.Vector3()
+  const hipLocal = new THREE.Vector3()
   const bodyInverse = new THREE.Matrix4()
   /**
    * Put the hips where the legs can incline with the skis. The body's lean spring
@@ -398,7 +458,24 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
     }
     hipRoot.x += (x - hipRoot.x) * weight
     hipRoot.y += (y - hipRoot.y) * weight
-    hips.position.copy(hipRoot.applyMatrix4(bodyInverse.copy(body.matrix).invert()))
+    bodyInverse.copy(body.matrix).invert()
+    hips.position.copy(hipLocal.copy(hipRoot).applyMatrix4(bodyInverse))
+    // Knee drive: leaning the hips into the turn stretched the outside leg until
+    // its knee locked (6° of bend at 50° of edge, a stiff peg leg). Drop the hips
+    // until the longer leg keeps at least SKI_MIN_KNEE of bend; both knees then
+    // flex deeper into the carve, the way a skier drives the knees into the hill.
+    for (let pass = 0; pass < 3; pass++) {
+      root.updateMatrixWorld(true)
+      let excess = 0
+      for (let i = 0; i < 2; i++) {
+        pointInRoot(legs[i].thigh, ORIGIN, socketAt)
+        const reachTo = v1.copy(ANKLE_IN_SKI).applyQuaternion(skis[i].quaternion).add(skis[i].position).distanceTo(socketAt)
+        excess = Math.max(excess, reachTo - SKI_LEG_MAX)
+      }
+      if (excess < 0.002) break
+      hipRoot.y -= excess * 1.15 * weight
+      hips.position.copy(hipLocal.copy(hipRoot).applyMatrix4(bodyInverse))
+    }
   }
 
   /**
@@ -516,6 +593,168 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       skis[i].quaternion.copy(boardGroup.quaternion)
       skis[i].rotateY(yaw)
     }
+  }
+
+  /** The grab point on the equipment, in root space (the skis or board must be placed). */
+  const grabPoint = (spec: GrabSpec, out: THREE.Vector3) => {
+    if (rig.boarding) {
+      boardGroup.updateMatrix()
+      return out.set(spec.across, 0.035, spec.along).applyMatrix4(boardGroup.matrix)
+    }
+    const ski = skis[spec.ski]
+    return out.set(spec.across, 0.06, spec.along).applyQuaternion(ski.quaternion).add(ski.position)
+  }
+  const grabAt = new THREE.Vector3()
+  const grabPull = new THREE.Vector3()
+  const socketAt = new THREE.Vector3()
+  const gearUp = new THREE.Vector3()
+  const kneeAt = new THREE.Vector3()
+  const grabSeg = new THREE.Line3()
+  const grabClosest = new THREE.Vector3()
+  const kneeDir = new THREE.Vector3()
+  const gearPos = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()]
+  const gearQuat = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()]
+  const torsoBase = new Float64Array(6)
+  /** Grab fold, per channel: pitch, roll and twist of the back, gear lift (m), gear tilt toward the grabbed end and gear roll onto an edge. */
+  const grabDof = new Float64Array(6)
+  const GRAB_LIMITS = [
+    [0, 1.25], [-0.45, 0.45], [-0.7, 0.7], [0, 0.32], [-0.4, 0.4], [-0.45, 0.45],
+  ] as const
+  /** How much each channel costs per unit, so the fold prefers the natural ones (gear up, then bend). */
+  const GRAB_COST = [0.05, 0.12, 0.1, 0.04, 0.25, 0.22]
+  /** Pose the back and gear from grabDof, on top of the saved base pose. */
+  const applyGrabDof = () => {
+    const [pitch, roll, twist, lift, tilt, edge] = grabDof
+    spine.rotation.set(torsoBase[0] + pitch * 0.55, torsoBase[1] + twist * 0.55, torsoBase[2] + roll * 0.6)
+    chest.rotation.set(torsoBase[3] + pitch * 0.45, torsoBase[4] + twist * 0.45, torsoBase[5] + roll * 0.4)
+    gearUp.set(0, 1, 0)
+    if (rig.boarding) {
+      boardGroup.position.copy(gearPos[2]).addScaledVector(gearUp, lift)
+      boardGroup.quaternion.copy(gearQuat[2])
+      boardGroup.rotateX(-tilt)
+      boardGroup.rotateZ(edge)
+      boardGroup.updateMatrix()
+      for (let i = 0; i < 2; i++) {
+        const { z, yaw } = BOARD_BINDINGS[i]
+        skis[i].position.set(0, BOARD_BOOT_HEIGHT, z).applyMatrix4(boardGroup.matrix)
+        skis[i].quaternion.copy(boardGroup.quaternion)
+        skis[i].rotateY(yaw)
+      }
+    } else {
+      for (let i = 0; i < 2; i++) {
+        skis[i].position.copy(gearPos[i]).addScaledVector(gearUp, lift)
+        skis[i].quaternion.copy(gearQuat[i])
+        skis[i].rotateX(-tilt)
+        skis[i].rotateZ(edge)
+      }
+    }
+  }
+  /** How far the hands are from their grab points past arm's reach, plus what the fold costs. */
+  const hipsInRoot = new THREE.Matrix4()
+  const spineInRoot = new THREE.Matrix4()
+  const chestInRoot = new THREE.Matrix4()
+  const sockets = [new THREE.Vector3(), new THREE.Vector3()]
+  const grabShoulders = [new THREE.Vector3(), new THREE.Vector3()]
+  const torsoAt = [new THREE.Vector3(), new THREE.Vector3()]
+  /** Last frame's unblended grab fold and the grab it was for, to start the next search from. */
+  const grabWarm = new Float64Array(6)
+  let grabWarmKey = ''
+  /**
+   * How far the hands are from their grab points past arm's reach, plus what the
+   * fold costs. Forward kinematics by hand (root space, from the hips' matrix):
+   * a whole-rig matrix update per try cost about 17 ms a frame.
+   */
+  const grabCost = (specs: GrabSpec[]) => {
+    applyGrabDof()
+    spine.updateMatrix()
+    chest.updateMatrix()
+    spineInRoot.multiplyMatrices(hipsInRoot, spine.matrix)
+    chestInRoot.multiplyMatrices(spineInRoot, chest.matrix)
+    for (let i = 0; i < 2; i++) grabShoulders[i].copy(arms[i].shoulder.position).applyMatrix4(chestInRoot)
+    torsoAt[0].copy(GRAB_TORSO[0]).applyMatrix4(spineInRoot)
+    torsoAt[1].copy(GRAB_TORSO[1]).applyMatrix4(chestInRoot)
+    let cost = 0
+    for (const spec of specs) {
+      grabPoint(spec, grabAt)
+      cost += Math.max(0, grabShoulders[spec.hand].distanceTo(grabAt) - GRAB_REACH) * 8
+    }
+    if (rig.boarding) kneeDir.set(-1, 0, 0).applyQuaternion(boardGroup.quaternion)
+    for (let i = 0; i < 2; i++) {
+      // Each boot stays where the leg can reach it, with room for the knee to fold.
+      const socket = sockets[i]
+      const ankleAt = v3.copy(ANKLE_IN_SKI).applyQuaternion(skis[i].quaternion).add(skis[i].position)
+      const leg = ankleAt.distanceTo(socket)
+      cost += Math.max(0, GRAB_MIN_LEG - leg) * 10 + Math.max(0, leg - (THIGH_LENGTH + SHIN_LENGTH) * 0.97) * 10
+      // Where the knee will fold to (over the toes), from the two-bone triangle, and
+      // the shin below it, kept clear of the belly and chest.
+      if (!rig.boarding) kneeDir.set(0, 0, 1).applyQuaternion(skis[i].quaternion)
+      const d = Math.min(Math.max(leg, 1e-3), THIGH_LENGTH + SHIN_LENGTH)
+      const along = (d * d + THIGH_LENGTH ** 2 - SHIN_LENGTH ** 2) / (2 * d)
+      const out = Math.sqrt(Math.max(0, THIGH_LENGTH ** 2 - along * along))
+      grabPull.copy(ankleAt).sub(socket).normalize()
+      kneeAt.copy(socket).addScaledVector(grabPull, along)
+      kneeDir.addScaledVector(grabPull, -kneeDir.dot(grabPull)).normalize()
+      kneeAt.addScaledVector(kneeDir, out)
+      for (const at of torsoAt) {
+        grabSeg.set(socket, kneeAt)
+        const thighGap = grabSeg.closestPointToPoint(at, true, grabClosest).distanceTo(at)
+        grabSeg.set(kneeAt, ankleAt)
+        const shinGap = grabSeg.closestPointToPoint(at, true, grabClosest).distanceTo(at)
+        cost += (Math.max(0, GRAB_THIGH_GAP - thighGap) + Math.max(0, GRAB_KNEE_GAP - shinGap)) * 12
+      }
+    }
+    for (let k = 0; k < grabDof.length; k++) cost += Math.abs(grabDof[k]) * GRAB_COST[k]
+    return cost
+  }
+  /**
+   * A grab is the gear coming up to the hand as much as the hand going down to
+   * it. Arms alone fell 15 to 65 cm short (the hand hung beside the knee). A
+   * small search over the back (pitch, roll, twist) and the gear (lift, tilt
+   * toward the grabbed end, roll onto an edge) closes the gap the cheapest way
+   * that keeps the knees off the chest, then the result blends in with the grab
+   * (`amount`, 0 to 1). A held grab starts from last frame's answer.
+   */
+  const foldForGrab = (specs: GrabSpec[], amount: number, key: string) => {
+    torsoBase.set([spine.rotation.x, spine.rotation.y, spine.rotation.z, chest.rotation.x, chest.rotation.y, chest.rotation.z])
+    for (let i = 0; i < 2; i++) {
+      gearPos[i].copy(skis[i].position)
+      gearQuat[i].copy(skis[i].quaternion)
+    }
+    gearPos[2].copy(boardGroup.position)
+    gearQuat[2].copy(boardGroup.quaternion)
+    body.updateMatrix()
+    hips.updateMatrix()
+    hipsInRoot.multiplyMatrices(body.matrix, hips.matrix)
+    for (let i = 0; i < 2; i++) sockets[i].copy(legs[i].thigh.position).applyMatrix4(hipsInRoot)
+    const warm = key === grabWarmKey
+    if (warm) grabDof.set(grabWarm)
+    else grabDof.fill(0)
+    let best = grabCost(specs)
+    for (let step = warm ? 0.04 : 0.16; step > 0.01; step *= 0.5) {
+      for (let pass = 0; pass < 3; pass++) {
+        let moved = false
+        for (let k = 0; k < grabDof.length; k++) {
+          for (const dir of [1, -1]) {
+            const was = grabDof[k]
+            grabDof[k] = THREE.MathUtils.clamp(was + dir * step, GRAB_LIMITS[k][0], GRAB_LIMITS[k][1])
+            if (grabDof[k] === was) continue
+            const cost = grabCost(specs)
+            if (cost < best - 1e-5) {
+              best = cost
+              moved = true
+            } else grabDof[k] = was
+          }
+        }
+        if (!moved) break
+      }
+    }
+    grabWarm.set(grabDof)
+    grabWarmKey = key
+    for (let k = 0; k < grabDof.length; k++) grabDof[k] *= amount
+    applyGrabDof()
+    // The head keeps looking ahead over the fold.
+    head.rotation.x -= grabDof[0] * 0.8
+    head.rotation.y -= grabDof[2] * 0.5
   }
 
   const resetJoints = () => {
@@ -757,10 +996,27 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // Takeoff extends; landing kicks the crouch spring down and it rebounds.
       if (air && !wasAir) crouch.v -= boarding ? 1.6 : 2.2
       if (!air && wasAir) {
-        const impact = 1.4 + Math.min(10, Math.max(0, -lastVy)) * 0.4
-        crouch.v += impact
-        armFlare.v += 1.2 + Math.min(4, Math.max(0, -lastVy)) * 0.35
+        const hit = Math.min(10, Math.max(0, -lastVy))
+        crouch.v += 1.4 + hit * 0.4
+        armFlare.v += 1.2 + Math.min(4, hit) * 0.35
+        // A big hit folds the hips back and the chest down over the knees, then the legs push back up.
+        fore.v += hit * 0.05
+        landFold.v += 0.6 + hit * 0.22
+        // Close call: landing across the skis, or very hard, rocks the rider; they catch it.
+        const across = Math.abs(Math.atan2(Math.sin(state.heading - travel), Math.cos(state.heading - travel)))
+        const off = Math.min(across, Math.PI - across)
+        const shake = THREE.MathUtils.clamp((off - 0.18) / 0.45, 0, 1) + THREE.MathUtils.clamp((hit - 9) / 6, 0, 0.5)
+        if (Math.hypot(state.vx, state.vz) > 2 && shake > 0.15) startBobble(shake, Math.sin(state.heading - travel))
       }
+      // A sketchy landing the sim graded is always a close call.
+      if (state.trick && state.trick.seq !== lastTrickSeq) {
+        if (state.trick.grade === 'sketchy' && skiing) startBobble(1, 0)
+        lastTrickSeq = state.trick.seq
+      }
+      bobbleAge += dt
+      const bobbleEnv = bobble > 0 ? bobble * Math.max(0, 1 - bobbleAge / BOBBLE_TIME) ** 1.5 : 0
+      if (bobbleEnv <= 0) bobble = 0
+      landFold.step(0, dt, 2.6, 0.55)
       armFlare.step(0, dt, 3.2, 0.78)
       wasAir = Boolean(air)
       lastVy = state.vy
@@ -784,6 +1040,8 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       press.step(rail && rail.press === 'nose' ? 1 : rail && rail.press === 'tail' ? -1 : 0, dt, 2.6, 0.75)
       // Eyes lead the turn: the head turns toward where the skier is steering.
       look.step(skiing && speed > 2 ? -input.steer * 0.32 : 0, dt, 1.8, 0.9)
+      // Board: the shoulders lead the turn (they turn toward it before the board does).
+      boardLead.step(boarding && skiing && speed > 2 ? THREE.MathUtils.clamp(incline.x * BOARD_SHOULDER_LEAD + input.steer * 0.12, -0.5, 0.5) : 0, dt, 2.2, 0.85)
 
       // Counter-rotation: the upper body keeps facing down the fall line. Aimed from the
       // fall line, not the skis: the chest turns only CHEST_FOLLOW of the way with the
@@ -811,7 +1069,8 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // A board rider cruises taller (about 35° of knee bend) and sits lower on the heel edge.
       let wantCrouch = pose === 'stand' ? 0.12 : still ? (boarding ? 0.15 : 0.22) : boarding ? 0.2 : 0.32
       wantCrouch += Math.abs(incline.x) * 0.3 + (skiing ? Math.min(0.2, state.sink * 0.5) : 0)
-      if (boarding && skiing) wantCrouch += heelSide(edge) * 0.12
+      // Heelside the rider sits down into the highbacks; toeside the knees drive forward into the hill.
+      if (boarding && skiing) wantCrouch += heelSide(edge) * BOARD_HEEL_CROUCH + toeSide(edge) * BOARD_TOE_CROUCH
       if (skiing && ground?.mogulHeight) {
         // Fold the legs up on the face and extend into the next trough.
         wantCrouch += Math.min(0.48, ground.mogulHeight * Math.max(0, speed / 12 + state.vy * 0.14))
@@ -918,6 +1177,12 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         }
       }
 
+      if (bobbleEnv > 0.01 && !air) {
+        // One ski (the one the throw unloads) skips off the snow and comes back down.
+        const skip = bobbleEnv * Math.max(0, Math.sin(bobbleAge * 9)) * 0.09
+        skis[bobbleSide > 0 ? 1 : 0].position.y += skip
+        skis[bobbleSide > 0 ? 1 : 0].rotation.z += bobbleSide * skip * 1.5
+      }
       let boardLift = 0
       if (boarding) {
         const lift = (boardLift = air ? 0.18 + grabBlend * 0.2 : 0)
@@ -937,8 +1202,12 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       const sway = idle * Math.sin(state.time * 0.8) * 0.025
       // Skating moves the weight over the gliding ski; on a rail the body sways with the balance.
       // The whole body leans with the physics (about the snow under the skis or board).
-      body.rotation.z = incline.x + (rail ? rail.balance * 0.32 : 0) + stride * 0.12 + sway
-      const bend = 0.12 + flex * 0.72 + tuck.x * 0.6 + press.x * 0.18 + skateAmount * 0.18 + plow.x * 0.05 + doublePole * dp.crunch
+      // Close call: the body rocks side to side as the rider catches the landing.
+      const wobble = bobbleEnv * Math.sin(bobbleAge * 13) * 0.12 + bobbleEnv * bobbleSide * 0.06
+      body.rotation.z = incline.x + (rail ? rail.balance * 0.32 : 0) + stride * 0.12 + sway + wobble
+      // A landing folds the chest down; a close call rocks it back first.
+      const landBend = Math.max(0, landFold.x) * 0.35 - bobbleEnv * Math.cos(bobbleAge * 9) * 0.18
+      const bend = 0.12 + flex * 0.72 + landBend + tuck.x * 0.6 + press.x * 0.18 + skateAmount * 0.18 + plow.x * 0.05 + doublePole * dp.crunch
       legFollow += ((skiing ? 1 : 0) - legFollow) * ease(10, dt)
       if (boarding) {
         // Facing the toes, open a little toward the nose. In the hips' frame +Z is
@@ -955,7 +1224,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         // Torso: a forward hinge plus a share of the lean, so on the toe edge it stays
         // fairly upright over the toes and on the heel edge the chest comes over the knees.
         const keep = incline.x > 0 ? BOARD_TORSO_TOE : BOARD_TORSO_HEEL
-        const torso = BOARD_HINGE + flex * 0.35 + tuck.x * 0.6 + press.x * 0.18 + keep * incline.x - incline.x
+        const torso = BOARD_HINGE + landBend + flex * 0.35 + tuck.x * 0.6 + press.x * 0.18 + keep * incline.x - incline.x
         spine.rotation.x = torso * 0.55
         chest.rotation.x = torso * 0.45 - tuck.x * 0.08
       } else {
@@ -973,7 +1242,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         chest.rotation.z = counterTilt * 0.3
       }
       const upperTwist = boarding
-        ? 0.45 - switchLook * 0.78 + look.x * 0.28 + spinLead * 0.5
+        ? 0.45 - switchLook * 0.78 + look.x * 0.28 + spinLead * 0.5 - boardLead.x
         : counter.x * 0.7 + spinLead * 0.5 + switchLook * 0.25 + railLook * 0.55 - stride * 0.12
       spine.rotation.y = upperTwist * 0.55
       chest.rotation.y = upperTwist * 0.45
@@ -982,12 +1251,15 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         ? -Math.max(0, spine.rotation.x + chest.rotation.x) * 0.8 - tuck.x * 0.22
         : -bend * 0.8 - tuck.x * 0.22 + idle * Math.sin(state.time * 0.5) * 0.06
       head.rotation.y = boarding
-        ? 0.75 - switchLook * 1.55 + look.x * 0.5 + spinLead * 0.4
+        ? 0.75 - switchLook * 1.55 + look.x * 0.5 + spinLead * 0.4 - boardLead.x * 0.6
         : -counter.x * 0.3 + look.x + spinLead * 0.4 + switchLook * stance * 1.15 * (state.heading > 0 ? 1 : -1) + railLook * 0.4 +
           idle * Math.sin(state.time * 0.37) * 0.35
       // On snow the head stays near level with the horizon, whatever the body does.
       head.rotation.z = levelHead() * HEAD_LEVEL * legFollow
 
+      const grabSpecs = grabBlend > 0.02 && air ? grabSpecsFor(lastGrab, boarding) : []
+      if (grabSpecs.length > 0) foldForGrab(grabSpecs, grabBlend, `${lastGrab}`)
+      else grabWarmKey = ''
       if (!boarding && legFollow > 0.001) placeHipsOverSkis(edgeVisual, skateAmount > 0.01 ? stride : 0, legFollow)
       fitLegs(boarding)
 
@@ -1026,6 +1298,13 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         hand.x += side * Math.max(0, armFlare.x) * 0.14
         hand.y += Math.max(0, armFlare.x) * 0.05
         hand.z -= Math.max(0, armFlare.x) * 0.04
+        // Close call: arms windmill out and up for balance.
+        if (bobbleEnv > 0.01) {
+          const swing = Math.sin(bobbleAge * 11 + side * 1.7)
+          hand.x += side * bobbleEnv * 0.2
+          hand.y += bobbleEnv * (0.16 + swing * 0.14)
+          hand.z += bobbleEnv * swing * 0.12
+        }
         // Deep carve: inside hand drops toward the snow.
         if (skiing && Math.abs(edge) > 0.45) {
           const insideDrop = Math.min(1, (Math.abs(edge) - 0.45) / 0.35)
@@ -1059,9 +1338,20 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
           // Front hand out over the nose, back hand low over the tail; no poles.
           const front = side === 1
           hand.set(front ? 0.42 : -0.32, front ? -0.02 : -0.16, 0.3 + Math.abs(incline.x) * 0.1)
+          // Heelside both hands come forward over the toes to balance the sit; toeside the
+          // front hand reaches low toward the snow and the back hand trails up and back.
+          const heel = skiing ? heelSide(edge) : 0
+          const toes = skiing ? toeSide(edge) : 0
+          hand.lerp(v2.set(front ? 0.46 : 0.02, front ? 0.04 : -0.06, 0.42), heel * 0.8)
+          hand.lerp(v2.set(front ? 0.36 : -0.48, front ? -0.24 : 0.02, front ? 0.36 : -0.02), toes * 0.8)
           hand.lerp(v2.set(side * 0.25, -0.08, 0.21), THREE.MathUtils.clamp(tuck.x, 0, 1))
           hand.lerp(v2.set(side * 0.55, 0.16, 0.1), Math.max(handsBack, Math.min(1, railBlend.x)))
           if (rig.firstPerson) hand.y += 0.3
+          if (bobbleEnv > 0.01) {
+            const swing = Math.sin(bobbleAge * 11 + side * 1.7)
+            hand.y += bobbleEnv * (0.2 + swing * 0.16)
+            hand.x += side * bobbleEnv * 0.12
+          }
           // Low over the edge in a carve, never into the snow.
           if (skiing) {
             pointInRoot(chest, hand, handRoot)
@@ -1087,36 +1377,14 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         tipTarget.lerp(v2.set(side * 0.9, 0.3, -0.5), Math.max(0, Math.min(1, Math.max(airBlend.x, railBlend.x))))
         placeArm(i, handLocal, tipTarget.clone())
       }
-      if (grabBlend > 0.02 && air) {
+      if (grabSpecs.length > 0) {
         // Reach a point on the equipment so the hand moves with it.
-        const grab = lastGrab
-        const reachFor = (handIndex: number, skiIndex: number, along: number, sideOffset: number) => {
-          const target = boarding
-            ? v1.set(sideOffset, 0.035, along).applyMatrix4(boardGroup.matrix)
-            : v1.set(sideOffset, 0.06, along).applyQuaternion(skis[skiIndex].quaternion).add(skis[skiIndex].position)
+        for (const spec of grabSpecs) {
+          const target = grabPoint(spec, v1)
           root.updateMatrixWorld(true)
-          const current = root.worldToLocal(arms[handIndex].hand.getWorldPosition(v2))
+          const current = root.worldToLocal(arms[spec.hand].hand.getWorldPosition(v2))
           target.lerp(current, 1 - grabBlend)
-          placeArm(handIndex, target.clone(), v3.set(arms[handIndex].side * 0.9, 0.5, -0.6).clone(), true)
-        }
-        if (boarding) {
-          if (grab === 'truck') {
-            reachFor(0, 0, 0.31, -0.12)
-            reachFor(1, 1, -0.31, -0.12)
-          } else {
-            const frontHand = grab === 'nose' || grab === 'mute' || grab === 'japan'
-            const along = grab === 'nose' ? 0.62 : grab === 'tail' ? -0.62 : grab === 'japan' ? -0.22 : 0.06
-            reachFor(frontHand ? 0 : 1, 0, along, grab === 'safety' || grab === 'japan' ? 0.12 : -0.12)
-          }
-        } else if (grab === 'truck') {
-          reachFor(0, 0, 0.42, 0)
-          reachFor(1, 1, 0.42, 0)
-        } else {
-          const handIndex = grab === 'mute' || grab === 'japan' || grab === 'nose' ? 0 : 1
-          const skiIndex = grab === 'mute' || grab === 'safety' ? 1 : grab === 'critical' ? 0 : grab === 'japan' ? 1 : handIndex
-          const along = grab === 'nose' ? 0.72 : grab === 'tail' ? -0.62 : grab === 'japan' ? 0.32 : 0.22
-          const sideOffset = grab === 'safety' ? -0.07 : grab === 'critical' ? 0.07 : 0
-          reachFor(handIndex, skiIndex, along, sideOffset)
+          placeArm(spec.hand, target.clone(), v3.set(arms[spec.hand].side * 0.9, 0.5, -0.6).clone(), true)
         }
       }
       applyFade(dt)
