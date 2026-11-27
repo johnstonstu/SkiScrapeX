@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { applyCorrections, splitRun } from '../src/world/corrections'
 import { renameRuns } from '../src/app/progress'
-import { OVERLAY_RUNS } from '../src/world/runOverlay'
+import { OVERLAY_RUNS, joinOverlayEnds } from '../src/world/runOverlay'
 import type { Resort, Run } from '../src/world/resort'
 
 const line = (name: string, points: [number, number][], difficulty = 'intermediate'): Run =>
@@ -42,7 +42,9 @@ describe('run pass A (research handoff)', () => {
   it('names the Wildside traces and adds the south-face runs', () => {
     const name = (ref: string) => OVERLAY_RUNS.find((r) => r.ref === ref)?.name
     expect([name('W3'), name('W4'), name('W5'), name('W6')]).toEqual(['Jackpot', 'Gun Slinger', 'ShootOut', 'Showdown'])
-    expect(name('L3')).toBe('Chaser')
+    // Chaser moved from the L3 trace to the Quickdraw bowl (bowl pass, 2026-11-27).
+    expect(name('L3')).toBe('Unnamed cut L3')
+    expect(name('P-CH')).toBe('Chaser')
     for (const run of ['Toilet Bowl', 'Essendale Ward 1', 'Essendale Ward 2', 'Tooth Tusk', 'Sweet Sue', 'Wildly Easy']) {
       expect(OVERLAY_RUNS.some((r) => r.name === run), run).toBe(true)
     }
@@ -59,6 +61,24 @@ describe('run pass A (research handoff)', () => {
     expect(progress.medals["time:Upper Hang 'em High"]).toBe('silver')
     expect(progress.bests['time:Upper Gambit']).toBe(61.2)
     expect(progress.bests['Wishbone']).toBe(40)
-    expect(progress.covered['Chaser']).toBe(true)
+    expect(progress.covered['Unnamed cut L3']).toBe(true)
+  })
+
+  it('links trace ends to the runs they leave and feed, and leaves real gaps alone', () => {
+    const trace = { ...line('Trace', [[0, 30], [0, 200]]), id: 'lidar/T' }
+    const far = { ...line('Far trace', [[500, 0], [500, 100]]), id: 'lidar/F' }
+    const resort = {
+      runs: [line('Ridge', [[-100, 0], [100, 0]]), line('Runout', [[-100, 240], [100, 240]]), trace, far],
+      lifts: [],
+      parks: [],
+    } as unknown as Resort
+    // Height falls to the south (+z), so lines run downhill with z.
+    joinOverlayEnds(resort, (_x, z) => -z)
+    expect(trace.parts).toHaveLength(3)
+    expect(trace.parts[0]).toEqual([[0, 30], [0, 200]])
+    expect(trace.parts[1]).toEqual([[0, 0], [0, 30]])
+    expect(trace.parts[2]).toEqual([[0, 200], [0, 240]])
+    // 400 m from anything: not a tracing shortfall, so no link.
+    expect(far.parts).toHaveLength(1)
   })
 })

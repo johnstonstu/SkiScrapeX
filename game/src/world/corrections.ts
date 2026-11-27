@@ -59,7 +59,8 @@ export const TRACE_NAMES: Record<string, string> = {
   'Unmapped run L11': 'Unnamed cut L11',
   'Unmapped run L13': 'Unnamed cut L13',
   'Unmapped run L14': 'Unnamed cut L14',
-  'Unmapped run L3': 'Chaser',
+  // L3 was named Chaser until the bowl pass (2026-11-27) put Chaser in the Quickdraw bowl.
+  'Unmapped run L3': 'Unnamed cut L3',
   'Unmapped run L2': 'Prospector',
 }
 
