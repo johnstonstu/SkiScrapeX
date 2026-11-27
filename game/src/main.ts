@@ -1502,8 +1502,13 @@ function cameraBlocked(x: number, z: number): boolean {
 }
 
 function checkTreeContact(fromX: number, fromZ: number) {
-  const impact = resolveTreeContact(skier, fromX, fromZ, stage.trunks!, stage.slope.sampleTerrain)
-  if (impact !== null) tricks.show('Tree!', `${Math.round(impact * 3.6)} km/h impact`, 'crash')
+  const hit = resolveTreeContact(skier, fromX, fromZ, stage.trunks!, stage.slope.sampleTerrain)
+  if (hit?.kind === 'crash') tricks.show('Tree!', `${Math.round(hit.into * 3.6)} km/h impact`, 'crash')
+  else if (hit?.kind === 'brush') {
+    // Knocked aside, still riding: a thump like a skier bump, no crash.
+    sound.nearMiss(hit.into * 0.8)
+    haptics.nearMiss(hit.into * 1.2)
+  }
 }
 
 function checkEvents() {
