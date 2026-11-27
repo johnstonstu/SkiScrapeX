@@ -27,11 +27,29 @@ export const PHYSICS = {
   sidecutRadius: 14,
   maxEdgeDeg: 50,
   /**
-   * A held stick slews the skis toward this angle off the local fall line and
-   * stops there. Past 90° the skis point slightly uphill, which is how a
-   * skier turns to a stop or holds a cat track.
+   * A held direction (stick or key) slews the skis toward this angle off the
+   * local fall line and stops there: just short of straight across, so a held
+   * turn settles in a slow traverse instead of winding uphill and stopping.
+   * Turning to a stop is the brake's job. Was 100 before 0.9.40 (guess, tune in play).
    */
-  maxTraverseDeg: 100,
+  maxTraverseDeg: 86,
+  /**
+   * Below this speed (m/s) on gentle ground the steer turns freely so a
+   * stopped skier can face any way. Above it the fall line still sets the
+   * traverse, so a slow cat track cannot spin the skier backwards.
+   */
+  turnAroundSpeed: 1.5,
+  /**
+   * The most the skis may lead the travel direction while turning on the
+   * snow (attack angle), degrees. The steer cannot swing the skis further
+   * across the path than this, so a turn carves round instead of the skis
+   * sliding out sideways. Braking and landings are not limited. Guess, tune in play.
+   */
+  maxLeadDeg: 16,
+  /** Arcade edge hold: scale on the grip that rotates the path toward the skis while turning. Guess, tune in play. */
+  carveAssist: 1.3,
+  /** Speeds (km/h) over which the carve assist fades out. Guess, tune in play. */
+  carveAssistKmh: [45, 85],
   /** Below this slope (sine of the pitch) the fall line is undefined and steering turns freely. */
   flatSlopeSin: 0.03,
   /** Below this slope (sine) and skating speed, the stick turns freely so you can turn around. */
@@ -54,6 +72,8 @@ export const PHYSICS = {
   /** Multiplier on lateral skid friction while braking. */
   brakeSkidScale: 0.3,
   hockeyYawRate: 2.4,
+  /** After getting up from a crash, seconds in which trees knock the rider aside instead of down. Guess. */
+  crashGraceTime: 2.5,
   /** Airborne steering is this fraction of the on-snow yaw rate. */
   airYawScale: 0.65,
   /** Stick inside this absolute value counts as centered. */
@@ -77,8 +97,7 @@ export const PHYSICS = {
   keyEdgeFadeKmh: [60, 110],
   /** Seconds to blend surface parameters when the snow changes underfoot. */
   surfaceBlendTime: 0.15,
-  /** Grip ratio past which the edge washes out, for how long, and the grip left. */
-  washoutRatio: 1.9,
+  /** How long an edge washout lasts and the grip left. The ratio that starts one is per snow (`SurfaceParams.washoutRatio`). */
   washoutTime: 0.18,
   washoutGrip: 0.65,
   /** Powder (Lind and Sanders compaction law, n = 1): k in Pa/m, total ski base area m². */
@@ -88,8 +107,8 @@ export const PHYSICS = {
   sinkTime: 0.32,
   plowCoefficient: 0.11,
   snowDensity: 100,
-  /** Sink depth at which yaw rate halves, metres. Deeper = softer Steep-like yaw. */
-  powderTurnDepth: 0.11,
+  /** Sink depth at which yaw rate halves, metres. Deeper = softer Steep-like yaw. Was 0.11 before 0.9.40, when powder turned a third slower than a groomer (guess). */
+  powderTurnDepth: 0.2,
   /** Bounce-unweight window after a light powder pop, seconds. */
   powderUnweightTime: 0.4,
   /** Yaw multiplier while unweighted (bounce turns). */

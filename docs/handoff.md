@@ -43,6 +43,7 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 - In the game, `render/rider/riderSkin.ts` binds each garment to the rig's own bones (matched by name), so `skierView.ts` animates it unchanged. The code-built rider is the fallback while the GLB loads, if it fails, and in unit tests.
 - To add a style: add an entry to `GARMENTS` (shape) and the `masks` and `fabric_detail` functions (colour regions and normal detail), rebuild, then add the style to the lists in `riderSkin.ts` and the rider panel.
 - To review a change without a GPU, render an outfit in a skiing stance from four sides after `build_all` in the same namespace: `exec(open(r"<repo>/tools/blender/review_rider.py").read(), ns); ns["review"]({"jacket": "shell", "pants": "baggy", "gloves": "mitt", "headwear": "helmet"}, r"<out.png>", closeup=False)`. It shades garments the way the game does (mask colours, normal map, AO).
+- Grabs: `foldForGrab` in `skierView.ts` searches the back (pitch, roll, twist) and the gear (lift, tilt, edge roll) for the cheapest pose where the hand reaches its grab point (`grabSpecsFor`) and the knees stay off the chest. Costs and limits are `GRAB_COST` and `GRAB_LIMITS`; `tests/riderGrabs.test.ts` checks every grab reaches.
 - Rider lab: `?snow` starts each rider snow-covered (crash patches and powder up the legs) so the snow shader can be checked; it fades as it would in game.
 
 ## Rider clipping check
@@ -120,6 +121,12 @@ Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
 ## Where to tune
 
 - Ski physics: `PHYSICS` in `src/sim/constants.ts`, surfaces in `src/sim/surface.ts`.
+- Provisional feel numbers from 0.9.40 (Stu accepted them for now on 2026-11-27, open to change if the feel is not right in play). Each is marked "guess" in the code:
+  - Steering: `maxTraverseDeg` 86, `turnAroundSpeed` 1.5 m/s, `maxLeadDeg` 16, `carveAssist` 1.3 fading over `carveAssistKmh` 45 to 85, in `PHYSICS`.
+  - Snow: `washoutRatio` per surface (groomed 4.5, park 4, ice 2.2, rock 2.4, powder and forest 99, so they never wash out), ice `latMax` 1.2, `powderTurnDepth` 0.2.
+  - Trees: `HARD_HIT` 8 m/s, `BRUSH_LOSS` and `CLEAR_LINE` in `src/world/treeSkiing.ts`, and `crashGraceTime` 2.5 s.
+  - Controls and camera: `STICK_VERTICAL_SHARE` 0.7 in `src/player/input.ts`, and the steady camera rate (1.0) and fall-line pull in `src/player/camera.ts`.
+  - Before changing any of them, compare with `npm run tune`: `tuning/inputs.test.ts` (keys, pad and touch, each snow, camera) and `tuning/trees.test.ts`.
 - Freestyle: `FREESTYLE` in `src/sim/freestyle.ts`, kicker and rail specs in `src/world/park.ts`.
 - Music: `MUSIC_TUNING` in `src/player/musicState.ts` (when moods change), `MOOD_MIX` and the patterns in `src/player/musicScore.ts` (how they sound).
 - Medal targets: the pace bot in `src/world/challenges.ts` (times) and `parkTargets` (park scores).

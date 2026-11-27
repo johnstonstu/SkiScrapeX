@@ -6,7 +6,7 @@
 import type * as THREE from 'three'
 import type { SkiState, Spawn } from '../sim'
 import type { World } from '../world/loadWorld'
-import { LAYOUTS, type ParkSite } from '../world/park'
+import { LAYOUTS, dropInSpawn, type ParkSite } from '../world/park'
 import { headingFor, pickableRuns, pointAlong, polylineLength, type Course, type Lift, type Point2, type Run } from '../world/resort'
 import {
   MIN_TIMED_LENGTH,
@@ -53,6 +53,9 @@ function slalomLine(line: Point2[], gates: Gate[]): Point2[] {
 }
 
 const NUGGET_RADIUS = 2.6
+/** Speed a timed run or slalom pushes off with, m/s (about 18 km/h). */
+const PUSH_OFF_SPEED = 5
+
 /** The park the aerials event uses, switched to its aerial layout while it runs. */
 const AERIAL_SITE = 'Aerial Site'
 
@@ -84,7 +87,7 @@ export function createGoals(options: {
   /** The Apex race events whose runs this map has. */
   const events: EventCourse[] = EVENTS.flatMap((def) => {
     try {
-      return [buildEventCourse(resort, def)]
+      return [buildEventCourse(resort, def, parkSites, world.grid.heightAt)]
     } catch (error) {
       console.error(`Event ${def.name} is unavailable on this map.`, error)
       return []
@@ -173,21 +176,23 @@ export function createGoals(options: {
       return course ? this.event(course) : null
     },
     park(site: ParkSite): Challenge {
-      return { kind: 'park', id: `park:${site.name}:${site.layout}`, site, layout: site.layout, line: site.line, targets: parkTargets(site.layout) }
+      // The run is the straight drop-in axis: start at its top, finish at its bottom.
+      return { kind: 'park', id: `park:${site.name}:${site.layout}`, site, layout: site.layout, line: site.featureLine ?? site.line, targets: parkTargets(site.layout) }
     },
 
     /** Where a challenge starts: the first point of its line, facing down it. */
     courseFor(challenge: Challenge): Course | null {
       if (challenge.kind === 'free') return null
       const line = challenge.line
-      const startAt = challenge.kind === 'park' ? 4 : 0
-      const [x, z] = pointAlong(line, startAt)
-      const [ax, az] = pointAlong(line, startAt + 12)
-      const spawn: Spawn = { x, z, heading: headingFor(ax - x, az - z) }
       if (challenge.kind === 'park') {
+        // Dropped in at the top of the park, straight down the main line and already rolling.
         const site = challenge.site
-        return { spawn, startLift: null, startRun: { id: site.id, name: site.name, difficulty: 'park', groomed: true, kind: 'line', parts: [site.line] } }
+        return { spawn: dropInSpawn(site), startLift: null, startRun: { id: site.id, name: site.name, difficulty: 'park', groomed: true, kind: 'line', parts: [site.line] } }
       }
+      const [x, z] = pointAlong(line, 0)
+      const [ax, az] = pointAlong(line, 12)
+      // Timed runs and slaloms push off rolling (events wait in their start gate and launch at GO).
+      const spawn: Spawn = { x, z, heading: headingFor(ax - x, az - z), speed: challenge.kind === 'event' ? undefined : PUSH_OFF_SPEED }
       return { spawn, startLift: nearestLiftTop(x, z), startRun: challenge.run }
     },
 

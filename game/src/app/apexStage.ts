@@ -18,7 +18,7 @@ import { buildApron } from '../world/apron'
 import { indexTrunks, plantApronForest, plantForest } from '../world/forest'
 import { buildBuildings, indexBuildings, type Building } from '../world/buildings'
 import { buildVillage } from '../world/village'
-import { buildParkOverlay, LAYOUTS, parkOnRun, parkSitesFromLines, placeFeatures, type ParkOverlay, type ParkSite } from '../world/park'
+import { buildParkOverlay, LAYOUTS, parkBeside, parkOnRun, parkSitesFromLines, placeFeatures, type ParkOverlay, type ParkSite } from '../world/park'
 import { pointAlong, runHalfWidth } from '../world/resort'
 import { summitFence, toothTuskSignpost } from '../world/landmarks'
 import { createLandmarkView } from '../render/scenery/landmarkView'
@@ -64,10 +64,18 @@ export function buildApexStage(
 ): ApexStage {
   const { grid, resort, canopy } = world
   const { quality } = options
-  const parkSites = parkSitesFromLines(resort.parks)
+  const parkSites = parkSitesFromLines(resort.parks, grid.heightAt)
   // Prospector is the blue run beside Claim Jumper (trace L2), with its own park.
   const prospectorRun = resort.runs.find((run) => run.name === 'Prospector' && run.kind === 'line')
-  if (prospectorRun) parkSites.push(parkOnRun('Prospector', prospectorRun.parts[0], grid.heightAt))
+  // Its features run beside Claim Jumper's, on Claim Jumper's skier's left, so the two parks' lanes never cross.
+  const claimJumper = parkSites.find((site) => site.name === 'Claim Jumper')
+  if (prospectorRun) {
+    parkSites.push(
+      claimJumper
+        ? parkBeside('Prospector', prospectorRun.parts[0], claimJumper, grid.heightAt)
+        : parkOnRun('Prospector', prospectorRun.parts[0], grid.heightAt),
+    )
+  }
   const defaultLayouts = new Map(parkSites.map((site) => [site.name, site.layout]))
   const savedLayouts = readJson<Record<string, string>>(KEYS.parkLayouts, {})
   for (const site of parkSites) if (savedLayouts[site.name]) site.layout = savedLayouts[site.name]
@@ -75,12 +83,16 @@ export function buildApexStage(
     grid,
     resort,
     2.5,
-    parkSites.map((site) => ({
-      name: site.name,
-      line: site.line,
-      // Multi-lane parks need room for side-by-side features.
-      halfWidth: ['Claim Jumper', 'Okanagan Park', 'Prospector', 'Aerial Site'].includes(site.name) ? 28 : 18,
-    })),
+    parkSites.flatMap((site) => [
+      {
+        name: site.name,
+        line: site.line,
+        // Multi-lane parks need room for side-by-side features.
+        halfWidth: ['Claim Jumper', 'Okanagan Park', 'Prospector', 'Aerial Site'].includes(site.name) ? 28 : 18,
+      },
+      // The drop-in axis and its three lanes are park snow even where it cuts a corner of the mapped way.
+      ...(site.featureLine ? [{ name: site.name, line: site.featureLine, halfWidth: 20 }] : []),
+    ]),
     { exposure: buildExposure(grid, { originElevation: world.manifest.originElevation, cover: canopy?.cover }), canopyCover: canopy?.cover },
   )
   options.phase?.('apex: surface')
@@ -202,15 +214,17 @@ export function buildApexStage(
   let parkView: ReturnType<typeof createParkView> | null = null
   let stage: Stage | null = null
   const rebuildParks = () => {
-    const features = parkSites.flatMap((site) => placeFeatures(site, site.layout))
+    const features = parkSites.flatMap((site) => placeFeatures(site, site.layout, grid.heightAt))
     overlay = buildParkOverlay(features, cliffs.sampleTerrain, grid.heightAt)
     if (parkView) {
       scene.remove(parkView.object)
       parkView.dispose()
     }
     const parkSigns = parkSites.map((site) => {
-      const [x, z] = pointAlong(site.line, 8)
-      const [ax, az] = pointAlong(site.line, 14)
+      // At the drop-in, beside the top of the straight line.
+      const axis = site.featureLine ?? site.line
+      const [x, z] = pointAlong(axis, 8)
+      const [ax, az] = pointAlong(axis, 14)
       const yaw = Math.atan2(x - ax, z - az)
       return {
         name: site.name, layout: LAYOUTS.find((l) => l.id === site.layout)?.label ?? site.layout,

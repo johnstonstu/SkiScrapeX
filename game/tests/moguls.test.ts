@@ -214,7 +214,7 @@ describe.skipIf(!hasData)('mogul comp and aerials on the real map', () => {
     }
     const picks = rows.map((r) => r.reduce((a, b) => ((b.spec.height ?? 0) > (a.spec.height ?? 0) ? b : a)))
     const route = picks.flatMap((f) => {
-      const speed = f.spec.speed ? (f.spec.speed[0] + f.spec.speed[1]) / 2 / 3.6 : 12
+      const speed = f.window ? (f.window[0] + f.window[1]) / 2 : 12
       return [
         { x: f.x - f.dirX * 14, z: f.z - f.dirZ * 14, speed },
         { x: f.x + f.dirX * (f.footprint + 4), z: f.z + f.dirZ * (f.footprint + 4), speed },

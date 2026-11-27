@@ -9,7 +9,8 @@
  *   node scripts/perf-spots.mjs --dist dist --levels low,medium,high --label current
  *
  * Options: --dist <dir> (served on a free port) or --url <base>, --levels,
- * --spots (names below), --label, --out <file.jsonl>. CHROME_PATH picks the
+ * --spots (names below), --label, --out <file.jsonl>, --budget (exit 1 when a
+ * spot draws more triangles than TRIANGLE_BUDGET allows for its level). CHROME_PATH picks the
  * browser binary. Settings are seeded per load (quality only), so it also
  * works on builds from before `?quality` existed.
  */
@@ -26,6 +27,13 @@ export const SPOTS = {
   summit: '&at=1540,1540,90',
   park: '&park=claim',
 }
+
+/**
+ * Most triangles a frame any standard spot may draw, per level: about 15% over
+ * 0.9.47 (Low 0.64M, Medium 1.11M, High 1.30M at the village), so growth shows
+ * up in review rather than on a phone.
+ */
+export const TRIANGLE_BUDGET = { low: 750_000, medium: 1_250_000, high: 1_500_000 }
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((pairs, arg, i, all) => (arg.startsWith('--') ? [...pairs, [arg.slice(2), all[i + 1]]] : pairs), []),
@@ -96,3 +104,8 @@ for (const level of levels) {
 }
 await browser.close()
 server?.close()
+if ('budget' in args) {
+  const over = rows.filter((row) => (row.triangles ?? 0) > TRIANGLE_BUDGET[row.level])
+  for (const row of over) console.error(`Over budget: ${row.level} ${row.spot} draws ${row.triangles} triangles (budget ${TRIANGLE_BUDGET[row.level]})`)
+  if (over.length) process.exit(1)
+}

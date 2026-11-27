@@ -165,7 +165,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     shadowRange: 110,
     shadows: true,
     snowDetail: true,
-    forest: { near: 200, mid: 750, midShare: 0.55, farShare: 0.15 },
+    forest: { near: 200, mid: 750, midShare: 0.55, farShare: 0.15, fullNear: 60, leanFrom: 260 },
     apronForestDensity: 0.8,
     apronForestReach: 1100,
     terrain: { near: 110, far: 180, cache: 36, coarseStride: 1 },
@@ -188,7 +188,7 @@ export const QUALITY: Record<QualityLevel, QualityProfile> = {
     shadowRange: 160,
     shadows: true,
     snowDetail: true,
-    forest: { near: 260, mid: 900, midShare: 0.7, farShare: 0.22 },
+    forest: { near: 260, mid: 900, midShare: 0.7, farShare: 0.22, fullNear: 90, leanFrom: 340 },
     apronForestDensity: 1,
     apronForestReach: 1800,
     terrain: { near: 160, far: 250, cache: 56 },
@@ -233,6 +233,8 @@ export function scaledForest(base: ForestDetail, viewDistance: number): ForestDe
     mid: base.mid * viewDistance,
     midShare: Math.min(1, base.midShare * viewDistance),
     farShare: Math.min(1, base.farShare * viewDistance),
+    fullNear: base.fullNear === undefined ? undefined : base.fullNear * Math.min(1.2, viewDistance),
+    leanFrom: base.leanFrom === undefined ? undefined : base.leanFrom * viewDistance,
   }
 }
 

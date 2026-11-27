@@ -1,6 +1,6 @@
 import { createTerrainGrid, decodeDetailHeights, withDetail, type TerrainGrid } from './terrainGrid'
 import { unpackHeights } from './heightPacking'
-import { overlayRuns } from './runOverlay'
+import { joinOverlayEnds, overlayRuns } from './runOverlay'
 import { applyCorrections } from './corrections'
 import { gladeRuns } from './glades'
 import {
@@ -112,6 +112,8 @@ export async function loadWorld(base: string, onProgress?: (message: string, don
   // Runs OSM lacks, traced from the LiDAR canopy (see runOverlay.ts).
   resort.runs.push(...overlayRuns((part) => downhill(part, grid.heightAt)))
   applyCorrections(resort)
+  // Link the traces to the runs they leave and feed (after the splits, so they join the cut runs).
+  joinOverlayEnds(resort, grid.heightAt)
   // Glades last: they name the off-piste between runs and never take ground from a run.
   resort.runs.push(...gladeRuns())
   // Keep only what lies on the terrain crop.
