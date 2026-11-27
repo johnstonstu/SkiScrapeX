@@ -106,3 +106,32 @@ it('steady camera through held linked turns', async () => {
   }
   process.stdout.write(rows.join('\n') + '\n')
 })
+
+it('snow parity', async () => {
+  const { SURFACES } = await import('../src/sim/surface')
+  const rows: string[] = []
+  for (const kind of ['groomed', 'park', 'ice', 'powder', 'forest'] as const) for (const pitch of [15, 28]) for (const [label, hold, startKmh] of [['linked', 1.2, 25], ['hammer', 0.5, 55]] as const) {
+    const slope = createSteadySlope(pitch, { width: 6000, depth: 6000 })
+    const s = createSkiState({ x: 3000, z: 200, heading: 0 })
+    s.y = slope.sampleTerrain(s.x, s.z)!.height
+    s.surface = SURFACES[kind]
+    s.vy = -Math.sin(pitch * Math.PI / 180) * startKmh / 3.6
+    s.vz = Math.cos(pitch * Math.PI / 180) * startKmh / 3.6
+    const env: SkiEnv = { sampleSurface: () => SURFACES[kind] }
+    const input = device('pad')
+    let skid = 0, wash = 0, was = false, swing = 0, swings = 0, peak = 0, speed = 0, t = 0, last = 1
+    for (; t < 10; t += 1 / 60) {
+      const want = t < 0.5 ? 0 : Math.floor((t - 0.5) / hold) % 2 === 0 ? 1 : -1
+      if (want !== last) { swing += peak; swings++; peak = 0; last = want }
+      const steer = input(want, 1 / 60)
+      for (let k = 0; k < 2; k++) stepSkier(s, { ...steer, brake: 0, tuck: false }, slope.sampleTerrain, FIXED_DT, env)
+      peak = Math.max(peak, Math.abs(deg(Math.atan2(-s.vx, s.vz))))
+      if (s.skid >= 0.3) skid += 1 / 60
+      if (s.washout > 0 && !was) wash++
+      was = s.washout > 0
+      speed += s.speed / 60
+    }
+    rows.push(`${kind.padEnd(7)} ${String(pitch).padStart(2)}° ${label.padEnd(6)} avg ${(speed / t * 3.6).toFixed(0).padStart(3)} km/h  path swing ${(swing / Math.max(1, swings)).toFixed(0).padStart(3)}°  skid ${(skid / t * 100).toFixed(0).padStart(3)}%  washouts ${wash}`)
+  }
+  process.stdout.write(rows.join('\n') + '\n')
+})

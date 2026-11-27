@@ -72,6 +72,8 @@ export const PHYSICS = {
   /** Multiplier on lateral skid friction while braking. */
   brakeSkidScale: 0.3,
   hockeyYawRate: 2.4,
+  /** After getting up from a crash, seconds in which trees knock the rider aside instead of down. Guess. */
+  crashGraceTime: 2.5,
   /** Airborne steering is this fraction of the on-snow yaw rate. */
   airYawScale: 0.65,
   /** Stick inside this absolute value counts as centered. */
@@ -95,8 +97,7 @@ export const PHYSICS = {
   keyEdgeFadeKmh: [60, 110],
   /** Seconds to blend surface parameters when the snow changes underfoot. */
   surfaceBlendTime: 0.15,
-  /** Grip ratio past which the edge washes out, for how long, and the grip left. */
-  washoutRatio: 2.8,
+  /** How long an edge washout lasts and the grip left. The ratio that starts one is per snow (`SurfaceParams.washoutRatio`). */
   washoutTime: 0.18,
   washoutGrip: 0.65,
   /** Powder (Lind and Sanders compaction law, n = 1): k in Pa/m, total ski base area m². */
@@ -106,8 +107,8 @@ export const PHYSICS = {
   sinkTime: 0.32,
   plowCoefficient: 0.11,
   snowDensity: 100,
-  /** Sink depth at which yaw rate halves, metres. Deeper = softer Steep-like yaw. */
-  powderTurnDepth: 0.11,
+  /** Sink depth at which yaw rate halves, metres. Deeper = softer Steep-like yaw. Was 0.11 before 0.9.40, when powder turned a third slower than a groomer (guess). */
+  powderTurnDepth: 0.2,
   /** Bounce-unweight window after a light powder pop, seconds. */
   powderUnweightTime: 0.4,
   /** Yaw multiplier while unweighted (bounce turns). */
