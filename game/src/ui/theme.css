@@ -62,7 +62,8 @@ html, body {
 button { font-family: inherit; color: inherit; }
 [hidden] { display: none !important; }
 
-#view { display: block; width: 100vw; height: 100vh; touch-action: none; }
+/* dvh follows the phone browser's toolbars as they slide in and out; vh did not. */
+#view { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; }
 
 /* Keycap hint. */
 kbd {

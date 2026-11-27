@@ -1,6 +1,7 @@
 import type { GrabKind, SkiInput } from '../sim'
 import { createGamepadInput, type MenuCommand } from './gamepad'
 import { rampKeySteer, type KeyChange } from './keySteer'
+import { touchModeAfter } from './touchMode'
 
 export interface ControlOptions {
   /** 0.5 to 1.5: how quickly keys and sticks reach full edge. */
@@ -19,7 +20,10 @@ export interface Controls {
   /** Edge-triggered actions, cleared on read. */
   takeActions(): Set<Action>
   push(action: Action): void
-  touch: boolean
+  /** On-screen stick and buttons showing; follows the input last used (`touchMode.ts`). */
+  readonly touch: boolean
+  /** Called when `touch` changes. */
+  onTouchChange(listener: (touch: boolean) => void): void
   clear(): void
   dispose(): void
 }
@@ -56,7 +60,15 @@ export function createControls(root: HTMLElement): Controls {
     if (steerKeyCodes.has(code)) steerChanges.push({ t: performance.now(), want: keyWant() })
   }
   const actions = new Set<Action>()
-  const touch = matchMedia('(pointer: coarse)').matches || new URLSearchParams(location.search).has('touch')
+  let touch = matchMedia('(pointer: coarse)').matches || new URLSearchParams(location.search).has('touch')
+  const touchListeners: ((touch: boolean) => void)[] = []
+  const setTouch = (next: boolean) => {
+    if (next === touch) return
+    touch = next
+    layer.hidden = !touch
+    if (!touch) onBlur()
+    for (const listener of touchListeners) listener(touch)
+  }
   const keyActions: Record<string, Action> = {
     KeyR: 'reset',
     KeyC: 'camera',
@@ -85,6 +97,7 @@ export function createControls(root: HTMLElement): Controls {
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.target instanceof HTMLInputElement && event.code !== 'Escape') return
     usingPad = false
+    setTouch(touchModeAfter(touch, { kind: 'key', code: event.code }))
     if (event.code === 'Space' && event.target instanceof HTMLButtonElement) return
     if (event.code === 'Enter' && event.target instanceof HTMLButtonElement) return
     if (!keys.has(event.code)) {
@@ -102,7 +115,10 @@ export function createControls(root: HTMLElement): Controls {
     keys.delete(event.code)
     noteSteerKey(event.code)
   }
-  const onPointer = () => { usingPad = false }
+  const onPointer = (event: PointerEvent) => {
+    usingPad = false
+    setTouch(touchModeAfter(touch, { kind: 'pointer', pointerType: event.pointerType }))
+  }
   const onBlur = () => {
     keys.clear()
     tapped.clear()
@@ -188,7 +204,12 @@ export function createControls(root: HTMLElement): Controls {
   }
 
   return {
-    touch,
+    get touch() {
+      return touch
+    },
+    onTouchChange(listener) {
+      touchListeners.push(listener)
+    },
     pollGamepad(inMenu) {
       const { commands, used } = gamepad.poll(performance.now(), inMenu, actions)
       if (used) usingPad = true

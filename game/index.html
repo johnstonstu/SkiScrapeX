@@ -4,6 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#132637" />
+    <!-- Home screen app: fullscreen on Android, standalone with the notch area on iOS. -->
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="./icons/favicon-64.png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="SkiScrapex" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>SkiScrapex · Apex Mountain</title>
   </head>
   <body>
@@ -41,6 +49,7 @@
               <button type="button" id="btn-camera"><span id="camera-label">Camera · Follow</span> <kbd>C</kbd></button>
               <button type="button" id="btn-map" aria-pressed="true">Resort map <kbd>M</kbd></button>
               <button type="button" id="btn-sound" aria-pressed="true">Sound · On</button>
+              <button type="button" id="btn-fullscreen" aria-pressed="false" hidden>Fullscreen</button>
               <button type="button" id="btn-pause-player">Music player <kbd>P</kbd></button>
               <button type="button" id="btn-info" aria-pressed="false">Performance info <kbd>I</kbd></button>
             </div>

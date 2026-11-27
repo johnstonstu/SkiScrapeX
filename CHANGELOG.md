@@ -2,6 +2,22 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.37 (unreleased): Phone screen, fullscreen and home screen
+
+Last part of the mobile pass.
+
+### Added
+
+- **Fullscreen** in the pause menu, where the browser allows it (Android, desktop, iPad). iPhone Safari has no fullscreen for pages; add the game to the home screen instead.
+- **Home screen app.** A web app manifest and icons: on Android it opens fullscreen, on iOS without the browser bars and drawn under the notch (the HUD already keeps to the safe area). The icon is a placeholder (peaks, sun and a ski track on the theme navy).
+- **Screen stays on while skiing** (Screen Wake Lock, Android Chrome and iOS 16.4+). Menus and the title let it sleep, and the lock is taken again after switching apps.
+
+### Changed
+
+- **Touch controls follow the input used.** A finger on the screen brings up the stick and Jump on a touch laptop, and skiing with the keyboard puts them away on an iPad with a keyboard. Hints, the controls guide, the Runs wording and the Auto screen setting follow. The graphics level still comes from the device at start-up.
+- **Game view height** uses `dvh`, so it fits when a phone browser's toolbars slide in and out.
+- **Lift ride on touch** says "push up to speed up" (there is no Tuck button).
+
 ## 0.9.36 (unreleased): Menus on phones
 
 Second part of the mobile pass.
