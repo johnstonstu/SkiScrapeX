@@ -168,6 +168,12 @@ export interface SkiState {
   crashGrace: number
   /** Pitch held off a rail, or off a takeoff without a pop, does not flip until it is let go. */
   flipLock: boolean
+  /**
+   * Radians of a hop 180 still to turn after an early touchdown. The physics already rides the
+   * finished heading (`heading + pivot`); `heading` itself, which is what is drawn, turns the
+   * rest of the way on the snow.
+   */
+  pivot: number
   /** Last trick or rail scored; `seq` increases with each one. */
   trick: TrickEvent | null
   time: number
@@ -225,6 +231,7 @@ export function createSkiState(pose?: { x?: number; y?: number; z?: number; head
     railCooldown: 0,
     crashGrace: 0,
     flipLock: false,
+    pivot: 0,
     trick: null,
     time: 0,
   }
@@ -298,6 +305,7 @@ export function stepSkier(
     return
   }
   if (state.crashed > 0) {
+    state.pivot = 0
     stepCrashed(state, sampleTerrain, dt)
     finish(state, steer, brake)
     return
@@ -315,6 +323,9 @@ export function stepSkier(
     finish(state, steer, brake)
     return
   }
+  // A hop 180 finishing on the snow: steer and grip from where it will end up.
+  const pivot = state.pivot
+  if (pivot !== 0) state.heading = wrapAngle(state.heading + pivot)
   // Crouch while held; remember the spin direction as pre-wind.
   if (jump) {
     state.popCharge = Math.min(1, state.popCharge + dt / FREESTYLE.chargeTime)
@@ -335,6 +346,10 @@ export function stepSkier(
     }
   }
   stepGround(state, steer, brake, sampleTerrain, dt, env, released, input.directionalSteering)
+  if (pivot !== 0) {
+    state.pivot = state.grounded && !state.offMap ? moveTowardZero(pivot, FREESTYLE.hop180RateMax * dt) : 0
+    state.heading = wrapAngle(state.heading - state.pivot)
+  }
   // Leaving the snow without a pop (a mogul, a lip, a drop): pitch already
   // held, usually the brake, does not flip until it is let go and pressed again.
   if (!state.grounded && !released) state.flipLock = Math.abs(input.pitch ?? 0) > FREESTYLE.pressThreshold
@@ -757,15 +772,13 @@ function stepAir(
   }
   const n = facingUp(ground.normal)
   const velocity = { x: state.vx, y: state.vy, z: state.vz }
-  // Hop 180: a bump that met the skis early does not leave them part way round.
+  // Hop 180: if the snow met the skis early, land as if round and pivot the rest on the snow.
   const quick = air.quick ?? 0
-  const short = quick - air.spin
-  if (quick !== 0 && (env.assist ?? true) && Math.abs(short) < FREESTYLE.hop180Snap) {
-    state.heading = wrapAngle(state.heading + short)
-    air.spin = quick
-  }
-  const hop180 = quick !== 0 && Math.abs(quick - air.spin) < 0.2 && Math.abs(air.flip) < 0.7
-  const landing = gradeLanding(velocity, n, state.heading, air, Boolean(input.grab))
+  const hop180 = quick !== 0 && Math.abs(air.flip) < 0.7
+  const short = hop180 ? quick - air.spin : 0
+  const landHeading = wrapAngle(state.heading + short)
+  if (hop180) air.spin = quick
+  const landing = gradeLanding(velocity, n, landHeading, air, Boolean(input.grab))
   const tangent = projectOnPlane(velocity, n)
   // Short hops (bumps, small pops, rail approaches) are not graded harshly.
   const hop = (air.time < 0.55 && Math.abs(air.flip) < 0.7 && Math.abs(air.spin) < 1.15) || hop180
@@ -797,6 +810,7 @@ function stepAir(
   state.sink = Math.min(state.surface.depth, state.sink + Math.min(0.35, landing.efh * 0.28 + (powderCushion ? 0.08 : 0)))
   if (powderCushion && grade !== 'crash') state.unweight = Math.max(state.unweight, 0.18)
   state.ridingSwitch = landing.switchLanding && grade !== 'crash'
+  state.pivot = grade === 'crash' ? 0 : short
   if (grade === 'crash') {
     crash(state)
   }

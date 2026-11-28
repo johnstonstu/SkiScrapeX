@@ -156,6 +156,36 @@ describe('hop 180', () => {
     expect(air.spinRate).toBeGreaterThan(FREESTYLE.spinRateMax - FREESTYLE.spinAccel * FIXED_DT - 1e-6)
   })
 
+  it('when the snow comes up early the rest of the turn pivots on the snow, with no jump in the heading and no crash', () => {
+    // A third of the way round, a hand's width above the snow at 60 km/h: a bump met the hop.
+    const s = rider(true, 60)
+    s.grounded = false
+    s.y += 0.03
+    s.switchTakeoff = true
+    s.heading = wrap(Math.PI + 1.1)
+    s.air = { ...newAir(0), time: 0.12, spin: 1.1, quick: Math.PI, timeToLand: 0.02, predictedFrom: 0.12 }
+    let last = s.heading, biggest = 0, landedAt = -1
+    for (let i = 0; i < 120; i++) {
+      stepSkier(s, { steer: 0, brake: 0, tuck: false }, slope.sampleTerrain, FIXED_DT)
+      biggest = Math.max(biggest, Math.abs(wrap(s.heading - last)))
+      last = s.heading
+      if (s.grounded && landedAt < 0) {
+        landedAt = i
+        // Down and already riding forward, though the skis are still coming round.
+        expect(s.ridingSwitch).toBe(false)
+        expect(Math.abs(s.pivot)).toBeGreaterThan(1)
+      }
+    }
+    expect(landedAt).toBeGreaterThanOrEqual(0)
+    expect(s.crashed).toBe(0)
+    expect(s.pivot).toBe(0)
+    expect(biggest).toBeLessThanOrEqual(FREESTYLE.hop180RateMax * FIXED_DT + 1e-6)
+    expect(Math.abs(wrap(s.heading - Math.atan2(-s.vx, s.vz)))).toBeLessThan(0.1)
+    // Nearly all the speed is kept: the pivot is not a skid.
+    expect(s.speed * 3.6).toBeGreaterThan(57)
+    expect(s.trick).toMatchObject({ name: 'Switch 180', hop: true })
+  })
+
   it('with the landing assist off the hop still turns, paced to the landing', () => {
     const s = rider(true)
     const r = play(s, { hold: 0.08 }, slope.sampleTerrain, { assist: false })

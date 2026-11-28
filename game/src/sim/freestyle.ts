@@ -76,7 +76,9 @@ export const FREESTYLE = {
    * All guesses, tune in play.
    *
    * The pop is at least `hop180Pop` m/s (about 0.4 s of air), the spin is done `hop180Early`
-   * seconds before touchdown and never turns faster than `hop180RateMax` rad/s.
+   * seconds before touchdown and never turns faster than `hop180RateMax` rad/s. If the snow
+   * comes up early (a bump, a steep roll), the rest of the turn is pivoted on the snow at that
+   * rate (`SkiState.pivot`) instead of landing sideways.
    */
   hop180Pop: 1.9,
   hop180Early: 0.07,
@@ -88,8 +90,6 @@ export const FREESTYLE = {
   /** A direction let go this far (0..1, decaying) before the pop still counts, and one pressed within `hop180Late` seconds after it. */
   hop180Windup: 0.1,
   hop180Late: 0.12,
-  /** With the landing assist on, a hop that touches down with less than this left to turn is set straight, radians. */
-  hop180Snap: 1.2,
   /** Flat score, under the combo's `COMBO_MIN_POINTS` so hops cannot farm a multiplier. */
   hop180Points: 60,
 } as const

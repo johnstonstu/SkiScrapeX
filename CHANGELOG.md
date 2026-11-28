@@ -9,7 +9,7 @@ From Stu's playtest of the combined 0.9.56 build: riders end up switch (backward
 ### Added
 
 - **Hop 180: jump with left or right.** Riding switch, a tap of jump with a direction pops a small hop that turns exactly half way round and lands you forward, on skis and on a snowboard, at any speed. The spin is paced to the landing, so it does not depend on how long the direction is held, and holding it on does not over-rotate. The pop is a little bigger than a plain tap (about 0.4 s of air) so the turn has room.
-- **Forgiving timing.** The direction can be let go up to about 0.15 s before the jump is released, or pressed up to 0.12 s after it. With the landing assist on, a hop that meets a bump early is set straight instead of landing part way round.
+- **Forgiving timing.** The direction can be let go up to about 0.15 s before the jump is released, or pressed up to 0.12 s after it. If the snow comes up early (a bump, a steep roll), the rest of the turn pivots on the snow instead of landing sideways and crashing.
 - **To switch on purpose.** From forward the same move works after holding the crouch for a moment (about 0.16 s) with a direction. A quick tapped ollie in the middle of a turn stays an ollie, and a mogul field never hops you to switch, since there the crouch is for soaking up bumps while you steer.
 - **A prompt when it matters.** After two seconds riding switch in free skiing, one line says how to hop round. It is gone for good once you have done it. The pause guide and the README list the move.
 - The hop shows as "Switch 180" or "180" for 60 points. It joins an open combo but neither raises the multiplier nor holds the combo open, so it cannot be farmed.
