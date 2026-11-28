@@ -532,3 +532,19 @@ button.challenge .target { grid-column: 3; font-size: 0.72rem; color: var(--fain
 .touch .swatches button { width: 2.5rem; height: 2.5rem; }
 .touch .challenge-group .event-about summary { min-height: 2.75rem; display: flex; align-items: center; }
 .touch:not(.pad-navigation) .result-buttons kbd { display: none; }
+
+/* Rank and the day ticket */
+.stat.rank { min-width: 11rem; }
+.rank-bar, .goal-bar { display: block; height: 4px; border-radius: 2px; background: var(--line-strong); overflow: hidden; }
+.rank-bar { margin: 0.3rem 0 0.25rem; }
+.rank-bar > span, .goal-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+.ticket h3 { margin: 0 0 0.5rem; }
+.ticket h3 small { margin-left: 0.5rem; font-weight: 500; color: var(--faint); }
+.goals { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+.goals li { display: grid; grid-template-columns: 1fr auto auto; gap: 0.2rem 0.8rem; align-items: baseline; padding: 0.55rem 0.8rem; border-radius: var(--radius-sm); border: 1px solid var(--line-strong); font-size: 0.9rem; }
+.goals .goal-amount { color: var(--faint); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.goals .goal-stoke { color: var(--gold); font-weight: 650; font-variant-numeric: tabular-nums; }
+.goals .goal-bar { grid-column: 1 / -1; }
+.goals li.daily { border-color: var(--gold); }
+.goals li.done { border-style: dashed; color: var(--faint); }
+#pause-ticket { margin: 0 0 1rem; }

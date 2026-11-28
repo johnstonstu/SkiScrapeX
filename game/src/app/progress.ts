@@ -5,6 +5,8 @@
 import { MEDAL_RANK, type Medal } from '../world/challenges'
 import { KEYS, readJson, writeJson } from './storage'
 import { PROGRESS_RENAMES } from '../world/corrections'
+import { RANKS, rankOf } from './stoke'
+import type { TicketState } from './ticket'
 
 export interface Progress {
   /** Best medal per challenge id (`time:<run>`, `slalom:<run>`, `park:<site>:<layout>`). */
@@ -16,6 +18,10 @@ export interface Progress {
   /** Nugget ids found. */
   nuggets: string[]
   totals: { runs: number; distance: number; vertical: number; topSpeed: number }
+  /** Stoke earned (see stoke.ts). Unset on saves from before 0.9.55: goals.ts backfills it. */
+  stoke?: number
+  /** The day ticket's goals (see ticket.ts). */
+  ticket?: TicketState
 }
 
 export function emptyProgress(): Progress {
@@ -96,11 +102,29 @@ export interface Unlock {
   test: (progress: Progress, skied: number) => boolean
 }
 
+/** A reward for reaching rank `index` (1 is the first rank above Greenhorn). */
+const atRank = (id: string, label: string, index: number): Unlock => ({
+  id,
+  label,
+  hint: `Reach ${RANKS[index].name}`,
+  test: (p) => rankOf(p.stoke ?? 0).index >= index,
+})
+
 export const UNLOCKS: Unlock[] = [
   { id: 'colour:gold', label: 'Gold colour', hint: 'Win 3 gold medals', test: (p) => medalCounts(p).gold >= 3 },
   { id: 'colour:chrome', label: 'Chrome colour', hint: 'Win 10 medals', test: (p) => medalCounts(p).total >= 10 },
   { id: 'graphic:topo', label: 'Topo ski graphic', hint: 'Ski 20 different runs', test: (_p, skied) => skied >= 20 },
   { id: 'graphic:nugget', label: 'Nugget ski graphic', hint: 'Find 6 gold nuggets', test: (p) => p.nuggets.length >= 6 },
+  // One reward per rank.
+  atRank('colour:apex', 'Apex orange colour', 1),
+  atRank('kit:parkrat', 'Park Rat kit', 2),
+  atRank('colour:hivis', 'Hi-vis colour', 3),
+  atRank('kit:race', 'Ski Club race kit', 4),
+  atRank('colour:powder', 'Powder pink colour', 5),
+  atRank('kit:patrol', 'Patrol kit', 6),
+  atRank('model:straight', '225 straight skis', 7),
+  atRank('kit:stanfields', "Stanfield's one-piece kit", 8),
+  atRank('kit:goldrush', 'Gold Rush kit', 9),
 ]
 
 export function unlockedIds(progress: Progress, skied: number): Set<string> {

@@ -62,7 +62,7 @@ export function addToCombo(combo: ComboState, name: string, basePoints: number):
  * chain into a combo, and the combo banks after 3 s on the ground. A bail
  * loses the combo.
  */
-export function createTrickFeed(element: HTMLElement) {
+export function createTrickFeed(element: HTMLElement, hooks: { onBank?: (points: number) => void } = {}) {
   let lastSeq = 0
   let timer = 0
   // Race formats are timed, not judged: tricks still happen but score nothing and pop nothing.
@@ -104,6 +104,14 @@ export function createTrickFeed(element: HTMLElement) {
     },
     /** Lose the combo without banking it (a crash or a restart). */
     drop,
+    /** Bank the open combo now, without a card: the end of a park run or a lap. */
+    bankNow() {
+      if (!combo.tricks.length) return
+      const banked = combo.points * combo.multiplier
+      combo.total += banked
+      hooks.onBank?.(banked)
+      drop()
+    },
     /** Mute trick cards and combos (race formats). Tricks are still reported as new. */
     setMuted(on: boolean) {
       muted = on
@@ -157,6 +165,7 @@ export function createTrickFeed(element: HTMLElement) {
       if (combo.groundTime > COMBO_GROUND_TIME) {
         const banked = combo.points * combo.multiplier
         combo.total += banked
+        hooks.onBank?.(banked)
         show(combo.multiplier > 1 ? `Combo ×${combo.multiplier}` : 'Banked', `${combo.total.toLocaleString()} total`, 'bank', `+${banked.toLocaleString()}`)
         drop()
       }

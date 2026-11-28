@@ -63,7 +63,7 @@ import { createRaceHud } from './ui/raceHud'
 import { createHudPeek } from './ui/hudPeek'
 import { createScreenWake, fullscreenSupported, onFullscreenChange, toggleFullscreen } from './app/screen'
 import { createGoals } from './app/goals'
-import { renderChallenges, renderTitle, setTitleStatus } from './ui/goalsPanels'
+import { renderChallenges, renderTitle, setTitleStatus, ticketHtml } from './ui/goalsPanels'
 import { holdRiderAsset } from './render/rider/riderSkin'
 import { createCoach } from './app/tutorial'
 import { createNpcs } from './app/npcs'
@@ -215,7 +215,7 @@ const haptics = createHaptics((weak, strong, ms) => controls.rumble(weak, strong
 const gearDrops = createGearDrops(scene)
 const effects = createSnowEffects(scene, lighting, pixelRatio, quality)
 effects.setBoard(outfit.model === 'snowboard')
-const tricks = createTrickFeed(ui.trick)
+const tricks = createTrickFeed(ui.trick, { onBank: (points) => game.goals?.onBank(points) })
 /** Park run-ins: eases the speed toward each jump's sweet spot and reports where jumps land. */
 const parkPace = createParkPace()
 const raceHud = createRaceHud()
@@ -751,6 +751,9 @@ function handleActions() {
       ui.menu.hidden = closing
       if (!closing) {
         $('#pause-location').textContent = ui.title.textContent
+        const ticket = game.goals?.ticket()
+        $('#pause-ticket').hidden = !ticket
+        if (ticket && game.goals) $('#pause-ticket').innerHTML = ticketHtml(ticket, game.goals.progress.stoke ?? 0)
         ui.menu.classList.remove('show-guide')
         $('#btn-guide').setAttribute('aria-expanded', 'false')
         $('#btn-map').hidden = !game.stage.world
@@ -950,7 +953,9 @@ function stepPlay(dt: number, input: ReturnType<typeof controls.read>): { steps:
     const landed = parked ? parkPace.takeLanding() : null
     if (landed) parkHud.landed(landed, performance.now())
     perf.lap('sim')
-    if (tricks.onTrick(game.skier.trick, landed?.outcome ?? null) && game.skier.trick?.kind === 'air') {
+    const newTrick = tricks.onTrick(game.skier.trick, landed?.outcome ?? null)
+    if (newTrick && game.skier.trick) game.goals?.onTrick(game.skier.trick)
+    if (newTrick && game.skier.trick?.kind === 'air') {
       comp.onTrick(game.skier.trick)
       rig.landingImpulse(game.skier.trick)
       haptics.landing(game.skier.trick)
