@@ -98,8 +98,9 @@ export const RUN_SPLITS: { name: string; at: [number, number]; upper: string; lo
  * grooming at Apex changes day to day, so these are the usual state, not a rule.
  */
 export const RUN_STYLE: Record<string, { groomed?: boolean; moguls?: boolean; chop?: boolean; packed?: boolean; halfWidth?: number }> = {
-  // Mogul lanes need room; the LiDAR clearing under Quickdraw is wide.
-  'West Bank': { groomed: false, moguls: true, halfWidth: 15 },
+  // Mogul lanes need room; the LiDAR clearing under Quickdraw is wide (49 m median), and
+  // powderhounds.com describes "wide-open bumps such as those under the quad chair".
+  'West Bank': { groomed: false, moguls: true, halfWidth: 20 },
   // A wide big-mountain face, room to ski around the drops.
   'The Pit': { groomed: false, halfWidth: 22 },
   // Moguls seen in frames. Half widths are the LiDAR median open width halved,
@@ -121,6 +122,25 @@ export const RUN_STYLE: Record<string, { groomed?: boolean; moguls?: boolean; ch
   "Grandmother's Trail": { packed: true },
   // A narrow cut (23 m open in the LiDAR); the blue-run default of 40 m cut into its trees.
   'Dawdler 1': { halfWidth: 11.5 },
+  // Accuracy pass (2026-11-28): the wide groomers. The default blue is about 40 m of corduroy,
+  // but these are groomed across clearings 60 to 150 m wide (LiDAR median open width in
+  // run-profiles.json, in brackets) and the footage calls each of them wide: Juniper "wide
+  // groomed open upper slope", Ridge Run "wide groomed slope", Okanagan Run "wide groomed slope
+  // above the village", Golden Eagle "wide groomed corduroy", Village Traverse "wide gentle
+  // traverse", Wild Bill "groomed, wide", Sluice Box "wide groomed run". The groomed width is at most 85% of
+  // the clearing, so the corduroy stays inside the trees with powder left at the edges.
+  // Blacks are left alone: the footage shows Chute and Gunbarrel skied as 15 to 20 m hallways
+  // inside wider clearings. Stock's Traverse (85 m open) stays cat-track width, as filmed.
+  'Okanagan Run': { halfWidth: 38 }, // 108 m
+  Juniper: { halfWidth: 32 }, // 90 to 97 m
+  'Ridge Run': { halfWidth: 32 }, // 93 m
+  'Golden Eagle': { halfWidth: 26 }, // 90 m
+  'Village Traverse': { halfWidth: 28 }, // 79 m
+  'Wild Bill': { halfWidth: 25 }, // 63 m
+  'Sluice Box': { halfWidth: 23 }, // 58 m
+  // No footage; LiDAR only. The Magic Carpet learning slope (151 m open) and the T-Bar face (112 m).
+  'Easy Rider': { halfWidth: 40 },
+  "Adrian's Alley": { halfWidth: 32 },
 }
 
 /**

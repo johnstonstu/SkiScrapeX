@@ -31,8 +31,10 @@ export const RUN_EDGES = {
   /** Cover and canopy height above these at a run's outer edge count as standing forest. */
   forestCover: 0.55,
   forestHeight: 4,
-  /** The run keeps its core (this share of the half width) whatever the canopy says. */
+  /** The run keeps its core (this share of the half width, at most `coreMax` metres) whatever the canopy says. */
   core: 0.6,
+  /** Wide runs (half width over 20 m) keep no more core than a default blue, so their width never mows standing forest. */
+  coreMax: 12,
   /** Furthest a run grows past its guessed edge, metres. */
   maxGrowth: 16,
   /** Only grow where there is forest within this many metres (open alpine has no corridor to find). */
@@ -68,7 +70,7 @@ export function fitRunsToCanopy(raster: RunRaster, grid: TerrainGrid, cover: Flo
     const location = locations[i]
     if (!location || wooded[location] || !Number.isFinite(runDistance[i]) || runDistance[i] === 0) continue
     const half = halfWidth[location]
-    if (runDistance[i] < (half * RUN_EDGES.core) ** 2) continue
+    if (runDistance[i] < Math.min(half * RUN_EDGES.core, RUN_EDGES.coreMax) ** 2) continue
     const x = ((i % width) + 0.5) * texel
     const z = (Math.floor(i / width) + 0.5) * texel
     if (coverAt(x, z) < RUN_EDGES.forestCover) continue
