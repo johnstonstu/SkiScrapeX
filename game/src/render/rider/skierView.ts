@@ -1100,7 +1100,16 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // Skating: below the push speed, and on gentle snow a few more strokes past it
       // that fade as the tuck comes in (it snapped from skating to a tuck).
       const skateFade = speed < PHYSICS.skateMaxSpeed ? 1 : slopeSin < 0.12 ? 1 - smooth(Math.min(1, (speed - PHYSICS.skateMaxSpeed) / 2.5)) : 0
-      const skating = skiing && input.tuck && !braking && skateFade > 0.02 && !boarding
+      // Carried along a glide track or through a booster (set by the sim where the mountain
+      // has them): the rider works with it, skating or pushing at low speed without tuck
+      // held, then settling low as the speed builds.
+      const carried = state as SkiState & { gliding?: number; boosting?: boolean }
+      const gliding = skiing && !braking ? THREE.MathUtils.clamp(carried.gliding ?? 0, 0, 1) : 0
+      const glidePush = gliding > 0.3
+      const glideSkate = gliding * (1 - smooth(THREE.MathUtils.clamp((speed - 7) / 4, 0, 1)))
+      const skateWant = input.tuck ? skateFade : glidePush ? (boarding ? Math.min(skateFade, gliding) : glideSkate) : 0
+      const glideLow = Math.max(carried.boosting && skiing ? 0.6 : 0, state.tuck ? 0 : gliding * smooth(THREE.MathUtils.clamp((speed - 7) / 4, 0, 1)) * 0.4)
+      const skating = skiing && (input.tuck || glidePush) && !braking && skateWant > 0.02 && !boarding
       // Heading up a slope, the push becomes a herringbone: tips out, inside edges, short steps.
       const herringbone = skating ? smooth(Math.min(1, Math.max(0, (uphill - 0.04) / 0.1))) : 0
       const charging = skiing && state.popCharge > 0
@@ -1237,11 +1246,11 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       const grabbing = Boolean(air?.grab && input.grab)
       if (grabbing && air?.grab) lastGrab = air.grab
       grabBlend += ((grabbing ? 1 : 0) - grabBlend) * ease(14, dt)
-      tuck.step(tuckDepth, dt, 1.4, 0.95)
+      tuck.step(Math.max(tuckDepth, glideLow), dt, 1.4, 0.95)
       poling.step(poleStroke ? 1 : 0, dt, 3.2, 0.9)
       brake.step(braking && !plowing ? 1 : 0, dt, 2.6, 0.85)
       plow.step(plowing ? 1 : 0, dt, 2.4, 0.95)
-      skate.step(skating ? skateFade : 0, dt, 2, 1)
+      skate.step(skating ? skateWant : 0, dt, 2, 1)
       herring.step(herringbone, dt, 2, 1)
       // Pushing style for this push (picked when the push starts): double poles or
       // alternate arms (a diagonal stride) when nearly stopped.
@@ -1302,8 +1311,8 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // Board on the flat with forward held: the back foot comes out of its binding and
       // pushes along beside the board (skating), the way riders cross a flat or a cat track.
       // Hops are left for steering at a standstill.
-      const boardSkating = boarding && skiing && input.tuck && !braking && !state.ridingSwitch && skateFade > 0.02 && slopeSin < 0.22
-      boardSkate.step(boardSkating ? skateFade : 0, dt, 2.2, 1)
+      const boardSkating = boarding && skiing && (input.tuck || glidePush) && !braking && !state.ridingSwitch && skateWant > 0.02 && slopeSin < 0.22
+      boardSkate.step(boardSkating ? skateWant : 0, dt, 2.2, 1)
       const bSkate = THREE.MathUtils.clamp(boardSkate.x, 0, 1)
       if (bSkate > 0.01) boardSkatePhase = (boardSkatePhase + dt * (0.85 + speed * 0.09)) % 1
       // 0 to 1 through the push (foot on the snow, sliding back), then 0 to 1 through the swing forward.
@@ -1336,6 +1345,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       wantCrouch = Math.max(
         wantCrouch,
         tucked ? (boarding ? 0.45 + 0.5 * tuckDepth : tuckDepth) : 0,
+        glideLow > 0 ? (boarding ? 0.3 + 0.5 * glideLow : glideLow) : 0,
         braking ? (plowing ? 0.38 : 0.6) : 0,
         // Double-poling is done from the waist on fairly straight legs (a dip on each push, below).
         skating ? 0.4 * (1 - doublePole) : 0,

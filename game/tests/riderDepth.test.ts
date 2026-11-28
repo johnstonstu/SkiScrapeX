@@ -151,3 +151,34 @@ describe('snowboarder pushing on the flat', () => {
     expect(boot.children.every((c) => c.visible)).toBe(true)
   })
 })
+
+describe('carried along a glide track', () => {
+  it('pushes with the foot out without tuck held while the sim reports a glide', () => {
+    const slope = createSteadySlope(2, { width: 4000, depth: 8000 })
+    const view = createSkierView()
+    view.setColours({ ...DEFAULT_OUTFIT, model: 'snowboard', skiGraphic: 'solid' })
+    const boot = view.object.getObjectByName('snowboard')!.children.filter((c) => c.name === 'snowboard-boot')[1]
+    const state = createSkiState({ x: 2000, z: 100, heading: 0 }) as ReturnType<typeof createSkiState> & { gliding?: number }
+    state.y = slope.sampleTerrain(2000, 100)!.height
+    const input: SkiInput = { steer: 0, brake: 0, tuck: false }
+    const frame = () => {
+      state.speed = 3
+      view.update(state, input, slope.sampleTerrain(state.x, state.z)!, 'ski', 1 / 60)
+    }
+    for (let f = 0; f < 30; f++) frame()
+    const home = boot.position.clone()
+    let reach = 0
+    for (let f = 0; f < 120; f++) {
+      frame()
+      reach = Math.max(reach, boot.position.distanceTo(home))
+    }
+    // No glide reported (as on main today): nothing changes.
+    expect(reach).toBeLessThan(0.03)
+    state.gliding = 1
+    for (let f = 0; f < 180; f++) {
+      frame()
+      reach = Math.max(reach, boot.position.distanceTo(home))
+    }
+    expect(reach).toBeGreaterThan(0.3)
+  })
+})

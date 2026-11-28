@@ -259,7 +259,7 @@ function runSim() {
     }
     if (action === 'push') {
       // Tuck held from a standstill on a gentle pitch: the skate or one-foot push.
-      input = { steer: 0, brake: 0, tuck: true }
+      input = { steer: 0, brake: 0, tuck: !params.has('glide') }
     }
     if (action === 'traverse') {
       // Hold a line across the hill (`across` degrees off the fall line), pushing when slow.
@@ -268,6 +268,17 @@ function runSim() {
       input = { steer: Math.max(-1, Math.min(1, err * traverseSign * 3)), brake: 0, tuck: params.has('tuck') }
     }
     for (acc += 1 / 60; acc >= FIXED_DT; acc -= FIXED_DT) stepSkier(state, input, slope.sampleTerrain, FIXED_DT, env)
+    if (params.has('glide')) {
+      // Stand in for a glide track: carried toward `glide` m/s with no input held.
+      const cruise = Number(params.get('glide') || 15.5)
+      const g = Math.max(0, Math.min(1, (cruise - state.speed) / 3))
+      ;(state as { gliding?: number }).gliding = g
+      const h = Math.hypot(state.vx, state.vz)
+      const k = h > 0.2 ? 1 + (4 * g) / 60 / h : 1
+      state.vx *= k
+      state.vz *= k
+      if (h <= 0.2) state.vz += 0.3
+    }
     const ground = slope.sampleTerrain(state.x, state.z)
     view.update(state, input, ground, 'ski', 1 / 60)
     rig.update(state, slope.sampleTerrain, 1 / 60)
