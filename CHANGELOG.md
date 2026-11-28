@@ -4,16 +4,18 @@ SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor 
 
 ## 0.9.54 (unreleased): Mountain accuracy pass
 
-Every run and lift checked against real life: published lift specs, the LidarBC elevation and tree-canopy scans, the run footage notes and resort reviews. Builds on 0.9.50 (the whole-mountain pass); numbered to follow the sound, rider and content passes.
+Every run and lift checked against real life: the 2023 trail map (read zone by zone), published lift specs, the LidarBC elevation and tree-canopy scans, the run footage notes and resort reviews. Builds on 0.9.50 (the whole-mountain pass); numbered to follow the sound, rider and content passes.
 
 ### Changed
 
 - **The wide groomers are wide.** Okanagan Run, Juniper, Ridge Run, Golden Eagle, Village Traverse, Wild Bill, Sluice Box, Easy Rider and Adrian's Alley were about 30 to 40 m of corduroy inside clearings 60 to 150 m wide. They now fill up to 85% of their real clearing (Okanagan Run about 75 m, Juniper and Ridge Run about 65 m), as the footage shows them. The blacks stay narrow hallways, as filmed.
 - **West Bank's bumps are wider** (40 m, from 30 m), toward the 49 m clearing under the quad ("wide-open bumps such as those under the quad chair", powderhounds.com).
+- **Hidden Gold is where the trail map puts it:** the wedge of trees just below the Stock's top station, between Sluice Box, Finger and Maverick. It was on the other side of Whipsaw, in the run-out of the bowl runs. OpenStreetMap's unnamed black run from the top station through that wedge is now named Hidden Gold and keeps its trees (it was a nameless groomed corridor).
 - A wide run keeps no more of a guaranteed tree-free core than a default blue, so widening never mows standing forest.
 
 ### Checked, no change needed
 
+- The front face, the bowl, the T-Bar side and the Wild Side match the 2023 trail map run for run, in order.
 - Lifts against remontees-mecaniques.net and skiresort.info: Stock's rises 352 m over a 1,381 m slope length in the game (349 m and 1,392 m published), the Magic Carpet is 163 m (163 m), Quickdraw rises 551 m (578 m published, from a base elevation the LiDAR puts 21 m higher) and the summit is 2,174 to 2,176 m (2,178 to 2,180 m). Tower counts follow OpenStreetMap and are short of the real ones (Quickdraw 14 of 18, Stock's 15 of 17, T-Bar 6 of 7).
 - Pitch, length and drop of every mapped run already match the 1 m LiDAR profiles within half a degree (`tests/runProfiles.test.ts`).
 - The run straight under the quad from the unload with no traverse (Mountain Life, December 2025) is what 0.9.50 built as West Bank.

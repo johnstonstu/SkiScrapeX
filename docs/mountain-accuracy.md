@@ -12,7 +12,7 @@ Stu: "the accuracy of the mountain to real life, and still keeping some fun in t
 | remontees-mecaniques.net lift reports, skiresort.info lift list | Lift length, vertical, towers, speed | Web, read 2026-11-28 |
 | Wikipedia run list by lift and difficulty | Names and difficulty of every run | Web |
 | peakrankings.com, powderhounds.com, Mountain Life (December 2025) | Terrain character, aspect, what is under the quad | Web |
-| Apex trail maps (2023, 2026/27) | Run positions | **Not reachable from the cloud in this pass.** The 0.9.50 pass read the 2023 map through Stu's desktop browser |
+| Apex trail map 2023 (apexresort.com PDF) | Run positions and order, glades, parks | Read at 300 to 600% through the browser on Stu's computer (the cloud cannot reach apexresort.com). Not copied into the repo |
 
 ## Lifts
 
@@ -47,6 +47,17 @@ Published elevations sit about 20 to 30 m below the LiDAR everywhere while verti
 | Adrian's Alley | 112 m | 28 m | 64 m | LiDAR only: the open T-Bar face |
 | West Bank (moguls) | 49 m | 30 m | 40 m | "Wide-open bumps such as those under the quad chair" |
 
+## Trail map check (2023 map)
+
+Read zone by zone and compared with the game's lines:
+
+- **Front face, right of the chair looking up:** Grouse Gulch (hard against the chair), Tongue, Hanks, Showboat (short, low), Juniper (two branches), 97 and 97C, Chute (two branches), Poma, Face, then K with K2 below it, Magnum, Gromit, Gunbarrel, Twenty Two and Peashooter hanging off Grandfather's Trail. The game has the same runs in the same order.
+- **Left of the chair:** Westbank against the chair from the top, The Pit beside it off Ridge Run, Mini-Colorado further down Ridge Run. Match.
+- **The bowl:** Sweet Sue, Tooth/Tusk, Essendale, Toilet Bowl, Crusher, Golden Eagle, The Great Wall and Sunbowl fan down from the ridge and all meet at the top of Stock's. Match, in that order. The map draws one Essendale line; the game has Ward 1 and Ward 2 from the grooming report. Chaser is not on this map.
+- **T-Bar side:** Old Mill, Adrian's Alley, Kristi's, the T-Bar with Okanagan Park beside it, Okanagan Run, Claim Jumper and Prospector parks, Wishbone, Chicken Finger, Rookie's Trail. Match. Andi's Alley is not on this map.
+- **Wild Side inset:** Any Which Way glades, Jackpot, Wildly Easy (running down and left under Jackpot), Gun Slinger, Shootout, Showdown, Bob's Run and Hang 'em High along the ridge, all down to Grandmother's Trail and on to Stock's. Match.
+- **Hidden Gold (changed):** the map paints it as a purple wedge with its point at the Stock's top station, Whipsaw above and Finger below, marked with a black diamond. The game had it on the other side of Whipsaw, west of the top station, in the run-out of the bowl runs. It is now the wedge of trees below the top station between Sluice Box, Finger and Maverick, and OpenStreetMap's unnamed black run from the top station through that wedge is named Hidden Gold and keeps its trees (it was a groomed 30 m corridor with no name). Confidence: medium. The map art is not to scale, so the wedge could also take in the trees south of Maverick.
+
 ## Where the game chooses fun over accuracy
 
 1. **The bowl runs are cut lanes.** The LiDAR puts trees over about half of the drawn Essendale Ward 1 and 2, Tooth Tusk and Sweet Sue lines and a quarter of Toilet Bowl. The real runs are a tight tree traverse into an open bowl with saplings (Essendale) and a rock choke into a gully that ends in "steep tight trees" (Tooth, powderhounds). The game clears a 12 to 20 m lane down each so they ski cleanly at speed.
@@ -55,10 +66,10 @@ Published elevations sit about 20 to 30 m below the LiDAR everywhere while verti
 4. **No poling.** The 0.9.43 and 0.9.50 passes moved run tops onto the lip so nothing needs a push. The real ridge to the far bowl runs is a flat traverse.
 5. **Stock's Traverse and the other cat tracks** stay at cat-track width even where the LiDAR clearing is wider, because that is how they are groomed and filmed. This one is accuracy over fun.
 
-## Open questions (need the trail map or Stu)
+## Open questions (need Stu or a newer map)
 
 - **Chaser** shares Crusher's lane in the game (the two lines are 10 to 20 m apart below the lip). It is on the grooming report as a Quickdraw black and not on the 2023 map. Where does it really start and end?
-- **Andi's Alley** (T-Bar, advanced, on Wikipedia's list) is not in the game. It is probably one of the unnamed cuts on the T-Bar face (L4, L5, L6 or L7).
-- **Gauntlet, Panhandler and Glade-iator** (Wild Side) are still unplaced.
-- **Four unnamed OpenStreetMap runs**, including a black from the top of Stock's toward Maverick, may be some of the missing names.
-- **The bowl lines** (Toilet Bowl, Essendale Ward 1 and 2, Tooth Tusk, Sweet Sue) are LiDAR fall lines in trail-map order. Their exact gullies were not re-checked against a map in this pass.
+- **Andi's Alley** (T-Bar, advanced, on Wikipedia's list) is not on the 2023 map or in the game. It is probably one of the unnamed cuts on the T-Bar face (L4, L5, L6 or L7).
+- **Gauntlet, Panhandler and Glade-iator** (Wild Side) are not on the 2023 inset and are still unplaced.
+- **Three unnamed OpenStreetMap runs** remain (a blue above Dawdler 1, a green east of Stagecoach and the short link into Gunbarrel).
+- **The bowl lines** follow the map's order, but the map is a painting: which gully each one takes is still a LiDAR fall-line draft.

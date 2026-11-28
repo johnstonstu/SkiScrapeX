@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { loadApexWorld } from './apexWorld'
 import { buildMoguls } from '../src/world/moguls'
 import { createSurfaceSampler } from '../src/world/snow'
-import { nearestOnPolyline, type Point2, type Run } from '../src/world/resort'
+import { nearestOnPolyline, pointInRing, type Point2, type Run } from '../src/world/resort'
 import { FIXED_DT, createSkiState, stepSkier, type SkiEnv } from '../src/sim'
 
 /**
@@ -45,6 +45,22 @@ describe.skipIf(!hasData)('whole mountain', () => {
       if (!endJoined && !LOOSE_ENDS.has(run.name)) loose.push(`${run.name} bottom ${end.map(Math.round)} (${Math.round(grid.heightAt(end[0], end[1]))} m)`)
     }
     expect(loose).toEqual([])
+  })
+
+  it('puts Hidden Gold below the Stock\'s top, with its run inside the glade (2023 trail map)', () => {
+    const { resort } = world!
+    const line = resort.runs.find((run) => run.name === 'Hidden Gold' && run.kind === 'line')
+    const glade = resort.runs.find((run) => run.name === 'Hidden Gold' && run.kind === 'area')
+    expect(line && glade).toBeTruthy()
+    expect(line!.wooded).toBe(true)
+    expect(line!.groomed).toBe(false)
+    const top = resort.lifts.find((lift) => lift.name.startsWith('Stock'))!.top
+    const start = line!.parts[0][0]
+    expect(Math.hypot(start[0] - top[0], start[1] - top[1])).toBeLessThan(60)
+    // The glade lies downhill (east) of the top station, not in the bowl run-out west of it.
+    for (const [x] of glade!.parts[0]) expect(x).toBeGreaterThan(top[0])
+    const inside = line!.parts[0].filter(([x, z]) => pointInRing(x, z, glade!.parts[0])).length
+    expect(inside).toBeGreaterThanOrEqual(line!.parts[0].length - 2)
   })
 
   /** Ski `line` with a steering bot (no poling); how it went. */

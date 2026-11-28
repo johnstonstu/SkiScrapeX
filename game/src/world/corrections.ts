@@ -64,6 +64,16 @@ export const TRACE_NAMES: Record<string, string> = {
   'Unmapped run L2': 'Prospector',
 }
 
+/**
+ * OSM runs with no name tag that the trail map names, found by where their line starts
+ * (within 30 m). Hidden Gold: the black run from the Stock's top station through the glade
+ * the 2023 map paints between Whipsaw and Finger (see world/glades.ts). It is a glade line,
+ * so it keeps its trees and is not groomed.
+ */
+export const UNNAMED_RUN_NAMES: { start: Point2; name: string; glade?: boolean }[] = [
+  { start: [2089, 1783], name: 'Hidden Gold', glade: true },
+]
+
 /** Saved progress renames: spellings, traces, and split runs (old whole-run results go to the upper part). */
 export const PROGRESS_RENAMES: Record<string, string> = {
   ...RUN_NAMES,
@@ -232,6 +242,12 @@ export const DROPPED_BUILDINGS = new Set(['way/171556518', 'way/171556521', 'way
 export function applyCorrections(resort: Resort): void {
   for (const run of resort.runs) {
     run.name = RUN_NAMES[run.name] ?? run.name
+    const start = run.parts[0]?.[0]
+    const named = run.name === 'Unnamed run' && start ? UNNAMED_RUN_NAMES.find((n) => Math.hypot(n.start[0] - start[0], n.start[1] - start[1]) < 30) : undefined
+    if (named) {
+      run.name = named.name
+      if (named.glade) Object.assign(run, { groomed: false, wooded: true })
+    }
   }
   resort.runs = mergeRuns(resort.runs)
   resort.runs = resort.runs.flatMap((run) => {
