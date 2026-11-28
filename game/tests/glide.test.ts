@@ -135,6 +135,31 @@ describe.skipIf(!hasData)('glide on the Apex traverses', () => {
     expect(timeAlong("Stock's Traverse", 900, true, false)).toBeLessThan(70)
   })
 
+  it("carries a rider who never steers along Grandfather's Trail without running off it", () => {
+    const { grid, resort, surface, canopy } = world!
+    const { sampleTerrain, onMogul } = buildMoguls(grid, resort.runs, surface)
+    const field = buildGlide(resort.runs, grid.heightAt)
+    const env: SkiEnv = { sampleSurface: createSurfaceSampler(grid, surface, canopy, { onMogul }), glide: field.at }
+    const line = resort.runs.find((r) => r.name === "Grandfather's Trail")!.parts[0]
+    const s = createSkiState({ x: line[0][0], z: line[0][1], heading: Math.atan2(-(line[1][0] - line[0][0]), line[1][1] - line[0][1]) })
+    s.y = sampleTerrain(line[0][0], line[0][1])!.height
+    let worst = 0
+    for (let t = 0; t < 35; t += FIXED_DT) {
+      stepSkier(s, { steer: 0, brake: 0, tuck: t < 2 }, sampleTerrain, FIXED_DT, env)
+      let near = Infinity
+      for (let i = 1; i < line.length; i++) {
+        const [ax, az] = line[i - 1]
+        const [bx, bz] = line[i]
+        const u = Math.max(0, Math.min(1, ((s.x - ax) * (bx - ax) + (s.z - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2 || 1)))
+        near = Math.min(near, Math.hypot(s.x - ax - u * (bx - ax), s.z - az - u * (bz - az)))
+      }
+      worst = Math.max(worst, near)
+    }
+    expect(worst).toBeLessThan(12)
+    expect(Math.hypot(s.x - line[0][0], s.z - line[0][1])).toBeGreaterThan(350)
+    expect(s.crashed).toBe(0)
+  })
+
   it('finds the summit traverses and puts boosters on them', () => {
     const { grid, resort } = world!
     const field = buildGlide(resort.runs, grid.heightAt)
@@ -145,6 +170,6 @@ describe.skipIf(!hasData)('glide on the Apex traverses', () => {
     // The steep runs have none.
     for (const name of ['West Bank', 'Gunbarrel', 'Chute', 'Toilet Bowl']) expect(length(name)).toBe(0)
     expect(field.boosters.filter((b) => b.run === "Grandfather's Trail").length).toBeGreaterThanOrEqual(4)
-    expect(field.boosters.length).toBeLessThan(25)
+    expect(field.boosters.length).toBeLessThan(30)
   })
 })

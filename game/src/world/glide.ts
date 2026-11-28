@@ -22,6 +22,8 @@ export const GLIDE = {
   step: 10,
   /** How far from the line the track reaches, metres. */
   reach: 16,
+  /** Steeper rolls up to this long between two flat stretches are bridged, metres. */
+  bridge: 80,
   /** Shorter flat stretches are left alone (a roll on a steep run is not a traverse), metres. */
   minLength: 40,
   /** Cruising speed the track carries you to, m/s (56 km/h). */
@@ -44,6 +46,9 @@ export interface GlideTrack {
   cruise: number
   /** Inside a booster zone. */
   boost: boolean
+  /** From the point to the nearest point on the track's centreline, metres. */
+  toX: number
+  toZ: number
 }
 
 export interface Booster {
@@ -122,6 +127,15 @@ export function buildGlide(runs: readonly Run[], heightAt: (x: number, z: number
         const grade = (heights[a] - heights[b]) / ((b - a) * GLIDE.step)
         return grade < maxFall && grade > -maxClimb
       })
+      // A short steeper roll between two flat stretches stays part of the track, so the
+      // track (and its hands-off steering) does not let go for a few metres mid-traverse.
+      for (let i = 1; i < points.length; i++) {
+        if (flat[i] || !flat[i - 1]) continue
+        let j = i
+        while (j < points.length && !flat[j]) j++
+        if (j < points.length && (j - i) * GLIDE.step <= GLIDE.bridge) for (let k = i; k < j; k++) flat[k] = true
+        i = j
+      }
       for (let i = 0; i < points.length; ) {
         if (!flat[i]) {
           i++
@@ -184,15 +198,17 @@ export function buildGlide(runs: readonly Run[], heightAt: (x: number, z: number
       if (!nearby) return null
       let best: Segment | null = null
       let bestSq = GLIDE.reach * GLIDE.reach
+      let toX = 0
+      let toZ = 0
       for (const s of nearby) {
         const dx = s.bx - s.ax
         const dz = s.bz - s.az
         const t = Math.max(0, Math.min(1, ((x - s.ax) * dx + (z - s.az) * dz) / (dx * dx + dz * dz || 1)))
         const d = (x - s.ax - t * dx) ** 2 + (z - s.az - t * dz) ** 2
-        if (d < bestSq) ((bestSq = d), (best = s))
+        if (d < bestSq) ((bestSq = d), (best = s), (toX = s.ax + t * dx - x), (toZ = s.az + t * dz - z))
       }
       if (!best) return null
-      return { dirX: best.dirX, dirZ: best.dirZ, cruise: GLIDE.cruise, boost: inBooster(x, z) }
+      return { dirX: best.dirX, dirZ: best.dirZ, cruise: GLIDE.cruise, boost: inBooster(x, z), toX, toZ }
     },
   }
 }

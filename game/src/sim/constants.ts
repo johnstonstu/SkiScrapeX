@@ -136,6 +136,13 @@ export const PHYSICS = {
   glideAlign: 0.7,
   /** Below this speed the glide waits for the forward control, so a stopped skier stays stopped, m/s. */
   glideStartSpeed: 1,
+  /**
+   * With no steering input on a glide track the skis aim `glideLookAhead` metres down the track
+   * from its centreline, yawing at `glideSteer` rad/s per radian of error up to `glideSteerMax` rad/s.
+   */
+  glideLookAhead: 22,
+  glideSteer: 2,
+  glideSteerMax: 0.9,
   /** Inside a booster zone: the speed it pushes to (76 km/h) and how hard, m/s and m/s². */
   boostSpeed: 21,
   boostAccel: 9,

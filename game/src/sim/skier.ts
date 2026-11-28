@@ -94,7 +94,7 @@ export interface SkiEnv {
    * The glide track under a point, if any (world/glide.ts): a flat mapped stretch that carries
    * the skier at `cruise` while they travel along it, faster inside a booster zone.
    */
-  glide?: (x: number, z: number) => { dirX: number; dirZ: number; cruise: number; boost: boolean } | null
+  glide?: (x: number, z: number) => { dirX: number; dirZ: number; cruise: number; boost: boolean; toX?: number; toZ?: number } | null
 }
 
 export interface SkiState {
@@ -319,6 +319,20 @@ export function stepSkier(
   if (jump) {
     state.popCharge = Math.min(1, state.popCharge + dt / FREESTYLE.chargeTime)
     state.windup = Math.abs(steer) > PHYSICS.steerDeadzone ? steer : state.windup * 0.9
+  }
+  // Hands off the steering on a glide track, the skis follow the track round its bends (and ease
+  // back toward its middle), so being carried along a cat track does not run you off its edge.
+  // Any steering or braking from the player takes over at once.
+  if (Math.abs(steer) <= PHYSICS.steerDeadzone && brake <= PHYSICS.brakeEngage && state.speed > PHYSICS.glideStartSpeed) {
+    const track = env.glide?.(state.x, state.z)
+    if (track) {
+      const aimX = track.dirX * PHYSICS.glideLookAhead + (track.toX ?? 0)
+      const aimZ = track.dirZ * PHYSICS.glideLookAhead + (track.toZ ?? 0)
+      const aim = Math.atan2(-aimX, aimZ)
+      // A plain yaw, not a steer: the stick aims at a traverse off the fall line, the track does not.
+      const error = Math.abs(wrapAngle(aim - state.heading))
+      if (error < Math.acos(PHYSICS.glideAlign)) state.heading = moveTowardAngle(state.heading, aim, Math.min(PHYSICS.glideSteerMax, error * PHYSICS.glideSteer) * dt)
+    }
   }
   stepGround(state, steer, brake, sampleTerrain, dt, env, released, input.directionalSteering)
   // Leaving the snow without a pop (a mogul, a lip, a drop): pitch already
