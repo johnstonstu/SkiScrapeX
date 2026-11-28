@@ -2,6 +2,47 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.56 (unreleased): The first minute
+
+From the click on Free ski to the first turn. Builds on 0.9.54 (the mountain accuracy pass and its new Quickdraw summit); numbered to follow the sound, rider, mountain and progression passes.
+
+### Added
+
+- **Pick skis or a snowboard, and your rider, before you drop in.** The first Free ski of a visit stops at one screen: Skis or Snowboard, and six starter riders (Scout, Juniper, Maverick, Ridge, Goldie, Storm), with the rider standing over the mountain. Drop in has the focus, so one press of Enter keeps last time's choice. A look made in Rider & gear shows as "Your own" and is never lost by trying a starter. After the first run of a visit, Free ski goes straight to the chair.
+- **An opening film off the Quickdraw chair.** Two shots under thin bars with a place card: riding the last seconds of the chair with the valley behind you, then a long lens low on the snow at the top as you come out of the station, carve round and stop with your back to the camera, which rises into the follow view. The HUD stays away until you have control and then fades in. Enter (B on a pad, or the Skip button) goes straight to the top.
+- **Control prompts in place of the help line.** One short line at a time at the bottom of the screen: steer, then tuck and brake, then the jump, then where the trail map and the full controls are. Each goes the moment you do it and does not come back. One you ignore steps aside after 14 seconds and gets one more chance on the next visit.
+
+### Changed
+
+- **Off the chair on a carved turn.** The rider used to glide straight out and spin on the spot to face the hill (137 degrees at the top of Quickdraw). They now ride down the ramp and make one round turn (up to 4.2 m radius, tighter where buildings or trees are close) and arrive already moving the way they face. The ready spot is where that turn ends, a few metres to the inside of the old one. Applies to every chair.
+- **Every chair arrival uses the new low shot** and a lens that opens as you come toward it; during play the camera eases to it as before. The camera's hand-over to the follow view now turns its look as it travels and always finishes in 2.4 seconds (it could lag behind a fast rider indefinitely).
+- **Free ski leads the title menu on a first visit.** "Learn to ski" is second until it has been done. The prompts teach the same first three lessons on the way down.
+- The "Lift ride" tip card no longer covers the arrival, and the always-on controls line at the bottom of the screen is gone (the pause menu has the full controls).
+
+## 0.9.54 (unreleased): Mountain accuracy pass
+
+Every run and lift checked against real life: the 2023 trail map (read zone by zone), published lift specs, the LidarBC elevation and tree-canopy scans, the run footage notes and resort reviews. Builds on 0.9.50 (the whole-mountain pass); numbered to follow the sound, rider and content passes.
+
+### Changed
+
+- **The wide groomers are wide.** Okanagan Run, Juniper, Ridge Run, Golden Eagle, Village Traverse, Wild Bill, Sluice Box, Easy Rider and Adrian's Alley were about 30 to 40 m of corduroy inside clearings 60 to 150 m wide. They now fill up to 85% of their real clearing (Okanagan Run about 75 m, Juniper and Ridge Run about 65 m), as the footage shows them. The blacks stay narrow hallways, as filmed.
+- **West Bank's bumps are wider** (40 m, from 30 m), toward the 49 m clearing under the quad ("wide-open bumps such as those under the quad chair", powderhounds.com).
+- **Hidden Gold is where the trail map puts it:** the wedge of trees just below the Stock's top station, between Sluice Box, Finger and Maverick. It was on the other side of Whipsaw, in the run-out of the bowl runs. OpenStreetMap's unnamed black run from the top station through that wedge is now named Hidden Gold and keeps its trees (it was a nameless groomed corridor).
+- **The freestyle area off the T-Bar is laid out as Stu describes it.** Kristi's Run, the mogul course down the middle, is now a mogul run when you free ski it (it was groomed; the Nor-Am event flattens those bumps and lays its own course). The old aerial site lane on its skier's left ("Unnamed cut L5") now starts at the T-Bar unload instead of 150 m down. Adrian's Alley is the groomed run on the skier's right, then trees, then Old Mill.
+- **The flats carry you.** On the flat stretches of the mapped runs (cat tracks, ridge traverses, run-outs: under 7 degrees) a skier travelling along the track is carried up to 56 km/h with no skating. It starts once you are moving or tap forward, and braking or turning across the track drops it. With your hands off the steering the skis follow the track round its bends and hold its middle, so being carried does not run you off the edge into the trees; any steering takes over at once. From the Quickdraw unload the first 550 m of Grandfather's Trail, to the first blacks, takes 38 seconds with one push (it was 70 seconds of holding forward); Grandmother's Trail's first 300 m takes 20 seconds (35), Stock's Traverse 58 (75).
+- **Booster gates** on the long traverses (25 on the mountain, eight of them on Grandfather's Trail): an orange gate with chevrons on the snow that pushes you to 76 km/h for a moment.
+- **The top of Quickdraw is tidied up.** The operator hut stands on the other side of the unload. The windows on the lift huts and cabins now read as dark glass (they mirrored the sky and vanished into the wall). The snow round the top of every lift is packed (the Quickdraw unload stood in deep powder). The West Bank rock drop is back down the run beside a mid-mountain tower (it had moved onto the unload when West Bank was routed from the top in 0.9.50). Trail-head signs fan out down their own runs where several runs start together, and no two stand within 12 m.
+- A wide run keeps no more of a guaranteed tree-free core than a default blue, so widening never mows standing forest.
+
+### Checked, no change needed
+
+- The front face, the bowl, the T-Bar side and the Wild Side match the 2023 trail map run for run, in order.
+- Lifts against remontees-mecaniques.net and skiresort.info: Stock's rises 352 m over a 1,381 m slope length in the game (349 m and 1,392 m published), the Magic Carpet is 163 m (163 m), Quickdraw rises 551 m (578 m published, from a base elevation the LiDAR puts 21 m higher) and the summit is 2,174 to 2,176 m (2,178 to 2,180 m). Tower counts follow OpenStreetMap and are short of the real ones (Quickdraw 14 of 18, Stock's 15 of 17, T-Bar 6 of 7).
+- Pitch, length and drop of every mapped run already match the 1 m LiDAR profiles within half a degree (`tests/runProfiles.test.ts`).
+- The run straight under the quad from the unload with no traverse (Mountain Life, December 2025) is what 0.9.50 built as West Bank.
+
+See `docs/mountain-accuracy.md` for the run-by-run findings, where the game chooses fun over accuracy, and the open questions.
+
 ## 0.9.51 (unreleased): Rider carry and transitions
 
 The skier and snowboarder hold their bodies the way real riders do from the chase camera, studied frame by frame from close follow-cam footage. Physics, steering and the camera are unchanged. Builds on 0.9.48 (independent of the 0.9.49 graphics and 0.9.50 mountain passes).
@@ -29,6 +70,7 @@ The Quickdraw side checked against the 2023 trail map and the LiDAR fall lines, 
 ### Added
 
 - `tests/mountainNetwork.test.ts`: every run starts on a lift top or another run and ends on a lift bottom or another run, and a bot skis 19 ways down from the Quickdraw top (the lift line, Ridge Run's drops, the bowl and every Wild Side run) to the bottom with no poling.
+
 ## 0.9.49 (unreleased): Light and atmosphere
 
 A graphics pass on light, air and colour, with the same art direction and models. No new draw calls or triangles on any level. Builds on 0.9.48.

@@ -72,6 +72,9 @@ import { createMenuNavigation } from './app/menuNavigation'
 import { createParkHud } from './app/parkHud'
 import { createParkPace } from './app/parkPace'
 import { createPocketPlayer } from './ui/pocketPlayer'
+import { createCinematic } from './ui/cinematic'
+import { createDropIn } from './ui/dropIn'
+import { createHints } from './app/hints'
 import { createGameState } from './app/game/state'
 import { createLiftRides } from './app/game/liftRide'
 import { createChallengeFlow } from './app/game/challengeFlow'
@@ -79,6 +82,7 @@ import { createHud } from './app/game/hud'
 import { startFrameLoop } from './app/game/frameLoop'
 import { createRenderer, fitToWindow, nextPaint, recompileMaterials, warmShaders, watchForGpuReset } from './app/game/graphics'
 import './ui/hudMinimal.css'
+import './ui/dropIn.css'
 
 const params = new URLSearchParams(location.search)
 const turnModel = (params.get('turns') ?? params.get('turn')) === 'wide' ? 'wide' : 'classic'
@@ -156,18 +160,35 @@ scene.add(landingMarker.object)
 const sunFocus = new THREE.Vector3()
 const outfit = readOutfit()
 skierView.setColours(outfit)
+/** Put a changed outfit on the rider, the snow effects and the ski model, and save it. */
+function applyOutfit(next: typeof outfit) {
+  skierView.setColours(next)
+  effects.setBoard(next.model === 'snowboard')
+  writeOutfit(next)
+  if (game.stage) game.stage.env.ski = SKI_MODELS[next.model]
+}
 const stylePanel = createStylePanel(
   ui.style,
   outfit,
   (next) => {
-    skierView.setColours(next)
-    effects.setBoard(next.model === 'snowboard')
-    writeOutfit(next)
-    if (game.stage) game.stage.env.ski = SKI_MODELS[next.model]
+    applyOutfit(next)
+    dropIn.refresh()
   },
   () => game.goals?.unlocked() ?? new Set(),
   (id) => game.goals?.hint(id) ?? '',
 )
+/** Skis or snowboard and the rider, picked on the title screen before the first chair of a visit. */
+const dropIn = createDropIn(ui.titleScreen, outfit, {
+  onChange: (next) => {
+    applyOutfit(next)
+    stylePanel.refresh()
+  },
+  go: () => startFreeSki(),
+  back: () => showTitle(),
+  customise: () => openPanel(ui.style),
+})
+/** The pick has been shown this visit; after that Free ski goes straight to the chair. */
+let riderPicked = false
 /** Side panels open over the game (and the title screen). */
 const sidePanels = [ui.runs, ui.style, ui.settings, ui.challenges]
 const activeOverlay = () => [...sidePanels, ui.results, ui.titleScreen, ui.menu].find((panel) => !panel.hidden) ?? null
@@ -223,12 +244,26 @@ const raceHud = createRaceHud()
 const runout = createRunout()
 const race = createRaceDirector({ hud: raceHud, show: (title, detail, kind) => tricks.show(title, detail, kind), assistOn: () => settings.raceAssist })
 const comp = createCompDirector({ hud: raceHud, show: (title, detail, kind) => tricks.show(title, detail, kind), onOut: () => flow.endChallenge('Out of the line: three misses in a row') })
+const inputMode = () => (controls.gamepad ? 'pad' : game.mobile ? 'touch' : 'keys')
+/** Free-ski control prompts, one short line at a time. */
+const hints = createHints(ui.help, inputMode)
 const coach = createCoach(ui.coach, () => (controls.gamepad ? 'pad' : game.mobile ? 'touch' : 'keys'), { onExit: () => (game.tutorialLine = null), toTop: (message) => flow.transition(message, 1.1, spawn) })
 // Free-ski bests by run name; renamed runs keep their best.
 const bests = Object.fromEntries(
   Object.entries(readJson<Record<string, number>>(KEYS.bests, {})).map(([name, time]) => [PROGRESS_RENAMES[PROGRESS_RENAMES[name] ?? name] ?? PROGRESS_RENAMES[name] ?? name, time]),
 )
-const lifts = createLiftRides(game, { ui, rig, effects, sound, haptics, coach, controls, setFreeSki: () => flow.setFreeSki(), spawn })
+/** The frame around the opening film (bars, place card, Skip); the HUD waits behind it. */
+const cinematic = createCinematic(ui.cine, () => controls.push('skip'))
+const lifts = createLiftRides(game, {
+  ui, rig, effects, sound, haptics, coach, controls, setFreeSki: () => flow.setFreeSki(), spawn,
+  onOpening: (on, lift) => {
+    if (!on) cinematic.end()
+    else cinematic.start(
+      { eyebrow: 'Apex Mountain Resort', title: `Top of ${lift?.name ?? 'the mountain'}`, sub: lift && /quickdraw/i.test(lift.name) ? '2,180 m · Penticton, BC' : '' },
+      game.mobile ? 'Skip ▸▸' : controls.gamepad ? 'Skip <kbd>B</kbd>' : 'Skip <kbd>Enter</kbd>',
+    )
+  },
+})
 const flow = createChallengeFlow(game, { ui, controls, tricks, race, comp, runout, coach, stylePanel, bests, hideOverlays, leaveDemoPark, openChallenges, spawn, startRide: (lift) => lifts.startRide(lift) })
 const hud = createHud(game, { ui, renderer, parkHud, hudPeek, quality, qualityReason, hardware })
 let setViewDistance: ((scale: number) => void) | null = null
@@ -302,16 +337,11 @@ createSettingsPanel(ui.settings, settings, quality.level, (next, key) => {
   writeSettings(next)
   applySetting(key)
 }, hardwareTier?.reason)
-const TOUCH_HELP = 'Stick: steer · up tuck · down brake · in the air spin and flip. Hold <b>Jump</b> to crouch, release to pop'
-const KEYS_HELP = '<kbd>WASD</kbd> or arrow keys to ski · <kbd>Space</kbd> jump · <kbd>Esc</kbd> pause'
-let defaultHelp = game.mobile ? TOUCH_HELP : KEYS_HELP
 /** Touch or keyboard layout: body class, minimal screen on Auto, hints and the controls guide. */
 function applyInputMode() {
   document.body.classList.toggle('touch', game.mobile)
   hudMin = minimalHud(settings, game.mobile)
   document.body.classList.toggle('hud-min', hudMin)
-  defaultHelp = game.mobile ? TOUCH_HELP : KEYS_HELP
-  if (!controls.gamepad) ui.help.innerHTML = defaultHelp
   guide.select(controls.gamepad ? 'pad' : game.mobile ? 'touch' : 'keys')
   $('#runs .menu-lead').textContent = game.mobile
     ? 'Tap a trail on the map to go there, or pick one from the list.'
@@ -329,9 +359,6 @@ function showPadHelp() {
   padHelpShown = controls.gamepad
   document.body.classList.toggle('pad-navigation', padHelpShown)
   $('#btn-resume kbd').textContent = padHelpShown ? 'B / ○' : 'Esc'
-  ui.help.innerHTML = padHelpShown
-    ? '<kbd>L stick</kbd> ski · <kbd>A</kbd> jump · <kbd>X</kbd>/<kbd>RB</kbd> grab · <kbd>LT</kbd> brake · <kbd>Start</kbd> pause'
-    : defaultHelp
 }
 
 
@@ -409,10 +436,8 @@ boot()
 
 function titleActions() {
   return {
-    play: () => {
-      ui.titleScreen.hidden = true
-      lifts.arriveByChair()
-    },
+    // The first Free ski of a visit stops at the pick (skis or board, and the rider); after that it goes straight in.
+    play: () => (riderPicked ? startFreeSki() : dropIn.show()),
     learn: () => startTutorial(),
     challenges: () => openChallenges(),
     rider: () => openPanel(ui.style),
@@ -420,8 +445,17 @@ function titleActions() {
   }
 }
 
+/** From the title (or the pick) to the chair: the opening film, then skiing. */
+function startFreeSki() {
+  riderPicked = true
+  dropIn.hide()
+  ui.titleScreen.hidden = true
+  lifts.arriveByChair()
+}
+
 function showTitle() {
   hideOverlays()
+  dropIn.hide()
   renderTitle(ui.titleScreen, game.goals?.summary() ?? null, Boolean(game.goals), titleActions(), !coach.done)
   ui.titleScreen.hidden = false
 }
@@ -638,6 +672,7 @@ function spawn(keepCamera = false) {
   game.stage.env.judgedAirs = game.challenge.kind === 'event' && !isRaceFormat(game.challenge.course.def.format)
   game.ride = null
   ui.ride.hidden = true
+  cinematic.end()
   if (game.course) game.stage.slope.spawn = game.course.spawn
   if (game.skier) resetSkier(game.skier, game.stage.slope)
   else game.skier = createSkier(game.stage.slope)
@@ -741,7 +776,11 @@ function handleActions() {
         if (!ui.menu.hidden) $('#btn-resume').focus()
         continue
       }
-      if (!ui.titleScreen.hidden) continue
+      if (!ui.titleScreen.hidden) {
+        // Esc on the pick goes back to the title menu.
+        if (dropIn.open) showTitle()
+        continue
+      }
       if (!ui.results.hidden) {
         flow.dismissResults()
         continue
@@ -919,6 +958,7 @@ function stepPlay(dt: number, input: ReturnType<typeof controls.read>): { steps:
   game.stage.advanceLifts?.(dt, game.ride && input.tuck ? game.ride.lift.id : undefined)
   let pose: SkierPose = 'ski'
   if (game.ride) {
+    hints.clear()
     pose = lifts.stepRide(dt, input.tuck)
     if (game.ride) lifts.arrivalShot(game.ride)
   } else if (game.pause) {
@@ -968,6 +1008,7 @@ function stepPlay(dt: number, input: ReturnType<typeof controls.read>): { steps:
     runout.step(game.skier, dt)
     race.record(game.skier)
     coach.update(game.skier, input, dt)
+    hints.update(game.skier, input, dt, game.challenge.kind === 'free' && !coach.active && !game.tutorialLine && ui.coach.hidden && Boolean(game.stage.world))
     flow.coachTips()
     flow.checkEvents()
   }

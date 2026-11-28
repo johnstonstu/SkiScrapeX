@@ -7,7 +7,7 @@ import type { Outfit } from './riderPanel'
 const idle: SkiInput = { steer: 0, brake: 0, tuck: false }
 
 /** Small lit preview of the current outfit for the Rider & gear menu. */
-export function createRiderPreview(host: HTMLElement) {
+export function createRiderPreview(host: HTMLElement, options: { /** Whole rider with room around, and no stand: for a tall stage over the mountain (the drop-in pick). */ full?: boolean } = {}) {
   const canvas = document.createElement('canvas')
   canvas.className = 'rider-preview-canvas'
   canvas.setAttribute('aria-hidden', 'true')
@@ -18,8 +18,14 @@ export function createRiderPreview(host: HTMLElement) {
   renderer.outputColorSpace = THREE.SRGBColorSpace
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 40)
-  camera.position.set(1.55, 1.35, 3.4)
-  camera.lookAt(0, 0.95, 0)
+  if (options.full) {
+    camera.fov = 26
+    camera.position.set(2.5, 1.5, 5.6)
+    camera.lookAt(0, 0.86, 0)
+  } else {
+    camera.position.set(1.55, 1.35, 3.4)
+    camera.lookAt(0, 0.95, 0)
+  }
 
   const hemi = new THREE.HemisphereLight(0xd7ecff, 0x3a4a3a, 1.15)
   const key = new THREE.DirectionalLight(0xfff2d8, 1.35)
@@ -33,7 +39,7 @@ export function createRiderPreview(host: HTMLElement) {
     new THREE.MeshStandardMaterial({ color: 0xe8f2f7, roughness: 0.95, metalness: 0.02 }),
   )
   ground.rotation.x = -Math.PI / 2
-  scene.add(ground)
+  if (!options.full) scene.add(ground)
 
   const view = createSkierView()
   scene.add(view.object)

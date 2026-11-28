@@ -55,7 +55,7 @@ Without `public/data` the game falls back to synthetic test slopes.
 
 **Controller:** Left stick steers, tucks, spins, and flips. LT / L2 brakes. A / × jumps. X / □ or RB / R1 grabs, and Y / △ selects the second grab. Open Pause with Start / Options. Clicking the right stick (R3) opens the music player, and D-pad left and right skip back or forward a song. Restart a run from the pause menu. Use the D-pad or left stick to navigate, A / × to select, and B / ○ to go back. The pause menu shows bindings and terrain park instructions for all three input types.
 
-The title screen offers Free ski, Challenges (Apex events such as the Downhill, Shoot the Chute, slalom, GS, Kristi's Moguls and Aerials, plus timed runs, park score attacks, the run checklist and gold nuggets), the rider creator and Settings. A first run starts with a short tutorial by the Magic Carpet. Skis or snowboard are chosen in the rider panel (<kbd>O</kbd>).
+The title screen offers Free ski, Challenges (Apex events such as the Downhill, Shoot the Chute, slalom, GS, Kristi's Moguls and Aerials, plus timed runs, park score attacks, the run checklist and gold nuggets), the rider creator and Settings. Free ski first asks for skis or a snowboard and a rider, then opens with a short film of the Quickdraw chair arriving at the top (Enter skips it), and teaches the controls with one-line prompts on the way down. A longer tutorial by the Magic Carpet is on the title menu. The rider panel (<kbd>O</kbd>) changes every part of the look.
 
 In free ski you start at the top of Quickdraw on Grandfather's Trail. Reaching the bottom of any lift records your time, then you ride up and carry on. A green ring shows where you will land when your rotation will line up.
 

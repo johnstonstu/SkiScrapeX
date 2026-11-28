@@ -23,6 +23,15 @@ async function loadSet(file: string): Promise<AssetSet | null> {
     const gltf = await new GLTFLoader().loadAsync(url)
     const set: AssetSet = new Map()
     for (const child of gltf.scene.children) set.set(child.name, child)
+    // Hut and cabin windows: the exported glass is shiny enough to mirror the bright sky and
+    // read the same grey as the wall round it. Dull and dark, it reads as a window.
+    gltf.scene.traverse((object) => {
+      const material = (object as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined
+      if (material?.name !== 'window') return
+      material.color.set(0x141c24)
+      material.metalness = 0
+      material.roughness = 0.45
+    })
     return set
   } catch (error) {
     console.error(`Scenery model ${url} failed to load; keeping the code-built versions.`, error)
