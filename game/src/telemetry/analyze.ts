@@ -305,7 +305,8 @@ export interface Analysis {
   }
   menus: { name: string; opens: number; seconds: number }[]
   resets: { t: number; after: string }[]
-  hints: { t: number; text: string }[]
+  /** Control prompts shown, and how long until the player did what each asks (null: never, or it timed out). */
+  hints: { t: number; text: string; doneAfter: number | null }[]
   cards: Record<string, number>
   performance: { fps: number; fpsP5: number; longFrames: number; worstRuns: { run: string; fps: number }[]; errors: string[] }
   marks: { t: number; x: number; z: number; run: string; speedKmh: number; note: string }[]
@@ -778,7 +779,14 @@ export function analyze(session: Session): Analysis {
     const air = lands.find((entry) => entry.t < event.t && entry.t > event.t - 5000)
     return { t: event.t, after: crash ? `a crash (${crash.cause})` : stall ? `a stall (${stall.cause})` : air ? 'a jump' : 'skiing' }
   })
-  const hints = eventsOf('hint').filter((event) => typeof event.text === 'string' && event.text).map((event) => ({ t: event.t, text: String(event.text) }))
+  // A prompt shows, then turns to `done` when the player does what it asks.
+  const hintEvents = eventsOf('hint').filter((event) => typeof event.text === 'string' && event.text)
+  const hints = hintEvents
+    .filter((event, index) => event.state !== 'done' && hintEvents[index - 1]?.text !== event.text)
+    .map((event) => {
+      const done = hintEvents.find((next) => next.t > event.t && next.text === event.text && next.state === 'done')
+      return { t: event.t, text: String(event.text), doneAfter: done ? round((done.t - event.t) / 1000) : null }
+    })
   const cards = count(eventsOf('card').map((event) => event.title))
 
   // First minute: from the page loading to a few seconds of real skiing.
@@ -797,9 +805,13 @@ export function analyze(session: Session): Analysis {
       if (event.k === 'menu') firstMinute.push({ t: event.t, what: event.to ? `Screen: ${String(event.to)}${event.view ? ` (${String(event.view)})` : ''}` : 'Into the game' })
       else if (event.k === 'film') firstMinute.push({ t: event.t, what: event.on ? 'Opening film starts' : `Opening film ends${event.skipped ? ' (skipped)' : ''}` })
       else if (event.k === 'ride') firstMinute.push({ t: event.t, what: event.on ? `On ${String(event.lift ?? 'a lift')}` : `Off the lift${event.skipped ? ' (skipped)' : ''}` })
-      else if (event.k === 'hint' && event.text) firstMinute.push({ t: event.t, what: `Prompt: ${String(event.text)}` })
       else if (event.k === 'crash') firstMinute.push({ t: event.t, what: 'First crash' })
       else if (event.k === 'pick') firstMinute.push({ t: event.t, what: `Picked ${String(event.what ?? '')}` })
+    }
+    for (const hint of hints) {
+      if (hint.t > until) break
+      firstMinute.push({ t: hint.t, what: `Prompt: ${hint.text}` })
+      if (hint.doneAfter !== null) firstMinute.push({ t: hint.t + hint.doneAfter * 1000, what: `Did it: ${hint.text}` })
     }
     const control = samples.find((row) => playing(row))
     if (control) firstMinute.push({ t: num(control, S.t), what: 'Player has control' })
@@ -994,6 +1006,8 @@ function findingsFor(a: Analysis): Finding[] {
   const moving = a.firstMinute.find((step) => step.what.startsWith('Moving'))
   if (control && moving && moving.t - control.t > 12000) out.push({ level: 'medium', area: 'flow', title: `Took ${Math.round((moving.t - control.t) / 1000)} s from getting control to moving`, detail: 'The first seconds on the snow are slow: check the stalls list for the start and which prompt was up.' })
 
+  const ignored = a.hints.filter((hint) => hint.doneAfter === null)
+  if (ignored.length) out.push({ level: 'info', area: 'flow', title: `${plural(ignored.length, 'control prompt')} shown but not acted on`, detail: ignored.map((hint) => `${clock(hint.t)} "${hint.text}"`).slice(0, 6).join('; ') })
   if (a.performance.fps && a.performance.fpsP5 < 45) out.push({ level: a.performance.fpsP5 < 30 ? 'high' : 'medium', area: 'performance', title: `Frame rate ${a.performance.fps} fps on average, ${a.performance.fpsP5} fps in the slowest 5%`, detail: `${a.performance.longFrames} frames over 100 ms. Slowest areas: ${a.performance.worstRuns.map((entry) => `${entry.run || 'unnamed'} ${entry.fps} fps`).join(', ')}.` })
   if (a.performance.errors.length) out.push({ level: 'high', area: 'performance', title: `${plural(a.performance.errors.length, 'script error')}`, detail: a.performance.errors.join(' | ') })
   if (a.marks.length) out.push({ level: 'high', area: 'marks', title: `Marked ${plural(a.marks.length, 'moment')} as worth a look`, detail: a.marks.map((mark) => `${clock(mark.t)} ${mark.run || 'unnamed'}${mark.note ? ` (${mark.note})` : ''}`).join('; ') })
@@ -1038,7 +1052,7 @@ export function report(a: Analysis): string {
   table(['Time', 'Run', 'Where (x,z)', 'km/h', 'Cause', 'Down s', 'Restarted'], a.crashes.map((crash) => [clock(crash.t), crash.run, where(crash.x, crash.z), crash.speedKmh, crash.cause, crash.downSeconds, crash.resetAfter ? 'yes' : '']))
 
   lines.push('## Jumps and tricks', '')
-  lines.push(`${a.airs.count} jumps (median ${a.airs.medianSeconds} s in the air), ${a.airs.charged} charged takeoffs, ${a.airs.withSpin} spins, ${a.airs.withFlip} flips, ${a.airs.withGrab} grabs, ${a.airs.crashed} crashed.`, '')
+  lines.push(`${a.airs.count} jumps (median ${a.airs.medianSeconds} s in the air), ${a.airs.charged} charged takeoffs; with a spin ${a.airs.withSpin}, a flip ${a.airs.withFlip}, a grab ${a.airs.withGrab}; crashed ${a.airs.crashed}.`, '')
   table(['Trick', 'Count'], Object.entries(a.airs.tricks).sort((x, y) => y[1] - x[1]).slice(0, 15))
   table(['Takeoff (x,z)', 'Run', 'Attempts', 'Crashed'], a.airs.retries.map((spot) => [where(spot.x, spot.z), spot.run, spot.attempts, spot.crashed]))
 
@@ -1064,7 +1078,7 @@ export function report(a: Analysis): string {
   lines.push('## Menus, restarts and prompts', '')
   table(['Screen', 'Opened', 'Seconds'], a.menus.map((menu) => [menu.name, menu.opens, menu.seconds]))
   table(['Restart at', 'After'], a.resets.map((reset) => [clock(reset.t), reset.after]))
-  table(['Prompt shown at', 'Text'], a.hints.map((hint) => [clock(hint.t), hint.text]))
+  table(['Prompt shown at', 'Text', 'Done after s'], a.hints.map((hint) => [clock(hint.t), hint.text, hint.doneAfter ?? 'not done']))
 
   lines.push('## Performance', '')
   lines.push(`${a.performance.fps} fps on average while skiing, ${a.performance.fpsP5} fps in the slowest 5%, ${a.performance.longFrames} frames over 100 ms. Graphics: ${String(a.meta.quality ?? '')}.`, '')

@@ -172,7 +172,11 @@ export function createRecorder(context: TelemetryContext): Telemetry {
     if (!(click.target instanceof Element)) return
     const control = click.target.closest('button, a[href], summary, select, input, [role="button"]')
     if (!control || control.closest('#telemetry-pill')) return
-    const label = (control.getAttribute('aria-label') || control.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 48)
+    // The first line of the control (a title button also carries a description under its name).
+    const walker = document.createTreeWalker(control, NodeFilter.SHOW_TEXT)
+    let first = ''
+    while (!first && walker.nextNode()) first = (walker.currentNode.textContent ?? '').replace(/\s+/g, ' ').trim()
+    const label = (control.getAttribute('aria-label') || first).slice(0, 48)
     event('click', { label, id: control.id || control.className.toString().slice(0, 32) })
   }, true)
 
@@ -223,7 +227,7 @@ export function createRecorder(context: TelemetryContext): Telemetry {
   pill.id = 'telemetry-pill'
   pill.style.cssText =
     'position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom, 0px) + 6px);transform:translateX(-50%);z-index:60;display:none;align-items:center;gap:.6em;' +
-    'padding:.3em .8em;border-radius:999px;background:rgba(10,16,24,.78);color:#dfe8f2;font:500 12px/1.3 system-ui,sans-serif;white-space:nowrap;pointer-events:auto'
+    'padding:.3em .8em;border-radius:999px;background:rgba(10,16,24,.78);color:#dfe8f2;font:500 12px/1.3 system-ui,sans-serif;max-width:calc(100vw - 16px);box-sizing:border-box;pointer-events:auto'
   const pillText = document.createElement('span')
   const pillSave = document.createElement('button')
   pillSave.type = 'button'
@@ -246,13 +250,13 @@ export function createRecorder(context: TelemetryContext): Telemetry {
   function updatePill(menuOpen: boolean) {
     const toast = performance.now() < toastUntil
     const state = sink.status
-    const saved = state.mode === 'db' ? (state.savedAt ? `saved ${new Date(state.savedAt).toLocaleTimeString()}` : 'saving as you play') : state.mode === 'memory' ? 'kept in this page: use Download before closing' : 'starting'
+    const saved = state.mode === 'db' ? (state.savedAt ? `saved ${new Date(state.savedAt).toLocaleTimeString()}` : 'saving as you play') : state.mode === 'memory' ? 'not saved yet: Download before closing' : 'starting'
     const next = toast ? 'toast' : menuOpen ? `menu ${saved}` : ''
     if (next === pillShown) return
     pillShown = next
     pill.style.display = next ? 'flex' : 'none'
     pillSave.style.display = toast ? 'none' : ''
-    pillText.textContent = toast ? '● Moment marked' : `● Test build: recording how you play (${saved}). F or left-stick click marks a moment.`
+    pillText.textContent = toast ? '● Moment marked' : `● Recording this test session (${saved}). F or L3 marks a moment.`
   }
 
   // --- Per-frame watching ---------------------------------------------------
