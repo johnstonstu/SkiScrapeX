@@ -2,6 +2,22 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.60 (unreleased): Hop 180
+
+From Stu's playtest of the combined 0.9.56 build: riders end up switch (backwards) and hopping a 180 back to forward was too hard. Measured first: on plain snow it could not be done at all (0 of 56 tries in `tuning/switch180.test.ts`), because the landing assist cancelled the spin of any air shorter than its 0.6 second window. No existing feel number changed.
+
+### Added
+
+- **Hop 180: jump with left or right.** Riding switch, a tap of jump with a direction pops a small hop that turns exactly half way round and lands you forward, on skis and on a snowboard, at any speed. The spin is paced to the landing, so it does not depend on how long the direction is held, and holding it on does not over-rotate. The pop is a little bigger than a plain tap (about 0.4 s of air) so the turn has room.
+- **Forgiving timing.** The direction can be let go up to about 0.15 s before the jump is released, or pressed up to 0.12 s after it. If the snow comes up early (a bump, a steep roll), the rest of the turn pivots on the snow instead of landing sideways and crashing.
+- **To switch on purpose.** From forward the same move works after holding the crouch for a moment (about 0.16 s) with a direction. A quick tapped ollie in the middle of a turn stays an ollie, and a mogul field never hops you to switch, since there the crouch is for soaking up bumps while you steer.
+- **A prompt when it matters.** After two seconds riding switch in free skiing, one line says how to hop round. It is gone for good once you have done it. The pause guide and the README list the move.
+- The hop shows as "Switch 180" or "180" for 60 points. It joins an open combo but neither raises the multiplier nor holds the combo open, so it cannot be farmed.
+
+### Unchanged
+
+- Jump without a direction, spins off real jumps (any takeoff predicted to fly longer than 0.75 s), the powder bounce when riding forward, and every number in `PHYSICS` and the older `FREESTYLE` entries.
+
 ## 0.9.59 (unreleased): Camera on moguls and park jumps
 
 From Stu's playtest of the combined 0.9.56 build: on mogul runs the camera sat too close to the ground, you could not see in front of you and it was snappy; park jumps needed a pass on the way in and on landing. The follow camera's framing is now its own module (`game/src/player/followCamera.ts`, no rendering in it), so it can be run against a bot on the real mountain and measured (`game/tests/cameraFraming.test.ts`).

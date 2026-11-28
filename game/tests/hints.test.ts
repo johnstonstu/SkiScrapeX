@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { HINTS, SHOW_SECONDS, createHints } from '../src/app/hints'
+import { HINTS, SHOW_SECONDS, SWITCH_HINT, createHints } from '../src/app/hints'
 import type { SkiInput, SkiState } from '../src/sim'
 
 const skier = (over: Partial<SkiState> = {}) => ({ speed: 8, grounded: true, crashed: 0, air: null, ...over }) as unknown as SkiState
@@ -88,6 +88,32 @@ describe('free-ski control prompts', () => {
     expect(hints.showing).toBeNull()
     run(hints, 0.2, skier({ speed: 9 }))
     expect(hints.showing).toBe('jump')
+  })
+
+  it('riding switch brings up how to hop round, in front of the other prompts, until the player has done it', () => {
+    const hints = createHints(line(), () => 'keys')
+    const back = (over: Partial<SkiState> = {}) => skier({ ridingSwitch: true, trick: null, ...over })
+    run(hints, 2.5)
+    expect(hints.showing).toBe('steer')
+    run(hints, 1.5, back())
+    expect(hints.showing).toBe('steer')
+    run(hints, 1, back())
+    expect(hints.showing).toBe('switch')
+    // Back forward some other way (a stop, a crash): it steps aside and waits for the next visit.
+    run(hints, 0.2, skier())
+    expect(hints.showing).toBeNull()
+    run(hints, 4, back())
+    expect(hints.showing).not.toBe('switch')
+    // Next visit: shown again, and done for good after a hop 180 out of switch.
+    const again = createHints(line(), () => 'pad')
+    run(again, 3, back())
+    expect(again.showing).toBe('switch')
+    run(again, 0.2, skier({ trick: { seq: 1, hop: true, switchLanding: false } as SkiState['trick'] }))
+    expect(again.showing).toBeNull()
+    const later = createHints(line(), () => 'pad')
+    run(later, 6, back())
+    expect(later.showing).not.toBe('switch')
+    for (const mode of ['keys', 'touch', 'pad'] as const) expect(SWITCH_HINT.text[mode]).toContain('hop round')
   })
 
   it('every prompt has a line for keyboard, touch and gamepad', () => {

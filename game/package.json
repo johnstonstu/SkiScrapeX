@@ -2,7 +2,7 @@
   "name": "skiscrapex-game",
   "private": true,
   "license": "MIT",
-  "version": "0.9.59",
+  "version": "0.9.60",
   "type": "module",
   "scripts": {
     "dev": "vite",

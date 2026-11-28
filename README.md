@@ -46,6 +46,7 @@ Without `public/data` the game falls back to synthetic test slopes.
 | <kbd>W</kbd> or <kbd>↑</kbd> | Push or skate when slow, tuck at speed, fast-forward lift rides |
 | <kbd>S</kbd> or <kbd>↓</kbd> | Brake (hockey stop) |
 | <kbd>Space</kbd> | Hold to crouch and absorb mogul crests, release to jump. In deep powder a tap unweights the skis |
+| <kbd>Space</kbd> with <kbd>A</kbd> or <kbd>D</kbd> | Hop 180. Riding switch (backwards), a tap hops you round to forward. From forward, hold the crouch a moment first to hop to switch |
 | <kbd>J</kbd> or <kbd>Shift</kbd> | Grab: alone a mute, with <kbd>W</kbd> a japan, <kbd>S</kbd> a tail grab, a direction a safety |
 | <kbd>K</kbd> | Second grab button: alone a critical, with <kbd>W</kbd> a nose grab, with <kbd>S</kbd> a truck driver |
 | In the air | <kbd>A</kbd> <kbd>D</kbd> spin, <kbd>W</kbd> <kbd>S</kbd> flip; during a spin <kbd>W</kbd> <kbd>S</kbd> corks it (let go before landing). Hold a direction while crouched to pre-wind a spin |

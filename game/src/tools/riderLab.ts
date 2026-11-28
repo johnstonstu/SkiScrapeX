@@ -5,7 +5,7 @@
  * cloth cutting into another body part in red (see riderClipping.ts).
  * `?sim` instead runs the real ski sim through linked turns on a steady
  * slope behind the follow camera (`pitch`, `period` seconds per turn pair,
- * `cap` km/h; `amp` scales the steer; `action=push` holds tuck from a standstill, `action=traverse` holds a line `across` degrees off the fall line; `action=unload` stands up off a chair and glides away; `action=tour` loops through turns, a
+ * `cap` km/h; `amp` scales the steer; `action=push` holds tuck from a standstill, `action=hop180` hops to switch and back, `action=traverse` holds a line `across` degrees off the fall line; `action=unload` stands up off a chair and glides away; `action=tour` loops through turns, a
  * tuck, a stop, a push off, an ollie, a crash and the get-up). `window.__step(frames)` advances it frame by frame, for
  * reviewing turn transitions. `cam=back|front|side` puts a close camera on
  * the rider instead of the follow camera.
@@ -256,6 +256,14 @@ function runSim() {
       const t = time % 10
       input = { steer: t > 3.4 && t < 4 ? 1 : 0, brake: 0, tuck: false }
       if (t > 4 && t - 1 / 60 <= 4 && state.crashed <= 0) beginCrash(state)
+    }
+    if (action === 'hop180') {
+      // Hop to switch (a held crouch with a direction), ride it, then tap back to forward; the side alternates.
+      const t = time % 6
+      const side = Math.floor(time / 6) % 2 === 0 ? 1 : -1
+      const out = t > 1.6 && t < 1.85
+      const back = t > 4.2 && t < 4.3
+      input = { steer: out ? side : back ? -side : 0, brake: input.brake, tuck: false, jump: out || back }
     }
     if (action === 'push') {
       // Tuck held from a standstill on a gentle pitch: the skate or one-foot push.

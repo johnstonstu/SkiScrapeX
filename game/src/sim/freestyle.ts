@@ -68,6 +68,30 @@ export const FREESTYLE = {
   /** Curvature takeoff: leave the snow when moving away from the next surface faster than this, m/s. */
   takeoffNormalSpeed: 1.5,
   crashTime: 1.6,
+  /**
+   * Hop 180: letting go of jump with a direction held on plain snow spins exactly half a turn,
+   * timed to the landing, so a rider who ended up switch can hop back round (and a forward
+   * rider can hop to switch). Stu, 2026-11-28: riding out of switch "needs to be a little bit
+   * easier, more forgiving... press jump with a right or left direction and pop you 180".
+   * All guesses, tune in play.
+   *
+   * The pop is at least `hop180Pop` m/s (about 0.4 s of air), the spin is done `hop180Early`
+   * seconds before touchdown and never turns faster than `hop180RateMax` rad/s. If the snow
+   * comes up early (a bump, a steep roll), the rest of the turn is pivoted on the snow at that
+   * rate (`SkiState.pivot`) instead of landing sideways.
+   */
+  hop180Pop: 1.9,
+  hop180Early: 0.07,
+  hop180RateMax: 11,
+  /** Only short airs: a takeoff predicted to fly longer than this is a jump, and spins by hand as before, seconds. */
+  hop180MaxAir: 0.75,
+  /** From forward the crouch must be held to this charge first (about 0.16 s), so a tapped ollie mid-turn stays an ollie. Out of switch any tap will do. */
+  hop180SwitchCharge: 0.4,
+  /** A direction let go this far (0..1, decaying) before the pop still counts, and one pressed within `hop180Late` seconds after it. */
+  hop180Windup: 0.1,
+  hop180Late: 0.12,
+  /** Flat score, under the combo's `COMBO_MIN_POINTS` so hops cannot farm a multiplier. */
+  hop180Points: 60,
 } as const
 
 export type GrabKind = 'mute' | 'safety' | 'japan' | 'tail' | 'nose' | 'critical' | 'truck'
@@ -88,6 +112,8 @@ export interface TrickEvent {
   grabTime: number
   switchLanding: boolean
   railMetres: number
+  /** A hop 180 on plain snow: a small flat score that neither builds nor holds a combo. */
+  hop?: boolean
 }
 
 export interface AirState {
@@ -105,6 +131,10 @@ export interface AirState {
   cork: number
   /** Seconds spent with the axis tilted past halfway. */
   corkTime: number
+  /** Hop 180: the spin this air is turning to (plus or minus pi), or 0 for an ordinary air. */
+  quick?: number
+  /** Hop 180: a direction pressed just after this pop may still start one. */
+  quickArmed?: boolean
 }
 
 export interface RailState {
@@ -154,6 +184,8 @@ export function newAir(windup: number): AirState {
     predictedFrom: 0,
     cork: 0,
     corkTime: 0,
+    quick: 0,
+    quickArmed: false,
   }
 }
 
@@ -178,11 +210,20 @@ export function stepRotation(
   air.spinRate = approach(air.spinRate, spinTarget, FREESTYLE.spinAccel * dt)
   air.flipRate = approach(air.flipRate, flipTarget, FREESTYLE.flipAccel * dt)
 
+  // A hop that turns out to be a real jump is spun by hand, as any other air.
+  if (air.quick && air.time <= dt && air.timeToLand > FREESTYLE.hop180MaxAir) air.quick = 0
+  const quick = air.quick ?? 0
+  const hop180 = quick !== 0
+  if (hop180) {
+    // Half a turn, paced to be round just before the skis touch; the stick is not needed.
+    const left = Math.max(air.timeToLand - FREESTYLE.hop180Early, 0.03)
+    air.spinRate = clamp((quick - air.spin) / left, -FREESTYLE.hop180RateMax, FREESTYLE.hop180RateMax)
+  }
   if (assist && air.timeToLand < FREESTYLE.assistWindow) {
     const left = Math.max(air.timeToLand, 0.05)
     const spinGoal = nearestMultiple(air.spin, Math.PI, air.spinRate)
     const flipGoal = nearestMultiple(air.flip, Math.PI * 2, air.flipRate)
-    air.spinRate = clamp((spinGoal - air.spin) / left, -FREESTYLE.spinRateMax * 1.2, FREESTYLE.spinRateMax * 1.2)
+    if (!hop180) air.spinRate = clamp((spinGoal - air.spin) / left, -FREESTYLE.spinRateMax * 1.2, FREESTYLE.spinRateMax * 1.2)
     air.flipRate = clamp((flipGoal - air.flip) / left, -FREESTYLE.flipRateMax * 1.2, FREESTYLE.flipRateMax * 1.2)
     air.cork = approach(air.cork, 0, (Math.abs(air.cork) / left) * dt * 1.2)
   }
