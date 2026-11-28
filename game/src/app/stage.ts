@@ -6,7 +6,7 @@ import type { indexBuildings } from '../world/buildings'
 import type { Lift } from '../world/resort'
 import type { ParkOverlay } from '../world/park'
 import type { SnowMaterial } from '../fx'
-import type { RidePath } from '../render/scenery/liftView'
+import type { ChairRiders, RidePath } from '../render/scenery/liftView'
 
 /** What the frame loop needs from either the Apex world or a test slope. */
 import type { createStamper } from '../world/snowDeform'
@@ -17,7 +17,17 @@ export interface Stage {
   trunks: TrunkIndex | null
   buildings: ReturnType<typeof indexBuildings> | null
   snow: SnowMaterial | null
-  advanceLifts?: (dt: number, fastLift?: string) => void
+  /** `riding`: the chair the player is on, which carries nobody else. */
+  advanceLifts?: (dt: number, fastLift?: string, riding?: { liftId: string; s: number } | null) => void
+  /** People riding the chairlifts, who cheer a landing they can see. */
+  chairRiders?: {
+    /** Occupied chairs on the way up within `range` metres of a point, nearest first. */
+    near(x: number, y: number, z: number, range: number): ChairRiders[]
+    /** Where one of those chairs is now; false once it has reached the top. */
+    seat(id: number, out: THREE.Vector3): boolean
+    /** Its riders throw their arms up. */
+    cheer(id: number, seconds: number, delay?: number): void
+  }
   ride: ((lift: Lift) => RidePath | null) | null
   /** Put a chair at `s` metres up a lift's ride. */
   alignChair?: (lift: Lift, s: number) => void

@@ -2,6 +2,18 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.58 (unreleased): People on the chairs
+
+Built on the combined 0.9.56 test build.
+
+### Added
+
+- **A few riders on the chairlifts.** About four chairs in ten going up Quickdraw and Stock's carry one to four people (pairs mostly, a full chair rarely), different people each trip. Nobody rides down, and nobody shares the chair you are on. They are simple seated figures in two draw calls for the whole mountain.
+- **They cheer what you land.** Land a jump or a trick where riders on a chair can see it (within 75 m, and not already behind them) and they react: one whoop for a plain jump or a long clean rail, two voices and clapping for a spin or a grab, the whole chair with a second chair joining in for a big trick, and an "ohh" for a crash out of real air. Hops are ignored and the lift stays quiet for 2.5 seconds after a cheer, so a park line gets a few cheers and not a wall of them. Their arms go up while they cheer.
+- **The cheer is on their chair.** It is the first sound in the game placed in space: it comes from up the line, grows as you close on the chair and passes over your head, duller with distance and with a faint echo off the slope.
+- **Voices are synthesized like every other sound**: a pulse wave through three moving mouth resonances, with the pitch gesture of each shout (a whoop swoops up and falls away, a "yeww" slides down, a "yeah" opens wide), men's and women's ranges, vibrato on held notes, and breath. Clapping is mittens (a thud more than a slap) or ski poles knocked together. No audio files.
+- Sound lab: five new scripted moments (each shout and clap alone, then a small, a good and a big trick and a crash under the lift).
+
 ## 0.9.57 (unreleased): Skier faces where they are going, and the hop off the chair
 
 From Stu's playtest of the combined 0.9.56 build. Rider drawing only; physics, steering and the camera are unchanged here.

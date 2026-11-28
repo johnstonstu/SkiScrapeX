@@ -28,6 +28,7 @@ import { createCameraRig } from './player/camera'
 import { createSkiAudio } from './player/audio'
 import { cardSound } from './player/sfx/cards'
 import { createSoundScene } from './app/soundScene'
+import { createChairCrowd } from './app/game/chairCrowd'
 import { createMusic } from './player/music'
 import { createHaptics } from './player/haptics'
 import { createGearDrops } from './player/gearDrops'
@@ -143,7 +144,7 @@ const lighting = createLighting()
 const scene = new THREE.Scene()
 if (params.has('perf')) Object.assign(window, { __scene: scene })
 // `?test`: handles for the headless smoke test.
-if (params.has('test')) Object.assign(window, { __game: { scene, three: THREE, renderer, get camera() { return camera }, get rider() { return skierView.object }, get skier() { return game.skier }, get challenge() { return game.challenge }, get goals() { return game.goals }, get npcs() { return game.npcs }, get snowDeform() { return game.stage.snowDeform }, get tricks() { return tricks }, startEvent(id: string) { const next = game.goals?.eventById(id); if (next) flow.startChallenge(next); return Boolean(next) } } })
+if (params.has('test')) Object.assign(window, { __game: { scene, three: THREE, renderer, get camera() { return camera }, get rider() { return skierView.object }, get skier() { return game.skier }, get challenge() { return game.challenge }, get goals() { return game.goals }, get npcs() { return game.npcs }, get snowDeform() { return game.stage.snowDeform }, get tricks() { return tricks }, get stage() { return game.stage }, get chairCrowd() { return chairCrowd }, startEvent(id: string) { const next = game.goals?.eventById(id); if (next) flow.startChallenge(next); return Boolean(next) } } })
 const sun = addSceneLights(scene, lighting, quality.shadowRange)
 sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize)
 const sky = createSky(lighting)
@@ -291,6 +292,7 @@ const lifts = createLiftRides(game, {
     )
   },
 })
+const chairCrowd = createChairCrowd(game, sound, camera)
 const flow = createChallengeFlow(game, { ui, controls, tricks, race, comp, runout, coach, stylePanel, bests, hideOverlays, leaveDemoPark, openChallenges, spawn, startRide: (lift) => lifts.startRide(lift), onResult: (improved, failed) => sound.ui(failed ? 'fail' : improved ? 'best' : 'finish') })
 const hud = createHud(game, { ui, renderer, parkHud, hudPeek, quality, qualityReason, hardware })
 let setViewDistance: ((scale: number) => void) | null = null
@@ -1009,7 +1011,7 @@ function readPlayInput() {
 /** Advance play one frame: a lift ride, a fade, the start gate, or the ski sim and what reacts to it. */
 function stepPlay(dt: number, input: ReturnType<typeof controls.read>): { steps: number; pose: SkierPose } {
   let steps = 0
-  game.stage.advanceLifts?.(dt, game.ride && input.tuck ? game.ride.lift.id : undefined)
+  game.stage.advanceLifts?.(dt, game.ride && input.tuck ? game.ride.lift.id : undefined, game.ride ? { liftId: game.ride.lift.id, s: game.ride.s } : null)
   let pose: SkierPose = 'ski'
   if (game.ride) {
     hints.clear()
@@ -1045,6 +1047,7 @@ function stepPlay(dt: number, input: ReturnType<typeof controls.read>): { steps:
     perf.lap('sim')
     const newTrick = tricks.onTrick(game.skier.trick, landed?.outcome ?? null)
     if (newTrick && game.skier.trick) game.goals?.onTrick(game.skier.trick)
+    if (newTrick && game.skier.trick) chairCrowd.onTrick(game.skier.trick)
     if (newTrick && game.skier.trick?.kind === 'air') {
       comp.onTrick(game.skier.trick)
       rig.landingImpulse(game.skier.trick)
@@ -1155,6 +1158,7 @@ function present(dt: number, frameMs: number, input: ReturnType<typeof controls.
     soundSceneAge = 0
   }
   sound.update(game.skier, lifts.rideSound())
+  chairCrowd.update(dt)
   if (!game.ride && !game.pause) haptics.update(game.skier, performance.now())
   effects.setWeather(weatherLive.snowDensity * (1 + gust.strength * 0.2), gust.windEast, gust.windSouth, lighting)
   setHaze(scene, hazeDensity(gust.visibility))

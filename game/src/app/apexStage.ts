@@ -279,6 +279,7 @@ export function buildApexStage(
     buildings: indexBuildings(solid),
     snow: terrain.material,
     advanceLifts: lifts.update,
+    chairRiders: { near: lifts.ridersNear, seat: lifts.chairSeat, cheer: lifts.cheer },
     ride: (lift) => lifts.ride(lift.id),
     alignChair: (lift, s) => lifts.alignChair(lift.id, s),
     features: () => overlay.features,

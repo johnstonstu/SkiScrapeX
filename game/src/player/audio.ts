@@ -1,5 +1,6 @@
 import type { SkiState } from '../sim'
-import { createSfxEngine, type SampleKind, type SfxEngine, type UiSound } from './sfx/engine'
+import { createSfxEngine, type PlacedSound, type SampleKind, type SfxEngine, type UiSound } from './sfx/engine'
+import type { CheerPlan } from './sfx/crowd'
 import type { ChimeKey, SfxRide, SfxScene } from './sfx/mix'
 
 /** Optional one-shot WAVs under `public/audio/` layered on the synthesized sounds (missing files are fine). */
@@ -104,6 +105,10 @@ export function createSkiAudio(button: HTMLButtonElement, hooks: SkiAudioHooks =
     nearMiss(closing: number) { if (audible() && !paused) engine!.nearMiss(closing) },
     /** Into a tree (`crash`) or knocked aside by one. `into` is the speed into the trunk, m/s. */
     treeHit(into: number, crash: boolean) { if (audible() && !paused) engine!.treeHit(into, crash) },
+    /** Riders on a chair cheer; `x, y, z` is where they are from the camera (right, up, behind). Null when nothing can sound. */
+    chairCheer(plan: CheerPlan, x: number, y: number, z: number): PlacedSound | null {
+      return audible() && !paused && ctx?.state === 'running' ? engine!.chairCheer(plan, x, y, z) : null
+    },
     /** An interface sound: menu moves, the race count, trick cards. */
     ui(kind: UiSound) { if (audible()) engine!.ui(kind) },
     /** Where the rider is on the mountain, for the background layers. */
