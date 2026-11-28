@@ -3,7 +3,7 @@
  * the resort. Every entry says where it came from; see docs/run-names.md and
  * docs/apex-sources.md for the research.
  */
-import type { Peak, Resort, Run } from './resort'
+import type { Peak, Point2, Resort, Run } from './resort'
 
 /**
  * Official difficulty where OSM disagrees. Source: Apex trail maps (2023 and
@@ -123,6 +123,41 @@ export const RUN_STYLE: Record<string, { groomed?: boolean; moguls?: boolean; ch
   'Dawdler 1': { halfWidth: 11.5 },
 }
 
+/**
+ * Where a run's mapped line is wrong for the hill, by name. `head` replaces the
+ * top of the line down to where `head` ends (the old top stays as a branch when
+ * `keepOldHead`), `tail` carries a line that stops short on down to the run it
+ * feeds. Lines are downhill, local metres.
+ *
+ * Whole-mountain pass (2026-11-28), checked against the 2023 trail map, which
+ * draws Westbank from the top of Quickdraw down the chair's south side (left,
+ * looking up) with Grouse Gulch on its north side, and against Stu (2026-11-24):
+ * West Bank is "a really fun kind of mogul run right underneath the
+ * chairlift". OSM starts West Bank on Ridge Run 270 m from the chair and leaves
+ * the lift-line fall line unmapped. The new head is the LiDAR fall line from
+ * the unload, 20 to 50 m south of the cable (open, no canopy), meeting OSM's
+ * line where it crosses under the chair. The tails link runs OSM ends in the
+ * open to the next run down (the open corridor below West Bank reaches Village
+ * Traverse; Grouse Gulch and cut L11 end beside West Bank and Grouse Gulch).
+ * The short heads join runs OSM starts a little below the run that feeds them.
+ */
+export const RUN_LINE_FIXES: Record<string, { head?: Point2[]; keepOldHead?: boolean; tail?: Point2[] }> = {
+  'West Bank': {
+    head: [[1566, 1557], [1585, 1561], [1603, 1561], [1648, 1540], [1696, 1527], [1743, 1511], [1786, 1485], [1828, 1457], [1868, 1428], [1891, 1408]],
+    keepOldHead: true,
+    tail: [[2267, 1073], [2290, 1064], [2313, 1056], [2336, 1045], [2358, 1033], [2380, 1022], [2407, 1009]],
+  },
+  'Grouse Gulch': {
+    head: [[1575, 1540], [1600, 1522], [1630, 1498], [1662, 1480], [1693, 1470]],
+    tail: [[2170, 1060], [2205, 1066], [2240, 1072], [2271, 1072]],
+  },
+  // Off the ridge and Chute: OSM starts these 40 to 75 m short of the run above (open snow between).
+  'Unnamed cut L11': { head: [[1518, 1437], [1555, 1455]], tail: [[1798, 1320], [1815, 1341]] },
+  Gromit: { head: [[1262, 1318], [1272, 1275]] },
+  K: { head: [[1275, 1322], [1297, 1275]] },
+  Magnum: { head: [[1404, 1036], [1372, 1020], [1339, 1002]] },
+}
+
 /** Display names for OSM building names with typos or abbreviations. */
 export const BUILDING_NAMES: [RegExp, string][] = [
   [/^the gunbarell saloon$/i, 'Gunbarrel Saloon'],
@@ -188,6 +223,8 @@ export function applyCorrections(resort: Resort): void {
     if (difficulty) run.difficulty = difficulty
     const style = RUN_STYLE[run.name]
     if (style) Object.assign(run, style)
+    const fix = RUN_LINE_FIXES[run.name]
+    if (fix && run.kind === 'line') fixRunLine(run, fix)
   }
   if (resort.buildings) resort.buildings = resort.buildings.filter((b) => !(b.id && DROPPED_BUILDINGS.has(b.id)))
   for (const peak of EXTRA_PEAKS) if (!resort.peaks.some((p) => p.name === peak.name)) resort.peaks.push({ ...peak })
@@ -243,4 +280,24 @@ export function splitRun(run: Run, split: { at: [number, number]; upper: string;
     { ...run, id: `${run.id}/upper`, name: split.upper, parts: [above, ...others] },
     { ...run, id: `${run.id}/lower`, name: split.lower, parts: [below] },
   ]
+}
+
+/** Swap in a run's corrected top and carry its bottom on (see RUN_LINE_FIXES). */
+export function fixRunLine(run: Run, fix: (typeof RUN_LINE_FIXES)[string]): void {
+  let line = run.parts[0]
+  if (!line || line.length < 2) return
+  const extra: Point2[][] = []
+  if (fix.head && fix.head.length > 1) {
+    const join = fix.head[fix.head.length - 1]
+    let cut = 0
+    let best = Infinity
+    line.forEach(([x, z], i) => {
+      const d = Math.hypot(x - join[0], z - join[1])
+      if (d < best) ((best = d), (cut = i))
+    })
+    if (fix.keepOldHead && cut > 0) extra.push([...line.slice(0, cut + 1)])
+    line = [...fix.head, ...line.slice(cut + 1)]
+  }
+  if (fix.tail) line = [...line, ...fix.tail]
+  run.parts = [line, ...run.parts.slice(1), ...extra]
 }

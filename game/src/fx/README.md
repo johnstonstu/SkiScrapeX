@@ -10,7 +10,7 @@ Import from `src/fx/index.ts`. These modules started as the standalone `labs/sno
 
 ### `SnowMaterial`
 
-One `ShaderMaterial` for any heightfield mesh. Lighting (sun, sky, ground bounce, fog) is in the shader, so the mesh does not need scene lights. Mask and track textures are sampled in world XZ.
+One `ShaderMaterial` for any heightfield mesh. Lighting (sun, sky, ground bounce, fog) is in the shader, so the mesh does not need scene lights. Fog is the shared aerial haze from `atmosphere.ts`: `setFog` sets it for every snow material at once, and the game keeps it equal to the scene fog. `setForestShadeRange(start, full)` says where canopy-based forest shade takes over from the shadow map (negative start: everywhere, for shadows off). Mask and track textures are sampled in world XZ.
 
 ```ts
 const material = new SnowMaterial({
@@ -35,7 +35,7 @@ material.setSlopeBlend(36, 52, true);
 material.setMaskEnabled(true);
 material.setMask(mask, originX, originZ, sizeX, sizeZ);
 material.setGroomDirection(0, 1);
-material.setFog(0.0032);
+material.setFog(0.0032);               // shared by every snow material (and the scene haze)
 material.setTrackMap(stamp, originX, originZ, size, resolution); // or null
 ```
 

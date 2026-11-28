@@ -2,6 +2,12 @@
 
 The 21 runs in `game/src/world/runOverlay.ts` were traced from LidarBC canopy gaps because OpenStreetMap does not map them. Their refs match `docs/runs-overlay.png`. Rename a run by editing its `name` there.
 
+## Whole-mountain pass (2026-11-28)
+
+Checked against the 2023 trail map PDF (read on Stu's desktop browser; the cloud proxy blocks apexresort.com). Looking up from the village it shows, left to right: Sweet Sue, Tooth/Tusk, Essendale, Toilet Bowl, Crusher, Golden Eagle and The Great Wall dropping off the ridge south of the summit into the bowl and meeting at the top of Stock's, with Sunbowl below them; Ridge Run traversing from the summit down to the top of Stock's; Mini-Colorado, The Pit and Westbank between Ridge Run and the chair; Grouse Gulch on the chair's other side. The Wild Side inset hangs Granny's Glades, Any Which Way Glades, Jackpot, Wildly Easy, Gun Slinger, Shootout, Showdown, Bob's Run and Hang 'em High off the Hang 'em High ridge down to Grandmother's Trail, which leads to Stock's. Chaser is not on the 2023 map; it stays in the bowl where Stu places it.
+
+The game matched that except at the lift line: OSM starts West Bank 270 m out on Ridge Run, so the fall line under the chair was unnamed off-piste. `RUN_LINE_FIXES` in `game/src/world/corrections.ts` gives West Bank and Grouse Gulch tops at the unload and links runs that stopped short. `game/tests/mountainNetwork.test.ts` checks the network.
+
 ## Bowl pass (2026-11-27)
 
 Stu: the bowl runs (Toilet Bowl, Chaser, Crusher, Tooth, Tusk) were hard to reach from the top of the chair. The bowl is the north-east-facing horseshoe under the Grandmother's ridge that drains to the top of Stock's, so it faces back toward Beaconsfield. The research drafts started Toilet Bowl and both Essendales 530 to 620 m from the chair, past a 300 m stretch of ridge that drops about 5 m. They now drop off the lip where Grandmother's reaches it (Chaser, Toilet Bowl), and the Essendales start a little way down the headwall, reached by short falling traverses from the Toilet Bowl entrance. Chaser moved from the L3 trace by the Poma into the bowl, between Crusher and Toilet Bowl, because Stu places it there; L3 is "Unnamed cut L3" again. The exact Chaser line is a guess. Tooth Tusk and Sweet Sue are unchanged. `game/tests/bowlAccess.test.ts` skis a bot from the Quickdraw top into each bowl run without poling.
