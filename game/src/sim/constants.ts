@@ -125,6 +125,20 @@ export const PHYSICS = {
   polePushAccel: 2.6,
   polePushMaxSpeed: 11,
   tuckHold: 0.35,
+  /**
+   * Glide tracks (world/glide.ts): on a flat mapped stretch a skier travelling within
+   * about 45 degrees of the track is pushed toward its cruising speed at `glideAccel`,
+   * easing off over the last `glideEase` m/s. Stu, 2026-11-28: the traverses should "keep
+   * you moving fast along the track", with booster zones that "make you go faster".
+   */
+  glideAccel: 4,
+  glideEase: 3,
+  glideAlign: 0.7,
+  /** Below this speed the glide waits for the forward control, so a stopped skier stays stopped, m/s. */
+  glideStartSpeed: 1,
+  /** Inside a booster zone: the speed it pushes to (76 km/h) and how hard, m/s and m/s². */
+  boostSpeed: 21,
+  boostAccel: 9,
   snapDistance: 0.3,
   landingSoften: 12,
   /** Normal impact speed the legs soak up on a short hop without losing speed, m/s. */

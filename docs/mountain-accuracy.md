@@ -87,6 +87,8 @@ Stu: getting from the top of Quickdraw toward Grandfather's Trail and its blacks
 
 So the lift line and Ridge Run start well, and the two summit traverses are the dead stretches: about a minute of skating before the first black off Grandfather's Trail. Pole push tops out at 11 m/s (40 km/h) and skating at 5 m/s, which the 4 degree grade barely adds to.
 
+After the glide tracks and booster gates (`world/glide.ts`, same bot, one two-second push then no input): Grandfather's Trail first 550 m in 38 s, Grandmother's Trail first 300 m in 20 s (was 35 s holding forward), Stock's Traverse 900 m in 58 s (was 75 s). This is fun over accuracy: the real traverses need skating.
+
 ## Freestyle footage (2026-11-28)
 
 - Nor-Am and Timber Tour invitations (fis-ski.com, freestylebc.ski): the mogul events are "on Kristi's Run", athletes "access the venue from the t-bar" and "must ride the t-bar to the top". Youth moguls run on a separate "Lil' Kristi's". Castanet: "two jumps built into the course", rebuilt from scratch each season. None of the pages gives the course length, width or pitch.
