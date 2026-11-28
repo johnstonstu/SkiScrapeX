@@ -50,7 +50,22 @@ export interface SinkStatus {
   error: string
 }
 
-const host = (): ClaudeHost | null => (window as unknown as { claude?: ClaudeHost }).claude ?? null
+/**
+ * The artifact runtime. The preview runs the game in a frame inside the
+ * artifact's page, so the runtime may be on the page around it (same origin).
+ */
+function host(): ClaudeHost | null {
+  type Holder = { claude?: ClaudeHost }
+  for (const read of [() => window, () => window.parent, () => window.top]) {
+    try {
+      const found = (read() as unknown as Holder | null)?.claude
+      if (found && typeof found.use === 'function') return found
+    } catch {
+      /* a frame from another origin: not ours to read */
+    }
+  }
+  return null
+}
 
 async function encode(text: string): Promise<{ enc: StoredChunk['enc']; data: string }> {
   try {
