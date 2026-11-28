@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { createCameraRig } from '../../player/camera'
 import type { createSkiAudio } from '../../player/audio'
+import type { SfxRide } from '../../player/sfx/mix'
 import type { createHaptics } from '../../player/haptics'
 import type { createSnowEffects } from '../../player/effects'
 import type { Controls } from '../../player/input'
@@ -41,6 +42,30 @@ export function createLiftRides(game: GameState, deps: LiftRideDeps) {
   const shotPos = new THREE.Vector3()
   const shotLook = new THREE.Vector3()
   const ridePoint = new THREE.Vector3()
+  /** Distance along the current ride of each tower, for the sound of passing them. */
+  let towerDistances: number[] = []
+
+  /** How far along `path` each tower stands (the nearest point of the path to it). */
+  function towersAlong(lift: Lift, path: Ride['path']): number[] {
+    return lift.towers.map(([x, z]) => {
+      let best = 0, bestSq = Infinity
+      for (let i = 0; i < path.points.length; i++) {
+        const sq = (path.points[i].x - x) ** 2 + (path.points[i].z - z) ** 2
+        if (sq < bestSq) {
+          bestSq = sq
+          best = path.lengths[i]
+        }
+      }
+      return best
+    })
+  }
+
+  /** The ride as the sound engine needs it, or null on the snow. */
+  function rideSound(): SfxRide | null {
+    const current = game.ride
+    if (!current) return null
+    return { aerial: current.path.aerial, s: current.s, total: current.path.total, speed: current.unload ? current.path.speed : game.skier.speed || current.path.speed, towers: towerDistances, unloading: Boolean(current.unload) }
+  }
 
   function startRide(lift: Lift) {
     setFreeSki()
@@ -55,6 +80,7 @@ export function createLiftRides(game: GameState, deps: LiftRideDeps) {
       return
     }
     game.ride = { lift, path, s: path.boardingDistance, unload: null }
+    towerDistances = towersAlong(lift, path)
     ui.title.textContent = `Riding ${lift.name}`
     ui.best.textContent = '–'
     ui.ride.hidden = false
@@ -287,7 +313,7 @@ export function createLiftRides(game: GameState, deps: LiftRideDeps) {
     return t < hold ? 'stand' : 'ski'
   }
 
-  return { startRide, arriveByChair, skipRide, arrivalShot, stepRide }
+  return { startRide, arriveByChair, skipRide, arrivalShot, stepRide, rideSound }
 }
 
 export type LiftRides = ReturnType<typeof createLiftRides>

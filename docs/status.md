@@ -27,9 +27,9 @@ Updated 2026-11-27 for v0.9.38. Older measurement sections below stay dated. Ope
 | `src/render/terrain/`, `scenery/`, `rider/` | Terrain mesh with the snow shader (5 m for the whole crop; 2 m tiles within 220 m of the camera, exact inside 140 m and morphing to the 5 m surface beyond, with the 5 m mesh cut out under them; 90/150 m on touch devices), instanced trees with distance LOD (dissolve near the camera), lifts with moving chairs and ride paths, buildings with a shader window grid, trail-head and building signs, sky with clouds, the rider (`rider/skierView.ts`, see the rider notes below). Sun shadows from trees, buildings, lifts and the skier in a 220 m box that follows the skier (snow shader reads the shadow map; `?noshadows` turns them off). |
 | `src/fx/` | Snow shader, spray, snowfall and ski tracks (moved from the former `labs/snow-fx`). |
 | `src/main.ts`, `src/app/` | Entry and the per-frame `tick` (menus, music, play, world, drawing). `app/game/` holds the shared `GameState`, lift rides, challenge flow, HUD, graphics setup and the frame driver; `app/apexStage.ts` assembles the Apex scene and collision indices; menus, trick feed, storage, version and the `?perf` probe. |
-| `src/player/` | Keyboard and touch input, follow, first-person and orbit camera, procedural audio, adaptive music (`music*.ts`), snow effects glue. |
+| `src/player/` | Keyboard and touch input, follow, first-person and orbit camera, synthesized sound effects (`sfx/`), adaptive music (`music*.ts`), snow effects glue. |
 | `src/ui/` | Minimap and the rider panel (outfit, ski model). |
-| `src/tools/` | Rider lab (`rider.html`). |
+| `src/tools/` | Rider lab (`rider.html`), sound lab (`sound.html`). |
 
 ## Numbers from the current data
 
@@ -83,7 +83,7 @@ Updated 2026-11-27 for v0.9.38. Older measurement sections below stay dated. Ope
 - Flats: forward pushes with poles and skates below 18 km/h and tucks above it. Tuck drag only applies when actually tucking at speed.
 - Powder: deeper than 0.35 m is softer (more sink, less drag per unit sink).
 - Moguls: staggered bumps on OSM runs tagged as moguls (`world/moguls.ts`, `render/mogulView.ts`) with an open shoulder each side.
-- Audio: procedural ski contact, wind and lift sounds (`game/audio.ts`), unlocked by the first gesture, mute remembered.
+- Sound (0.9.52): every effect is synthesized in Web Audio (`src/player/sfx/`), with no audio downloads. Snow by surface (glide, carve, skid, ice scrape, powder rush, chatter), stereo wind, landings, crashes, trees, rails, chairlift and T-bar, places (village, station, forest, summit) and interface chimes. Started by the first gesture (either end of a touch), mute and volume remembered, asleep while hidden. Hear each one at `sound.html`.
 - Esc pauses. Input clears on blur so keys cannot stick. Lift fast-forward keeps the rider on the same chair (`tests/lifts.test.ts`).
 
 ## Steeps, rider and freestyle pass (2026-11-21, fifth pass)

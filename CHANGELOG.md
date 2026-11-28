@@ -2,6 +2,28 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.52 (unreleased): Sound
+
+A sound pass. Every effect is synthesized in the browser, so the download does not grow: there are no new audio files. The old sound layer (one hiss for snow, one for wind, a lift hum) is replaced.
+
+### Added
+
+- **Snow that sounds like the snow you are on.** A carve, a skid and a straight glide are now three different sounds. A loaded edge tears a bright line through the turn and goes quiet between turns; a skid is a wide rough scrape; a hockey stop is the loudest of all. Groomers are a mid hiss, ice is brighter and glassy and rings when it skids, powder is nearly silent underfoot with a low rush as the snow moves aside, and thin cover over rock grinds. Edge chatter flutters the sound. The mix follows the blended surface, so crossing a run edge does not pop.
+- **Wind** in stereo that rises with speed, with a whistle above about 60 km/h and buffeting near top speed. It brightens in the air and tightens in a tuck. The weather adds to it: a storm is loud standing still, and gusts come through.
+- **Landings by surface and size.** Firm snow lands with a thump and a slap, powder with a soft whump, and a sketchy landing is heavier.
+- **Crashes** thump, tumble and slide to a stop, and skis and poles clatter off in a hard fall. **Trees** sound like wood, branches and the snow coming off them, for a crash and (lighter) for a brush past a trunk.
+- **Lifts.** Chairlifts have a drive hum at the stations, the grip rolling over each tower as you pass it, the chair creaking, the bar and the ramp at the top. The T-bar has skis sliding on the track, the rope, and the spring reeling the T in when you let go.
+- **Places.** People talking in the village, lift machinery near a station, wind in the trees and mountain chickadees in the forest, a hollow howl on the open summit. They fall back as you pick up speed.
+- **Interface sounds.** Menu moves and choices, pause, the 3-2-1-GO of a race start, gates, and chimes for landing grades, banked points, unlocks, a finish and a new best. The chimes follow the key of the procedural music.
+- **Sound lab** at `sound.html`: play each sound on its own, or drive the snow and wind by hand with sliders.
+
+### Changed
+
+- Sound now starts on the first tap on phones. It used to wait for a touch to start, which phones do not count as permission to play audio; the same fix applies to the music.
+- The audio engine sleeps while the tab is hidden or sound is muted, and recovers after a phone call interrupts it.
+- A limiter keeps stacked impacts from clipping, and rumble below hearing is filtered out so small speakers do not rattle.
+- Menu sounds play while the game is paused; the mountain still goes quiet.
+
 ## 0.9.51 (unreleased): Rider carry and transitions
 
 The skier and snowboarder hold their bodies the way real riders do from the chase camera, studied frame by frame from close follow-cam footage. Physics, steering and the camera are unchanged. Builds on 0.9.48 (independent of the 0.9.49 graphics and 0.9.50 mountain passes).

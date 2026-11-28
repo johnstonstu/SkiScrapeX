@@ -31,6 +31,15 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 - Graphics passes add no draw calls unless they say so. Compare draw calls and triangles with `scripts/perf-spots.mjs` before and after.
 - To see a real GPU (headless Chrome only has SwiftShader), run Claude Code with `claude --chrome` and the Claude extension signed in, then read the console from the maintainer's Chrome.
 
+## Sound
+
+- `src/player/sfx/mix.ts` is the sound design as numbers: it maps the sim state to gains and filter frequencies for each layer (`snowMix`, `windMix`, `landingImpact`, `crashImpact`, `sceneMix`). It is pure and tested in `tests/sfx.test.ts`. Tune the feel here.
+- `src/player/sfx/engine.ts` builds the Web Audio graph and plays one-shots (`burst` is filtered noise, `tone` is a decaying oscillator). It runs on any `BaseAudioContext`. World sounds go through a bus that a menu silences; interface sounds bypass it. Low, ringing sounds (tree trunks, tower sheaves) are tones, because a narrow band of noise is too quiet to hear.
+- `src/player/audio.ts` owns the page's `AudioContext`: the first-gesture start, the Sound button, the volume and sleeping while hidden. `src/app/soundScene.ts` works out where the rider is (village, station, forest, summit) a few times a second.
+- Hooks: `sound.update(skier, lifts.rideSound())` each frame, `sound.treeHit`, `sound.nearMiss`, `sound.ui(kind)`. Cards from the trick feed chime through `sfx/cards.ts`.
+- Sound lab: `sound.html` plays the scripted moments in `src/tools/soundScenarios.ts` and has sliders for the snow and wind. `window.renderScenario(id)` renders one offline with seeded noise and returns the samples, which is how the review clips were made (headless Chromium, written to WAV). Add a scenario when adding a sound.
+- Optional recorded one-shots in `game/public/audio/` (`plant.wav`, `landing.wav`, `latch.wav`) are layered quietly on the synthesized ones.
+
 ## Rider lab
 
 - `rider.html?pose=tuck,carve-left` shows only those poses; add `&anim` to play them.
