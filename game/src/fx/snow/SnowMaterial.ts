@@ -13,6 +13,7 @@ import {
   type IUniform,
   type Texture,
 } from 'three';
+import { ATMOSPHERE_GLSL, HAZE, atmosphereUniforms } from '../atmosphere';
 
 export interface SnowMaterialOptions {
   mask?: Texture | null;
@@ -51,6 +52,7 @@ interface SnowUniforms {
   uGroundColor: { value: Color };
   uFogColor: { value: Color };
   uFogDensity: { value: number };
+  uFarShade: { value: Vector2 };
   uSlopeStart: { value: number };
   uSlopeFull: { value: number };
   uSlopeRockEnabled: { value: number };
@@ -227,6 +229,8 @@ uniform vec3 uSkyColor;
 uniform vec3 uGroundColor;
 uniform vec3 uFogColor;
 uniform float uFogDensity;
+uniform vec2 uFarShade;
+${ATMOSPHERE_GLSL}
 uniform float uSlopeStart;
 uniform float uSlopeFull;
 uniform float uSlopeRockEnabled;
@@ -517,11 +521,24 @@ void main() {
     sunShadow = getShadow( directionalShadowMap[ 0 ], sunInfo.shadowMapSize, sunInfo.shadowIntensity, sunInfo.shadowBias, sunInfo.shadowRadius, vDirectionalShadowCoord[ 0 ] );
   #endif
 
+  // Forest shadows past the shadow map (or everywhere when shadows are off): canopy cover
+  // looked up toward the sun, at two heights up the trees, darkens the snow beneath them.
+  if (uHasCanopy > 0.5 && L.y > 0.05) {
+    vec2 toSun = L.xz / max(L.y, 0.25);
+    float c1 = texture2D(uCanopy, clamp((vWorld.xz + toSun * 5.0 - uCanopyOrigin) / max(uCanopySize, vec2(1.0)), 0.0, 1.0)).r;
+    float c2 = texture2D(uCanopy, clamp((vWorld.xz + toSun * 12.0 - uCanopyOrigin) / max(uCanopySize, vec2(1.0)), 0.0, 1.0)).r;
+    float cover = max(c1, c2 * 0.85);
+    float far = uFarShade.x < 0.0 ? 1.0 : smoothstep(uFarShade.x, uFarShade.y, length(cameraPosition - vWorld));
+    sunShadow = min(sunShadow, 1.0 - smoothstep(0.08, 0.7, cover) * 0.6 * far);
+  }
+  sunShadow *= cloudSun(vWorld);
+
   float ndl = dot(Np, L);
   float diff = clamp((ndl + wrap) / (1.0 + wrap), 0.0, 1.0) * mix(0.18, 1.0, sunShadow);
   float hemi = clamp(Np.y * 0.5 + 0.5, 0.0, 1.0);
   vec3 ambient = mix(uGroundColor, uSkyColor, hemi);
-  vec3 shadeTint = mix(vec3(0.68, 0.8, 0.98), vec3(1.0), diff);
+  // Shade goes cool, but less than under ACES: Neutral tone mapping keeps the blue.
+  vec3 shadeTint = mix(vec3(0.8, 0.87, 0.98), vec3(1.0), diff);
   shadeTint = mix(shadeTint, vec3(1.0), rockMix);
 
   float shininess = mix(32.0, 10.0, powder);
@@ -553,8 +570,7 @@ void main() {
   color += sheen;
   color += uSunColor * powder * diff * 0.05;
 
-  float fog = 1.0 - exp(-dist * uFogDensity);
-  color = mix(color, uFogColor, clamp(fog, 0.0, 1.0));
+  color = atmosphere(color, vWorld, uFogColor, uFogDensity);
 
   gl_FragColor = vec4(color, 1.0);
   #include <tonemapping_fragment>
@@ -586,6 +602,16 @@ function unitDirection(x: number, z: number, out: Vector2): void {
  * low-end graphics leave it out. Set before the materials are built.
  */
 let snowDetail = true
+
+/**
+ * Where the canopy-based forest shade takes over from the shadow map, metres
+ * from the camera (start, full). Negative start: everywhere (shadows off).
+ * Shared by every snow material.
+ */
+const FAR_SHADE = { value: new Vector2(-1, 0) };
+export function setForestShadeRange(start: number, full: number): void {
+  FAR_SHADE.value.set(start, Math.max(full, start + 1));
+}
 export function setSnowDetail(on: boolean): void {
   snowDetail = on
 }
@@ -603,7 +629,7 @@ export class SnowMaterial extends ShaderMaterial {
     const trackDummy = dummyTexture();
     const uniforms: SnowUniforms = {
       uSnowColor: { value: new Color('#e7eef3') },
-      uPowderColor: { value: new Color('#f4efe2') },
+      uPowderColor: { value: new Color('#f5f1e8') },
       uIceColor: { value: new Color('#d9e3ea') },
       uRockColor: { value: new Color('#77756f') },
       uRockDark: { value: new Color('#3a3936') },
@@ -612,8 +638,10 @@ export class SnowMaterial extends ShaderMaterial {
       uSunColor: { value: new Color(options.sunColor ?? '#ffe6c2') },
       uSkyColor: { value: new Color(options.skyColor ?? '#c5d6e4') },
       uGroundColor: { value: new Color(options.groundColor ?? '#b7b8b0') },
-      uFogColor: { value: new Color(options.fogColor ?? '#d5e2ea') },
-      uFogDensity: { value: options.fogDensity ?? 0.0032 },
+      // Shared by every snow material so weather and gusts reach the apron and parks too.
+      uFogColor: HAZE.color,
+      uFogDensity: HAZE.density,
+      uFarShade: FAR_SHADE,
       uSlopeStart: { value: options.slopeStartDeg ?? 36 },
       uSlopeFull: { value: options.slopeFullDeg ?? 52 },
       uSlopeRockEnabled: { value: 1 },
@@ -652,7 +680,7 @@ export class SnowMaterial extends ShaderMaterial {
       name: 'snow',
       // Light uniforms are only read for the directional shadow map.
       lights: true,
-      uniforms: { ...UniformsUtils.clone(UniformsLib.lights), ...(uniforms as unknown as Record<string, IUniform>) },
+      uniforms: { ...UniformsUtils.clone(UniformsLib.lights), ...(uniforms as unknown as Record<string, IUniform>), ...atmosphereUniforms() },
       vertexShader,
       fragmentShader,
       defines: snowDetail ? { SNOW_DETAIL: '' } : {},

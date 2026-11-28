@@ -1,4 +1,6 @@
 import * as THREE from 'three'
+import { setHaze } from './atmosphere'
+import { ATMOSPHERE_GLSL, HAZE, atmosphereUniforms } from '../fx/atmosphere'
 
 /** Clear late-morning winter light over Apex. Shared by the snow shader and the scene. */
 export interface Lighting {
@@ -40,8 +42,8 @@ export function addSceneLights(scene: THREE.Scene, lighting: Lighting, shadowRan
   sun.shadow.normalBias = 0.5
   sun.shadow.radius = 2
   scene.add(sun, sun.target)
-  // Linear fog keeps distant ridges readable; roughly matches the snow shader's exp fog.
-  scene.fog = new THREE.Fog(lighting.fogColor, 200, 24000)
+  // Aerial haze shared with the snow shader (render/atmosphere.ts).
+  setHaze(scene, lighting.fogDensity, lighting.fogColor)
   return sun
 }
 
@@ -78,6 +80,8 @@ export function createSky(lighting: Lighting): THREE.Mesh {
       uZenith: { value: lighting.zenith },
       uSun: { value: lighting.sunDirection },
       uSunColor: { value: lighting.sunColor },
+      uHaze: HAZE.color,
+      ...atmosphereUniforms(),
     },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
@@ -93,6 +97,8 @@ export function createSky(lighting: Lighting): THREE.Mesh {
       uniform vec3 uZenith;
       uniform vec3 uSun;
       uniform vec3 uSunColor;
+      uniform vec3 uHaze;
+      ${ATMOSPHERE_GLSL}
       float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float noise(vec2 p) {
         vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -108,6 +114,9 @@ export function createSky(lighting: Lighting): THREE.Mesh {
         float h = clamp(dir.y, 0.0, 1.0);
         vec3 col = mix(uHorizon, uZenith, pow(h, 0.5));
         float s = max(dot(dir, normalize(uSun)), 0.0);
+        // The same haze the ground fades into sits on the horizon, so far ridges melt into the sky.
+        float band = 1.0 - smoothstep(0.0, 0.22, dir.y);
+        col = mix(col, atmosphereHaze(dir, uHaze), band * band * 0.9);
         // Thin fair-weather cumulus on a flat layer above the camera.
         if (dir.y > 0.01) {
           vec2 uv = dir.xz / (dir.y + 0.08) * 1.6;
@@ -116,7 +125,7 @@ export function createSky(lighting: Lighting): THREE.Mesh {
           vec3 cloud = mix(vec3(0.78, 0.82, 0.88), vec3(1.0, 0.98, 0.95), smoothstep(0.5, 0.9, fbm(uv * 1.7 + 4.0)) * 0.6 + s * 0.4);
           col = mix(col, cloud, c * edge * 0.85);
         }
-        col += uSunColor * (pow(s, 900.0) * 3.0 + pow(s, 12.0) * 0.18);
+        col += uSunColor * (pow(s, 900.0) * 3.0 + pow(s, 12.0) * 0.12);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
