@@ -123,6 +123,14 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 
 Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
 
+### Menu to skiing (0.9.56)
+
+- Free ski from the title goes through `ui/dropIn.ts` (skis or snowboard and one of the starter riders in `app/riders.ts`) once per page load, then `lifts.arriveByChair()`.
+- The opening film is a lift ride with `ride.opening` set (`app/game/liftRide.ts`). `arrivalShot` holds two camera shots through `rig.holdShot(position, look, cut, fov)`: `chairShot` rides with the chair until `OPENING_CUT` metres from the top, then `groundShotPosition` waits low behind the ready spot with `groundLens` opening as the rider approaches. The maths is in `app/game/arrival.ts` and has no Three.js. `ui/cinematic.ts` owns the bars, the place card, Skip and hiding the HUD (`body.cinematic`, then `body.hud-enter`).
+- Chairs unload along `unloadPath`: straight down the ramp, then one round turn to the facing `chooseExit` picked. The ready spot is the end of that turn (`exit.stop`), not `exit.spot`. If buildings or trees block every radius it falls back to the old straight glide and pivot.
+- `app/hints.ts` owns the `#help` line: free-ski prompts, saved under `skiscrapex.hints`. Clear that key to see them again.
+- Capturing the film headless needs frame-stepped time: override `requestAnimationFrame` and `performance.now`, and step `document.getAnimations()` by hand, or the CSS card and bars run on wall-clock time while SwiftShader renders at about one frame a second.
+
 ## Music
 
 - `src/player/musicState.ts` picks the mood (pure, thresholds in `MUSIC_TUNING`); `musicClock.ts` is the bar scheduler; `musicScore.ts` the key, progression, patterns and the per-mood stem mix (`MOOD_MIX`); `musicVoices.ts` the synths; `music.ts` the Web Audio graph, track player and settings glue.

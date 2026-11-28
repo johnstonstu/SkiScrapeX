@@ -2,6 +2,23 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.56 (unreleased): The first minute
+
+From the click on Free ski to the first turn. Builds on 0.9.54 (the mountain accuracy pass and its new Quickdraw summit); numbered to follow the sound, rider, mountain and progression passes.
+
+### Added
+
+- **Pick skis or a snowboard, and your rider, before you drop in.** The first Free ski of a visit stops at one screen: Skis or Snowboard, and six starter riders (Scout, Juniper, Maverick, Ridge, Goldie, Storm), with the rider standing over the mountain. Drop in has the focus, so one press of Enter keeps last time's choice. A look made in Rider & gear shows as "Your own" and is never lost by trying a starter. After the first run of a visit, Free ski goes straight to the chair.
+- **An opening film off the Quickdraw chair.** Two shots under thin bars with a place card: riding the last seconds of the chair with the valley behind you, then a long lens low on the snow at the top as you come out of the station, carve round and stop with your back to the camera, which rises into the follow view. The HUD stays away until you have control and then fades in. Enter (B on a pad, or the Skip button) goes straight to the top.
+- **Control prompts in place of the help line.** One short line at a time at the bottom of the screen: steer, then tuck and brake, then the jump, then where the trail map and the full controls are. Each goes the moment you do it and does not come back. One you ignore steps aside after 14 seconds and gets one more chance on the next visit.
+
+### Changed
+
+- **Off the chair on a carved turn.** The rider used to glide straight out and spin on the spot to face the hill (137 degrees at the top of Quickdraw). They now ride down the ramp and make one round turn (up to 4.2 m radius, tighter where buildings or trees are close) and arrive already moving the way they face. The ready spot is where that turn ends, a few metres to the inside of the old one. Applies to every chair.
+- **Every chair arrival uses the new low shot** and a lens that opens as you come toward it; during play the camera eases to it as before. The camera's hand-over to the follow view now turns its look as it travels and always finishes in 2.4 seconds (it could lag behind a fast rider indefinitely).
+- **Free ski leads the title menu on a first visit.** "Learn to ski" is second until it has been done. The prompts teach the same first three lessons on the way down.
+- The "Lift ride" tip card no longer covers the arrival, and the always-on controls line at the bottom of the screen is gone (the pause menu has the full controls).
+
 ## 0.9.55 (unreleased): Stoke, ranks and the day ticket
 
 The first two steps of the goals and progression plan: a reason to keep riding, built over the challenges that already exist. Nothing on the mountain is locked. Builds on 0.9.49.

@@ -27,9 +27,16 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
   let snap = true
   /** Heading snaps but the position eases in: handing over from a held shot without a cut. */
   let ease = false
+  /** Seconds since the shot was released; the hand-over tightens as it runs and ends on time, however fast the rider goes. */
+  let easeTime = 0
+  const EASE_SECONDS = 2.4
   /** A fixed shot (lift arrivals): where the camera waits and what it watches. */
-  let shot: { position: THREE.Vector3; look: THREE.Vector3 } | null = null
+  let shot: { position: THREE.Vector3; look: THREE.Vector3; fov: number | null } | null = null
+  /** Degrees the lens is off the follow FOV: a held shot can use a longer lens, and it eases back after. */
+  let lens = 0
   const shotLook = new THREE.Vector3()
+  /** What the camera looked at last frame, so a released shot turns to the follow view instead of jumping. */
+  const lastLook = new THREE.Vector3()
   let mode: CameraMode = 'follow'
   let style: CameraStyle = 'steady'
   const eyeQuat = new THREE.Quaternion()
@@ -49,7 +56,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
     if (mode === 'first') {
       camera.fov = 85
     } else if (mode === 'follow') {
-      camera.fov = baseFov + speedFov
+      camera.fov = baseFov + speedFov + lens
     } else {
       camera.fov = baseFov
     }
@@ -84,6 +91,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
     },
     snap() {
       snap = true
+      ease = false
       landing = 0
       speedFov = 0
       applyFov()
@@ -92,14 +100,17 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
      * Hold a shot from `position` watching `look` (both copied), e.g. beside a
      * lift's top station so the camera never drives through the terminal.
      */
-    holdShot(position: THREE.Vector3, look: THREE.Vector3) {
+    holdShot(position: THREE.Vector3, look: THREE.Vector3, cut = false, fov: number | null = null) {
+      // `cut`: be there this frame (a camera riding with a chair, or an edit between two shots).
+      if (cut) snap = true
       if (!shot) {
-        shot = { position: position.clone(), look: look.clone() }
+        shot = { position: position.clone(), look: look.clone(), fov }
         shotLook.copy(look)
         return
       }
       shot.position.copy(position)
       shot.look.copy(look)
+      shot.fov = fov
     },
     /** Back to the follow camera, easing out of the held shot rather than cutting. */
     releaseShot() {
@@ -107,6 +118,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
       shot = null
       snap = false
       ease = true
+      easeTime = 0
     },
     get holding() {
       return shot !== null
@@ -148,6 +160,11 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
         shotLook.lerp(shot.look, snap ? 1 : 1 - Math.exp(-6 * dt))
         camera.up.set(0, 1, 0)
         camera.lookAt(shotLook)
+        const wantLens = shot.fov === null ? 0 : shot.fov - baseFov
+        lens = snap ? wantLens : THREE.MathUtils.lerp(lens, wantLens, 1 - Math.exp(-2.5 * dt))
+        speedFov = 0
+        applyFov()
+        lastLook.copy(shotLook)
         snap = false
         return
       }
@@ -157,6 +174,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
           ? THREE.MathUtils.clamp((state.speed - 10) / 20, 0, 1) * (state.tuck ? 12 : 10)
           : 0
       speedFov = snap ? wantFov : THREE.MathUtils.lerp(speedFov, wantFov, 1 - Math.exp(-2.2 * dt))
+      lens = snap || Math.abs(lens) < 0.05 ? 0 : lens * Math.exp(-2.4 * dt)
       applyFov()
       if (mode === 'first' && eye) {
         // Eyes in the helmet, looking a little down so the hands, poles and
@@ -177,7 +195,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
         snap = false
         return
       }
-      heading = followHeading(style, state, sampleTerrain, heading, snap || ease ? Infinity : dt)
+      heading = followHeading(style, state, sampleTerrain, heading, snap || (ease && easeTime === 0) ? Infinity : dt)
       // Pull back and up a little with speed.
       let back = 7.2 + Math.min(4, state.speed * 0.08)
       landing *= Math.exp(-9 * dt)
@@ -187,8 +205,8 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
       const under = sampleTerrain(desired.x, desired.z)
       if (under) desired.y = Math.max(desired.y, under.height + 1.4)
       if (snap) camera.position.copy(desired)
-      else camera.position.lerp(desired, 1 - Math.exp(-(ease ? 2.2 : 6) * dt))
-      if (ease && camera.position.distanceToSquared(desired) < 0.25) ease = false
+      const handing = ease ? THREE.MathUtils.smoothstep(easeTime / EASE_SECONDS, 0, 1) : 1
+      if (!snap) camera.position.lerp(desired, 1 - Math.exp(-THREE.MathUtils.lerp(2.2, 6, handing) * dt))
       target.set(state.x - Math.sin(heading) * 8, state.y + 1.1, state.z + Math.cos(heading) * 8)
       const ahead = sampleTerrain(target.x, target.z)
       const current = sampleTerrain(state.x, state.z)
@@ -208,7 +226,16 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
         camera.position.y += (Math.random() - 0.5) * k
       }
       camera.up.set(0, 1, 0)
-      camera.lookAt(target)
+      if (ease) {
+        // Out of a held shot: the look swings round to the follow view as the camera travels.
+        lastLook.lerp(target, 1 - Math.exp(-THREE.MathUtils.lerp(2.6, 14, handing) * dt))
+        camera.lookAt(lastLook)
+        easeTime += dt
+        if (easeTime >= EASE_SECONDS) ease = false
+      } else {
+        lastLook.copy(target)
+        camera.lookAt(target)
+      }
       snap = false
     },
     dispose() {
