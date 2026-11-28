@@ -63,6 +63,29 @@ describe.skipIf(!hasData)('whole mountain', () => {
     expect(inside).toBeGreaterThanOrEqual(line!.parts[0].length - 2)
   })
 
+  it("starts Andi's Alley at the T-Bar unload, skier's right, beside Kristi's Run (Stu, 2026-11-28)", () => {
+    const { resort } = world!
+    const andi = resort.runs.find((run) => run.name === "Andi's Alley" && run.kind === 'line')
+    const kristi = resort.runs.find((run) => run.name === "Kristi's Run" && run.kind === 'line')
+    const tbar = resort.lifts.find((lift) => lift.name === 'T-Bar')!
+    expect(andi && kristi).toBeTruthy()
+    expect(andi!.difficulty).toBe('advanced')
+    const line = andi!.parts[0]
+    expect(Math.hypot(line[0][0] - tbar.top[0], line[0][1] - tbar.top[1])).toBeLessThan(15)
+    // Facing down the lift line (top to bottom), the skier's right is the side Kristi's is on.
+    const dx = tbar.bottom[0] - tbar.top[0]
+    const dz = tbar.bottom[1] - tbar.top[1]
+    const side = ([x, z]: Point2) => Math.sign(dx * (z - tbar.top[1]) - dz * (x - tbar.top[0]))
+    const kristiSide = side(kristi!.parts[0][Math.floor(kristi!.parts[0].length / 2)])
+    for (const p of line.slice(1)) expect(side(p)).toBe(kristiSide)
+    // Beside Kristi's for as long as Kristi's runs (Andi's carries on to the T-Bar base below it).
+    const kristiEnd = kristi!.parts[0][kristi!.parts[0].length - 1]
+    for (const [x, z] of line.filter(([px]) => px <= kristiEnd[0])) {
+      const d = Math.min(...kristi!.parts[0].map(([kx, kz]) => Math.hypot(kx - x, kz - z)))
+      expect(d).toBeLessThan(120)
+    }
+  })
+
   /** Ski `line` with a steering bot (no poling); how it went. */
   function ski(line: Point2[]) {
     const { grid, resort, surface, canopy } = world!

@@ -51,7 +51,9 @@ export const TRACE_NAMES: Record<string, string> = {
   'Wildside cut 6': 'Showdown',
   'Unmapped run L1': 'Unnamed cut L1',
   'Unmapped run L4': 'Unnamed cut L4',
-  'Unmapped run L5': 'Unnamed cut L5',
+  // Identified by Stu (2026-11-28): the cut between the T-Bar and Kristi's Run.
+  'Unmapped run L5': "Andi's Alley",
+  'Unnamed cut L5': "Andi's Alley",
   'Unmapped run L6': 'Unnamed cut L6',
   'Unmapped run L7': 'Unnamed cut L7',
   'Unmapped run L9': 'Unnamed cut L9',
@@ -183,6 +185,10 @@ export const RUN_LINE_FIXES: Record<string, { head?: Point2[]; keepOldHead?: boo
   },
   // Off the ridge and Chute: OSM starts these 40 to 75 m short of the run above (open snow between).
   'Unnamed cut L11': { head: [[1518, 1437], [1555, 1455]], tail: [[1798, 1320], [1815, 1341]] },
+  // Andi's Alley starts at the T-Bar unload (Stu: "when you get off the T-Bar, it'll be to the skier's
+  // right, near Kristi's run"). The LiDAR trace started 150 m down; the head is the open snow between
+  // the lift's tree strip and the clump above Kristi's.
+  "Andi's Alley": { head: [[1884, 910], [1905, 905], [1930, 903], [1960, 893], [1995, 877], [2030, 860]] },
   Gromit: { head: [[1262, 1318], [1272, 1275]] },
   K: { head: [[1275, 1322], [1297, 1275]] },
   Magnum: { head: [[1404, 1036], [1372, 1020], [1339, 1002]] },

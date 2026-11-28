@@ -11,6 +11,7 @@ Every run and lift checked against real life: the 2023 trail map (read zone by z
 - **The wide groomers are wide.** Okanagan Run, Juniper, Ridge Run, Golden Eagle, Village Traverse, Wild Bill, Sluice Box, Easy Rider and Adrian's Alley were about 30 to 40 m of corduroy inside clearings 60 to 150 m wide. They now fill up to 85% of their real clearing (Okanagan Run about 75 m, Juniper and Ridge Run about 65 m), as the footage shows them. The blacks stay narrow hallways, as filmed.
 - **West Bank's bumps are wider** (40 m, from 30 m), toward the 49 m clearing under the quad ("wide-open bumps such as those under the quad chair", powderhounds.com).
 - **Hidden Gold is where the trail map puts it:** the wedge of trees just below the Stock's top station, between Sluice Box, Finger and Maverick. It was on the other side of Whipsaw, in the run-out of the bowl runs. OpenStreetMap's unnamed black run from the top station through that wedge is now named Hidden Gold and keeps its trees (it was a nameless groomed corridor).
+- **Andi's Alley is on the mountain.** Stu placed it: beside Kristi's Run, to the skier's right as you get off the T-Bar. It is the cut between the T-Bar's trees and Kristi's (it was "Unnamed cut L5", a blue that started 150 m down), now a black that starts at the T-Bar unload. Saved bests on the old name follow it.
 - A wide run keeps no more of a guaranteed tree-free core than a default blue, so widening never mows standing forest.
 
 ### Checked, no change needed
