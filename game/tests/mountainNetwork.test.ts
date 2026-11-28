@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { loadApexWorld } from './apexWorld'
 import { buildMoguls } from '../src/world/moguls'
 import { createSurfaceSampler } from '../src/world/snow'
-import { nearestOnPolyline, type Point2, type Run } from '../src/world/resort'
+import { nearestOnPolyline, pointInRing, type Point2, type Run } from '../src/world/resort'
+import { placeTowerDrop } from '../src/world/cliffs'
+import { SurfaceId, surfaceAt } from '../src/world/surface'
+import { trailSignSpots } from '../src/render/scenery/signView'
 import { FIXED_DT, createSkiState, stepSkier, type SkiEnv } from '../src/sim'
 
 /**
@@ -45,6 +48,77 @@ describe.skipIf(!hasData)('whole mountain', () => {
       if (!endJoined && !LOOSE_ENDS.has(run.name)) loose.push(`${run.name} bottom ${end.map(Math.round)} (${Math.round(grid.heightAt(end[0], end[1]))} m)`)
     }
     expect(loose).toEqual([])
+  })
+
+  it('puts Hidden Gold below the Stock\'s top, with its run inside the glade (2023 trail map)', () => {
+    const { resort } = world!
+    const line = resort.runs.find((run) => run.name === 'Hidden Gold' && run.kind === 'line')
+    const glade = resort.runs.find((run) => run.name === 'Hidden Gold' && run.kind === 'area')
+    expect(line && glade).toBeTruthy()
+    expect(line!.wooded).toBe(true)
+    expect(line!.groomed).toBe(false)
+    const top = resort.lifts.find((lift) => lift.name.startsWith('Stock'))!.top
+    const start = line!.parts[0][0]
+    expect(Math.hypot(start[0] - top[0], start[1] - top[1])).toBeLessThan(60)
+    // The glade lies downhill (east) of the top station, not in the bowl run-out west of it.
+    for (const [x] of glade!.parts[0]) expect(x).toBeGreaterThan(top[0])
+    const inside = line!.parts[0].filter(([x, z]) => pointInRing(x, z, glade!.parts[0])).length
+    expect(inside).toBeGreaterThanOrEqual(line!.parts[0].length - 2)
+  })
+
+  it('lays out the T-Bar face as Stu describes it (2026-11-28)', () => {
+    // Off the T-Bar, skier's left to right: the old aerial site lane, the mogul course (Kristi's),
+    // the groomed run (Adrian's Alley), then Old Mill.
+    const { resort } = world!
+    const tbar = resort.lifts.find((lift) => lift.name === 'T-Bar')!
+    const line = (name: string) => resort.runs.find((run) => run.name === name && run.kind === 'line')!.parts[0]
+    /** Where a line crosses x (interpolated), as z: south is the skier's right on this face. */
+    const zAt = (points: Point2[], x: number) => {
+      for (let i = 1; i < points.length; i++) {
+        const [ax, az] = points[i - 1]
+        const [bx, bz] = points[i]
+        if ((ax - x) * (bx - x) <= 0 && ax !== bx) return az + ((bz - az) * (x - ax)) / (bx - ax)
+      }
+      throw new Error(`line does not cross x=${x}`)
+    }
+    const aerial = line('Unnamed cut L5')
+    expect(Math.hypot(aerial[0][0] - tbar.top[0], aerial[0][1] - tbar.top[1])).toBeLessThan(15)
+    for (const x of [2100, 2200]) {
+      const order = [zAt([tbar.top, tbar.bottom], x), zAt(aerial, x), zAt(line("Kristi's Run"), x), zAt(line("Adrian's Alley"), x), zAt(line('Old Mill'), x)]
+      expect(order).toEqual([...order].sort((a, b) => a - b))
+    }
+    expect(resort.runs.find((run) => run.name === "Adrian's Alley")!.groomed).toBe(true)
+    expect(resort.runs.find((run) => run.name === "Kristi's Run")!.moguls).toBe(true)
+  })
+
+  it('leaves no long hole in the Quickdraw tower line (Stu, 2026-11-28)', () => {
+    const quickdraw = world!.resort.lifts.find((lift) => /quickdraw/i.test(lift.name))!
+    const stops = [quickdraw.bottom, ...quickdraw.towers, quickdraw.top]
+    expect(quickdraw.towers.length).toBe(16)
+    for (let i = 1; i < stops.length; i++) {
+      const span = Math.hypot(stops[i][0] - stops[i - 1][0], stops[i][1] - stops[i - 1][1])
+      expect(span).toBeGreaterThan(10)
+      expect(span).toBeLessThan(150)
+    }
+  })
+
+  it('keeps the Quickdraw unload clear and packed (Stu, 2026-11-28)', () => {
+    const { grid, resort, surface } = world!
+    const quickdraw = resort.lifts.find((lift) => /quickdraw/i.test(lift.name))!
+    const [tx, tz] = quickdraw.top
+    // The West Bank rock drop is down the run, not on the unload.
+    const drop = placeTowerDrop(grid, resort.runs, quickdraw.towers)!
+    expect(Math.hypot(drop.x - tx, drop.z - tz)).toBeGreaterThan(150)
+    // Packed snow all round the top station.
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+      for (const r of [6, 14, 22]) expect(surfaceAt(surface, tx + Math.cos(a) * r, tz + Math.sin(a) * r)).toBe(SurfaceId.groomed)
+    }
+    // Trail-head boards fan out with the runs: none within 12 m of another, none on the unload itself.
+    const spots = [...trailSignSpots(resort.runs).values()]
+    for (const [i, a] of spots.entries()) {
+      for (const b of spots.slice(i + 1)) expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThanOrEqual(12)
+    }
+    expect(spots.filter((s) => Math.hypot(s.x - tx, s.z - tz) < 20).length).toBe(0)
   })
 
   /** Ski `line` with a steering bot (no poling); how it went. */

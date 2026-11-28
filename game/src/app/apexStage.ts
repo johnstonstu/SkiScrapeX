@@ -1,4 +1,6 @@
 import { createSummitFlags } from '../render/scenery/summitFlags'
+import { createBoosterView } from '../render/scenery/boosterView'
+import { buildGlide } from '../world/glide'
 import { createBoundaryView } from '../render/scenery/boundaryView'
 import * as THREE from 'three'
 import type { Slope } from '../sim'
@@ -187,6 +189,10 @@ export function buildApexStage(
   scene.add(createBoundaryView(resort.boundary, grid.heightAt, resort.roads).object)
   const summitFlags = createSummitFlags(resort.lifts, grid.heightAt)
   scene.add(summitFlags.object)
+  // Flat stretches of the runs carry the skier (no skating), with booster zones on the long traverses.
+  const glide = buildGlide(resort.runs, grid.heightAt)
+  const boosterView = createBoosterView(glide.boosters, grid.heightAt)
+  scene.add(boosterView.object)
   // Telecom towers on Beaconsfield (in the crop, solid) and on Apex Mountain (horizon only).
   const apexPeak = EXTRA_PEAKS.find((p) => p.name === 'Apex Mountain')
   const localTowers = beaconsfieldTowers(grid.heightAt)
@@ -276,7 +282,7 @@ export function buildApexStage(
     ride: (lift) => lifts.ride(lift.id),
     alignChair: (lift, s) => lifts.alignChair(lift.id, s),
     features: () => overlay.features,
-    env: { sampleSurface, rails: overlay.rails, assist: true, ski: options.ski },
+    env: { sampleSurface, rails: overlay.rails, assist: true, ski: options.ski, glide: glide.at },
     snowDeform: { stamper, patch: snowPatch },
     setEventTerrain(layer) {
       eventLayer = layer
@@ -307,6 +313,7 @@ export function buildApexStage(
       lifts.clearView(camera)
       const now = performance.now()
       summitFlags.update(Math.min(0.1, (now - lastFlagTime) / 1000))
+      boosterView.update(now / 1000)
       lastFlagTime = now
     },
     describe: () =>

@@ -147,3 +147,17 @@ function medianClearWidth(line: Point2[], clear: (x: number, z: number) => boole
   widths.sort((a, b) => a - b)
   return widths[Math.floor(widths.length / 2)]
 }
+
+describe.skipIf(!profiles.length)('wide groomers (accuracy pass, 0.9.54)', () => {
+  it('keeps every widened run well inside its measured clearing', async () => {
+    const { RUN_STYLE } = await import('../src/world/corrections')
+    const wide = Object.entries(RUN_STYLE).filter(([, style]) => (style.halfWidth ?? 0) >= 23 && style.groomed !== false)
+    expect(wide.length).toBeGreaterThanOrEqual(9)
+    for (const [name, style] of wide) {
+      const open = Math.min(...profiles.filter((p) => key(p.name) === key(name) && p.medianOpenWidthM).map((p) => p.medianOpenWidthM!))
+      expect(Number.isFinite(open), name).toBe(true)
+      // The groomed width (twice the half width) is at most 85% of the narrowest median clearing.
+      expect(style.halfWidth! * 2, `${name}: ${style.halfWidth! * 2} m groomed in a ${open} m clearing`).toBeLessThanOrEqual(open * 0.85)
+    }
+  })
+})
