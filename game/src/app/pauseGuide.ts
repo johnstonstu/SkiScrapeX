@@ -12,6 +12,7 @@ const movement: ControlRow[] = [
   { name: 'Push or tuck', binding: { keys: 'W · ↑', pad: 'Left stick ↑', touch: 'Stick ↑' }, detail: 'Push off at low speed, tuck to carry speed, or speed up a lift ride.' },
   { name: 'Brake', binding: { keys: 'S · ↓', pad: 'LT / L2', touch: 'Stick ↓' }, detail: 'Snowplough slowly. At speed, scrub speed with a hockey stop.' },
   { name: 'Crouch and pop', binding: { keys: 'Space', pad: 'A / ×', touch: 'Jump' }, detail: 'Hold to crouch and absorb moguls. Release to pop. A short tap unweights the skis in deep snow.' },
+  { name: 'Hop 180', binding: { keys: 'Space + A / D', pad: 'A / × + left stick ← / →', touch: 'Jump + stick ← / →' }, detail: 'Riding switch (backwards), tap jump with left or right to hop round to forward. To go switch on purpose, hold the crouch a moment with a direction, then let go.' },
 ]
 
 const park: ControlRow[] = [

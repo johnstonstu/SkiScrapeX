@@ -626,15 +626,25 @@ function stepGround(
     let px = vx
     let py = vy
     let pz = vz
+    let hop180 = 0
+    let hop180Armed = false
     if (pop) {
       // In deep snow a light pop is a bounce to unweight and open a turn.
       const charge = state.popCharge
-      if (state.sink > 0.1 && charge < 0.7) {
+      // Hop 180: out of switch any pop with a direction; from forward a held crouch, and not
+      // in a mogul field, where the crouch is for soaking up bumps while steering.
+      const armed = state.ridingSwitch || (charge >= FREESTYLE.hop180SwitchCharge && !overMogul)
+      const turn = Math.abs(steer) > PHYSICS.steerDeadzone ? Math.sign(steer) : Math.abs(state.windup) > FREESTYLE.hop180Windup ? Math.sign(state.windup) : 0
+      hop180 = armed ? turn * Math.PI : 0
+      hop180Armed = armed
+      // In deep snow a switch rider's hop round beats the bounce.
+      if (state.sink > 0.1 && charge < 0.7 && !(state.ridingSwitch && hop180 !== 0)) {
         state.unweight = PHYSICS.powderUnweightTime
         state.popCharge = 0
       } else {
         const rampScale = clamp(1 - Math.max(0, vy) / FREESTYLE.popRampSpeed, FREESTYLE.popRampMin, 1)
-        const v = (FREESTYLE.popMin + (FREESTYLE.popMax - FREESTYLE.popMin) * charge) * rampScale
+        const base = FREESTYLE.popMin + (FREESTYLE.popMax - FREESTYLE.popMin) * charge
+        const v = (hop180 !== 0 ? Math.max(base, FREESTYLE.hop180Pop) : base) * rampScale
         px += n.x * v
         py += n.y * v
         pz += n.z * v
@@ -651,6 +661,10 @@ function stepGround(
       state.vy = py
       state.vz = pz
       beginAir(state)
+      if (state.air) {
+        state.air.quick = hop180
+        state.air.quickArmed = hop180Armed
+      }
       return
     }
   }
@@ -691,6 +705,10 @@ function stepAir(
   if (air.time - air.predictedFrom > 0.05 || air.time === 0) {
     air.timeToLand = predictLanding(state, { x: state.vx, y: state.vy, z: state.vz }, sampleTerrain)
     air.predictedFrom = air.time
+  }
+  // Hop 180, a beat late: the direction pressed just after the pop still counts.
+  if (air.quickArmed && !air.quick && air.time <= FREESTYLE.hop180Late && Math.abs(steer) > 0.3 && air.timeToLand <= FREESTYLE.hop180MaxAir) {
+    air.quick = Math.sign(steer) * Math.PI
   }
   const dSpin = stepRotation(
     air,
@@ -739,10 +757,18 @@ function stepAir(
   }
   const n = facingUp(ground.normal)
   const velocity = { x: state.vx, y: state.vy, z: state.vz }
+  // Hop 180: a bump that met the skis early does not leave them part way round.
+  const quick = air.quick ?? 0
+  const short = quick - air.spin
+  if (quick !== 0 && (env.assist ?? true) && Math.abs(short) < FREESTYLE.hop180Snap) {
+    state.heading = wrapAngle(state.heading + short)
+    air.spin = quick
+  }
+  const hop180 = quick !== 0 && Math.abs(quick - air.spin) < 0.2 && Math.abs(air.flip) < 0.7
   const landing = gradeLanding(velocity, n, state.heading, air, Boolean(input.grab))
   const tangent = projectOnPlane(velocity, n)
   // Short hops (bumps, small pops, rail approaches) are not graded harshly.
-  const hop = air.time < 0.55 && Math.abs(air.flip) < 0.7 && Math.abs(air.spin) < 1.15
+  const hop = (air.time < 0.55 && Math.abs(air.flip) < 0.7 && Math.abs(air.spin) < 1.15) || hop180
   // Deep powder cushions imperfect landings — face-shot sink, not a bail.
   const powderCushion =
     state.surface.depth > 0.15 &&
@@ -776,7 +802,7 @@ function stepAir(
   }
   // A comp counts every air off its features; free skiing ignores small hops.
   const judged = Boolean(env.judgedAirs) && air.time > JUDGED_AIR_MIN
-  if (!hop || judged) finishAir(state, grade, landing.switchLanding, landing.efh, judged)
+  if (!hop || hop180 || judged) finishAir(state, grade, landing.switchLanding, landing.efh, judged)
   else state.air = null
 }
 
@@ -789,11 +815,12 @@ function finishAir(state: SkiState, grade: TrickEvent['grade'], switchLanding: b
   if (!tricky) return
   const spinDeg = Math.round(Math.abs(air.spin) / Math.PI) * 180
   const flips = Math.round(Math.abs(air.flip) / (Math.PI * 2))
+  const hop = Boolean(air.quick) && spinDeg === 180 && flips === 0 && !judged
   state.trick = {
     seq: (state.trick?.seq ?? 0) + 1,
     kind: 'air',
     name: trickName(air.spin, air.flip, air.grabTime > 0.3 ? air.grab : null, state.switchTakeoff, air.corkTime),
-    points: trickPoints(air, grade),
+    points: hop ? (grade === 'crash' ? 0 : FREESTYLE.hop180Points) : trickPoints(air, grade),
     grade,
     efh,
     airTime: air.time,
@@ -803,6 +830,7 @@ function finishAir(state: SkiState, grade: TrickEvent['grade'], switchLanding: b
     grabTime: air.grabTime,
     switchLanding,
     railMetres: 0,
+    ...(hop ? { hop: true } : {}),
   }
 }
 

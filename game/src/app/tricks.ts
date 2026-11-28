@@ -143,7 +143,8 @@ export function createTrickFeed(
         stats.repeatLoss += full - points
       }
       stats.bestMultiplier = Math.max(stats.bestMultiplier, combo.multiplier)
-      combo.groundTime = 0
+      // A hop 180 on plain snow joins an open combo but does not hold it open.
+      if (!trick.hop || combo.tricks.length === 1) combo.groundTime = 0
       if (trick.kind === 'rail') stats.railMetres += trick.railMetres
       else if (trick.grade === 'perfect') stats.perfect++
       else if (trick.grade === 'clean') stats.clean++

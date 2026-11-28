@@ -74,6 +74,23 @@ export const HINTS: Hint[] = [
   },
 ]
 
+/**
+ * Riding switch (backwards): how to hop back round. It sits outside the sequence above, since
+ * it only helps at the moment it happens: it shows after `SWITCH_WAIT` seconds of riding switch,
+ * steps in front of any other prompt, and is done for good once the player hops out.
+ */
+export const SWITCH_HINT: Hint = {
+  id: 'switch',
+  text: {
+    keys: 'Riding switch: tap <kbd>Space</kbd> with <kbd>A</kbd> or <kbd>D</kbd> to hop round',
+    touch: 'Riding switch: tap <b>Jump</b> with the stick left or right to hop round',
+    pad: 'Riding switch: tap <kbd>A</kbd> with the stick left or right to hop round',
+  },
+  done: () => false,
+  seconds: 10,
+}
+export const SWITCH_WAIT = 2
+
 /** Seconds a prompt stays up if the player does not do it. */
 export const SHOW_SECONDS = 14
 /** Quiet seconds after the hand-over and between prompts. */
@@ -99,6 +116,9 @@ export function createHints(line: HTMLElement, mode: () => InputMode, storageKey
   let hideTimer = 0
   /** Prompts that stepped aside this visit: they wait for the next one. */
   const passed = new Set<string>()
+  /** Seconds riding switch on the snow, and the last trick seen, for `SWITCH_HINT`. */
+  let switchFor = 0
+  let trickSeq = -1
 
   const hide = (state: 'done' | 'hide') => {
     if (!showing) return
@@ -128,6 +148,35 @@ export function createHints(line: HTMLElement, mode: () => InputMode, storageKey
     },
     /** Per frame. `active`: free skiing with nothing else on screen asking for attention. */
     update(skier: SkiState, input: SkiInput, dt: number, active: boolean) {
+      if (!finished(SWITCH_HINT)) {
+        const seq = skier.trick?.seq ?? 0
+        const hoppedOut = trickSeq >= 0 && seq !== trickSeq && Boolean(skier.trick?.hop) && !skier.trick?.switchLanding
+        trickSeq = seq
+        const riding = active && Boolean(skier.ridingSwitch) && skier.crashed <= 0
+        switchFor = riding && skier.grounded && skier.speed > 3 ? switchFor + dt : riding ? switchFor : 0
+        if (hoppedOut) {
+          saved.done.push(SWITCH_HINT.id)
+          save()
+          if (showing === SWITCH_HINT) hide('done')
+          gap = GAP
+        } else if (showing === SWITCH_HINT) {
+          shownFor += dt
+          if (shownMode !== mode()) show(showing)
+          if (!riding || shownFor > SWITCH_HINT.seconds!) {
+            // Not taken up (or they got out another way): it gets one more chance.
+            saved.seen[SWITCH_HINT.id] = (saved.seen[SWITCH_HINT.id] ?? 0) + 1
+            save()
+            passed.add(SWITCH_HINT.id)
+            gap = GAP
+            hide('hide')
+          }
+          return
+        } else if (switchFor > SWITCH_WAIT && !passed.has(SWITCH_HINT.id)) {
+          memo = {}
+          show(SWITCH_HINT)
+          return
+        }
+      }
       const next = HINTS.find((hint) => !finished(hint) && !passed.has(hint.id))
       if (!next || !active) {
         if (showing) hide('hide')

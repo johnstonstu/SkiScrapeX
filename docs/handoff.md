@@ -143,6 +143,7 @@ Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
 - Provisional feel numbers from 0.9.40 (Stu accepted them for now on 2026-11-27, open to change if the feel is not right in play). Each is marked "guess" in the code:
   - Steering: `maxTraverseDeg` 86, `turnAroundSpeed` 1.5 m/s, `maxLeadDeg` 16, `carveAssist` 1.3 fading over `carveAssistKmh` 45 to 85, in `PHYSICS`.
   - Snow: `washoutRatio` per surface (groomed 4.5, park 4, ice 2.2, rock 2.4, powder and forest 99, so they never wash out), ice `latMax` 1.2, `powderTurnDepth` 0.2.
+  - Hop 180 (0.9.57, all guesses): the `hop180*` entries in `FREESTYLE` (`src/sim/freestyle.ts`): `hop180Pop` 1.9 m/s, `hop180RateMax` 11 rad/s, `hop180MaxAir` 0.75 s (longer airs spin by hand), `hop180SwitchCharge` 0.4 (crouch needed from forward; 0 would make any tap with a direction go switch), `hop180Windup` and `hop180Late` (timing forgiveness), `hop180Points` 60. `tuning/switch180.test.ts` prints the table of plays; `tests/hop180.test.ts` guards it.
   - Trees: `HARD_HIT` 8 m/s, `BRUSH_LOSS` and `CLEAR_LINE` in `src/world/treeSkiing.ts`, and `crashGraceTime` 2.5 s.
   - Controls and camera: `STICK_VERTICAL_SHARE` 0.7 in `src/player/input.ts`, and the steady camera rate (1.0) and fall-line pull in `src/player/camera.ts`.
   - Before changing any of them, compare with `npm run tune`: `tuning/inputs.test.ts` (keys, pad and touch, each snow, camera) and `tuning/trees.test.ts`.
