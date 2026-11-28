@@ -73,3 +73,22 @@ Read zone by zone and compared with the game's lines:
 - **Gauntlet, Panhandler and Glade-iator** (Wild Side) are not on the 2023 inset and are still unplaced.
 - **Three unnamed OpenStreetMap runs** remain (a blue above Dawdler 1, a green east of Stagecoach and the short link into Gunbarrel).
 - **The bowl lines** follow the map's order, but the map is a painting: which gully each one takes is still a LiDAR fall-line draft.
+
+## Traverse timing (measured 2026-11-28, for the next pass)
+
+Stu: getting from the top of Quickdraw toward Grandfather's Trail and its blacks "takes a while to push". A steering bot on the 0.9.54 build, from a standing start at the unload:
+
+| Route | Holding forward | Not holding forward |
+|---|---|---|
+| Grandfather's Trail, first 550 m (drops 38 m, about 4 degrees) | 70 s, never above 30 km/h | Does not move at all |
+| Grandmother's Trail, first 30 m | 10 s at 14 km/h, then it rolls (65 km/h by 70 s) | Does not move at all |
+| West Bank, Grouse Gulch, Ridge Run | Moving within 5 s | Moving within 10 s |
+| Stock's Traverse (946 m) | 80 s | 119 s, 22 to 24 km/h |
+
+So the lift line and Ridge Run start well, and the two summit traverses are the dead stretches: about a minute of skating before the first black off Grandfather's Trail. Pole push tops out at 11 m/s (40 km/h) and skating at 5 m/s, which the 4 degree grade barely adds to.
+
+## Freestyle footage (2026-11-28)
+
+- Nor-Am and Timber Tour invitations (fis-ski.com, freestylebc.ski): the mogul events are "on Kristi's Run", athletes "access the venue from the t-bar" and "must ride the t-bar to the top". Youth moguls run on a separate "Lil' Kristi's". Castanet: "two jumps built into the course", rebuilt from scratch each season. None of the pages gives the course length, width or pitch.
+- Global News (2021): the freestyle landing air bag is 14 m by 27 m on a 26 to 28 degree slope. Its position is not given.
+- "Apex NORAM, BC's HIDDEN GEM!" (Daniel Tanner, YouTube, 2023 training days): the course starts beside rimed trees at the top of the cut, with blue safety fence and red control gates down one side and soft, deep, evenly spaced bumps. Only a few frames were read.
