@@ -56,6 +56,8 @@ const MAX_INCLINE = 1.15
 export const CHEST_FOLLOW = 0.3
 /** Most the chest twists off the skis, radians (about 50°; a long traverse held the old 65° limit, wrung round at the waist). */
 const MAX_COUNTER = 0.85
+/** Share of the counter-rotation a skier keeps on a steady traverse. */
+const TRAVERSE_COUNTER = 0.28
 /** Angulation, as a share of the lean the upper body tilts back out of the turn (low and high edge). */
 const ANGULATION_FLAT = 0.15
 const ANGULATION_CARVE = 0.45
@@ -261,6 +263,11 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
   const incline = new Spring()
   const crouch = new Spring(0.3)
   const counter = new Spring()
+  /** 0 to 1: how much the skis have been turning lately (fast up, about a second down). */
+  let turning = 0
+  /** Seconds since standing up off a chair; large when not unloading. */
+  let sinceSeat = 99
+  let counterHeading = 0
   const tuck = new Spring()
   const poling = new Spring()
   const brake = new Spring()
@@ -394,7 +401,9 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         snapQuaternion[i].copy(o.quaternion)
       })
       // Getting up from a crash takes longer than going down.
-      fadeTime = mode === 'crash' ? 0.55 : FADE_IN[next]
+      // Standing up off a chair is a slower, weightier move than the other switches.
+      fadeTime = mode === 'crash' ? 0.55 : mode === 'sit' && next === 'stand' ? 0.6 : FADE_IN[next]
+      if (mode === 'sit' && next === 'stand') sinceSeat = 0
       fade = 1
     }
     mode = next
@@ -1004,7 +1013,10 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       resetJoints()
 
       // Idle moves: stopped on snow (not pushing, braking or turning), on a surface lift or a chair.
-      const stopped = pose === 'stand' || (pose === 'ski' && !crashed && state.grounded && !rail && !air &&
+      // Off the chair: the stand-up and the glide down the ramp (see `rise` below).
+      sinceSeat = pose === 'sit' ? 99 : sinceSeat + dt
+      const unloading = pose === 'stand' && sinceSeat < 6
+      const stopped = (pose === 'stand' && !unloading) || (pose === 'ski' && !crashed && state.grounded && !rail && !air &&
         state.speed < 0.5 && !input.tuck && input.brake < 0.2 && Math.abs(input.steer) < 0.05 && !input.jump)
       // Cruising in a straight line for a few seconds earns the small riding moves
       // (a shoulder check, loosening the shoulders); any input ends them.
@@ -1299,9 +1311,17 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
           // It builds with speed: creeping across a hill the chest stays with the skis (it
           // used to twist the full 65° down the hill at walking pace).
           const moving = smooth(THREE.MathUtils.clamp((speed - 1.5) / 5, 0, 1))
-          wantCounter = Math.max(-MAX_COUNTER, Math.min(MAX_COUNTER, off * (1 - follow))) * moving
+          // The chest faces down the hill while the skis are working through turns. Holding a
+          // line across the hill it comes back over the skis, facing where the skier is going
+          // with a little of the hill left in it (it used to hold the full twist for as long
+          // as the traverse lasted, hands hanging off the downhill side).
+          const turnRate = Math.abs(Math.atan2(Math.sin(state.heading - counterHeading), Math.cos(state.heading - counterHeading))) / Math.max(dt, 1e-4)
+          const working = braking ? 1 : smooth(THREE.MathUtils.clamp((turnRate - 0.12) / 0.5, 0, 1))
+          turning += (working - turning) * ease(working > turning ? 7 : 1.1, dt)
+          wantCounter = Math.max(-MAX_COUNTER, Math.min(MAX_COUNTER, off * (1 - follow))) * moving * (TRAVERSE_COUNTER + (1 - TRAVERSE_COUNTER) * turning)
         }
       }
+      counterHeading = state.heading
       counter.step(wantCounter, dt, 3.5, 0.85)
 
       // Pushing on the flat: double-pole when nearly stopped, skate as speed builds.
@@ -1335,7 +1355,12 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       const wiggle = crawl * Math.sin(wigglePhase) * 0.11 * (1 - hopUp) * (1 - bSkate)
       // Athletic base flex, plus terrain absorption, edging, tuck, braking and pop.
       // A board rider cruises taller (about 35° of knee bend) and sits lower on the heel edge.
-      let wantCrouch = pose === 'stand' ? 0.12 : still ? (boarding ? 0.15 : 0.22) : boarding ? 0.2 : 0.34
+      // Standing up off a chair: the legs start folded as they were on the seat and push up
+      // over the first second, the chest goes forward over the feet to get the weight off
+      // the seat, and the arms come out for balance down the ramp before they settle.
+      const rise = sinceSeat < 3 ? 1 - smooth(Math.min(1, sinceSeat / 1.15)) : 0
+      const rampBalance = sinceSeat < 3 ? smooth(Math.min(1, sinceSeat / 0.35)) * (1 - smooth(THREE.MathUtils.clamp((sinceSeat - 1.1) / 1.4, 0, 1))) : 0
+      let wantCrouch = pose === 'stand' ? 0.12 + (unloading ? 0.14 : 0) + rise * 0.5 : still ? (boarding ? 0.15 : 0.22) : boarding ? 0.2 : 0.34
       // Linked turns keep the legs flexed through the crossover: as the lean drains out
       // of a turn, the crouch holds on to the recent peak of it and lets go slowly
       // (following the lean alone stood the rider bolt upright at every edge change).
@@ -1496,7 +1521,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // The whole body leans with the physics (about the snow under the skis or board).
       // Close call: the body rocks side to side as the rider catches the landing.
       const wobble = bobbleEnv * Math.sin(bobbleAge * 13) * 0.12 + bobbleEnv * bobbleSide * 0.06
-      body.rotation.z = incline.x + (rail ? rail.balance * 0.32 : 0) + stride * 0.12 + sway + wobble + ip.sway
+      body.rotation.z = incline.x + (rail ? rail.balance * 0.32 : 0) + stride * 0.12 + sway + wobble + ip.sway + Math.sin(sinceSeat * 5.2) * 0.035 * rampBalance
       root.position.y += ip.hop
       // A landing folds the chest down; a close call rocks it back first.
       const landBend = Math.max(0, landFold.x) * 0.35 - bobbleEnv * Math.cos(bobbleAge * 9) * 0.18
@@ -1504,7 +1529,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // standing, in the air and folding into a tuck it keeps the older, more upright fit.
       hingeBlend += ((skiing ? 1 : 0) - hingeBlend) * ease(9, dt)
       const hingeOn = hingeBlend * (1 - stillBlend) * (1 - THREE.MathUtils.clamp(tuck.x, 0, 1))
-      const bend = 0.12 + (SKI_HINGE - 0.12) * hingeOn + flex * (0.72 + (SKI_HINGE_FLEX - 0.72) * hingeOn) + landBend + herring.x * 0.2 + tuck.x * 0.6 + press.x * 0.18 + skateAmount * 0.18 + plow.x * 0.05 + doublePole * dp.crunch
+      const bend = 0.12 + (SKI_HINGE - 0.12) * hingeOn + flex * (0.72 + (SKI_HINGE_FLEX - 0.72) * hingeOn) + landBend + herring.x * 0.2 + tuck.x * 0.6 + press.x * 0.18 + skateAmount * 0.18 + plow.x * 0.05 + doublePole * dp.crunch + rise * 0.32
       legFollow += ((skiing ? 1 : 0) - legFollow) * ease(10, dt)
       /** Board tuck: how far the hips and chest open toward the nose (reversed riding switch). */
       const tuckTurn = THREE.MathUtils.clamp(tuck.x, 0, 1) * (1 - 2 * switchLook)
@@ -1670,6 +1695,13 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         hand.z -= Math.max(0, bend - SKI_HINGE) * PITCH_HAND_LIFT * 0.3 * hingeOn
         // Standing still the arms hang relaxed: hands lower and closer in, resting on the grips.
         hand.lerp(v2.set(side * 0.27 + side * idleHand * 0.35, -0.2 + breathe, 0.25), idle * 0.85)
+        if (rampBalance > 0.001) {
+          // One hand pushes off the seat behind the hip, then both ride wide and forward,
+          // rocking a little as the skis find the snow.
+          const pushOff = side < 0 ? 1 - smooth(Math.min(1, sinceSeat / 0.5)) : 0
+          hand.lerp(v2.set(side * 0.44, 0.0 + Math.sin(sinceSeat * 6.5 + side) * 0.03, 0.3), rampBalance * 0.8)
+          hand.lerp(v2.set(side * 0.3, -0.3, -0.12), pushOff * 0.8)
+        }
         keepElbowBent(i, hand)
         // Holding a grab, the free arm swings out and up for balance (and clear of the knees
         // the grab pulls up); the grab itself is placed after this.

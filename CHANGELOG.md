@@ -2,7 +2,7 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
-## 0.9.57 (unreleased): Camera on moguls and park jumps
+## 0.9.58 (unreleased): Camera on moguls and park jumps
 
 From Stu's playtest of the combined 0.9.56 build: on mogul runs the camera sat too close to the ground, you could not see in front of you and it was snappy; park jumps needed a pass on the way in and on landing. The follow camera's framing is now its own module (`game/src/player/followCamera.ts`, no rendering in it), so it can be run against a bot on the real mountain and measured (`game/tests/cameraFraming.test.ts`).
 
@@ -16,6 +16,16 @@ From Stu's playtest of the combined 0.9.56 build: on mogul runs the camera sat t
 ### Added
 
 - **Settings, Camera height: Low, Standard or High.** Low is 0.6 m closer to the snow, High 1.2 m further from it. The lift on moguls and into jumps comes on top of any of them.
+## 0.9.57 (unreleased): Skier faces where they are going, and the hop off the chair
+
+From Stu's playtest of the combined 0.9.56 build. Rider drawing only; physics, steering and the camera are unchanged here.
+
+### Changed
+
+- **Across the hill, the skier's chest and hands sit in front.** The chest used to hold its twist toward the fall line for as long as a traverse lasted (about 34° on a 14° slope), so both hands hung off the downhill side. The twist now belongs to turning: it builds within a fraction of a second when the skis start to turn or brake, and eases out over about a second on a steady line, leaving about a quarter of it. Linked turns and hockey stops face down the hill as before.
+- **Standing up off the chair.** The rider used to crossfade from the seated pose to a standing one in 0.4 s. Now the legs start folded and push up over the first second, the chest comes forward over the feet, one hand pushes off the seat, and the arms ride wide with a little rock down the ramp before settling. No idle move starts on the ramp.
+- Rider lab: `action=unload` plays the stand-up and glide on a loop.
+- Tests: the chest on a traverse against linked turns, and the stand-up rising with no idle. The standing stance test pins its random idle pick (the newer idles bend the knees on purpose and made it fail about one run in ten).
 
 ## 0.9.56 (unreleased): The first minute
 
@@ -66,6 +76,7 @@ Every run and lift checked against real life: the 2023 trail map (read zone by z
 - **The freestyle area off the T-Bar is laid out as Stu describes it.** Kristi's Run, the mogul course down the middle, is now a mogul run when you free ski it (it was groomed; the Nor-Am event flattens those bumps and lays its own course). The old aerial site lane on its skier's left ("Unnamed cut L5") now starts at the T-Bar unload instead of 150 m down. Adrian's Alley is the groomed run on the skier's right, then trees, then Old Mill.
 - **The flats carry you.** On the flat stretches of the mapped runs (cat tracks, ridge traverses, run-outs: under 7 degrees) a skier travelling along the track is carried up to 56 km/h with no skating. It starts once you are moving or tap forward, and braking or turning across the track drops it. With your hands off the steering the skis follow the track round its bends and hold its middle, so being carried does not run you off the edge into the trees; any steering takes over at once. From the Quickdraw unload the first 550 m of Grandfather's Trail, to the first blacks, takes 38 seconds with one push (it was 70 seconds of holding forward); Grandmother's Trail's first 300 m takes 20 seconds (35), Stock's Traverse 58 (75).
 - **Booster gates** on the long traverses (25 on the mountain, eight of them on Grandfather's Trail): an orange gate with chevrons on the snow that pushes you to 76 km/h for a moment.
+- **Quickdraw has its missing towers back.** The map left a 376 m hole in the tower line over West Bank, so the rope sagged to the snow there. Two towers fill it at the spacing of the rest, placed between the two rollers so the jumps stay clear.
 - **The top of Quickdraw is tidied up.** The operator hut stands on the other side of the unload. The windows on the lift huts and cabins now read as dark glass (they mirrored the sky and vanished into the wall). The snow round the top of every lift is packed (the Quickdraw unload stood in deep powder). The West Bank rock drop is back down the run beside a mid-mountain tower (it had moved onto the unload when West Bank was routed from the top in 0.9.50). Trail-head signs fan out down their own runs where several runs start together, and no two stand within 12 m.
 - A wide run keeps no more of a guaranteed tree-free core than a default blue, so widening never mows standing forest.
 

@@ -91,6 +91,17 @@ describe.skipIf(!hasData)('whole mountain', () => {
     expect(resort.runs.find((run) => run.name === "Kristi's Run")!.moguls).toBe(true)
   })
 
+  it('leaves no long hole in the Quickdraw tower line (Stu, 2026-11-28)', () => {
+    const quickdraw = world!.resort.lifts.find((lift) => /quickdraw/i.test(lift.name))!
+    const stops = [quickdraw.bottom, ...quickdraw.towers, quickdraw.top]
+    expect(quickdraw.towers.length).toBe(16)
+    for (let i = 1; i < stops.length; i++) {
+      const span = Math.hypot(stops[i][0] - stops[i - 1][0], stops[i][1] - stops[i - 1][1])
+      expect(span).toBeGreaterThan(10)
+      expect(span).toBeLessThan(150)
+    }
+  })
+
   it('keeps the Quickdraw unload clear and packed (Stu, 2026-11-28)', () => {
     const { grid, resort, surface } = world!
     const quickdraw = resort.lifts.find((lift) => /quickdraw/i.test(lift.name))!
