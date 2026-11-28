@@ -8,6 +8,7 @@ import type { Npcs } from '../npcs'
 import { createSession, type Challenge, type Session } from '../session'
 import type { Stage } from '../stage'
 import type { PaceCue } from '../parkPace'
+import type { UnloadPath } from './arrival'
 
 /** A lift ride in progress. */
 export interface Ride {
@@ -15,9 +16,11 @@ export interface Ride {
   path: RidePath
   s: number
   /** Getting off at the top: stand up and glide down the unload ramp. */
-  unload: { t: number; from: THREE.Vector3; to: THREE.Vector3; yaw: number; face: number } | null
+  unload: { t: number; from: THREE.Vector3; to: THREE.Vector3; yaw: number; face: number; path?: UnloadPath; seconds?: number } | null
+  /** The start of a free-ski session: the ride is a short film, with no HUD until the rider is off. `t` is seconds in. */
+  opening?: { t: number; cut: boolean }
   /** Where the rider leaves the lift, which way they go and where they stop, worked out once per ride. */
-  exit?: { from: THREE.Vector3; yaw: number; lineYaw: number; spot: ExitSpot }
+  exit?: { from: THREE.Vector3; yaw: number; lineYaw: number; spot: ExitSpot; /** Chairs: the carved way off and where it ends. */ path?: UnloadPath; stop: { x: number; z: number } }
 }
 
 /** A short fade: physics waits until `until` (game seconds), then `then` runs. */

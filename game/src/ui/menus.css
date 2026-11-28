@@ -531,3 +531,67 @@ button.challenge .target { grid-column: 3; font-size: 0.72rem; color: var(--fain
 .touch .swatches button { width: 2.5rem; height: 2.5rem; }
 .touch .challenge-group .event-about summary { min-height: 2.75rem; display: flex; align-items: center; }
 .touch:not(.pad-navigation) .result-buttons kbd { display: none; }
+
+/* Drop-in pick (ui/dropIn.ts): skis or snowboard and the rider, on the title screen before the chair. */
+#title-screen.picking > :not(.dropin) { display: none; }
+.dropin { display: contents; }
+.dropin-card { width: min(27rem, 100%); position: relative; z-index: 1; }
+.dropin-card > * { animation: slide-in-left 0.5s var(--ease) both; }
+.dropin-card > :nth-child(2) { animation-delay: 40ms; }
+.dropin-card > :nth-child(3) { animation-delay: 80ms; }
+.dropin-card > :nth-child(4) { animation-delay: 120ms; }
+.dropin-card > :nth-child(n + 5) { animation-delay: 160ms; }
+.dropin-card .eyebrow { margin: 0 0 0.6rem; color: var(--accent); }
+.dropin-card h2 { margin: 0; font-size: clamp(2rem, 4.6vw, 3rem); font-weight: 250; letter-spacing: -0.03em; line-height: 1.05; }
+.dropin-rides { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin: 1.5rem 0 0; }
+.dropin-ride, .dropin-rider {
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--glass); color: var(--text);
+  font: inherit; text-align: left; cursor: pointer; transition: background var(--fast), border-color var(--fast), transform var(--fast);
+}
+.dropin-ride { display: grid; gap: 0.2rem; padding: 0.8rem 0.9rem; }
+.dropin-ride strong { font-size: 1.15rem; font-weight: 500; letter-spacing: -0.01em; }
+.dropin-ride small { font-size: 0.74rem; line-height: 1.3; color: var(--faint); }
+.dropin-riders { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; margin: 0.9rem 0 0; }
+.dropin-rider { display: flex; align-items: center; gap: 0.55rem; padding: 0.5rem 0.65rem; font-size: 0.9rem; min-height: 2.75rem; }
+.dropin-swatch {
+  flex: none; width: 1.15rem; height: 1.7rem; border-radius: 0.55rem 0.55rem 0.3rem 0.3rem;
+  background: linear-gradient(var(--helmet) 0 26%, var(--jacket) 26% 64%, var(--pants) 64% 100%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+:is(.dropin-ride, .dropin-rider):is(:hover, :focus-visible) { background: var(--glass-hover); border-color: var(--line-strong); }
+:is(.dropin-ride, .dropin-rider)[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--glass)); }
+:is(.dropin-ride, .dropin-rider):active { transform: scale(0.98); }
+.dropin-line { min-height: 1.3em; margin: 0.8rem 0 0; font-size: 0.84rem; color: var(--muted); }
+.dropin-actions { display: flex; align-items: center; gap: 0.4rem; margin: 1.3rem 0 0; }
+.dropin-actions .go { min-height: 3rem; padding: 0.6rem 1.7rem; border-radius: 999px; font-size: 1.05rem; font-weight: 600; cursor: pointer; }
+.dropin-actions .link { border: 0; background: none; color: var(--muted); font: inherit; font-size: 0.86rem; padding: 0.7rem 0.75rem; border-radius: 999px; cursor: pointer; }
+.dropin-actions .link:is(:hover, :focus-visible) { color: var(--text); background: var(--glass-hover); }
+.dropin-stage { position: absolute; right: 4vw; bottom: 0; width: min(46vw, 40rem); height: min(86vh, 46rem); pointer-events: none; }
+.dropin-stage canvas { position: relative; width: 100%; height: 100%; display: block; }
+.dropin-stage::before { content: ""; position: absolute; left: 18%; right: 18%; bottom: 9%; height: 9%; border-radius: 50%; background: radial-gradient(ellipse, rgba(5, 13, 21, 0.42), transparent 68%); }
+@media (max-width: 760px) and (min-height: 521px) {
+  /* Portrait phone: the rider stands above the card, which sits at the bottom like the title menu. */
+  .dropin-stage { right: 0; left: 0; top: 1vh; bottom: auto; width: auto; height: 44vh; }
+  .dropin-stage::before { display: none; }
+  .dropin-card h2 { font-size: 1.7rem; }
+  .dropin-rides { margin-top: 0.9rem; }
+  .dropin-ride small { display: none; }
+  .dropin-rider { padding: 0.4rem 0.5rem; font-size: 0.82rem; }
+  .dropin-actions { margin-top: 0.9rem; }
+}
+@media (max-height: 520px) {
+  /* Phone on its side: card on the left, rider on the right, everything tighter. */
+  #title-screen.picking { justify-content: center; padding-bottom: var(--safe-b); }
+  .dropin-stage { right: 2vw; left: auto; top: 0; width: 36vw; height: 100vh; }
+  .dropin-card { width: min(24rem, 56vw); }
+  .dropin-card .eyebrow { margin-bottom: 0.3rem; }
+  .dropin-card h2 { font-size: 1.4rem; }
+  .dropin-rides { margin-top: 0.6rem; gap: 0.4rem; }
+  .dropin-ride { padding: 0.4rem 0.7rem; }
+  .dropin-ride strong { font-size: 1rem; }
+  .dropin-ride small, .dropin-line { display: none; }
+  .dropin-riders { margin-top: 0.45rem; gap: 0.35rem; }
+  .dropin-rider { min-height: 2.4rem; padding: 0.3rem 0.5rem; font-size: 0.8rem; }
+  .dropin-actions { margin-top: 0.6rem; }
+  .dropin-actions .go { min-height: 2.5rem; }
+}

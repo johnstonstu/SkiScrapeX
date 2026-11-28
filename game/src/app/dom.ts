@@ -34,6 +34,7 @@ export function getUi() {
     ride: $('#ride'),
     rideText: $('#ride-text'),
     trick: $('#trick'),
+    cine: $('#cine'),
     hint: $('#hint'),
     version: $('#version'),
     hudVersion: $('#hud-version'),
