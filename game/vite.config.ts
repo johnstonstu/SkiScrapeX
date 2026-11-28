@@ -6,7 +6,11 @@ const { version } = JSON.parse(readFileSync(new URL('./package.json', import.met
 export default defineConfig({
   // Relative asset paths so the build works under a GitHub Pages subpath.
   base: './',
-  define: { __APP_VERSION__: JSON.stringify(version) },
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+    // Playtest recorder (src/telemetry): only in builds made with VITE_TELEMETRY=1. Never set it for the live game.
+    __TELEMETRY__: JSON.stringify(process.env.VITE_TELEMETRY === '1'),
+  },
   build: {
     // three.js plus GLTFLoader for the rider model is about 640 kB minified (165 kB gzipped).
     chunkSizeWarningLimit: 680,

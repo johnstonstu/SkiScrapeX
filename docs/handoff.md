@@ -123,6 +123,10 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 
 Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
 
+### Playtest telemetry (test builds only)
+
+A build made with `VITE_TELEMETRY=1` records how it is played (inputs, rider state, camera, menus, frame time) and saves it to the preview artifact's database or a download. The live build has no recorder in it. Format, what is recorded and the report script are in [telemetry.md](telemetry.md).
+
 ### Menu to skiing (0.9.56)
 
 - Free ski from the title goes through `ui/dropIn.ts` (skis or snowboard and one of the starter riders in `app/riders.ts`) once per page load, then `lifts.arriveByChair()`.

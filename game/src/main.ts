@@ -82,6 +82,7 @@ import { createLiftRides } from './app/game/liftRide'
 import { createChallengeFlow } from './app/game/challengeFlow'
 import { createHud } from './app/game/hud'
 import { startFrameLoop } from './app/game/frameLoop'
+import { loadTelemetry, type Telemetry } from './telemetry'
 import { createRenderer, fitToWindow, nextPaint, recompileMaterials, warmShaders, watchForGpuReset } from './app/game/graphics'
 import './ui/hudMinimal.css'
 import './ui/dropIn.css'
@@ -293,6 +294,21 @@ const lifts = createLiftRides(game, {
 const flow = createChallengeFlow(game, { ui, controls, tricks, race, comp, runout, coach, stylePanel, bests, hideOverlays, leaveDemoPark, openChallenges, spawn, startRide: (lift) => lifts.startRide(lift), onResult: (improved, failed) => sound.ui(failed ? 'fail' : improved ? 'best' : 'finish') })
 const hud = createHud(game, { ui, renderer, parkHud, hudPeek, quality, qualityReason, hardware })
 let setViewDistance: ((scale: number) => void) | null = null
+/**
+ * Playtest recorder: only in builds made with VITE_TELEMETRY=1 (the private test build).
+ * In the live game `loadTelemetry` resolves to null and its code is not in the bundle.
+ */
+let telemetry: Telemetry | null = null
+/** The run or area at a spot, once the mountain is built. */
+let runNameHere: ((x: number, z: number) => string) | null = null
+/** What the sim was given this frame (null in a menu), for the recorder. */
+let frameInput: ReturnType<typeof controls.read> | null = null
+void loadTelemetry({
+  game, controls, camera, rig, ui, version: VERSION,
+  overlay: () => activeOverlay(),
+  runNameAt: (x, z) => runNameHere?.(x, z) ?? '',
+  describe: () => ({ quality: quality.level, qualityReason, gpu: hardware?.renderer ?? '', settings: { ...settings }, rider: { ...outfit }, touch: game.mobile }),
+}).then((recorder) => (telemetry = recorder))
 /** Apply one setting (or all of them) without a reload. */
 function applySetting(key?: keyof Settings) {
   const all = key === undefined
@@ -534,6 +550,7 @@ async function boot() {
   startFrameLoop((dt, smoothedMs, rawMs) => {
     if (frameWatch.sample(rawMs, game.stageReady && !game.ride && !game.pause && ui.titleScreen.hidden && !overlaysOpen())) lightenForSlowFrames()
     tick(dt, smoothedMs)
+    telemetry?.frame(rawMs, frameInput)
   })
 }
 
@@ -546,6 +563,7 @@ function startApex(world: World, scenery?: SceneryAssets) {
   game.stageReady = true
   applySetting('weather')
   setViewDistance = apex.setViewDistance
+  runNameHere = apex.surface.runNameAt
   perf.phase('stage')
   game.goals = createGoals({ world, stage: game.stage, scene: apexRoot, parkSites: apex.parkSites, runNameAt: apex.surface.runNameAt, version: VERSION })
   perf.phase('goals')
@@ -891,6 +909,7 @@ function handleActions() {
  */
 function tick(dt: number, frameMs: number) {
   const menuOpen = syncMenus()
+  frameInput = null
   updateMusic(dt, menuOpen)
   if (menuOpen) {
     drawMenuBackdrop(dt)
@@ -903,6 +922,7 @@ function tick(dt: number, frameMs: number) {
   }
   game.elapsed += dt
   const input = readPlayInput()
+  frameInput = input
   const { steps, pose } = stepPlay(dt, input)
   stepWorld(dt)
   present(dt, frameMs, input, pose, steps)
