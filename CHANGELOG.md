@@ -16,6 +16,21 @@ The Quickdraw side checked against the 2023 trail map and the LiDAR fall lines, 
 ### Added
 
 - `tests/mountainNetwork.test.ts`: every run starts on a lift top or another run and ends on a lift bottom or another run, and a bot skis 19 ways down from the Quickdraw top (the lift line, Ridge Run's drops, the bowl and every Wild Side run) to the bottom with no poling.
+## 0.9.49 (unreleased): Light and atmosphere
+
+A graphics pass on light, air and colour, with the same art direction and models. No new draw calls or triangles on any level. Builds on 0.9.48.
+
+### Changed
+
+- **Colour and tone.** Tone mapping moved from ACES to Khronos Neutral with a small built-in grade (a little contrast and saturation, cool shade and warm light). Sunlit snow is white instead of grey, jackets, signs and trees keep their colour, and the sky is blue again. The grade runs inside tone mapping, so it costs no extra pass.
+- **Aerial haze.** Every material, including the snow, now shares one haze. It is thicker low in the valleys than on the ridges and glows warm toward the sun, and it matches the sky at the horizon. Distant ridges step back in layers instead of fading into one white.
+- **Sky.** The horizon carries the same haze, so far ridges melt into it.
+- **Snow shade.** Shaded and away-facing snow is a softer, cooler blue (it was tuned for ACES, which greyed it).
+- **Forest shade past the shadow map.** Snow under and beside distant trees is shaded from the canopy map, looked up toward the sun, so forests and run edges read at any distance. On Low, which has no shadow map, it applies everywhere.
+- **Tree crowns** are darker inside and low down, so trees have volume instead of flat colour.
+- **Sky light on gear and metal.** The rider, lift steel, rails and cars pick up bounce light from the snow and reflect the sky (a small image-based light, rebuilt when the weather changes).
+- **Drifting cloud shadows** on Bluebird and Light snow, on Medium and High.
+- Weather presets give a haze visibility, sun glow and cloud shadow strength instead of linear fog near and far.
 
 ## 0.9.48 (unreleased): Snow effects
 
