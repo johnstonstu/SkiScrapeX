@@ -2,6 +2,31 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.53 (unreleased): Rider stance, standstill and transitions
+
+A second rider pass over the whole body: the snowboarder's stance on each edge, how both riders stand still and get going, and the joins between states. Physics, steering and the camera are unchanged. Builds on 0.9.51. (0.9.52 is the sound pass.)
+
+### Changed
+
+- **The snowboarder stands on the board.** In a skidded or pivoted turn the path leans the rider well past the sim's edge angle, and the body hung 25° and more off the side of a nearly flat board: heelside read as sitting in the air behind the heel edge. The board now rolls to within about 6° of the body's lean.
+- **Heelside on extended legs.** The heel edge used to add the deepest crouch (about 63° of knee bend, thighs flat). It now rides at about 45°, the legs lean back into the hill and the chest folds forward over the knees with the pelvis tipping too, so the shoulders stay over the board. Both hands come forward either side of the body. The heel edge draws 72% of the physics lean (toes 80%), and no board lean is drawn past 54°.
+- **Toeside drives the knees.** The knees and hips press toward the snow under a more upright back, instead of the body leaning in as a straight plank.
+- **Board tuck.** A low crouch with the hips and chest turned toward the nose, folded over the front knee, back hand behind the back. It was a bow from the waist out over the toe edge.
+- **Stopped on a hill.** After a hockey stop the sim's edge could settle on the downhill side, and the legs leaned down the hill with it. Below walking pace the skis or board ease onto the uphill edges and the body stands upright.
+- **Standing pose.** Arms hang relaxed with the hands low on the grips and the poles planted just outside the boots, the weight settles onto one leg and shifts now and then, and the chest breathes. The pose blends in and out around walking pace instead of switching.
+- **Pushing and creeping across a hill** no longer wring the chest 65° down the fall line (skating across a slope looked twisted, one arm reaching up the hill): counter-rotation builds with speed and tops out at about 50°.
+- **Takeoff and landing.** The skis and board ease flat in the air instead of snapping level on the frame of takeoff, and the back's forward hinge blends through takeoffs, landings and stops instead of jumping.
+- **Snowboarders push with a foot out.** Holding tuck at low speed on flat ground used to hop the board along (or just stand there while it sped up). The rider now takes the back foot out of the binding and skates: the foot plants beside the toe edge, strokes back along the board, lifts and swings forward again, with the hips turned down the board, the front knee working and the arms swinging against the leg. The foot goes back in the binding as soon as the push ends. Small hops are still there for a steer input at a crawl.
+- **Skiers lead with the uphill ski on a traverse.** Crossing a slope, the uphill ski rides up to 8 cm ahead, as the hips sit on a real traverse.
+- **Ready for glide tracks and boosters.** Where the sim reports the rider being carried along a traverse (`state.gliding`, from the 0.9.54 mountain pass), skiers skate and snowboarders push with a foot out at low speed without tuck held, then both settle into a low glide as the speed builds; a booster (`state.boosting`) drops them into a tuck. Without those fields nothing changes.
+- **Nine more idles.** Standing or on the chair: knocking snow off the gloves, a neck roll, shading the eyes to scout the run, a wave, pulling the collar zip up. Standing only: knee bends to warm up. Snowboarders also bend down to check the front binding and swing their arms across the chest. On the chair: leaning out to look at the run below.
+- **Small moves while cruising.** After a few seconds in a straight line with no input, the rider now and then checks over a shoulder or loosens the shoulders. Head and shoulders only, and any steer, brake, tuck or jump ends it within a quarter second.
+- **Rolls and dips.** The legs give as the snow pushes up and reach as it falls away, from the body's own vertical acceleration.
+- **Rails and air.** Arms ride bent and lower for balance instead of straight out at shoulder height.
+- **Crashes.** The arms are thrown out and up for the first moments of a fall before the hands find the snow, and a fast crash slowly spins on the snow as it slides, squaring up over the get-up.
+- Rider lab: `action=tour` loops through turns, a tuck, a stop, a push off, an ollie, a crash and the get-up; `action=crash` repeats a crash at speed; `action=push` holds tuck from a standstill; `action=traverse` holds a line across the hill; `amp` scales the steer. The lab's snow is now a patch that follows the rider (one huge quad lost depth precision and swallowed a flat board).
+- `tests/riderDepth.test.ts` covers the board roll, the heelside knees, the uphill edges at a stop, the eased takeoff, the crash spin and the snowboarder's one-foot push. `tests/riderIdles.test.ts` covers the idle player.
+
 ## 0.9.52 (unreleased): Sound
 
 A sound pass. Every effect is synthesized in the browser, so the download does not grow: there are no new audio files. The old sound layer (one hiss for snow, one for wind, a lift hum) is replaced.
