@@ -201,7 +201,7 @@ Content is added between the polish milestones above, a little at a time, once t
 
 Ongoing, a few items per release:
 
-- **Audio**: carve and skid layers by surface, wind by speed, lift and village ambience, crowd at the base, a music option, UI clicks. Optional plant/landing/latch WAV hooks landed in 0.9.0 (procedural fallback).
+- **Audio**: carve and skid layers by surface, wind by speed, lift and village ambience, crowd at the base, a music option, UI clicks. Optional plant/landing/latch WAV hooks landed in 0.9.0 (procedural fallback). The synthesized sound pass in 0.9.52 covers all of these except the crowd at the base of an event; it still needs tuning by ear on speakers and a phone.
 - **Effects**: spray sized by speed and edge, powder plumes, tracks that persist for the session, breath in the cold.
 - **UI**: HUD that shows the run you are on (not the course you picked), lift names on lifts, cleaner menus and transitions, a better loading screen, controller-first navigation.
 - **Camera**: speed field-of-view kick, landing camera, a cinematic lift-ride camera option, camera never inside geometry.

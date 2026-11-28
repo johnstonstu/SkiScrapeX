@@ -33,6 +33,8 @@ export interface ChallengeFlowDeps {
   openChallenges: () => void
   spawn: (keepCamera?: boolean) => void
   startRide: (lift: Lift) => void
+  /** A challenge just ended and its results are up. */
+  onResult?: (improved: boolean, failed: boolean) => void
 }
 
 /**
@@ -182,6 +184,7 @@ export function createChallengeFlow(game: GameState, deps: ChallengeFlowDeps) {
       },
     })
     ui.results.hidden = false
+    deps.onResult?.(result.improved, Boolean(failed))
   }
 
   function showRunCard(name: string, time: number, record: boolean) {

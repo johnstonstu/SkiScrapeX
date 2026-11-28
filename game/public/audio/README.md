@@ -1,11 +1,11 @@
 # Optional one-shot samples
 
-Short WAV files layer on top of procedural SFX. Missing files are fine — the game stays procedural-only.
+Every game sound is synthesized in the browser (`src/player/sfx/`). These short WAV files are layered quietly on top of three of them. Missing files are fine.
 
 | File | Used for |
 |---|---|
-| `plant.wav` | Pole plant / edge flip tick |
-| `landing.wav` | Clean / sketchy landings |
+| `plant.wav` | Edge change tick |
+| `landing.wav` | Landings |
 | `latch.wav` | Rail or box latch |
 
-Bundled defaults are short synthetic ticks (~35–90 ms, mono 22.05 kHz). Replace with recorded takes anytime; keep clips under ~200 ms when possible.
+The bundled files are short synthetic ticks (about 35 to 90 ms, mono 22.05 kHz). Replace them with recorded takes at any time; keep clips under about 200 ms.

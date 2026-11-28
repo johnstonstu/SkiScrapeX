@@ -46,7 +46,7 @@ export function addToCombo(combo: ComboState, name: string, basePoints: number):
  * chain into a combo, and the combo banks after 3 s on the ground. A bail
  * loses the combo.
  */
-export function createTrickFeed(element: HTMLElement) {
+export function createTrickFeed(element: HTMLElement, onCard?: (title: string, detail: string, kind: string) => void) {
   let lastSeq = 0
   let timer = 0
   // Race formats are timed, not judged: tricks still happen but score nothing and pop nothing.
@@ -55,6 +55,7 @@ export function createTrickFeed(element: HTMLElement) {
   const stats = { perfect: 0, clean: 0, railMetres: 0, bestName: '', bestPoints: 0 }
   /** Pop a card: title, a small grade line, then points and the combo multiplier. */
   const show = (title: string, detail: string, kind: string, points = '', multiplier = 1) => {
+    onCard?.(title, detail, kind)
     element.innerHTML =
       `<strong>${escapeHtml(title)}</strong><span class="trick-detail">${escapeHtml(detail)}</span>` +
       (points ? `<span class="trick-points">${escapeHtml(points)}${multiplier > 1 ? `<span class="trick-combo">×${multiplier}</span>` : ''}</span>` : '')

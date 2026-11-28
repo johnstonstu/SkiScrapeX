@@ -192,8 +192,8 @@ export function createMusic(options: { enabled: boolean; source: MusicSource; mi
     }
     if (ctx.state === 'suspended' && !document.hidden) void ctx.resume().then(syncSource, () => {})
   }
-  window.addEventListener('keydown', unlock)
-  window.addEventListener('pointerdown', unlock)
+  // Phones only count the end of a touch as the gesture that may start audio, so listen for both ends.
+  for (const type of ['keydown', 'pointerdown', 'pointerup', 'touchend', 'click'] as const) window.addEventListener(type, unlock, { passive: true })
   document.addEventListener('visibilitychange', () => {
     if (!ctx) return
     if (document.hidden) {
@@ -330,6 +330,10 @@ export function createMusic(options: { enabled: boolean; source: MusicSource; mi
         tone.frequency.setTargetAtTime(cutoff, t, 0.4)
         bus.gain.setTargetAtTime(1, t, 0.4)
       }
+    },
+    /** The key of the procedural music while it is what is playing, so other sounds can chime in tune. */
+    key(): { root: number; scale: readonly number[] } | null {
+      return enabled && !onTracks() ? { root: session.root, scale: session.scale } : null
     },
     status(): MusicStatus {
       const np = onTracks() ? player?.nowPlaying() : null

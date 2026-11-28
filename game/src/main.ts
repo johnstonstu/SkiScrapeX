@@ -26,6 +26,8 @@ import { createSkyEnvironment, driftClouds, hazeDensity, installAtmosphere, setC
 import { createControls } from './player/input'
 import { createCameraRig } from './player/camera'
 import { createSkiAudio } from './player/audio'
+import { cardSound } from './player/sfx/cards'
+import { createSoundScene } from './app/soundScene'
 import { createMusic } from './player/music'
 import { createHaptics } from './player/haptics'
 import { createGearDrops } from './player/gearDrops'
@@ -181,6 +183,22 @@ const hideOverlays = () => {
 }
 const sound = createSkiAudio($<HTMLButtonElement>('#btn-sound'), { onImpact: (level) => music.duck(level), onMute: (muted) => music.setMuted(muted) })
 const music = createMusic({ enabled: settings.music, source: settings.musicSource, mix: settings.radioMix, volume: settings.musicVolume, muted: sound.muted })
+// Menu sounds: a tick as the focus moves, a chime on a choice. Only while a menu is up, so touch controls stay silent.
+let lastPointerAt = 0
+window.addEventListener('pointerdown', () => (lastPointerAt = performance.now()), { capture: true, passive: true })
+document.addEventListener('click', (event) => {
+  if (!overlaysOpen() || !(event.target instanceof Element)) return
+  const choice = event.target.closest('button, a[href], summary, select, input[type="checkbox"]')
+  if (!choice || choice.id === 'btn-sound') return
+  sound.ui(/resume|close|back|cancel/i.test(choice.id + ' ' + choice.className) ? 'back' : 'select')
+}, true)
+document.addEventListener('input', (event) => {
+  if (event.target instanceof HTMLInputElement && event.target.type === 'range') sound.ui('toggle')
+}, true)
+document.addEventListener('focusin', () => {
+  // A click focuses too; that gets the choice chime, not the move tick.
+  if (overlaysOpen() && performance.now() - lastPointerAt > 250) sound.ui('move')
+})
 // Read-only probe for checking the adaptive music from the console or a test browser.
 ;(window as unknown as { skiMusic: () => unknown }).skiMusic = () => music.status()
 const pocket = createPocketPlayer(music, {
@@ -215,10 +233,15 @@ const haptics = createHaptics((weak, strong, ms) => controls.rumble(weak, strong
 const gearDrops = createGearDrops(scene)
 const effects = createSnowEffects(scene, lighting, pixelRatio, quality)
 effects.setBoard(outfit.model === 'snowboard')
-const tricks = createTrickFeed(ui.trick)
+const tricks = createTrickFeed(ui.trick, (title, detail, kind) => {
+  const chime = cardSound(title, detail, kind)
+  if (chime) sound.ui(chime)
+})
 /** Park run-ins: eases the speed toward each jump's sweet spot and reports where jumps land. */
 const parkPace = createParkPace()
-const raceHud = createRaceHud()
+const raceHud = createRaceHud(undefined, (_text, tone) => {
+  if (tone !== 'warn') sound.ui(tone)
+})
 /** Braking after the finish line before the result shows. */
 const runout = createRunout()
 const race = createRaceDirector({ hud: raceHud, show: (title, detail, kind) => tricks.show(title, detail, kind), assistOn: () => settings.raceAssist })
@@ -229,7 +252,7 @@ const bests = Object.fromEntries(
   Object.entries(readJson<Record<string, number>>(KEYS.bests, {})).map(([name, time]) => [PROGRESS_RENAMES[PROGRESS_RENAMES[name] ?? name] ?? PROGRESS_RENAMES[name] ?? name, time]),
 )
 const lifts = createLiftRides(game, { ui, rig, effects, sound, haptics, coach, controls, setFreeSki: () => flow.setFreeSki(), spawn })
-const flow = createChallengeFlow(game, { ui, controls, tricks, race, comp, runout, coach, stylePanel, bests, hideOverlays, leaveDemoPark, openChallenges, spawn, startRide: (lift) => lifts.startRide(lift) })
+const flow = createChallengeFlow(game, { ui, controls, tricks, race, comp, runout, coach, stylePanel, bests, hideOverlays, leaveDemoPark, openChallenges, spawn, startRide: (lift) => lifts.startRide(lift), onResult: (improved, failed) => sound.ui(failed ? 'fail' : improved ? 'best' : 'finish') })
 const hud = createHud(game, { ui, renderer, parkHud, hudPeek, quality, qualityReason, hardware })
 let setViewDistance: ((scale: number) => void) | null = null
 /** Apply one setting (or all of them) without a reload. */
@@ -349,6 +372,9 @@ function skierForView(): SkiState {
   return smoothMotion ?  blendState(clock.history!, game.skier, renderAlpha(clock), viewState, viewAir) : game.skier
 }
 let menuWasOpen = false
+let soundScene: ReturnType<typeof createSoundScene> | null = null
+let soundSceneFor: unknown = null
+let soundSceneAge = 0
 let titleSpin = 2.4
 let titleWasShown = false
 let minimap: ReturnType<typeof createMinimap> | null = null
@@ -858,6 +884,7 @@ function syncMenus(): boolean {
     game.skier.windup = 0
     menuWasOpen = menuOpen
     sound.pause(menuOpen)
+    sound.ui(menuOpen ? 'open' : 'close')
     document.body.classList.toggle('paused', menuOpen)
     $('#btn-menu').setAttribute('aria-expanded', String(menuOpen))
     if (!menuOpen) ui.canvas.focus()
@@ -1045,9 +1072,20 @@ function present(dt: number, frameMs: number, input: ReturnType<typeof controls.
   SIGHT_LINE.to.value.set(view.x, view.y + 1.1, view.z)
   game.stage.update(camera.position)
   perf.lap('update')
-  sound.update(game.skier, Boolean(game.ride))
-  if (!game.ride && !game.pause) haptics.update(game.skier, performance.now())
   const gust = weatherGust(weatherLive, performance.now() * 0.001)
+  soundSceneAge += dt
+  if (soundSceneAge > 0.2 && game.stageReady) {
+    if (soundSceneFor !== game.stage) {
+      soundScene = createSoundScene(game.stage)
+      soundSceneFor = game.stage
+    }
+    // Weather wind as one number: a storm gust is about 3.5, a bluebird breeze under 0.2.
+    sound.setScene(soundScene!.sample(game.skier.x, game.skier.y, game.skier.z, Math.hypot(gust.windEast, gust.windSouth) / 3.2, soundSceneAge))
+    sound.setKey(music.key())
+    soundSceneAge = 0
+  }
+  sound.update(game.skier, lifts.rideSound())
+  if (!game.ride && !game.pause) haptics.update(game.skier, performance.now())
   effects.setWeather(weatherLive.snowDensity * (1 + gust.strength * 0.2), gust.windEast, gust.windSouth, lighting)
   setHaze(scene, hazeDensity(gust.visibility))
   driftClouds(dt, gust.windEast, gust.windSouth)
@@ -1103,10 +1141,12 @@ function cameraBlocked(x: number, z: number): boolean {
 
 function checkTreeContact(fromX: number, fromZ: number) {
   const hit = resolveTreeContact(game.skier, fromX, fromZ, game.stage.trunks!, game.stage.slope.sampleTerrain)
-  if (hit?.kind === 'crash') tricks.show('Tree!', `${Math.round(hit.into * 3.6)} km/h impact`, 'crash')
-  else if (hit?.kind === 'brush') {
-    // Knocked aside, still riding: a thump like a skier bump, no crash.
-    sound.nearMiss(hit.into * 0.8)
+  if (hit?.kind === 'crash') {
+    tricks.show('Tree!', `${Math.round(hit.into * 3.6)} km/h impact`, 'crash')
+    sound.treeHit(hit.into, true)
+  } else if (hit?.kind === 'brush') {
+    // Knocked aside, still riding: wood and branches, no crash.
+    sound.treeHit(hit.into, false)
     haptics.nearMiss(hit.into * 1.2)
   }
 }
