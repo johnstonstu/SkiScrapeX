@@ -237,6 +237,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
   }
   const { root, skis, boardGroup, body, hips, spine, chest, head, legs, arms } = rig
   const idles = createIdlePlayer()
+  let cruiseTime = 0
   const props = createIdleProps(arms[1].hand)
 
   // ---- Working state --------------------------------------------------------
@@ -1005,7 +1006,13 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // Idle moves: stopped on snow (not pushing, braking or turning), on a surface lift or a chair.
       const stopped = pose === 'stand' || (pose === 'ski' && !crashed && state.grounded && !rail && !air &&
         state.speed < 0.5 && !input.tuck && input.brake < 0.2 && Math.abs(input.steer) < 0.05 && !input.jump)
-      const ip = idles.step(dt, { active: !rig.firstPerson && (pose === 'sit' || stopped), sitting: pose === 'sit', boarding })
+      // Cruising in a straight line for a few seconds earns the small riding moves
+      // (a shoulder check, loosening the shoulders); any input ends them.
+      const cruisingStraight = pose === 'ski' && !crashed && state.grounded && !rail && !air && state.speed > 4 &&
+        !input.tuck && input.brake < 0.1 && Math.abs(input.steer) < 0.08 && !input.jump && Math.abs(state.edgeAngle) < 0.12
+      cruiseTime = cruisingStraight ? cruiseTime + dt : 0
+      const ridingIdle = cruiseTime > 2.5
+      const ip = idles.step(dt, { active: !rig.firstPerson && (pose === 'sit' || stopped || ridingIdle), sitting: pose === 'sit', boarding, riding: ridingIdle })
       props.show(ip)
 
       if (pose === 'sit' || crashed) {

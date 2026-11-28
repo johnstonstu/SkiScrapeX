@@ -22,6 +22,18 @@ export type IdleKind =
   | 'smoke'
   | 'hop'
   | 'legSwing'
+  | 'gloves'
+  | 'neckRoll'
+  | 'squats'
+  | 'scout'
+  | 'wave'
+  | 'strap'
+  | 'zip'
+  | 'armSwing'
+  | 'peer'
+  | 'glanceLeft'
+  | 'glanceRight'
+  | 'shoulders'
 
 export type IdleProp = 'can' | 'cigarette' | null
 
@@ -89,6 +101,8 @@ export interface IdleMove {
   /** Where it can play. */
   standing: boolean
   sitting: boolean
+  /** Small enough to play while cruising in a straight line (head and shoulders only). */
+  riding?: boolean
   skisOnly?: boolean
   boardOnly?: boolean
   /** How often it is picked, relative to the others. Beer and smokes are rare. */
@@ -294,6 +308,187 @@ export const IDLE_MOVES: IdleMove[] = [
       pose.exhale = [4.5, 6.8, 9.1].some((at) => t > at + 0.1 && t < at + 0.8)
     },
   },
+  {
+    kind: 'gloves',
+    duration: 2.6,
+    standing: true,
+    sitting: true,
+    weight: 1.6,
+    apply: (t, pose) => {
+      // Knock the snow off the gloves: three claps in front of the chest.
+      const w = hold(t, 0, 2.6, 0.45)
+      const gap = 0.03 + 0.09 * Math.abs(Math.cos((t - 0.6) * Math.PI * 2.4)) * hold(t, 0.5, 2.1, 0.15) + 0.06 * (1 - hold(t, 0.5, 2.1, 0.15))
+      pose.hands = [target({ x: gap, y: 0.1, z: 0.33 }, w), target({ x: -gap, y: 0.1, z: 0.33 }, w)]
+      pose.headX = 0.22 * w
+    },
+  },
+  {
+    kind: 'neckRoll',
+    duration: 4,
+    standing: true,
+    sitting: true,
+    weight: 1.6,
+    apply: (t, pose) => {
+      // Roll the head round once each way, shoulders easing with it.
+      const w = hold(t, 0, 4, 0.6)
+      const a = (t < 2 ? t / 2 : -(t - 2) / 2) * Math.PI * 2
+      pose.headZ = Math.sin(a) * 0.3 * w
+      pose.headX = (0.1 - Math.cos(a) * 0.22) * w
+      pose.spineZ = Math.sin(a) * 0.04 * w
+    },
+  },
+  {
+    kind: 'squats',
+    duration: 4.2,
+    standing: true,
+    sitting: false,
+    weight: 1.3,
+    apply: (t, pose) => {
+      // Warm the legs up: three knee bends, hands out front for balance.
+      const w = hold(t, 0, 4.2, 0.5)
+      const dip = Math.pow(Math.max(0, Math.sin((t - 0.4) * Math.PI * 0.9)), 2) * hold(t, 0.4, 3.75, 0.1)
+      pose.crouch = 0.34 * dip
+      pose.spineX = 0.12 * dip
+      pose.hands = [target({ x: 0.2, y: 0.08 + 0.06 * dip, z: 0.36 }, w * 0.8), target({ x: -0.2, y: 0.08 + 0.06 * dip, z: 0.36 }, w * 0.8)]
+      pose.headX = -0.08 * dip
+    },
+  },
+  {
+    kind: 'scout',
+    duration: 5,
+    standing: true,
+    sitting: true,
+    weight: 1.8,
+    apply: (t, pose) => {
+      // A hand up to shade the eyes, and a slow look down the hill from side to side.
+      const w = hold(t, 0, 5, 0.6)
+      pose.hands = [target({ x: 0.11, y: 0.5, z: 0.2 }, w), null]
+      pose.headY = Math.sin((t - 0.6) * 1.5) * 0.5 * hold(t, 0.6, 4.6, 0.5)
+      pose.headX = 0.14 * w
+      pose.spineX = 0.1 * w
+    },
+  },
+  {
+    kind: 'wave',
+    duration: 3,
+    standing: true,
+    sitting: true,
+    weight: 0.8,
+    apply: (t, pose) => {
+      // Spot someone off to the right and wave.
+      const w = hold(t, 0, 3, 0.45)
+      pose.hands = [null, target({ x: -0.32 + Math.sin(t * 9) * 0.07 * hold(t, 0.5, 2.5, 0.2), y: 0.6, z: 0.12 }, w)]
+      pose.headY = -0.55 * w
+      pose.headX = -0.08 * w
+      pose.spineZ = -0.05 * w
+    },
+  },
+  {
+    kind: 'strap',
+    duration: 4,
+    standing: true,
+    sitting: false,
+    boardOnly: true,
+    weight: 1.6,
+    apply: (t, pose) => {
+      // Fold down over the front foot and crank the binding strap a few clicks.
+      const w = hold(t, 0, 4, 0.7)
+      const crank = Math.sin(t * 11) * 0.03 * hold(t, 1.1, 2.9, 0.2)
+      pose.crouch = 0.55 * w
+      pose.spineX = 0.7 * w
+      pose.hands = [target({ x: 0.24, y: -0.62 + crank, z: 0.3 }, w), target({ x: -0.18, y: -0.3, z: 0.3 }, w * 0.7)]
+      pose.headX = 0.2 * w
+      pose.headY = 0.3 * w
+    },
+  },
+  {
+    kind: 'zip',
+    duration: 2.4,
+    standing: true,
+    sitting: true,
+    weight: 1.2,
+    apply: (t, pose) => {
+      // Tuck the chin and pull the collar zip up.
+      const w = hold(t, 0, 2.4, 0.45)
+      pose.hands = [null, target({ x: -0.02, y: 0.17 + 0.1 * ramp(t, 0.8, 1.5), z: 0.19 }, w)]
+      pose.headX = 0.3 * hold(t, 0.2, 1.3, 0.3) - 0.12 * hold(t, 1.3, 2.2, 0.3)
+    },
+  },
+  {
+    kind: 'armSwing',
+    duration: 3.4,
+    standing: true,
+    sitting: false,
+    boardOnly: true,
+    weight: 1.2,
+    apply: (t, pose) => {
+      // Cold hands: swing the arms wide and slap them across the chest, three times.
+      const w = hold(t, 0, 3.4, 0.4)
+      const open = 0.5 + 0.5 * Math.cos((t - 0.4) * Math.PI * 2.2)
+      const x = 0.42 * open - 0.14 * (1 - open)
+      const z = 0.12 * open + 0.2 * (1 - open)
+      pose.hands = [target({ x, y: 0.16, z }, w), target({ x: -x, y: 0.12, z: z + 0.02 }, w)]
+      pose.crouch = 0.05 * (1 - open) * w
+      pose.spineX = 0.05 * (1 - open) * w
+    },
+  },
+  {
+    kind: 'peer',
+    duration: 4,
+    standing: false,
+    sitting: true,
+    weight: 1.6,
+    apply: (t, pose) => {
+      // Lean out and look down at the run passing under the chair.
+      const w = hold(t, 0, 4, 0.7)
+      pose.spineX = 0.3 * w
+      pose.headX = 0.45 * w
+      pose.headY = Math.sin(t * 1.1) * 0.4 * w
+    },
+  },
+  {
+    kind: 'glanceLeft',
+    duration: 1.5,
+    standing: false,
+    sitting: false,
+    riding: true,
+    weight: 2,
+    apply: (t, pose) => {
+      // A shoulder check before moving across the run.
+      const w = hold(t, 0, 1.5, 0.4)
+      pose.headY = 0.75 * w
+      pose.spineZ = 0.03 * w
+    },
+  },
+  {
+    kind: 'glanceRight',
+    duration: 1.5,
+    standing: false,
+    sitting: false,
+    riding: true,
+    weight: 2,
+    apply: (t, pose) => {
+      const w = hold(t, 0, 1.5, 0.4)
+      pose.headY = -0.75 * w
+      pose.spineZ = -0.03 * w
+    },
+  },
+  {
+    kind: 'shoulders',
+    duration: 1.8,
+    standing: false,
+    sitting: false,
+    riding: true,
+    weight: 1.5,
+    apply: (t, pose) => {
+      // Loosen up: the shoulders rock once each way and the head tips with them.
+      const w = hold(t, 0, 1.8, 0.4)
+      const rock = Math.sin(t * Math.PI * 2 / 1.8)
+      pose.spineZ = rock * 0.07 * w
+      pose.headZ = -rock * 0.1 * w
+      pose.headX = -0.06 * w
+    },
+  },
 ]
 
 const NEUTRAL: IdlePose = {
@@ -334,9 +529,11 @@ export function createIdlePlayer(random: () => number = Math.random) {
   let fade = 0
   const pose = neutralIdle()
 
-  const pick = (sitting: boolean, boarding: boolean): IdleMove | null => {
+  /** Where the current move started: a move never carries over from standing to riding. */
+  let mode = ''
+  const pick = (sitting: boolean, boarding: boolean, riding: boolean): IdleMove | null => {
     const options = IDLE_MOVES.filter((m) =>
-      (sitting ? m.sitting : m.standing) &&
+      (riding ? m.riding === true : sitting ? m.sitting : m.standing) &&
       !(m.skisOnly && boarding) &&
       !(m.boardOnly && !boarding) &&
       m.kind !== last)
@@ -353,35 +550,40 @@ export function createIdlePlayer(random: () => number = Math.random) {
     /** Force a move (rider lab, tests). */
     play(kind: IdleKind) {
       current = IDLE_MOVES.find((m) => m.kind === kind) ?? null
+      mode = 'any'
       time = 0
       fade = 1
     },
     get current() {
       return current?.kind ?? null
     },
-    step(dt: number, ctx: { active: boolean; sitting: boolean; boarding: boolean }): IdlePose {
+    step(dt: number, ctx: { active: boolean; sitting: boolean; boarding: boolean; riding?: boolean }): IdlePose {
       Object.assign(pose, NEUTRAL, { hands: [null, null], skiLift: [0, 0] })
-      if (!ctx.active) {
+      const riding = ctx.riding === true
+      const now = riding ? 'ride' : ctx.sitting ? 'sit' : 'stand'
+      const active = ctx.active && (!current || mode === now || mode === 'any')
+      if (!active) {
         // Set off: the move fades out over a quarter second, then the timer restarts.
         fade = Math.max(0, fade - dt / 0.25)
         if (fade === 0) {
           current = null
-          wait = ctx.sitting ? 3 : 2
+          wait = riding ? 2.5 + random() * 4 : ctx.sitting ? 3 : 2
         }
       } else if (!current) {
         wait -= dt
         if (wait <= 0) {
-          current = pick(ctx.sitting, ctx.boarding)
+          current = pick(ctx.sitting, ctx.boarding, riding)
+          mode = now
           time = 0
           fade = 1
         }
       } else fade = 1
       if (!current) return pose
-      time += ctx.active ? dt : 0
+      time += active ? dt : 0
       if (time >= current.duration) {
         last = current.kind
         current = null
-        wait = 1.5 + random() * 3.5
+        wait = riding ? 4 + random() * 7 : 1.5 + random() * 3.5
         return pose
       }
       current.apply(time, pose, ctx.sitting)
