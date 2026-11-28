@@ -1594,8 +1594,8 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
           if (Math.sign(edge) === side) hand.y -= insideDrop * 0.08
         }
         // Skating: the arm opposite the pushing leg swings forward.
-        hand.z -= side * stride * 0.3
-        hand.y += Math.max(0, -side * stride) * 0.09
+        hand.z -= side * stride * 0.2
+        hand.y += Math.abs(stride) * 0.04
         // The chest pitches forward with the crouch, which carries chest-space hands down
         // toward the knees: lift them back to the belt line (skiers hold their hands up as
         // they flex, they do not let them sink with the chest).

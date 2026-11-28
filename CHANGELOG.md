@@ -2,6 +2,26 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.53 (unreleased): Rider stance, standstill and transitions
+
+A second rider pass over the whole body: the snowboarder's stance on each edge, how both riders stand still and get going, and the joins between states. Physics, steering and the camera are unchanged. Builds on 0.9.51. (0.9.52 is the sound pass.)
+
+### Changed
+
+- **The snowboarder stands on the board.** In a skidded or pivoted turn the path leans the rider well past the sim's edge angle, and the body hung 25° and more off the side of a nearly flat board: heelside read as sitting in the air behind the heel edge. The board now rolls to within about 6° of the body's lean.
+- **Heelside on extended legs.** The heel edge used to add the deepest crouch (about 63° of knee bend, thighs flat). It now rides at about 45°, the legs lean back into the hill and the chest folds forward over the knees with the pelvis tipping too, so the shoulders stay over the board. Both hands come forward either side of the body. The heel edge draws 72% of the physics lean (toes 80%), and no board lean is drawn past 54°.
+- **Toeside drives the knees.** The knees and hips press toward the snow under a more upright back, instead of the body leaning in as a straight plank.
+- **Board tuck.** A low crouch with the hips and chest turned toward the nose, folded over the front knee, back hand behind the back. It was a bow from the waist out over the toe edge.
+- **Stopped on a hill.** After a hockey stop the sim's edge could settle on the downhill side, and the legs leaned down the hill with it. Below walking pace the skis or board ease onto the uphill edges and the body stands upright.
+- **Standing pose.** Arms hang relaxed with the hands low on the grips and the poles planted just outside the boots, the weight settles onto one leg and shifts now and then, and the chest breathes. The pose blends in and out around walking pace instead of switching.
+- **Pushing and creeping across a hill** no longer wring the chest 65° down the fall line (skating across a slope looked twisted, one arm reaching up the hill): counter-rotation builds with speed and tops out at about 50°.
+- **Takeoff and landing.** The skis and board ease flat in the air instead of snapping level on the frame of takeoff, and the back's forward hinge blends through takeoffs, landings and stops instead of jumping.
+- **Rolls and dips.** The legs give as the snow pushes up and reach as it falls away, from the body's own vertical acceleration.
+- **Rails and air.** Arms ride bent and lower for balance instead of straight out at shoulder height.
+- **Crashes.** The arms are thrown out and up for the first moments of a fall before the hands find the snow, and a fast crash slowly spins on the snow as it slides, squaring up over the get-up.
+- Rider lab: `action=tour` loops through turns, a tuck, a stop, a push off, an ollie, a crash and the get-up; `action=crash` repeats a crash at speed; `amp` scales the steer. The lab's snow is now a patch that follows the rider (one huge quad lost depth precision and swallowed a flat board).
+- `tests/riderDepth.test.ts` covers the board roll, the heelside knees, the uphill edges at a stop, the eased takeoff and the crash spin.
+
 ## 0.9.51 (unreleased): Rider carry and transitions
 
 The skier and snowboarder hold their bodies the way real riders do from the chase camera, studied frame by frame from close follow-cam footage. Physics, steering and the camera are unchanged. Builds on 0.9.48 (independent of the 0.9.49 graphics and 0.9.50 mountain passes).
@@ -15,6 +35,20 @@ The skier and snowboarder hold their bodies the way real riders do from the chas
 - **Free arm out in a grab.** Holding a grab, the free arm swings out and up for balance, clear of the knees the grab pulls up. In the air the arms stay forward and a little wide instead of spread flat.
 - **Board arms relaxed.** A snowboarder's hands ride about hip height and a little out from the body instead of up at the chest with the elbows folded tight. Heelside the chest comes further over the knees.
 - `tests/riderCarry.test.ts` checks the carry through real linked turns: bent elbows, hands ahead of the hips, pole tips out of the snow and flexed knees at the crossover.
+## 0.9.50 (unreleased): Whole-mountain pass
+
+The Quickdraw side checked against the 2023 trail map and the LiDAR fall lines, so the runs go where the hill does and every way down links up. Builds on 0.9.48; numbered after the 0.9.49 graphics pass (PR #137), which it does not depend on.
+
+### Changed
+
+- **West Bank runs under the chair.** It now starts at the Quickdraw unload and follows the lift-line fall line down the chair's south side (left, looking up), 20 to 50 m from the cable, as the trail map draws it and as Stu describes it ("a fun mogul run right underneath the chairlift"). OSM started it on Ridge Run 270 m out and left the lift line as unnamed off-piste. The old Ridge Run entrance stays as a second way in. At the bottom it carries on down its open corridor to Village Traverse instead of stopping in the open.
+- **Grouse Gulch starts at the top** on the chair's north side and links on to West Bank at the bottom.
+- **Getting off Quickdraw.** On the flat summit you used to end facing south-west over the plateau, away from every run. The exit now faces where the hill falls away, around the top station: the front of the mountain, with the Ridge Run, Golden Eagle and Great Wall signs ahead and the chair on your left. Sloped lift tops are unchanged.
+- **Runs join up.** Gromit, K, Magnum and cut L11 now start on the run above them (OSM started them 40 to 75 m short), and cut L11 links on to Grouse Gulch.
+
+### Added
+
+- `tests/mountainNetwork.test.ts`: every run starts on a lift top or another run and ends on a lift bottom or another run, and a bot skis 19 ways down from the Quickdraw top (the lift line, Ridge Run's drops, the bowl and every Wild Side run) to the bottom with no poling.
 ## 0.9.49 (unreleased): Light and atmosphere
 
 A graphics pass on light, air and colour, with the same art direction and models. No new draw calls or triangles on any level. Builds on 0.9.48.

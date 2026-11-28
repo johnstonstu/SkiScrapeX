@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { loadApexWorld } from './apexWorld'
+import { RUN_LINE_FIXES } from '../src/world/corrections'
 import { isClear } from '../src/world/surface'
 import { pointAlong, polylineLength, type Point2, type Run } from '../src/world/resort'
 
@@ -46,8 +47,12 @@ function match(profile: Profile, runs: Run[]): { run: Run; line: Point2[]; lengt
   return best
 }
 
-/** Profiles of skiable lines (parks are the park layouts' business; glades have no line). */
-const lines = profiles.filter((p) => p.lengthM && p.officialDifficulty !== 'park')
+/**
+ * Profiles of skiable lines (parks are the park layouts' business; glades have
+ * no line). Runs whose mapped line the game corrects (RUN_LINE_FIXES: a new top
+ * or a link on to the next run) no longer match the profile's OSM line.
+ */
+const lines = profiles.filter((p) => p.lengthM && p.officialDifficulty !== 'park' && !Object.keys(RUN_LINE_FIXES).some((name) => key(name) === key(p.name)))
 
 describe.skipIf(!hasData || !profiles.length)('runs against the LiDAR run profiles', () => {
   it('finds every profiled run in the game, on a line of the same length', () => {
