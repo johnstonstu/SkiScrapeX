@@ -372,6 +372,8 @@ export const RACE_TRACK_OPEN = 10
  * with no moguls, powder or park underfoot. Null for the judged formats.
  */
 export function raceTrack(course: EventCourse): { line: Point2[]; halfWidth: number } | null {
+  // The mogul comp builds its own bumps: the mapped moguls under its lane go flat while it runs.
+  if (course.moguls) return { line: course.line, halfWidth: course.def.corridor + RACE_TRACK_MARGIN }
   if (!isRaceFormat(course.def.format)) return null
   const gates = course.def.gates
   const halfWidth = gates.kind === 'none' ? RACE_TRACK_OPEN : gates.offset + gates.halfWidth + RACE_TRACK_MARGIN

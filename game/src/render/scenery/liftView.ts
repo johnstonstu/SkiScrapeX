@@ -157,6 +157,11 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       station.position.set(x, ground(x, z), z)
       // Each terminal's detach section faces down the line toward the other end.
       station.rotation.y = yaw + (aerial && atTop ? Math.PI : 0)
+      // Quickdraw top: the operator hut stands on the other side of the unload from where
+      // lifts.glb has it (Stu, 2026-11-28: "the lift shack is on the wrong side"). The
+      // terminal is mirrored until the model is rebuilt with the hut moved
+      // (tools/blender/build_lifts.py, qd_terminal top); it has no lettering to reverse.
+      if (modelled && atTop && kind === 'qd') station.scale.x = -1
       // A station stands at the ground under its centre; where the slope falls away
       // under a corner (a hut, a leg, the end of the deck), reach down to the snow.
       disposables.push(...reachGround(station, ground))

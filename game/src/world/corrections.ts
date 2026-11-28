@@ -64,6 +64,16 @@ export const TRACE_NAMES: Record<string, string> = {
   'Unmapped run L2': 'Prospector',
 }
 
+/**
+ * OSM runs with no name tag that the trail map names, found by where their line starts
+ * (within 30 m). Hidden Gold: the black run from the Stock's top station through the glade
+ * the 2023 map paints between Whipsaw and Finger (see world/glades.ts). It is a glade line,
+ * so it keeps its trees and is not groomed.
+ */
+export const UNNAMED_RUN_NAMES: { start: Point2; name: string; glade?: boolean }[] = [
+  { start: [2089, 1783], name: 'Hidden Gold', glade: true },
+]
+
 /** Saved progress renames: spellings, traces, and split runs (old whole-run results go to the upper part). */
 export const PROGRESS_RENAMES: Record<string, string> = {
   ...RUN_NAMES,
@@ -98,8 +108,9 @@ export const RUN_SPLITS: { name: string; at: [number, number]; upper: string; lo
  * grooming at Apex changes day to day, so these are the usual state, not a rule.
  */
 export const RUN_STYLE: Record<string, { groomed?: boolean; moguls?: boolean; chop?: boolean; packed?: boolean; halfWidth?: number }> = {
-  // Mogul lanes need room; the LiDAR clearing under Quickdraw is wide.
-  'West Bank': { groomed: false, moguls: true, halfWidth: 15 },
+  // Mogul lanes need room; the LiDAR clearing under Quickdraw is wide (49 m median), and
+  // powderhounds.com describes "wide-open bumps such as those under the quad chair".
+  'West Bank': { groomed: false, moguls: true, halfWidth: 20 },
   // A wide big-mountain face, room to ski around the drops.
   'The Pit': { groomed: false, halfWidth: 22 },
   // Moguls seen in frames. Half widths are the LiDAR median open width halved,
@@ -110,6 +121,10 @@ export const RUN_STYLE: Record<string, { groomed?: boolean; moguls?: boolean; ch
   'Make My Day': { groomed: false, moguls: true, halfWidth: 14 },
   // Old Mill: ungroomed with moguls in both clips (70 m open).
   'Old Mill': { groomed: false, moguls: true, halfWidth: 22 },
+  // Kristi's Run: the freestyle mogul course. Stu (2026-11-28): "a man-made mogul run down the middle
+  // that goes right towards the freestyle cabin". The Nor-Am comp lays its own course on top
+  // (world/events.ts flattens these bumps while it runs).
+  "Kristi's Run": { groomed: false, moguls: true },
   // Gunbarrel: already a mogul run in OSM; a narrow corridor (22 m open).
   Gunbarrel: { groomed: false, moguls: true },
   // K2: "narrow ungroomed line" with moguls (61 m open, tight at the top).
@@ -121,6 +136,25 @@ export const RUN_STYLE: Record<string, { groomed?: boolean; moguls?: boolean; ch
   "Grandmother's Trail": { packed: true },
   // A narrow cut (23 m open in the LiDAR); the blue-run default of 40 m cut into its trees.
   'Dawdler 1': { halfWidth: 11.5 },
+  // Accuracy pass (2026-11-28): the wide groomers. The default blue is about 40 m of corduroy,
+  // but these are groomed across clearings 60 to 150 m wide (LiDAR median open width in
+  // run-profiles.json, in brackets) and the footage calls each of them wide: Juniper "wide
+  // groomed open upper slope", Ridge Run "wide groomed slope", Okanagan Run "wide groomed slope
+  // above the village", Golden Eagle "wide groomed corduroy", Village Traverse "wide gentle
+  // traverse", Wild Bill "groomed, wide", Sluice Box "wide groomed run". The groomed width is at most 85% of
+  // the clearing, so the corduroy stays inside the trees with powder left at the edges.
+  // Blacks are left alone: the footage shows Chute and Gunbarrel skied as 15 to 20 m hallways
+  // inside wider clearings. Stock's Traverse (85 m open) stays cat-track width, as filmed.
+  'Okanagan Run': { halfWidth: 38 }, // 108 m
+  Juniper: { halfWidth: 32 }, // 90 to 97 m
+  'Ridge Run': { halfWidth: 32 }, // 93 m
+  'Golden Eagle': { halfWidth: 26 }, // 90 m
+  'Village Traverse': { halfWidth: 28 }, // 79 m
+  'Wild Bill': { halfWidth: 25 }, // 63 m
+  'Sluice Box': { halfWidth: 23 }, // 58 m
+  // No footage; LiDAR only. The Magic Carpet learning slope (151 m open) and the T-Bar face (112 m).
+  'Easy Rider': { halfWidth: 40 },
+  "Adrian's Alley": { halfWidth: 32 },
 }
 
 /**
@@ -153,6 +187,11 @@ export const RUN_LINE_FIXES: Record<string, { head?: Point2[]; keepOldHead?: boo
   },
   // Off the ridge and Chute: OSM starts these 40 to 75 m short of the run above (open snow between).
   'Unnamed cut L11': { head: [[1518, 1437], [1555, 1455]], tail: [[1798, 1320], [1815, 1341]] },
+  // The old aerial site lane starts at the T-Bar unload. Stu (2026-11-28): off the T-Bar the mogul course
+  // (Kristi's) is in the middle, the old aerial site with rollers on its skier's left, the groomed run
+  // (Adrian's Alley) on its right, then trees, then Old Mill. The LiDAR trace started 150 m down; the
+  // head is the open snow between the lift's tree strip and the clump above Kristi's.
+  'Unnamed cut L5': { head: [[1884, 910], [1905, 905], [1930, 903], [1960, 893], [1995, 877], [2030, 860]] },
   Gromit: { head: [[1262, 1318], [1272, 1275]] },
   K: { head: [[1275, 1322], [1297, 1275]] },
   Magnum: { head: [[1404, 1036], [1372, 1020], [1339, 1002]] },
@@ -212,6 +251,12 @@ export const DROPPED_BUILDINGS = new Set(['way/171556518', 'way/171556521', 'way
 export function applyCorrections(resort: Resort): void {
   for (const run of resort.runs) {
     run.name = RUN_NAMES[run.name] ?? run.name
+    const start = run.parts[0]?.[0]
+    const named = run.name === 'Unnamed run' && start ? UNNAMED_RUN_NAMES.find((n) => Math.hypot(n.start[0] - start[0], n.start[1] - start[1]) < 30) : undefined
+    if (named) {
+      run.name = named.name
+      if (named.glade) Object.assign(run, { groomed: false, wooded: true })
+    }
   }
   resort.runs = mergeRuns(resort.runs)
   resort.runs = resort.runs.flatMap((run) => {
