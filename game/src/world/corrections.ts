@@ -51,9 +51,7 @@ export const TRACE_NAMES: Record<string, string> = {
   'Wildside cut 6': 'Showdown',
   'Unmapped run L1': 'Unnamed cut L1',
   'Unmapped run L4': 'Unnamed cut L4',
-  // Identified by Stu (2026-11-28): the cut between the T-Bar and Kristi's Run.
-  'Unmapped run L5': "Andi's Alley",
-  'Unnamed cut L5': "Andi's Alley",
+  'Unmapped run L5': 'Unnamed cut L5',
   'Unmapped run L6': 'Unnamed cut L6',
   'Unmapped run L7': 'Unnamed cut L7',
   'Unmapped run L9': 'Unnamed cut L9',
@@ -123,6 +121,10 @@ export const RUN_STYLE: Record<string, { groomed?: boolean; moguls?: boolean; ch
   'Make My Day': { groomed: false, moguls: true, halfWidth: 14 },
   // Old Mill: ungroomed with moguls in both clips (70 m open).
   'Old Mill': { groomed: false, moguls: true, halfWidth: 22 },
+  // Kristi's Run: the freestyle mogul course. Stu (2026-11-28): "a man-made mogul run down the middle
+  // that goes right towards the freestyle cabin". The Nor-Am comp lays its own course on top
+  // (world/events.ts flattens these bumps while it runs).
+  "Kristi's Run": { groomed: false, moguls: true },
   // Gunbarrel: already a mogul run in OSM; a narrow corridor (22 m open).
   Gunbarrel: { groomed: false, moguls: true },
   // K2: "narrow ungroomed line" with moguls (61 m open, tight at the top).
@@ -185,10 +187,11 @@ export const RUN_LINE_FIXES: Record<string, { head?: Point2[]; keepOldHead?: boo
   },
   // Off the ridge and Chute: OSM starts these 40 to 75 m short of the run above (open snow between).
   'Unnamed cut L11': { head: [[1518, 1437], [1555, 1455]], tail: [[1798, 1320], [1815, 1341]] },
-  // Andi's Alley starts at the T-Bar unload (Stu: "when you get off the T-Bar, it'll be to the skier's
-  // right, near Kristi's run"). The LiDAR trace started 150 m down; the head is the open snow between
-  // the lift's tree strip and the clump above Kristi's.
-  "Andi's Alley": { head: [[1884, 910], [1905, 905], [1930, 903], [1960, 893], [1995, 877], [2030, 860]] },
+  // The old aerial site lane starts at the T-Bar unload. Stu (2026-11-28): off the T-Bar the mogul course
+  // (Kristi's) is in the middle, the old aerial site with rollers on its skier's left, the groomed run
+  // (Adrian's Alley) on its right, then trees, then Old Mill. The LiDAR trace started 150 m down; the
+  // head is the open snow between the lift's tree strip and the clump above Kristi's.
+  'Unnamed cut L5': { head: [[1884, 910], [1905, 905], [1930, 903], [1960, 893], [1995, 877], [2030, 860]] },
   Gromit: { head: [[1262, 1318], [1272, 1275]] },
   K: { head: [[1275, 1322], [1297, 1275]] },
   Magnum: { head: [[1404, 1036], [1372, 1020], [1339, 1002]] },

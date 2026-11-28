@@ -63,27 +63,29 @@ describe.skipIf(!hasData)('whole mountain', () => {
     expect(inside).toBeGreaterThanOrEqual(line!.parts[0].length - 2)
   })
 
-  it("starts Andi's Alley at the T-Bar unload, skier's right, beside Kristi's Run (Stu, 2026-11-28)", () => {
+  it('lays out the T-Bar face as Stu describes it (2026-11-28)', () => {
+    // Off the T-Bar, skier's left to right: the old aerial site lane, the mogul course (Kristi's),
+    // the groomed run (Adrian's Alley), then Old Mill.
     const { resort } = world!
-    const andi = resort.runs.find((run) => run.name === "Andi's Alley" && run.kind === 'line')
-    const kristi = resort.runs.find((run) => run.name === "Kristi's Run" && run.kind === 'line')
     const tbar = resort.lifts.find((lift) => lift.name === 'T-Bar')!
-    expect(andi && kristi).toBeTruthy()
-    expect(andi!.difficulty).toBe('advanced')
-    const line = andi!.parts[0]
-    expect(Math.hypot(line[0][0] - tbar.top[0], line[0][1] - tbar.top[1])).toBeLessThan(15)
-    // Facing down the lift line (top to bottom), the skier's right is the side Kristi's is on.
-    const dx = tbar.bottom[0] - tbar.top[0]
-    const dz = tbar.bottom[1] - tbar.top[1]
-    const side = ([x, z]: Point2) => Math.sign(dx * (z - tbar.top[1]) - dz * (x - tbar.top[0]))
-    const kristiSide = side(kristi!.parts[0][Math.floor(kristi!.parts[0].length / 2)])
-    for (const p of line.slice(1)) expect(side(p)).toBe(kristiSide)
-    // Beside Kristi's for as long as Kristi's runs (Andi's carries on to the T-Bar base below it).
-    const kristiEnd = kristi!.parts[0][kristi!.parts[0].length - 1]
-    for (const [x, z] of line.filter(([px]) => px <= kristiEnd[0])) {
-      const d = Math.min(...kristi!.parts[0].map(([kx, kz]) => Math.hypot(kx - x, kz - z)))
-      expect(d).toBeLessThan(120)
+    const line = (name: string) => resort.runs.find((run) => run.name === name && run.kind === 'line')!.parts[0]
+    /** Where a line crosses x (interpolated), as z: south is the skier's right on this face. */
+    const zAt = (points: Point2[], x: number) => {
+      for (let i = 1; i < points.length; i++) {
+        const [ax, az] = points[i - 1]
+        const [bx, bz] = points[i]
+        if ((ax - x) * (bx - x) <= 0 && ax !== bx) return az + ((bz - az) * (x - ax)) / (bx - ax)
+      }
+      throw new Error(`line does not cross x=${x}`)
     }
+    const aerial = line('Unnamed cut L5')
+    expect(Math.hypot(aerial[0][0] - tbar.top[0], aerial[0][1] - tbar.top[1])).toBeLessThan(15)
+    for (const x of [2100, 2200]) {
+      const order = [zAt([tbar.top, tbar.bottom], x), zAt(aerial, x), zAt(line("Kristi's Run"), x), zAt(line("Adrian's Alley"), x), zAt(line('Old Mill'), x)]
+      expect(order).toEqual([...order].sort((a, b) => a - b))
+    }
+    expect(resort.runs.find((run) => run.name === "Adrian's Alley")!.groomed).toBe(true)
+    expect(resort.runs.find((run) => run.name === "Kristi's Run")!.moguls).toBe(true)
   })
 
   /** Ski `line` with a steering bot (no poling); how it went. */
