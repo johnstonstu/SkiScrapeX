@@ -185,6 +185,8 @@ export interface ResultData {
   improved: boolean
   /** Attempt ended early (off course). */
   failed?: string
+  /** One line on how to score more next time. */
+  advice?: string
   lines: [string, string][]
 }
 
@@ -210,6 +212,7 @@ export function renderResults(
     `<p class="result-main">${!result.failed && result.medal ? medalBadge(result.medal) : ''}<strong>${result.failed ? 'Did not finish' : value(result.value)}</strong></p>` +
     `<p class="result-compare ${result.improved ? 'improved' : ''}">${escapeHtml(compare)}</p>` +
     (next ? `<p class="result-next">${escapeHtml(next)}</p>` : '') +
+    (result.advice ? `<p class="result-advice">${escapeHtml(result.advice)}</p>` : '') +
     `<dl>${result.lines.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join('')}</dl>` +
     '<div class="result-buttons"></div>'
   const row = panel.querySelector('.result-buttons')!

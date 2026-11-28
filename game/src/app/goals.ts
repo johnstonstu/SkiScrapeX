@@ -129,6 +129,8 @@ export function createGoals(options: {
   let lastX = NaN
   let lastZ = NaN
   let unsaved = 0
+  /** Metres on each named run since the lap began (free ski: lift top to lift bottom). */
+  const lap = new Map<string, number>()
 
   const skiedCount = () => skiedRuns(progress, lengths, SKIED_SHARE).length
   const unlocked = () => unlockedIds(progress, skiedCount())
@@ -293,6 +295,7 @@ export function createGoals(options: {
             const length = lengths.get(name)!
             const before = progress.covered[name] ?? 0
             progress.covered[name] = before + step
+            lap.set(name, (lap.get(name) ?? 0) + step)
             if (before < length * SKIED_SHARE && before + step >= length * SKIED_SHARE) {
               const newly = commit(unlocked())
               message = { title: `Skied ${name}`, detail: `${skiedCount()}/${lengths.size} runs${newly.length ? ` · unlocked ${newly.join(', ')}` : ''}` }
@@ -395,6 +398,22 @@ export function createGoals(options: {
         lines: unlockedNow.length ? [...lines, ['Unlocked', unlockedNow.join(', ')]] : lines,
         unlockedNow,
       }
+    },
+
+    /** A new lap starts (a spawn or the top of a lift). */
+    lapReset() {
+      lap.clear()
+    },
+    /**
+     * The run this lap was mostly on: the named run with the most metres, when
+     * that is at least 150 m or 40 percent of the run. Null for a lap of traverses and trees.
+     */
+    lapRun(): string | null {
+      let best: string | null = null
+      let most = 0
+      for (const [name, metres] of lap) if (metres > most) ((most = metres), (best = name))
+      if (!best) return null
+      return most >= Math.min(150, (lengths.get(best) ?? Infinity) * 0.4) ? best : null
     },
 
     /** Free-ski run to a lift: totals only. */

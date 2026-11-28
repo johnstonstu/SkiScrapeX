@@ -649,6 +649,7 @@ function spawn(keepCamera = false) {
   game.goals?.resetGates()
   hudPeek.poke(performance.now())
   tricks.resetTotal()
+  game.goals?.lapReset()
   parkPace.reset()
   // Races are timed, not judged: no trick cards or combos on the course.
   tricks.setMuted(game.challenge.kind === 'event' && isRaceFormat(game.challenge.course.def.format))

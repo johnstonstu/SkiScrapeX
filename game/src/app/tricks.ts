@@ -17,6 +17,22 @@ export const SWEET_SPOT_BONUS = 0.25
 export type LandingSpot = 'sweet' | 'cased' | 'overshot'
 const SPOT_NOTE: Record<LandingSpot, string> = { sweet: 'sweet spot', cased: 'cased', overshot: 'overshot' }
 
+/** The highest combo multiplier. */
+export const MAX_MULTIPLIER = 5
+
+/**
+ * One line of advice for a park results card, from how the run scored: the
+ * scoring rules a first run does not show (repeats halve, new tricks build
+ * the multiplier). Null when there is nothing to teach.
+ */
+export function parkAdvice(stats: { repeats: number; repeatLoss: number; bestMultiplier: number }, tricksLanded: number): string | null {
+  if (tricksLanded === 0) return 'Hold jump on the run-in and let go at the lip. Hold grab in the air.'
+  if (stats.repeats >= 2 && stats.repeatLoss > 0)
+    return `Repeats cost you ${stats.repeatLoss.toLocaleString()} points: the same trick again scores half. Change the grab, add a spin or take a rail.`
+  if (stats.bestMultiplier < 3) return `Your combo reached ×${stats.bestMultiplier} of ×${MAX_MULTIPLIER}. Each different trick in a line adds one.`
+  return null
+}
+
 export interface ComboState {
   tricks: string[]
   /** Tricks that raised the multiplier. */
@@ -37,7 +53,7 @@ export function addToCombo(combo: ComboState, name: string, basePoints: number):
   combo.tricks.push(name)
   combo.points += points
   if (repeats === 0 && points >= COMBO_MIN_POINTS) combo.counted++
-  combo.multiplier = Math.min(5, Math.max(1, combo.counted))
+  combo.multiplier = Math.min(MAX_MULTIPLIER, Math.max(1, combo.counted))
   return points
 }
 
@@ -52,7 +68,7 @@ export function createTrickFeed(element: HTMLElement) {
   // Race formats are timed, not judged: tricks still happen but score nothing and pop nothing.
   let muted = false
   const combo = { tricks: [] as string[], counted: 0, multiplier: 1, points: 0, groundTime: 0, total: 0 }
-  const stats = { perfect: 0, clean: 0, railMetres: 0, bestName: '', bestPoints: 0 }
+  const stats = { landed: 0, perfect: 0, clean: 0, railMetres: 0, bestName: '', bestPoints: 0, repeats: 0, repeatLoss: 0, bestMultiplier: 1 }
   /** Pop a card: title, a small grade line, then points and the combo multiplier. */
   const show = (title: string, detail: string, kind: string, points = '', multiplier = 1) => {
     element.innerHTML =
@@ -82,7 +98,7 @@ export function createTrickFeed(element: HTMLElement) {
       combo.total = 0
       drop()
       lastSeq = 0
-      Object.assign(stats, { perfect: 0, clean: 0, railMetres: 0, bestName: '', bestPoints: 0 })
+      Object.assign(stats, { landed: 0, perfect: 0, clean: 0, railMetres: 0, bestName: '', bestPoints: 0, repeats: 0, repeatLoss: 0, bestMultiplier: 1 })
       window.clearTimeout(timer)
       element.className = ''
     },
@@ -105,7 +121,16 @@ export function createTrickFeed(element: HTMLElement) {
         return true
       }
       const sweet = trick.kind === 'air' && spot === 'sweet'
-      const points = addToCombo(combo, trick.name, Math.round(trick.points * (sweet ? 1 + SWEET_SPOT_BONUS : 1)))
+      const full = Math.round(trick.points * (sweet ? 1 + SWEET_SPOT_BONUS : 1))
+      const points = addToCombo(combo, trick.name, full)
+      // A trick already in this combo scores half each time: say so, and count what it cost.
+      const repeat = points < full
+      stats.landed++
+      if (repeat) {
+        stats.repeats++
+        stats.repeatLoss += full - points
+      }
+      stats.bestMultiplier = Math.max(stats.bestMultiplier, combo.multiplier)
       combo.groundTime = 0
       if (trick.kind === 'rail') stats.railMetres += trick.railMetres
       else if (trick.grade === 'perfect') stats.perfect++
@@ -118,7 +143,7 @@ export function createTrickFeed(element: HTMLElement) {
         ? (trick.grade === 'sketchy' ? 'Slipped off' : 'Clean exit')
         : trick.grade === 'perfect' ? 'Perfect landing' : trick.grade === 'sketchy' ? 'Sketchy landing' : 'Clean landing'
       const note = trick.kind === 'air' && spot ? ` · ${SPOT_NOTE[spot]}${sweet ? ` +${Math.round(SWEET_SPOT_BONUS * 100)}%` : ''}` : ''
-      show(trick.name, grade + note, trick.grade, `+${points.toLocaleString()}`, combo.multiplier)
+      show(trick.name, grade + note + (repeat ? ' · repeat, half points' : ''), trick.grade, `+${points.toLocaleString()}`, combo.multiplier)
       return true
     },
     /**
