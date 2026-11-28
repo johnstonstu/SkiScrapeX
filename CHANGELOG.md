@@ -2,6 +2,21 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.59 (unreleased): Camera on moguls and park jumps
+
+From Stu's playtest of the combined 0.9.56 build: on mogul runs the camera sat too close to the ground, you could not see in front of you and it was snappy; park jumps needed a pass on the way in and on landing. The follow camera's framing is now its own module (`game/src/player/followCamera.ts`, no rendering in it), so it can be run against a bot on the real mountain and measured (`game/tests/cameraFraming.test.ts`).
+
+### Changed
+
+- **The camera keeps its height over the slope, not just over the rider.** Behind the rider is uphill, so on a steep run a camera 2.6 m above the rider's boots ended up skimming the snow: it rode 1.5 m off the ground on Kristi's, Gunbarrel and West Bank and looked along the slope at 2 to 3 degrees, so the snow ahead was a thin strip under the horizon. It now keeps 90% of its height above the slope under itself on any pitch.
+- **On moguls and chop it sits higher, looks further down the hill and holds still.** It lifts 1.2 m, draws back 0.8 m and centres the view 3 m further ahead, tipped down by more of the slope, so the next bumps are in the picture (3.7 m off the snow on those three runs, looking onto the snow 12 m ahead at 6 to 7 degrees). It follows the smooth slope under the bumps instead of the rider's boots and the crests under the camera, a hop off a crest no longer swings it to the line of travel and back, and it reads the fall line from the slope rather than from each bump's face. Vertical bob is down by a third to two thirds and pitch twitch by three quarters or more.
+- **Jumps: it lifts on the run-in, looks past the lip, and in the air rises to look onto the landing.** In 0.9.56 the camera crossed the deck low behind the rider, so the landing was edge-on behind the knuckle until just before touchdown. It now lifts 1.2 m over the last 30 m into a jump, does not tip up the ramp, and in the air lifts up to 2.8 m (scaled by the size of the air) and leans the view toward where the rider will come down. After touchdown it settles back over about a second.
+- **No more jolts at takeoff, landing and when a feature comes into range.** The pull toward the next park feature used to switch on and off in one frame, and it moved the view along its own line as well as sideways, which tipped the picture at every takeoff and landing. It is now sideways only and eased in and out. Pulling in past a tree is still immediate, but the camera eases back out instead of stepping.
+
+### Added
+
+- **Settings, Camera height: Low, Standard or High.** Low is 0.6 m closer to the snow, High 1.2 m further from it. The lift on moguls and into jumps comes on top of any of them.
+
 ## 0.9.58 (unreleased): People on the chairs
 
 Built on the combined 0.9.56 test build.

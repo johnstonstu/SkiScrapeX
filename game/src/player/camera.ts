@@ -1,13 +1,13 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { fallLineHeading, type SampleTerrain, type SkiState, type TrickEvent } from '../sim'
+import type { SampleTerrain, SkiState, TrickEvent } from '../sim'
+import { createFollowCamera, type CameraStyle } from './followCamera'
+
+export { followHeading, steadyHeading, type CameraStyle } from './followCamera'
 
 export type CameraMode = 'follow' | 'first' | 'orbit'
-/**
- * `steady` holds the view down the hill and lets the skier swing across it,
- * like a follow-cam filmer; `tight` turns with the skis.
- */
-export type CameraStyle = 'steady' | 'tight'
+/** Metres the Camera height setting adds to the follow camera. */
+export const CAMERA_LIFT = { low: -0.6, standard: 0, high: 1.2 } as const
 
 /**
  * Third-person follow camera that leans toward the travel direction, plus a
@@ -15,16 +15,16 @@ export type CameraStyle = 'steady' | 'tight'
  */
 export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElement) {
   const target = new THREE.Vector3()
-  const desired = new THREE.Vector3()
+  const follow = createFollowCamera()
   const orbit = new OrbitControls(camera, dom)
   orbit.enabled = false
   orbit.enableDamping = true
   orbit.maxPolarAngle = Math.PI * 0.49
   orbit.minDistance = 4
   orbit.maxDistance = 4000
-  let lookHeight = 0
-  let heading = 0
   let snap = true
+  /** Metres added to the follow height (the Camera height setting). */
+  let lift = 0
   /** Heading snaps but the position eases in: handing over from a held shot without a cut. */
   let ease = false
   /** Seconds since the shot was released; the hand-over tightens as it runs and ends on time, however fast the rider goes. */
@@ -74,6 +74,10 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
     },
     setStyle(next: CameraStyle) {
       style = next
+    },
+    /** Raise or lower the follow camera, metres. */
+    setLift(metres: number) {
+      lift = metres
     },
     /** 0 turns chatter shake and speed FOV off. */
     /** In orbit view, the point the camera looks at (the orbit target); otherwise null. */
@@ -148,7 +152,7 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
       blocked?: (x: number, z: number) => boolean,
       eye?: THREE.Object3D,
       body?: THREE.Object3D,
-      aimHint?: { x: number; z: number; strength?: number } | null,
+      aimHint?: { x: number; z: number; strength?: number; distance?: number; jump?: boolean } | null,
     ) {
       if (mode === 'orbit') {
         orbit.update()
@@ -195,30 +199,24 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
         snap = false
         return
       }
-      heading = followHeading(style, state, sampleTerrain, heading, snap || (ease && easeTime === 0) ? Infinity : dt)
-      // Pull back and up a little with speed.
-      let back = 7.2 + Math.min(4, state.speed * 0.08)
       landing *= Math.exp(-9 * dt)
-      const height = 2.6 + Math.min(1.5, state.speed * 0.03) - landing * shake
-      while (blocked && back > 2.6 && blocked(state.x + Math.sin(heading) * back, state.z - Math.cos(heading) * back)) back -= 0.8
-      desired.set(state.x + Math.sin(heading) * back, state.y + height, state.z - Math.cos(heading) * back)
-      const under = sampleTerrain(desired.x, desired.z)
-      if (under) desired.y = Math.max(desired.y, under.height + 1.4)
-      if (snap) camera.position.copy(desired)
       const handing = ease ? THREE.MathUtils.smoothstep(easeTime / EASE_SECONDS, 0, 1) : 1
-      if (!snap) camera.position.lerp(desired, 1 - Math.exp(-THREE.MathUtils.lerp(2.2, 6, handing) * dt))
-      target.set(state.x - Math.sin(heading) * 8, state.y + 1.1, state.z + Math.cos(heading) * 8)
-      const ahead = sampleTerrain(target.x, target.z)
-      const current = sampleTerrain(state.x, state.z)
-      const gradeDrop = ahead && current ? THREE.MathUtils.clamp((ahead.height - current.height) * 0.55, -3.2, 2) : 0
-      lookHeight = snap ? gradeDrop : THREE.MathUtils.lerp(lookHeight, gradeDrop, 1 - Math.exp(-4 * dt))
-      target.y += lookHeight
-      // Soft line hint toward the next park feature or rail (approach assist).
-      if (aimHint && mode === 'follow' && state.grounded && !state.rail && state.crashed <= 0 && shake > 0 && !motion.matches) {
-        const pull = THREE.MathUtils.clamp(aimHint.strength ?? 0.16, 0, 0.35)
-        target.x = THREE.MathUtils.lerp(target.x, aimHint.x, pull)
-        target.z = THREE.MathUtils.lerp(target.z, aimHint.z, pull)
-      }
+      const effects = shake > 0 && !motion.matches
+      // Out of a held shot the camera starts from where the shot left it.
+      if (ease && easeTime === 0) follow.place(camera.position.x, camera.position.y, camera.position.z)
+      const frame = follow.step(state, sampleTerrain, dt, {
+        style,
+        blocked,
+        aim: mode === 'follow' ? aimHint : null,
+        motion: effects,
+        lift,
+        dip: landing * shake,
+        rate: THREE.MathUtils.lerp(2.2, 6, handing),
+        snap,
+        snapHeading: ease && easeTime === 0,
+      })
+      camera.position.set(frame.x, frame.y, frame.z)
+      target.set(frame.lookX, frame.lookY, frame.lookZ)
       // Edge chatter shakes the view a little.
       if (state.chatter > 0.05 && shake > 0) {
         const k = state.chatter * 0.05 * shake
@@ -242,55 +240,4 @@ export function createCameraRig(camera: THREE.PerspectiveCamera, dom: HTMLElemen
       orbit.dispose()
     },
   }
-}
-
-/**
- * One step of the follow camera's heading. `dt = Infinity` snaps to the target.
- */
-export function followHeading(style: CameraStyle, state: SkiState, sampleTerrain: SampleTerrain, heading: number, dt: number): number {
-  const moving = state.speed > 3
-  const travel = moving ? Math.atan2(-state.vx, state.vz) : state.heading
-  // In the air or on a rail the skis rotate; follow the line of travel instead.
-  const spinning = state.ridingSwitch || !state.grounded || Boolean(state.rail) || state.crashed > 0
-  let targetHeading: number
-  let rate: number
-  if (style === 'steady') {
-    const steady = steadyHeading(state, sampleTerrain, moving ? travel : state.heading, moving)
-    targetHeading = spinning && moving ? travel : steady
-    // Slow to swing, so linked turns move the skier across a still view;
-    // quicker when the skier is heading well off the view (a long traverse).
-    const off = Math.abs(Math.atan2(Math.sin(targetHeading - heading), Math.cos(targetHeading - heading)))
-    // 0.9.40: looser (1.3 to 1.0) and the catch-up starts later (0.9 to 1.2 rad off), so
-    // the view stays on the fall line through held turns. Guesses, tune in play.
-    rate = (spinning ? 3 : 1.0) + 5 * THREE.MathUtils.clamp((off - 1.2) / 0.9, 0, 1)
-  } else {
-    // Mostly the ski heading, so the view turns when you steer rather than
-    // when the path has caught up; travel keeps it steady through skids.
-    targetHeading = spinning && moving ? travel : blendAngle(state.heading, travel, moving ? 0.3 : 0)
-    rate = 7
-  }
-  return blendAngle(heading, targetHeading, 1 - Math.exp(-rate * dt))
-}
-
-/**
- * Where the steady camera points: the travel direction pulled toward the
- * fall line on a real slope, less so the further the skier is traversing
- * away from it, so the view looks down the hill through linked turns.
- */
-export function steadyHeading(state: SkiState, sampleTerrain: SampleTerrain, aim: number, moving: boolean): number {
-  if (!moving) return aim
-  const ground = sampleTerrain(state.x, state.z)
-  if (!ground) return aim
-  const fall = fallLineHeading(ground.normal)
-  if (fall === null) return aim
-  // Full pull from about 9° (was 12°), and it holds further into a traverse (0.6π to 0.75π).
-  const steep = THREE.MathUtils.clamp(Math.hypot(ground.normal.x, ground.normal.z) / 0.15, 0, 1)
-  const off = Math.abs(Math.atan2(Math.sin(fall - aim), Math.cos(fall - aim)))
-  const pull = 0.85 * steep * Math.max(0, 1 - off / (Math.PI * 0.75))
-  return blendAngle(aim, fall, pull)
-}
-
-function blendAngle(current: number, goal: number, amount: number): number {
-  const delta = Math.atan2(Math.sin(goal - current), Math.cos(goal - current))
-  return current + delta * amount
 }
