@@ -1,5 +1,6 @@
 import { createSkiState, SURFACES, type SkiState, type SurfaceKind } from '../sim'
-import type { SfxEngine, UiSound } from '../player/sfx/engine'
+import type { PlacedSound, SfxEngine, UiSound } from '../player/sfx/engine'
+import { planCheer, type CheerPlan, type CheerSize, type CheerVoice, type Shout } from '../player/sfx/crowd'
 import type { SfxRide, SfxScene } from '../player/sfx/mix'
 
 /**
@@ -49,6 +50,63 @@ const UI_ORDER: [UiSound, string][] = [
   ['count', '3'], ['count', '2'], ['count', '1'], ['go', 'GO'], ['gate', 'gate'], ['gate', ''], ['fail', 'missed gate'],
   ['sketchy', 'sketchy landing'], ['clean', 'clean landing'], ['perfect', 'perfect landing'], ['bank', 'points banked'], ['found', 'unlock'], ['finish', 'finish'], ['best', 'new best'],
 ]
+
+/** The lab's own dice for cheers, so a scenario sounds the same every time. */
+function dice(seed: number) {
+  let state = seed >>> 0
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0
+    return state / 2 ** 32
+  }
+}
+
+const solo = (shout: Shout, pitch: number, seconds: number, woman: boolean): CheerPlan => {
+  const voice: CheerVoice = { shout, delay: 0, seconds, pitch, tract: woman ? 1.16 : 1, level: 0.7 }
+  return { voices: [voice], claps: [], seconds }
+}
+
+/** Each kind of shout and clap on its own, from a chair 14 m ahead and 10 m up, with nothing else going on. */
+const CHEER_PARTS: [string, CheerPlan][] = [
+  ['whoop (woman)', solo('woo', 1010, 0.8, true)],
+  ['whoop (man)', solo('woo', 700, 0.7, false)],
+  ['yeww (man)', solo('yeww', 420, 1, false)],
+  ['yeww (woman)', solo('yeww', 600, 0.9, true)],
+  ['yeah (man)', solo('yeah', 265, 0.48, false)],
+  ['yeah (woman)', solo('yeah', 410, 0.45, true)],
+  ['ohh at a crash (man)', solo('ooh', 215, 1, false)],
+  ['ohh at a crash (woman)', solo('ooh', 350, 0.9, true)],
+  ['mittens clapping', { voices: [], claps: [{ delay: 0, count: 7, gap: 0.23, level: 0.6, bright: 0.2, poles: false }], seconds: 1.8 }],
+  ['thin gloves clapping', { voices: [], claps: [{ delay: 0, count: 7, gap: 0.21, level: 0.6, bright: 0.9, poles: false }], seconds: 1.7 }],
+  ['ski poles knocked together', { voices: [], claps: [{ delay: 0, count: 6, gap: 0.17, level: 0.6, bright: 0.5, poles: true }], seconds: 1.3 }],
+]
+
+/**
+ * Ski under a chair, land a jump at 1.5 s and hear the riders as they pass
+ * overhead. The chair starts `ahead` metres down the hill, 11 m up and a
+ * little to the right; skier and chair close at 19 m/s.
+ */
+function cheerPass(id: string, title: string, note: string, size: CheerSize, riders: number, seed: number, ahead = 38): SoundScenario {
+  let sound: PlacedSound | null = null
+  const LAND = 1.5
+  const chair = (t: number): [number, number, number] => [4, 11, -(ahead - (t - LAND) * 19)]
+  return {
+    id, title, note, seconds: 7,
+    frame: (t, engine, fire) => {
+      const inAir = t > 0.4 && t < LAND
+      const crash = size === 'ooh'
+      const state = !inAir && t >= LAND && crash
+        ? skier({ speed: Math.max(0, 15 * (1 - (t - LAND) / 2.4)), crashed: Math.max(0, 4 - t), crashSpeed: 15, mode: 'crashed' })
+        : inAir ? skier({ speed: 15, grounded: false, mode: 'air', vy: -(t - 0.95) * 9.8 })
+        : turns(t, 'groomed', 14, 2.6, 0.55, 0.1)
+      if (t >= LAND && !crash) state.trick = { ...trick('clean', 1.6), seq: 3000 + seed }
+      if (t >= LAND) fire('cheer', () => (sound = engine.chairCheer(planCheer(size, riders, dice(seed)), ...chair(t))))
+      // A crashed skier has stopped: only the chair still moves.
+      const at = chair(crash ? LAND + (t - LAND) * 0.3 : t)
+      if (t >= LAND) sound?.move(...at)
+      return { skier: state, ride: null, scene: { ...QUIET, forest: 0.3 } }
+    },
+  }
+}
 
 export const SCENARIOS: SoundScenario[] = [
   {
@@ -173,6 +231,21 @@ export const SCENARIOS: SoundScenario[] = [
       return { skier: skier({ speed: 5, grounded: false, mode: 'still' }), ride, scene: { ...QUIET, forest: 0.6, station: clamp01(1 - Math.min(s, 88 - s) / 40) } }
     },
   },
+  {
+    id: 'cheer-parts',
+    title: 'Chair riders: each shout and clap on its own',
+    note: CHEER_PARTS.map(([label]) => label).join(' · '),
+    seconds: CHEER_PARTS.length * 2 + 1,
+    frame: (t, engine, fire) => {
+      const index = Math.floor(t / 2)
+      if (index < CHEER_PARTS.length && t - index * 2 > 0.3) fire(`part${index}`, () => engine.chairCheer(CHEER_PARTS[index][1], 3, 10, -14))
+      return { skier: skier({ speed: 0, mode: 'still' }), ride: null, scene: { ...QUIET, wind: 0 } }
+    },
+  },
+  cheerPass('cheer-small', 'Chair riders: a small jump landed under the lift', 'One rider whoops as you pass under the chair.', 'small', 1, 11),
+  cheerPass('cheer-medium', 'Chair riders: a good trick', 'Two riders and some clapping, passing overhead from ahead to behind.', 'medium', 2, 23),
+  cheerPass('cheer-big', 'Chair riders: a big trick', 'A full chair: three voices, clapping and poles.', 'big', 4, 7),
+  cheerPass('cheer-crash', 'Chair riders: a crash under the lift', 'The wince from above.', 'ooh', 2, 5, 24),
   {
     id: 'tbar',
     title: 'T-bar: load, a tower, let go at the top',

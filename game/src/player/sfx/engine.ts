@@ -1,3 +1,4 @@
+import { createCrowd, type CheerPlan } from './crowd'
 import { chimeHz, crashImpact, DEFAULT_KEY, landingImpact, sceneMix, snowCharacter, snowMix, windMix, type ChimeKey, type Impact, type SfxRide, type SfxScene, type SfxSkier } from './mix'
 
 /**
@@ -5,7 +6,8 @@ import { chimeHz, crashImpact, DEFAULT_KEY, landingImpact, sceneMix, snowCharact
  * Continuous layers (snow, wind, lift, ambience) are filtered noise whose
  * levels and colours follow `mix.ts`; one-shots (landings, crashes, trees,
  * lift towers, birds, interface chimes) are built from short noise bursts
- * and tones when they happen.
+ * and tones when they happen. Riders cheering from a chair (`crowd.ts`) are
+ * the one sound placed in space: it passes overhead as you ski under it.
  *
  * Works on any `BaseAudioContext`, so the sound lab can render the same
  * engine offline into a file.
@@ -27,6 +29,19 @@ export interface SfxOptions {
 }
 
 export type SfxEngine = ReturnType<typeof createSfxEngine>
+
+/** A cheer that is playing: keep it on its chair as the chair and the listener move. */
+export interface PlacedSound {
+  /** Where the sound is from the listener: metres right, up and behind (camera space). */
+  move(x: number, y: number, z: number): void
+  /** The audio clock time it ends at. */
+  readonly until: number
+}
+
+/** A voice this far away is at full level; beyond it the level falls with distance. */
+const CHEER_NEAR = 12
+/** Cheers against everything else: heard clearly over the skis, never over a landing. */
+const CHEER_LEVEL = 0.65
 
 interface BurstSpec {
   type?: BiquadFilterType
@@ -431,6 +446,59 @@ export function createSfxEngine(ctx: BaseAudioContext, destination: AudioNode, o
     burst(time, { type: 'lowpass', freq: 190, level: aerial ? 0.22 : 0.12, attack: (ticks * gap) / 2, decay: (ticks * gap) / 2 + 0.2 })
   }
 
+  // --- Riders on a chair cheering: one group of voices, placed in space around the listener.
+  const crowd = createCrowd(ctx, { random, noise: whiteBuffer, burst, tone })
+  const placed: { until: number; nodes: AudioNode[] }[] = []
+  // The listener stays at the origin looking down -Z; sounds are placed in camera space.
+  const place = (node: PannerNode, x: number, y: number, z: number, time: number, tc: number) => {
+    if (node.positionX) {
+      node.positionX.setTargetAtTime(x, time, tc)
+      node.positionY.setTargetAtTime(y, time, tc)
+      node.positionZ.setTargetAtTime(z, time, tc)
+    } else node.setPosition(x, y, z)
+  }
+  const spatial = (x: number, y: number, z: number) => {
+    const node = ctx.createPanner()
+    // HRTF gives height as well as left and right, on headphones at least.
+    node.panningModel = 'HRTF'
+    node.distanceModel = 'inverse'
+    node.refDistance = CHEER_NEAR
+    node.rolloffFactor = 1
+    if (node.positionX) {
+      node.positionX.value = x
+      node.positionY.value = y
+      node.positionZ.value = z
+    } else node.setPosition(x, y, z)
+    return node
+  }
+  /** Distance takes the top off a voice before it takes the level. */
+  const airHz = (x: number, y: number, z: number) => Math.max(1800, 11000 - Math.hypot(x, y, z) * 95)
+  // Loading the HRTF data takes a moment the first time: do it now, not on the first cheer.
+  spatial(0, 0, -1)
+
+  function chairCheer(plan: CheerPlan, x: number, y: number, z: number): PlacedSound {
+    const time = ctx.currentTime + 0.03
+    const bus = gain(CHEER_LEVEL)
+    const air = filter('lowpass', airHz(x, y, z))
+    const pan = spatial(x, y, z)
+    chain(bus, air, pan, world)
+    // The shout comes back off the slope a moment later, duller.
+    const echo = ctx.createDelay(0.6)
+    echo.delayTime.value = 0.19 + random() * 0.12
+    chain(bus, echo, filter('lowpass', 1500), gain(0.14), pan)
+    crowd.play(time, plan, bus)
+    const until = time + plan.seconds + 0.7
+    placed.push({ until, nodes: [bus, air, echo, pan] })
+    return {
+      until,
+      move(nx, ny, nz) {
+        const now = ctx.currentTime
+        place(pan, nx, ny, nz, now, 0.04)
+        air.frequency.setTargetAtTime(airHz(nx, ny, nz), now, 0.1)
+      },
+    }
+  }
+
   let airborne = false, crashed = false, onRail = false
   let descent = 0
   let lastTrick = 0
@@ -448,6 +516,11 @@ export function createSfxEngine(ctx: BaseAudioContext, destination: AudioNode, o
     const t = ctx.currentTime
     const dt = Math.max(0, Math.min(0.1, t - lastTime))
     lastTime = t
+    for (let i = placed.length - 1; i >= 0; i--) {
+      if (t < placed[i].until) continue
+      for (const node of placed[i].nodes) node.disconnect()
+      placed.splice(i, 1)
+    }
     const isRiding = Boolean(ride)
     const { loose } = snowCharacter(s.surface)
 
@@ -646,6 +719,8 @@ export function createSfxEngine(ctx: BaseAudioContext, destination: AudioNode, o
     setPaused(paused: boolean) {
       world.gain.setTargetAtTime(paused ? 0 : 1, ctx.currentTime, 0.03)
     },
+    /** Riders on a chair react to a landing; the position is in camera space (see `PlacedSound`). */
+    chairCheer,
     /** Soft whoosh when another skier passes close without contact. */
     nearMiss(closing: number) {
       const level = Math.min(1, closing / 8)

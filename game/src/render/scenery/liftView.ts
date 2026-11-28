@@ -16,6 +16,56 @@ const STATION_HEIGHT = 4.5
 const HALF_GAUGE = 2.6
 const AERIAL = new Set(['chair_lift', 'gondola', 'mixed_lift', 'cable_car'])
 const SEAT_DROP = 2.3
+/** Share of the chairs going up that carry anyone: a quiet day. */
+const CHAIR_OCCUPANCY = 0.4
+/** Where riders sit across the bench, metres from the middle. */
+const QUAD_SEATS = [-0.83, -0.28, 0.28, 0.83]
+const TRIPLE_SEATS = [-0.55, 0, 0.55]
+/** Riders appear and leave inside the terminals, this far from each end of the line. */
+const RIDER_MARGIN = 7
+/** Beyond this from the camera a seated rider is a speck: not drawn. */
+const RIDER_DRAW_DISTANCE = 700
+const RIDER_JACKETS = [0xd8452e, 0x2f6fb5, 0xe8b530, 0x3a9a5c, 0x8a4fb0, 0xe57b2a, 0x2aa7b8, 0xd94f8a, 0x2c3440, 0xc9ccd1]
+
+/** A chair on its way up with people on it. */
+export interface ChairRiders {
+  /** Names the chair for `chairSeat` and `cheer` until it reaches the top. */
+  id: number
+  liftId: string
+  /** How many people are on it. */
+  riders: number
+  /** The middle of the bench. */
+  x: number
+  y: number
+  z: number
+  /** Unit direction of travel (the way the riders face), on the map. */
+  facingX: number
+  facingZ: number
+}
+
+/** 0..1 from three whole numbers, the same every time. */
+function chance(a: number, b: number, c: number): number {
+  let h = (Math.imul(a + 1, 0x9e3779b1) ^ Math.imul(b + 1, 0x85ebca6b) ^ Math.imul(c + 1, 0xc2b2ae35)) >>> 0
+  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0
+  h = Math.imul(h ^ (h >>> 12), 0x297a2d39) >>> 0
+  return ((h ^ (h >>> 15)) >>> 0) / 2 ** 32
+}
+
+/**
+ * Who is on chair `chair` of lift `lift` on its `lap`th trip up: a bit mask of
+ * taken seats (0 for an empty chair). Most chairs are empty, pairs are the
+ * most common, and a full chair is rare.
+ */
+export function chairSeats(lift: number, chair: number, lap: number, seats: number): number {
+  if (chance(lift, chair, lap * 2) >= CHAIR_OCCUPANCY) return 0
+  const pick = chance(lift, chair, lap * 2 + 1)
+  const count = Math.min(seats, pick < 0.3 ? 1 : pick < 0.72 ? 2 : pick < 0.93 ? 3 : 4)
+  // People sit together, from one side or the other.
+  const fromLeft = chance(chair, lift, lap + 7) < 0.5
+  let mask = 0
+  for (let k = 0; k < count; k++) mask |= 1 << (fromLeft ? k : seats - 1 - k)
+  return mask
+}
 
 export interface RidePath {
   points: THREE.Vector3[]
@@ -80,6 +130,10 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
     /** T-bar crossbars; `chairs` then holds the stems, scaled to reach the snow. */
     bars?: THREE.InstancedMesh
     distance: number
+    /** Chairlifts: where people sit across the bench. */
+    seats?: readonly number[]
+    /** Times the rope has been all the way round, so each trip up brings different people. */
+    laps: number
   }[] = []
   const transform = new THREE.Object3D()
   const housings: THREE.Object3D[] = []
@@ -240,7 +294,7 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       const bars = new THREE.InstancedMesh(bar, tbarYellow, count)
       chairs.frustumCulled = bars.frustumCulled = false
       group.add(chairs, bars)
-      ropes.push({ liftId: lift.id, circuit, uphill, chairs, bars, distance: 0 })
+      ropes.push({ liftId: lift.id, circuit, uphill, chairs, bars, distance: 0, laps: 0 })
       continue
     }
     const model = models && mergedAsset(models, triple ? 'st_chair' : 'qd_chair')
@@ -251,8 +305,43 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
     chairs.castShadow = true
     chairs.frustumCulled = false
     group.add(chairs)
-    ropes.push({ liftId: lift.id, circuit, uphill, chairs, distance: 0 })
+    ropes.push({ liftId: lift.id, circuit, uphill, chairs, distance: 0, seats: triple ? TRIPLE_SEATS : QUAD_SEATS, laps: 0 })
   }
+
+  // People on some of the chairs going up: one instanced body and one pair of arms each, in two draw calls.
+  const riderCapacity = ropes.reduce((sum, rope) => sum + (rope.seats ? rope.chairs.count * 2 : 0), 0)
+  const riderMaterial = new THREE.MeshLambertMaterial({ vertexColors: true })
+  const riderBodies = riderCapacity ? new THREE.InstancedMesh(seatedBody(), riderMaterial, riderCapacity) : null
+  const riderArms = riderCapacity ? new THREE.InstancedMesh(seatedArms(), riderMaterial, riderCapacity) : null
+  disposables.push(riderMaterial)
+  for (const mesh of [riderBodies, riderArms]) {
+    if (!mesh) continue
+    mesh.name = 'chair-riders'
+    mesh.frustumCulled = false
+    // Allocate the colours before the first draw, then start with nobody.
+    mesh.setColorAt(0, new THREE.Color(0xffffff))
+    mesh.count = 0
+    disposables.push(mesh.geometry)
+    group.add(mesh)
+  }
+  const jackets = RIDER_JACKETS.map((hex) => new THREE.Color(hex))
+  /** Chair id to when its riders started cheering and for how long (seconds on `clock`). */
+  const cheering = new Map<number, { from: number; until: number }>()
+  let clock = 0
+  const viewer = new THREE.Vector3(Infinity, 0, 0)
+  const chairMatrix = new THREE.Matrix4()
+  const seat = new THREE.Object3D()
+  const chairId = (rope: number, chair: number, lap: number) => rope * 1e6 + (lap % 1000) * 1000 + chair
+  const lapOf = (rope: (typeof ropes)[number], chair: number, spacing: number) => rope.laps + (rope.distance + chair * spacing >= rope.circuit.total ? 1 : 0)
+  /** Seats taken on a chair right now: none on the way down, in the terminals, or on the player's own chair. */
+  const seatsTaken = (index: number, chair: number, s: number, spacing: number, own: number | null) => {
+    const rope = ropes[index]
+    if (!rope.seats || s < RIDER_MARGIN || s > rope.uphill.total - RIDER_MARGIN) return 0
+    if (own !== null && Math.abs(s - own) < spacing / 2) return 0
+    return chairSeats(index, chair, lapOf(rope, chair, spacing), rope.seats.length)
+  }
+  let ownLift: string | null = null
+  let ownS = 0
 
   const point = new THREE.Vector3()
   const local = new THREE.Vector3()
@@ -261,6 +350,7 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
     object: group,
     /** Hide a terminal's housing and hood while the camera is inside or right under it (boarding, unloading). */
     clearView(camera: THREE.Vector3) {
+      viewer.copy(camera)
       for (const station of housings) {
         const h = station.userData.housing as { parts: THREE.Mesh[]; halfWidth: number; from: number; to: number; top: number }
         station.worldToLocal(local.copy(camera))
@@ -281,11 +371,21 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
       rope.uphill.spacing = spacing
       rope.uphill.boardingDistance = rope.distance % spacing
     },
-    update(dt: number, fastLift?: string) {
-      for (const rope of ropes) {
+    /** `riding`: the lift and distance up it of the chair the player is on, which then carries nobody else. */
+    update(dt: number, fastLift?: string, riding?: { liftId: string; s: number } | null) {
+      clock += dt
+      ownLift = riding?.liftId ?? null
+      ownS = riding?.s ?? 0
+      let riders = 0
+      for (const [key, cheer] of cheering) if (clock > cheer.until) cheering.delete(key)
+      for (const [index, rope] of ropes.entries()) {
         const spacing = rope.circuit.total / rope.chairs.count
         rope.uphill.spacing = spacing
-        rope.distance = (rope.distance + dt * rope.uphill.speed * (rope.liftId === fastLift ? 6 : 1)) % rope.circuit.total
+        rope.distance += dt * rope.uphill.speed * (rope.liftId === fastLift ? 6 : 1)
+        if (rope.distance >= rope.circuit.total) {
+          rope.distance %= rope.circuit.total
+          rope.laps++
+        }
         rope.uphill.boardingDistance = rope.distance % spacing
         for (let i = 0; i < rope.chairs.count; i++) {
           const s = (rope.distance + i * spacing) % rope.circuit.total
@@ -307,10 +407,83 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
           }
           transform.updateMatrix()
           rope.chairs.setMatrixAt(i, transform.matrix)
+          if (!riderBodies || !riderArms || !rope.seats) continue
+          const taken = seatsTaken(index, i, s, spacing, rope.liftId === ownLift ? ownS : null)
+          if (!taken || point.distanceToSquared(viewer) > RIDER_DRAW_DISTANCE ** 2) continue
+          const lap = lapOf(rope, i, spacing)
+          const cheer = cheering.get(chairId(index, i, lap))
+          chairMatrix.copy(transform.matrix)
+          for (let k = 0; k < rope.seats.length && riders < riderCapacity; k++) {
+            if (!(taken & (1 << k))) continue
+            const who = chance(i * 7 + k, index, lap)
+            // Friends on one chair wear different jackets.
+            const jacket = jackets[(Math.floor(chance(i, lap, index + 5) * jackets.length) + k * 3) % jackets.length]
+            // The bench is SEAT_DROP below the grip; riders sit on it facing up the line.
+            seat.position.set(rope.seats[k], -SEAT_DROP + 0.04, -0.04)
+            seat.rotation.set(0, (who - 0.5) * 0.3, 0)
+            seat.scale.setScalar(0.94 + who * 0.12)
+            seat.updateMatrix()
+            seat.matrix.premultiply(chairMatrix)
+            riderBodies.setMatrixAt(riders, seat.matrix)
+            riderBodies.setColorAt(riders, jacket)
+            // Arms rest toward the bar, or go up and wave while cheering (each rider a beat apart).
+            const since = cheer ? clock - cheer.from - who * 0.25 : -1
+            const up = cheer && since > 0 ? Math.min(1, since / 0.18, Math.max(0, cheer.until - clock) / 0.3) : 0
+            seat.position.set(rope.seats[k], -SEAT_DROP + 0.04 + SHOULDER_HEIGHT * seat.scale.y, -0.1)
+            seat.rotation.set(-0.95 - up * (1.75 + Math.sin(since * 13 + who * 6) * 0.22), (who - 0.5) * 0.3, 0)
+            seat.updateMatrix()
+            seat.matrix.premultiply(chairMatrix)
+            riderArms.setMatrixAt(riders, seat.matrix)
+            riderArms.setColorAt(riders, jacket)
+            riders++
+          }
         }
         rope.chairs.instanceMatrix.needsUpdate = true
         if (rope.bars) rope.bars.instanceMatrix.needsUpdate = true
       }
+      for (const mesh of [riderBodies, riderArms]) {
+        if (!mesh) continue
+        mesh.count = riders
+        mesh.instanceMatrix.needsUpdate = true
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+      }
+    },
+    /** Chairs with riders on the way up within `range` metres of a point, nearest first. */
+    ridersNear(x: number, y: number, z: number, range: number): ChairRiders[] {
+      const found: (ChairRiders & { d: number })[] = []
+      for (const [index, rope] of ropes.entries()) {
+        if (!rope.seats) continue
+        const spacing = rope.circuit.total / rope.chairs.count
+        for (let i = 0; i < rope.chairs.count; i++) {
+          const s = (rope.distance + i * spacing) % rope.circuit.total
+          const taken = seatsTaken(index, i, s, spacing, rope.liftId === ownLift ? ownS : null)
+          if (!taken) continue
+          const yaw = sampleRide(rope.circuit, s, point)
+          const d = Math.hypot(point.x - x, point.y - SEAT_DROP - y, point.z - z)
+          if (d > range) continue
+          let riders = 0
+          for (let k = 0; k < rope.seats.length; k++) if (taken & (1 << k)) riders++
+          found.push({ id: chairId(index, i, lapOf(rope, i, spacing)), liftId: rope.liftId, riders, x: point.x, y: point.y - SEAT_DROP + 0.6, z: point.z, facingX: Math.sin(yaw), facingZ: Math.cos(yaw), d })
+        }
+      }
+      return found.sort((a, b) => a.d - b.d)
+    },
+    /** Where a chair from `ridersNear` is now (about head height on the bench). False once it has reached the top. */
+    chairSeat(id: number, out: THREE.Vector3): boolean {
+      const rope = ropes[Math.floor(id / 1e6)]
+      const chair = id % 1000
+      if (!rope?.seats || chair >= rope.chairs.count) return false
+      const spacing = rope.circuit.total / rope.chairs.count
+      if (chairId(Math.floor(id / 1e6), chair, lapOf(rope, chair, spacing)) !== id) return false
+      const s = (rope.distance + chair * spacing) % rope.circuit.total
+      if (s > rope.uphill.total) return false
+      sampleRide(rope.circuit, s, out)
+      out.y -= SEAT_DROP - 0.6
+      return true
+    },
+    /** The riders on a chair throw their arms up for `seconds`, starting after `delay`. */
+    cheer(id: number, seconds: number, delay = 0) {
+      cheering.set(id, { from: clock + delay, until: clock + delay + seconds })
     },
     dispose() {
       for (const item of disposables) item.dispose()
@@ -318,6 +491,8 @@ export function createLiftView(lifts: Lift[], heightAt: (x: number, z: number) =
         rope.chairs.dispose()
         rope.bars?.dispose()
       }
+      riderBodies?.dispose()
+      riderArms?.dispose()
     },
   }
 }
@@ -420,6 +595,56 @@ function chair(): THREE.BufferGeometry {
   frame.dispose()
   pads.dispose()
   return geometry
+}
+
+/** Height of a seated rider's shoulders above the bench. */
+const SHOULDER_HEIGHT = 0.52
+
+/** Paint a geometry one colour; instances then tint it with their jacket colour. */
+function tinted(geometry: THREE.BufferGeometry, shade: number): THREE.BufferGeometry {
+  const flat = geometry.index ? geometry.toNonIndexed() : geometry
+  if (flat !== geometry) geometry.dispose()
+  flat.deleteAttribute('uv')
+  const colors = new Float32Array(flat.attributes.position.count * 3).fill(shade)
+  flat.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  return flat
+}
+
+/**
+ * Someone sitting on a chair, seen from the snow 10 m or more below: jacket,
+ * helmet, legs out over the footrest and skis. Origin on the bench under
+ * them, facing +Z. The jacket takes the instance colour; trousers, helmet and
+ * skis are dark shades of it.
+ */
+function seatedBody(): THREE.BufferGeometry {
+  const head = new THREE.IcosahedronGeometry(0.125, 1)
+  head.translate(0, 0.76, -0.02)
+  const parts = [
+    tinted(box(0.4, 0.5, 0.24, 0, 0.33, -0.06, -0.06), 1),
+    tinted(head, 0.22),
+    // Goggles.
+    tinted(box(0.19, 0.07, 0.04, 0, 0.78, 0.1), 0.9),
+  ]
+  for (const x of [-0.11, 0.11]) {
+    parts.push(tinted(box(0.15, 0.15, 0.46, x, 0.08, 0.2), 0.28))
+    parts.push(tinted(box(0.13, 0.44, 0.14, x, -0.17, 0.44, 0.12), 0.28))
+    parts.push(tinted(box(0.09, 0.025, 1.55, x, -0.42, 0.62, -0.1), 0.5))
+  }
+  const merged = mergeGeometries(parts)!
+  for (const part of parts) part.dispose()
+  return merged
+}
+
+/** Both arms, hanging from the shoulders at the origin: turned about X to reach the bar or wave overhead. */
+function seatedArms(): THREE.BufferGeometry {
+  const parts = [-0.25, 0.25].flatMap((x) => [
+    tinted(box(0.11, 0.5, 0.11, x, -0.25, 0), 1),
+    // Mittens.
+    tinted(box(0.12, 0.13, 0.12, x, -0.55, 0), 0.2),
+  ])
+  const merged = mergeGeometries(parts)!
+  for (const part of parts) part.dispose()
+  return merged
 }
 
 /**
