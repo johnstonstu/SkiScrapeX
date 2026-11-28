@@ -42,6 +42,9 @@ const st = (page) => page.evaluate(() => { const g = window.__game, s = g.skier;
   const p = await open('')
   out.title = await st(p)
   await p.locator('.title-buttons button').filter({ hasText: /Free ski|Continue/ }).first().click()
+  // Since 0.9.56 the first Free ski of a page load shows the drop-in pick screen first.
+  const dropIn = p.locator('.dropin .go')
+  if (await dropIn.isVisible().catch(() => false)) await dropIn.click()
   await p.waitForTimeout(500)
   out.boarding = await st(p)
   await p.waitForTimeout(12000)
