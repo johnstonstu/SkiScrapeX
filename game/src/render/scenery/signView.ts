@@ -23,6 +23,46 @@ export interface PlaceLabel {
   y: number
 }
 
+/** How far down its run a trail-head board stands, and how far to the skier's right, metres. */
+const SIGN = { along: 6, aside: 9, facing: 8, crowd: 30, crowdedAlong: 34, apart: 12, step: 14, tries: 5 } as const
+
+/**
+ * Where each run's trail-head board stands: a few metres down the run on the
+ * skier's right. Where several runs start together (the top of Quickdraw, a
+ * fork), each board moves further down its own run, so the boards fan out with
+ * the runs instead of standing in one clump, and no two boards stand within
+ * `apart` metres (Stu, 2026-11-28: at the top "the signage can be fixed, there's
+ * just a lot of overlapping things").
+ */
+export function trailSignSpots(runs: readonly Run[]): Map<string, { x: number; z: number; x0: number; z0: number; x1: number; z1: number }> {
+  const heads: { name: string; line: [number, number][] }[] = []
+  const seen = new Set<string>()
+  for (const run of runs) {
+    if (run.kind !== 'line' || !run.name || run.name === 'Unnamed run' || seen.has(run.name) || !run.parts[0] || run.parts[0].length < 2) continue
+    seen.add(run.name)
+    heads.push({ name: run.name, line: run.parts[0] })
+  }
+  const at = (line: [number, number][], along: number) => {
+    const [x0, z0] = pointAlong(line, along)
+    const [x1, z1] = pointAlong(line, along + SIGN.facing)
+    const length = Math.hypot(x1 - x0, z1 - z0) || 1
+    return { x: x0 - ((z1 - z0) / length) * SIGN.aside, z: z0 + ((x1 - x0) / length) * SIGN.aside, x0, z0, x1, z1 }
+  }
+  const spots = new Map<string, ReturnType<typeof at>>()
+  for (const head of heads) {
+    const [sx, sz] = head.line[0]
+    const crowded = heads.some((other) => other !== head && Math.hypot(other.line[0][0] - sx, other.line[0][1] - sz) < SIGN.crowd)
+    let along: number = crowded ? SIGN.crowdedAlong : SIGN.along
+    let spot = at(head.line, along)
+    for (let i = 0; i < SIGN.tries && [...spots.values()].some((o) => Math.hypot(o.x - spot.x, o.z - spot.z) < SIGN.apart); i++) {
+      along += SIGN.step
+      spot = at(head.line, along)
+    }
+    spots.set(head.name, spot)
+  }
+  return spots
+}
+
 export function createSignView(
   runs: Run[],
   peaks: Peak[],
@@ -53,16 +93,13 @@ export function createSignView(
   const batch = createStaticBatch()
   const faces: THREE.Mesh[] = []
 
+  const spots = trailSignSpots(runs)
   for (const run of runs) {
     if (run.kind !== 'line' || !run.name || run.name === 'Unnamed run' || seen.has(run.name)) continue
     seen.add(run.name)
-    const line = run.parts[0]
-    const [x0, z0] = pointAlong(line, 6)
-    const [x1, z1] = pointAlong(line, 14)
-    const length = Math.hypot(x1 - x0, z1 - z0) || 1
-    // Stand the sign at skier's-right edge of the run, a few metres in.
-    const x = x0 - ((z1 - z0) / length) * 9
-    const z = z0 + ((x1 - x0) / length) * 9
+    const spot = spots.get(run.name)
+    if (!spot) continue
+    const { x, z, x0, z0, x1, z1 } = spot
     const ground = heightAt(x, z)
     if (!Number.isFinite(ground)) continue
     // A timber trail-head board facing skiers coming down from above.

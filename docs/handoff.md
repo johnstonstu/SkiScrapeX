@@ -31,6 +31,15 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 - Graphics passes add no draw calls unless they say so. Compare draw calls and triangles with `scripts/perf-spots.mjs` before and after.
 - To see a real GPU (headless Chrome only has SwiftShader), run Claude Code with `claude --chrome` and the Claude extension signed in, then read the console from the maintainer's Chrome.
 
+## Sound
+
+- `src/player/sfx/mix.ts` is the sound design as numbers: it maps the sim state to gains and filter frequencies for each layer (`snowMix`, `windMix`, `landingImpact`, `crashImpact`, `sceneMix`). It is pure and tested in `tests/sfx.test.ts`. Tune the feel here.
+- `src/player/sfx/engine.ts` builds the Web Audio graph and plays one-shots (`burst` is filtered noise, `tone` is a decaying oscillator). It runs on any `BaseAudioContext`. World sounds go through a bus that a menu silences; interface sounds bypass it. Low, ringing sounds (tree trunks, tower sheaves) are tones, because a narrow band of noise is too quiet to hear.
+- `src/player/audio.ts` owns the page's `AudioContext`: the first-gesture start, the Sound button, the volume and sleeping while hidden. `src/app/soundScene.ts` works out where the rider is (village, station, forest, summit) a few times a second.
+- Hooks: `sound.update(skier, lifts.rideSound())` each frame, `sound.treeHit`, `sound.nearMiss`, `sound.ui(kind)`. Cards from the trick feed chime through `sfx/cards.ts`.
+- Sound lab: `sound.html` plays the scripted moments in `src/tools/soundScenarios.ts` and has sliders for the snow and wind. `window.renderScenario(id)` renders one offline with seeded noise and returns the samples, which is how the review clips were made (headless Chromium, written to WAV). Add a scenario when adding a sound.
+- Optional recorded one-shots in `game/public/audio/` (`plant.wav`, `landing.wav`, `latch.wav`) are layered quietly on the synthesized ones.
+
 ## Rider lab
 
 - `rider.html?pose=tuck,carve-left` shows only those poses; add `&anim` to play them.
@@ -114,6 +123,14 @@ Practical notes for anyone (human or agent) picking up the code. Read them with 
 
 Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
 
+### Menu to skiing (0.9.56)
+
+- Free ski from the title goes through `ui/dropIn.ts` (skis or snowboard and one of the starter riders in `app/riders.ts`) once per page load, then `lifts.arriveByChair()`.
+- The opening film is a lift ride with `ride.opening` set (`app/game/liftRide.ts`). `arrivalShot` holds two camera shots through `rig.holdShot(position, look, cut, fov)`: `chairShot` rides with the chair until `OPENING_CUT` metres from the top, then `groundShotPosition` waits low behind the ready spot with `groundLens` opening as the rider approaches. The maths is in `app/game/arrival.ts` and has no Three.js. `ui/cinematic.ts` owns the bars, the place card, Skip and hiding the HUD (`body.cinematic`, then `body.hud-enter`).
+- Chairs unload along `unloadPath`: straight down the ramp, then one round turn to the facing `chooseExit` picked. The ready spot is the end of that turn (`exit.stop`), not `exit.spot`. If buildings or trees block every radius it falls back to the old straight glide and pivot.
+- `app/hints.ts` owns the `#help` line: free-ski prompts, saved under `skiscrapex.hints`. Clear that key to see them again.
+- Capturing the film headless needs frame-stepped time: override `requestAnimationFrame` and `performance.now`, and step `document.getAnimations()` by hand, or the CSS card and bars run on wall-clock time while SwiftShader renders at about one frame a second.
+
 ## Music
 
 - `src/player/musicState.ts` picks the mood (pure, thresholds in `MUSIC_TUNING`); `musicClock.ts` is the bar scheduler; `musicScore.ts` the key, progression, patterns and the per-mood stem mix (`MOOD_MIX`); `musicVoices.ts` the synths; `music.ts` the Web Audio graph, track player and settings glue.
@@ -129,6 +146,7 @@ Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
   - Trees: `HARD_HIT` 8 m/s, `BRUSH_LOSS` and `CLEAR_LINE` in `src/world/treeSkiing.ts`, and `crashGraceTime` 2.5 s.
   - Controls and camera: `STICK_VERTICAL_SHARE` 0.7 in `src/player/input.ts`, and the steady camera rate (1.0) and fall-line pull in `src/player/camera.ts`.
   - Before changing any of them, compare with `npm run tune`: `tuning/inputs.test.ts` (keys, pad and touch, each snow, camera) and `tuning/trees.test.ts`.
+- Rider stance (0.9.53, `skierView.ts`): `BOARD_LEAN_PAST` (how far the body leans past the board before the board rolls with it), `BOARD_LEAN_HEEL` and `BOARD_MAX_INCLINE`, `BOARD_TORSO_HEEL` and `BOARD_TORSO_TOE` (jackknife and bow), `BOARD_PELVIS_SHARE`, `BOARD_HEEL_CROUCH` and `BOARD_TOE_CROUCH`, `MAX_COUNTER`. `stillBlend` and `hingeBlend` ease the standing pose and the back's hinge; `resting` eases the edge to the uphill side below walking pace. `crashSpin` is in `skierCrashPose.ts`. Review with `rider.html?sim&action=tour&cam=back` (add `model=snowboard`); `tests/riderDepth.test.ts` guards them. Note that `tests/riderTurns.test.ts` and `tests/riderCarry.test.ts` step the sim once per 60 Hz frame, which is half real time.
 - Rider carry (0.9.51, all in `src/render/rider/skierView.ts`): `CARRY_REACH` (elbow bend), `CARRY_LIFT` and `PITCH_HAND_LIFT` (hand height), `POLE_CARRY_BACK` and `POLE_CARRY_OUT` (pole hang), `HAND_HZ` and `HAND_ZETA` (hand follow-through), `TURN_HOLD_DECAY` (crouch held through the crossover), `SKI_HINGE` and `SKI_HINGE_FLEX` (forward hinge). `tests/riderCarry.test.ts` and `tests/riderTurns.test.ts` guard them; `rider.html?sim&cam=back|front|side` shows them.
 - Freestyle: `FREESTYLE` in `src/sim/freestyle.ts`, kicker and rail specs in `src/world/park.ts`.
 - Music: `MUSIC_TUNING` in `src/player/musicState.ts` (when moods change), `MOOD_MIX` and the patterns in `src/player/musicScore.ts` (how they sound).

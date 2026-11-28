@@ -4,7 +4,7 @@ import { createRiderPreview } from './riderPreview'
 import type { GloveStyle, Headwear, JacketStyle, PantsStyle } from '../render/rider/riderSkin'
 
 /** Rider customization: colours, kit and ski model. */
-export type SkiModel = 'allMountain' | 'park' | 'powder' | 'snowboard'
+export type SkiModel = 'allMountain' | 'park' | 'powder' | 'snowboard' | 'straight'
 
 export interface Outfit {
   jacket: string
@@ -29,7 +29,22 @@ export const SKI_MODELS: Record<SkiModel, { label: string; note: string; sidecut
   park: { label: 'Park twin', note: '18 m sidecut, loose and playful', sidecutRadius: 18, floatScale: 1.05 },
   powder: { label: 'Powder', note: '22 m sidecut, floats in deep snow', sidecutRadius: 22, floatScale: 1.45 },
   snowboard: { label: 'Snowboard', note: '8 m sidecut, quick edge to edge, surfs powder', sidecutRadius: 8, floatScale: 1.35 },
+  // The Shoot the Chute skis: Eric Pehota was clocked at 151 km/h on 225 cm Atomics.
+  straight: { label: '225 straights', note: '40 m sidecut, built to point down the Chute', sidecutRadius: 40, floatScale: 1.1 },
 }
+
+/** Ski models that are rewards, by unlock id. */
+const REWARD_MODELS: Partial<Record<SkiModel, string>> = { straight: 'model:straight' }
+
+/** Reward kits: a whole look in one press, made from the parts every rider has plus the reward colours. */
+export const KITS: { unlock: string; label: string; look: Partial<Outfit> }[] = [
+  { unlock: 'kit:parkrat', label: 'Park Rat', look: { jacket: '#7b3fbf', jacketAccent: '#1b1f24', pants: '#8a6243', helmet: '#1b1f24', gaiter: '#f2b705', jacketStyle: 'parkrat', pantsStyle: 'baggy', gloves: 'pipe', headwear: 'beanie', backpack: false } },
+  { unlock: 'kit:race', label: 'Ski Club race', look: { jacket: '#d42a2f', jacketAccent: '#f2f5f8', pants: '#d42a2f', helmet: '#f2f5f8', gaiter: '#1b1f24', jacketStyle: 'racer', pantsStyle: 'race', gloves: 'glove', headwear: 'helmet', backpack: false } },
+  { unlock: 'kit:patrol', label: 'Patrol', look: { jacket: '#d42a2f', jacketAccent: '#f2f5f8', pants: '#1b1f24', helmet: '#d42a2f', gaiter: '#1b1f24', jacketStyle: 'shell', pantsStyle: 'slim', gloves: 'glove', headwear: 'helmet', backpack: true } },
+  // Trevor Petersen raced Shoot the Chute in a Stanfield's one-piece.
+  { unlock: 'kit:stanfields', label: "Stanfield's", look: { jacket: '#e8e0cf', jacketAccent: '#e8e0cf', pants: '#e8e0cf', helmet: '#d42a2f', gaiter: '#e8e0cf', jacketStyle: 'hoodie', pantsStyle: 'slim', gloves: 'mitt', headwear: 'beanie', backpack: false } },
+  { unlock: 'kit:goldrush', label: 'Gold Rush', look: { jacket: '#d4a72c', jacketAccent: '#1b1f24', pants: '#1b1f24', helmet: '#d4a72c', gaiter: '#d4a72c', skis: '#d4a72c', skiAccent: '#1b1f24', jacketStyle: 'puffer', pantsStyle: 'baggy', gloves: 'mitt', headwear: 'helmet', backpack: false } },
+]
 
 export type SkiModelSpec = (typeof SKI_MODELS)[SkiModel]
 
@@ -37,6 +52,9 @@ export type SkiModelSpec = (typeof SKI_MODELS)[SkiModel]
 export const REWARD_COLOURS: { colour: string; unlock: string; label: string }[] = [
   { colour: '#d4a72c', unlock: 'colour:gold', label: 'Gold' },
   { colour: '#b8c2cc', unlock: 'colour:chrome', label: 'Chrome' },
+  { colour: '#ff4f14', unlock: 'colour:apex', label: 'Apex orange' },
+  { colour: '#d7ff3a', unlock: 'colour:hivis', label: 'Hi-vis' },
+  { colour: '#ffb3d1', unlock: 'colour:powder', label: 'Powder pink' },
 ]
 const REWARD_GRAPHICS: Record<string, string> = { topo: 'graphic:topo', nugget: 'graphic:nugget' }
 
@@ -143,6 +161,14 @@ export function createStylePanel(
       button.className = 'model'
       button.setAttribute('aria-pressed', String(outfit.model === id))
       button.innerHTML = `<strong>${model.label}</strong><small>${model.note}</small>`
+      const reward = REWARD_MODELS[id]
+      if (reward && !earned.has(reward)) {
+        button.disabled = true
+        button.classList.add('locked')
+        button.innerHTML = `<strong>${model.label}</strong><small>${hint(reward)}</small>`
+        models.append(button)
+        continue
+      }
       button.addEventListener('click', () => {
         outfit.model = id
         onChange(outfit)
@@ -151,6 +177,25 @@ export function createStylePanel(
       models.append(button)
     }
     host.append(models)
+    const kits = document.createElement('div')
+    kits.className = 'style-row models segmented'
+    kits.innerHTML = '<span>Kits</span>'
+    for (const kit of KITS) {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'model'
+      const open = earned.has(kit.unlock)
+      button.innerHTML = `<strong>${kit.label}</strong>${open ? '' : `<small>${hint(kit.unlock)}</small>`}`
+      button.disabled = !open
+      button.classList.toggle('locked', !open)
+      button.addEventListener('click', () => {
+        Object.assign(outfit, kit.look)
+        onChange(outfit)
+        render()
+      })
+      kits.append(button)
+    }
+    host.append(kits)
     const toggles: [string, keyof Outfit, [string, string][]][] = [
       ['Jacket style', 'jacketStyle', [['shell', 'Shell'], ['parkrat', 'Park rat'], ['racer', 'Racer'], ['hoodie', 'Hoodie'], ['puffer', 'Puffer']]],
       ['Pants', 'pantsStyle', [['baggy', 'Baggy'], ['slim', 'Slim'], ['race', 'Race']]],

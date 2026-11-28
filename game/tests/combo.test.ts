@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addToCombo, type ComboState } from '../src/app/tricks'
+import { addToCombo, type ComboState, parkAdvice } from '../src/app/tricks'
 
 const fresh = (): ComboState => ({ tricks: [], counted: 0, multiplier: 1, points: 0 })
 
@@ -22,5 +22,21 @@ describe('trick combos', () => {
     for (const name of ['360', 'Mute', 'Backflip', '50-50 Rail', '540 Japan', '720']) addToCombo(combo, name, 300)
     expect(combo.multiplier).toBe(5)
     expect(combo.points).toBe(1800)
+  })
+})
+
+describe('park results advice', () => {
+  const base = { repeats: 0, repeatLoss: 0, bestMultiplier: 1 }
+  it('explains the pop and the grab when nothing was landed', () => {
+    expect(parkAdvice(base, 0)).toMatch(/let go at the lip/)
+  })
+  it('names what repeats cost', () => {
+    expect(parkAdvice({ repeats: 6, repeatLoss: 2363, bestMultiplier: 1 }, 7)).toMatch(/2,363 points/)
+  })
+  it('points at the multiplier when the tricks did not vary enough', () => {
+    expect(parkAdvice({ ...base, bestMultiplier: 2 }, 3)).toMatch(/×2 of ×5/)
+  })
+  it('says nothing to a run that built a combo without repeats', () => {
+    expect(parkAdvice({ repeats: 1, repeatLoss: 200, bestMultiplier: 4 }, 6)).toBeNull()
   })
 })

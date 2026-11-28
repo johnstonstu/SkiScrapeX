@@ -90,6 +90,11 @@ export interface SkiEnv {
   ski?: { sidecutRadius: number; floatScale: number }
   /** A judged comp (moguls, aerials): every air off a feature is scored, even a short straight one. */
   judgedAirs?: boolean
+  /**
+   * The glide track under a point, if any (world/glide.ts): a flat mapped stretch that carries
+   * the skier at `cruise` while they travel along it, faster inside a booster zone.
+   */
+  glide?: (x: number, z: number) => { dirX: number; dirZ: number; cruise: number; boost: boolean; toX?: number; toZ?: number } | null
 }
 
 export interface SkiState {
@@ -119,6 +124,10 @@ export interface SkiState {
   tuckTime: number
   /** Pushing with both poles this step (a forward tap at moderate speed). */
   poling: boolean
+  /** 0..1: how hard a glide track is carrying the skier this step (0 off a track or at cruising speed). */
+  gliding: number
+  /** Inside a booster zone and being pushed by it this step. */
+  boosting: boolean
   mode: SkiMode
   /** Smoothed snow parameters under the skis. */
   surface: SurfaceParams
@@ -191,6 +200,8 @@ export function createSkiState(pose?: { x?: number; y?: number; z?: number; head
     tuck: false,
     tuckTime: 0,
     poling: false,
+    gliding: 0,
+    boosting: false,
     mode: 'still',
     surface: SURFACES.groomed,
     sink: 0,
@@ -308,6 +319,20 @@ export function stepSkier(
   if (jump) {
     state.popCharge = Math.min(1, state.popCharge + dt / FREESTYLE.chargeTime)
     state.windup = Math.abs(steer) > PHYSICS.steerDeadzone ? steer : state.windup * 0.9
+  }
+  // Hands off the steering on a glide track, the skis follow the track round its bends (and ease
+  // back toward its middle), so being carried along a cat track does not run you off its edge.
+  // Any steering or braking from the player takes over at once.
+  if (Math.abs(steer) <= PHYSICS.steerDeadzone && brake <= PHYSICS.brakeEngage && state.speed > PHYSICS.glideStartSpeed) {
+    const track = env.glide?.(state.x, state.z)
+    if (track) {
+      const aimX = track.dirX * PHYSICS.glideLookAhead + (track.toX ?? 0)
+      const aimZ = track.dirZ * PHYSICS.glideLookAhead + (track.toZ ?? 0)
+      const aim = Math.atan2(-aimX, aimZ)
+      // A plain yaw, not a steer: the stick aims at a traverse off the fall line, the track does not.
+      const error = Math.abs(wrapAngle(aim - state.heading))
+      if (error < Math.acos(PHYSICS.glideAlign)) state.heading = moveTowardAngle(state.heading, aim, Math.min(PHYSICS.glideSteerMax, error * PHYSICS.glideSteer) * dt)
+    }
   }
   stepGround(state, steer, brake, sampleTerrain, dt, env, released, input.directionalSteering)
   // Leaving the snow without a pop (a mogul, a lip, a drop): pitch already
@@ -462,6 +487,24 @@ function stepGround(
   if (state.poling && !braking) {
     const bogged = 1 - 0.5 * clamp((state.sink - 0.1) / 0.2, 0, 1)
     along += PHYSICS.polePushAccel * bogged * (1 - speed / PHYSICS.polePushMaxSpeed) * dt
+  }
+
+  // A glide track (a flat cat track or ridge traverse) carries a moving skier up to its
+  // cruising speed, so the flats need no skating; a booster zone pushes harder and faster.
+  // It starts once you are moving or press forward, and brakes or a turn across the track drop it.
+  state.gliding = 0
+  state.boosting = false
+  const track = braking || state.washout > 0 ? null : env.glide?.(state.x, state.z)
+  if (track && (speed > PHYSICS.glideStartSpeed || state.tuck || state.poling)) {
+    const flatLength = Math.hypot(edged.forward.x, edged.forward.z) || 1
+    const align = (edged.forward.x * track.dirX + edged.forward.z * track.dirZ) / flatLength
+    if (align > PHYSICS.glideAlign) {
+      const target = track.boost ? PHYSICS.boostSpeed : track.cruise
+      const want = clamp((target - speed) / PHYSICS.glideEase, 0, 1)
+      along += (track.boost ? PHYSICS.boostAccel : PHYSICS.glideAccel) * want * align * dt
+      state.gliding = want
+      state.boosting = track.boost && want > 0
+    }
   }
 
   // Attack angle between the skis and the travel direction. The edge's

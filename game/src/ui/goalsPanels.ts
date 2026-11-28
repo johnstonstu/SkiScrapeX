@@ -2,6 +2,8 @@
 import { escapeHtml, formatTime } from '../app/format'
 import { UNLOCKS, medalCounts, type Progress } from '../app/progress'
 import { MEDALS, type Medal, type MedalTargets } from '../world/challenges'
+import { formatStoke, rankOf } from '../app/stoke'
+import { goalShare, goalTarget, type Goal } from '../app/ticket'
 
 /** Run difficulty symbol, coloured by the existing `.easy .symbol` style rules. */
 const symbol = (kind: string) =>
@@ -31,10 +33,35 @@ export interface Summary {
 function summaryHtml({ progress, skied, runCount, nuggetCount }: Summary): string {
   const counts = medalCounts(progress)
   const tile = (value: string, label: string) => `<span class="stat"><b>${value}</b><small>${label}</small></span>`
+  const stoke = progress.stoke ?? 0
+  const rank = rankOf(stoke)
+  const bar = `<span class="rank-bar" role="progressbar" aria-label="Progress to the next rank" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(rank.share * 100)}"><span style="width:${Math.round(rank.share * 100)}%"></span></span>`
   return (
+    `<span class="stat rank"><b>${escapeHtml(rank.rank.name)}</b>${bar}<small>${formatStoke(stoke)} Stoke${rank.next ? ` · ${formatStoke(rank.next.at - stoke)} to ${escapeHtml(rank.next.name)}` : ''}</small></span>` +
     tile(`${medalBadge('gold')}${counts.gold} ${medalBadge('silver')}${counts.silver} ${medalBadge('bronze')}${counts.bronze}`, 'Medals') +
     tile(`${skied}<em>/${runCount}</em>`, 'Runs skied') +
     tile(`${progress.nuggets.length}<em>/${nuggetCount}</em>`, 'Gold nuggets')
+  )
+}
+
+/** How far along a goal is, in its own words: "312/600 m", "74/90 km/h". Empty for one-shot goals. */
+function goalAmount(goal: Goal): string {
+  const target = goalTarget(goal.spec)
+  if (target <= 1) return ''
+  const unit = goal.spec.kind === 'speed' ? ' km/h' : goal.spec.kind === 'combo' ? ' pts' : ' m'
+  return `${Math.floor(goal.amount).toLocaleString()}/${target.toLocaleString()}${unit}`
+}
+
+/** The day ticket: the three goals with their progress, then the Run of the Day. */
+export function ticketHtml(ticket: { goals: readonly Goal[]; daily: Goal | null }, stoke: number): string {
+  const row = (goal: Goal, daily = false) =>
+    `<li class="${daily ? 'daily' : ''}"><span class="goal-text">${escapeHtml(goal.text)}</span>` +
+    `<span class="goal-amount">${goalAmount(goal)}</span><span class="goal-stoke">+${goal.stoke}</span>` +
+    `<span class="goal-bar"><span style="width:${Math.round(goalShare(goal) * 100)}%"></span></span></li>`
+  const rank = rankOf(stoke)
+  return (
+    `<h3>Day ticket <small>${escapeHtml(rank.rank.name)} · ${formatStoke(stoke)} Stoke</small></h3>` +
+    `<ul class="goals">${ticket.goals.map((goal) => row(goal)).join('')}${ticket.daily ? row(ticket.daily, true) : '<li class="daily done"><span class="goal-text">Run of the Day done. A new one tomorrow.</span></li>'}</ul>`
   )
 }
 
@@ -58,20 +85,21 @@ export function renderTitle(
     '<p class="title-hint" aria-hidden="true"><span><kbd>↑</kbd> <kbd>↓</kbd> or <kbd>Tab</kbd> choose</span><span><kbd>Enter</kbd> select</span></p>'
   const buttons = panel.querySelector('.title-buttons')!
   const returning = Boolean(summary && summary.progress.totals.runs > 0)
-  // First visit: the tutorial leads. Afterwards it is a small entry under the others.
-  const play = button(menuItem(returning ? 'Continue' : 'Free ski', 'Drop in and ski anywhere on the mountain'), actions.play, learnFirst ? '' : 'primary')
+  // Free ski always leads: the first run off the chair teaches the controls as you go (app/hints.ts).
+  // Until the tutorial has been done it sits second with a line of its own; afterwards it is a small entry at the end.
+  const play = button(menuItem(returning ? 'Continue' : 'Free ski', 'Ride the Quickdraw chair up and ski anywhere on the mountain'), actions.play, 'primary')
   const learn = button(
     learnFirst ? menuItem('Learn to ski', 'A short lesson by the Magic Carpet') : '<span><span class="mi-label">Tutorial</span></span>',
     actions.learn,
-    learnFirst ? 'primary' : 'link',
+    learnFirst ? '' : 'link',
   )
   const challenges = button(menuItem('Challenges', 'Apex events, slalom, park scores and nuggets'), actions.challenges)
   const rider = button(menuItem('Rider', 'Outfit, skis or snowboard'), actions.rider)
   const settings = button(menuItem('Settings', 'Graphics, camera, sound and assists'), actions.settings)
   play.disabled = challenges.disabled = learn.disabled = !ready
-  if (learnFirst) buttons.append(learn, play, challenges, rider, settings)
+  if (learnFirst) buttons.append(play, learn, challenges, rider, settings)
   else buttons.append(play, challenges, rider, settings, learn)
-  if (ready) (learnFirst ? learn : play).focus()
+  if (ready) play.focus()
 }
 
 /** Loading message and, when `done` (0 to 1) is given, the progress bar under it. */
@@ -103,6 +131,7 @@ export interface ChallengeRow {
 
 export interface ChallengeData {
   summary: Summary
+  ticket: { goals: readonly Goal[]; daily: Goal | null }
   events: ChallengeRow[]
   timed: ChallengeRow[]
   slalom: ChallengeRow[]
@@ -127,6 +156,10 @@ export function renderChallenges(panel: HTMLElement, data: ChallengeData, progre
     '<button type="button" class="close" aria-label="Close"><kbd>Esc</kbd><span>Back</span></button></header>' +
     `<div class="title-summary">${summaryHtml(data.summary)}</div>`
   panel.querySelector('.close')!.addEventListener('click', close)
+  const ticket = document.createElement('section')
+  ticket.className = 'challenge-group ticket'
+  ticket.innerHTML = ticketHtml(data.ticket, progress.stoke ?? 0) + '<p class="note">Goals count anywhere on the mountain, in free ski and in challenges. Finish one and another is dealt.</p>'
+  panel.append(ticket)
   const section = (title: string, note: string, rows: ChallengeRow[]) => {
     const block = document.createElement('section')
     block.className = 'challenge-group'
@@ -185,6 +218,8 @@ export interface ResultData {
   improved: boolean
   /** Attempt ended early (off course). */
   failed?: string
+  /** One line on how to score more next time. */
+  advice?: string
   lines: [string, string][]
 }
 
@@ -210,6 +245,7 @@ export function renderResults(
     `<p class="result-main">${!result.failed && result.medal ? medalBadge(result.medal) : ''}<strong>${result.failed ? 'Did not finish' : value(result.value)}</strong></p>` +
     `<p class="result-compare ${result.improved ? 'improved' : ''}">${escapeHtml(compare)}</p>` +
     (next ? `<p class="result-next">${escapeHtml(next)}</p>` : '') +
+    (result.advice ? `<p class="result-advice">${escapeHtml(result.advice)}</p>` : '') +
     `<dl>${result.lines.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join('')}</dl>` +
     '<div class="result-buttons"></div>'
   const row = panel.querySelector('.result-buttons')!

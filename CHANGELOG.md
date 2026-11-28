@@ -2,6 +2,125 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.57 (unreleased): Skier faces where they are going, and the hop off the chair
+
+From Stu's playtest of the combined 0.9.56 build. Rider drawing only; physics, steering and the camera are unchanged here.
+
+### Changed
+
+- **Across the hill, the skier's chest and hands sit in front.** The chest used to hold its twist toward the fall line for as long as a traverse lasted (about 34° on a 14° slope), so both hands hung off the downhill side. The twist now belongs to turning: it builds within a fraction of a second when the skis start to turn or brake, and eases out over about a second on a steady line, leaving about a quarter of it. Linked turns and hockey stops face down the hill as before.
+- **Standing up off the chair.** The rider used to crossfade from the seated pose to a standing one in 0.4 s. Now the legs start folded and push up over the first second, the chest comes forward over the feet, one hand pushes off the seat, and the arms ride wide with a little rock down the ramp before settling. No idle move starts on the ramp.
+- Rider lab: `action=unload` plays the stand-up and glide on a loop.
+- Tests: the chest on a traverse against linked turns, and the stand-up rising with no idle. The standing stance test pins its random idle pick (the newer idles bend the knees on purpose and made it fail about one run in ten).
+
+## 0.9.56 (unreleased): The first minute
+
+From the click on Free ski to the first turn. Builds on 0.9.54 (the mountain accuracy pass and its new Quickdraw summit); numbered to follow the sound, rider, mountain and progression passes.
+
+### Added
+
+- **Pick skis or a snowboard, and your rider, before you drop in.** The first Free ski of a visit stops at one screen: Skis or Snowboard, and six starter riders (Scout, Juniper, Maverick, Ridge, Goldie, Storm), with the rider standing over the mountain. Drop in has the focus, so one press of Enter keeps last time's choice. A look made in Rider & gear shows as "Your own" and is never lost by trying a starter. After the first run of a visit, Free ski goes straight to the chair.
+- **An opening film off the Quickdraw chair.** Two shots under thin bars with a place card: riding the last seconds of the chair with the valley behind you, then a long lens low on the snow at the top as you come out of the station, carve round and stop with your back to the camera, which rises into the follow view. The HUD stays away until you have control and then fades in. Enter (B on a pad, or the Skip button) goes straight to the top.
+- **Control prompts in place of the help line.** One short line at a time at the bottom of the screen: steer, then tuck and brake, then the jump, then where the trail map and the full controls are. Each goes the moment you do it and does not come back. One you ignore steps aside after 14 seconds and gets one more chance on the next visit.
+
+### Changed
+
+- **Off the chair on a carved turn.** The rider used to glide straight out and spin on the spot to face the hill (137 degrees at the top of Quickdraw). They now ride down the ramp and make one round turn (up to 4.2 m radius, tighter where buildings or trees are close) and arrive already moving the way they face. The ready spot is where that turn ends, a few metres to the inside of the old one. Applies to every chair.
+- **Every chair arrival uses the new low shot** and a lens that opens as you come toward it; during play the camera eases to it as before. The camera's hand-over to the follow view now turns its look as it travels and always finishes in 2.4 seconds (it could lag behind a fast rider indefinitely).
+- **Free ski leads the title menu on a first visit.** "Learn to ski" is second until it has been done. The prompts teach the same first three lessons on the way down.
+- The "Lift ride" tip card no longer covers the arrival, and the always-on controls line at the bottom of the screen is gone (the pause menu has the full controls).
+
+## 0.9.55 (unreleased): Stoke, ranks and the day ticket
+
+The first two steps of the goals and progression plan: a reason to keep riding, built over the challenges that already exist. Nothing on the mountain is locked. Builds on 0.9.49.
+
+### Added
+
+- **Stoke and ranks.** Everything pays into one number: vertical skied (1 per 10 m), trick points banked (1 per 100, in free ski too), a run skied for the first time (50), a gold nugget (150) and medals (100, 250 and 500). Stoke climbs ten ranks from Greenhorn to Apex Legend. The rank and its bar show on the title screen and the Challenges menu, and every results card and lap card says what the run earned. Older saves are paid for the medals, runs, nuggets and vertical they already hold.
+- **The day ticket.** Three goals are always on, in free ski and in challenges: ski a named run, hit a speed, bank a combo, land a spin, flip, perfect landing or rail, ski vertical without a wipeout, win a medal, or find the nugget beside a named run. They are sized to the rider's rank. Finishing one pays Stoke and deals another. The ticket shows in the pause menu and at the top of Challenges.
+- **Run of the Day.** One timed run picked by the date, worth 300 Stoke for finishing it. It needs no server.
+- **Nine rank rewards.** Three colours (Apex orange, hi-vis, powder pink), five kits that set a whole look in one press (Park Rat, Ski Club race, Patrol, Stanfield's, Gold Rush) and the 225 straights, a ski model with a 40 m sidecut for Shoot the Chute. The four older rewards stay as they were.
+
+### Changed
+
+- **Park results explain the score.** A trick card marks a repeat (half points). The results card shows the best combo multiplier and, short of gold, one line on what cost points: repeats, or too few different tricks. The medal targets are unchanged: on Claim Jumper a bot that changes its grab each jump reaches bronze, one that adds 360s reaches silver, and one that repeats a single grab scores under a quarter of bronze.
+- **Lap card.** A free-ski lap is filed under the run it was mostly skied on, not the run the chair pointed at. The best lap trick score is kept. An open combo banks at the end of a lap or a park run instead of being lost.
+
+### Tests
+
+`tests/ticket.test.ts` covers ranks, medal Stoke, the save backfill, one reward per rank, every goal kind, dealing by rank and the Run of the Day. `tests/combo.test.ts` covers the results advice. `tuning/parkScore.test.ts` writes park scores for four riding styles against the medal targets.
+
+## 0.9.54 (unreleased): Mountain accuracy pass
+
+Every run and lift checked against real life: the 2023 trail map (read zone by zone), published lift specs, the LidarBC elevation and tree-canopy scans, the run footage notes and resort reviews. Builds on 0.9.50 (the whole-mountain pass); numbered to follow the sound, rider and content passes.
+
+### Changed
+
+- **The wide groomers are wide.** Okanagan Run, Juniper, Ridge Run, Golden Eagle, Village Traverse, Wild Bill, Sluice Box, Easy Rider and Adrian's Alley were about 30 to 40 m of corduroy inside clearings 60 to 150 m wide. They now fill up to 85% of their real clearing (Okanagan Run about 75 m, Juniper and Ridge Run about 65 m), as the footage shows them. The blacks stay narrow hallways, as filmed.
+- **West Bank's bumps are wider** (40 m, from 30 m), toward the 49 m clearing under the quad ("wide-open bumps such as those under the quad chair", powderhounds.com).
+- **Hidden Gold is where the trail map puts it:** the wedge of trees just below the Stock's top station, between Sluice Box, Finger and Maverick. It was on the other side of Whipsaw, in the run-out of the bowl runs. OpenStreetMap's unnamed black run from the top station through that wedge is now named Hidden Gold and keeps its trees (it was a nameless groomed corridor).
+- **The freestyle area off the T-Bar is laid out as Stu describes it.** Kristi's Run, the mogul course down the middle, is now a mogul run when you free ski it (it was groomed; the Nor-Am event flattens those bumps and lays its own course). The old aerial site lane on its skier's left ("Unnamed cut L5") now starts at the T-Bar unload instead of 150 m down. Adrian's Alley is the groomed run on the skier's right, then trees, then Old Mill.
+- **The flats carry you.** On the flat stretches of the mapped runs (cat tracks, ridge traverses, run-outs: under 7 degrees) a skier travelling along the track is carried up to 56 km/h with no skating. It starts once you are moving or tap forward, and braking or turning across the track drops it. With your hands off the steering the skis follow the track round its bends and hold its middle, so being carried does not run you off the edge into the trees; any steering takes over at once. From the Quickdraw unload the first 550 m of Grandfather's Trail, to the first blacks, takes 38 seconds with one push (it was 70 seconds of holding forward); Grandmother's Trail's first 300 m takes 20 seconds (35), Stock's Traverse 58 (75).
+- **Booster gates** on the long traverses (25 on the mountain, eight of them on Grandfather's Trail): an orange gate with chevrons on the snow that pushes you to 76 km/h for a moment.
+- **The top of Quickdraw is tidied up.** The operator hut stands on the other side of the unload. The windows on the lift huts and cabins now read as dark glass (they mirrored the sky and vanished into the wall). The snow round the top of every lift is packed (the Quickdraw unload stood in deep powder). The West Bank rock drop is back down the run beside a mid-mountain tower (it had moved onto the unload when West Bank was routed from the top in 0.9.50). Trail-head signs fan out down their own runs where several runs start together, and no two stand within 12 m.
+- A wide run keeps no more of a guaranteed tree-free core than a default blue, so widening never mows standing forest.
+
+### Checked, no change needed
+
+- The front face, the bowl, the T-Bar side and the Wild Side match the 2023 trail map run for run, in order.
+- Lifts against remontees-mecaniques.net and skiresort.info: Stock's rises 352 m over a 1,381 m slope length in the game (349 m and 1,392 m published), the Magic Carpet is 163 m (163 m), Quickdraw rises 551 m (578 m published, from a base elevation the LiDAR puts 21 m higher) and the summit is 2,174 to 2,176 m (2,178 to 2,180 m). Tower counts follow OpenStreetMap and are short of the real ones (Quickdraw 14 of 18, Stock's 15 of 17, T-Bar 6 of 7).
+- Pitch, length and drop of every mapped run already match the 1 m LiDAR profiles within half a degree (`tests/runProfiles.test.ts`).
+- The run straight under the quad from the unload with no traverse (Mountain Life, December 2025) is what 0.9.50 built as West Bank.
+
+See `docs/mountain-accuracy.md` for the run-by-run findings, where the game chooses fun over accuracy, and the open questions.
+
+## 0.9.53 (unreleased): Rider stance, standstill and transitions
+
+A second rider pass over the whole body: the snowboarder's stance on each edge, how both riders stand still and get going, and the joins between states. Physics, steering and the camera are unchanged. Builds on 0.9.51. (0.9.52 is the sound pass.)
+
+### Changed
+
+- **The snowboarder stands on the board.** In a skidded or pivoted turn the path leans the rider well past the sim's edge angle, and the body hung 25° and more off the side of a nearly flat board: heelside read as sitting in the air behind the heel edge. The board now rolls to within about 6° of the body's lean.
+- **Heelside on extended legs.** The heel edge used to add the deepest crouch (about 63° of knee bend, thighs flat). It now rides at about 45°, the legs lean back into the hill and the chest folds forward over the knees with the pelvis tipping too, so the shoulders stay over the board. Both hands come forward either side of the body. The heel edge draws 72% of the physics lean (toes 80%), and no board lean is drawn past 54°.
+- **Toeside drives the knees.** The knees and hips press toward the snow under a more upright back, instead of the body leaning in as a straight plank.
+- **Board tuck.** A low crouch with the hips and chest turned toward the nose, folded over the front knee, back hand behind the back. It was a bow from the waist out over the toe edge.
+- **Stopped on a hill.** After a hockey stop the sim's edge could settle on the downhill side, and the legs leaned down the hill with it. Below walking pace the skis or board ease onto the uphill edges and the body stands upright.
+- **Standing pose.** Arms hang relaxed with the hands low on the grips and the poles planted just outside the boots, the weight settles onto one leg and shifts now and then, and the chest breathes. The pose blends in and out around walking pace instead of switching.
+- **Pushing and creeping across a hill** no longer wring the chest 65° down the fall line (skating across a slope looked twisted, one arm reaching up the hill): counter-rotation builds with speed and tops out at about 50°.
+- **Takeoff and landing.** The skis and board ease flat in the air instead of snapping level on the frame of takeoff, and the back's forward hinge blends through takeoffs, landings and stops instead of jumping.
+- **Snowboarders push with a foot out.** Holding tuck at low speed on flat ground used to hop the board along (or just stand there while it sped up). The rider now takes the back foot out of the binding and skates: the foot plants beside the toe edge, strokes back along the board, lifts and swings forward again, with the hips turned down the board, the front knee working and the arms swinging against the leg. The foot goes back in the binding as soon as the push ends. Small hops are still there for a steer input at a crawl.
+- **Skiers lead with the uphill ski on a traverse.** Crossing a slope, the uphill ski rides up to 8 cm ahead, as the hips sit on a real traverse.
+- **Ready for glide tracks and boosters.** Where the sim reports the rider being carried along a traverse (`state.gliding`, from the 0.9.54 mountain pass), skiers skate and snowboarders push with a foot out at low speed without tuck held, then both settle into a low glide as the speed builds; a booster (`state.boosting`) drops them into a tuck. Without those fields nothing changes.
+- **Nine more idles.** Standing or on the chair: knocking snow off the gloves, a neck roll, shading the eyes to scout the run, a wave, pulling the collar zip up. Standing only: knee bends to warm up. Snowboarders also bend down to check the front binding and swing their arms across the chest. On the chair: leaning out to look at the run below.
+- **Small moves while cruising.** After a few seconds in a straight line with no input, the rider now and then checks over a shoulder or loosens the shoulders. Head and shoulders only, and any steer, brake, tuck or jump ends it within a quarter second.
+- **Rolls and dips.** The legs give as the snow pushes up and reach as it falls away, from the body's own vertical acceleration.
+- **Rails and air.** Arms ride bent and lower for balance instead of straight out at shoulder height.
+- **Crashes.** The arms are thrown out and up for the first moments of a fall before the hands find the snow, and a fast crash slowly spins on the snow as it slides, squaring up over the get-up.
+- Rider lab: `action=tour` loops through turns, a tuck, a stop, a push off, an ollie, a crash and the get-up; `action=crash` repeats a crash at speed; `action=push` holds tuck from a standstill; `action=traverse` holds a line across the hill; `amp` scales the steer. The lab's snow is now a patch that follows the rider (one huge quad lost depth precision and swallowed a flat board).
+- `tests/riderDepth.test.ts` covers the board roll, the heelside knees, the uphill edges at a stop, the eased takeoff, the crash spin and the snowboarder's one-foot push. `tests/riderIdles.test.ts` covers the idle player.
+
+## 0.9.52 (unreleased): Sound
+
+A sound pass. Every effect is synthesized in the browser, so the download does not grow: there are no new audio files. The old sound layer (one hiss for snow, one for wind, a lift hum) is replaced.
+
+### Added
+
+- **Snow that sounds like the snow you are on.** A carve, a skid and a straight glide are now three different sounds. A loaded edge tears a bright line through the turn and goes quiet between turns; a skid is a wide rough scrape; a hockey stop is the loudest of all. Groomers are a mid hiss, ice is brighter and glassy and rings when it skids, powder is nearly silent underfoot with a low rush as the snow moves aside, and thin cover over rock grinds. Edge chatter flutters the sound. The mix follows the blended surface, so crossing a run edge does not pop.
+- **Wind** in stereo that rises with speed, with a whistle above about 60 km/h and buffeting near top speed. It brightens in the air and tightens in a tuck. The weather adds to it: a storm is loud standing still, and gusts come through.
+- **Landings by surface and size.** Firm snow lands with a thump and a slap, powder with a soft whump, and a sketchy landing is heavier.
+- **Crashes** thump, tumble and slide to a stop, and skis and poles clatter off in a hard fall. **Trees** sound like wood, branches and the snow coming off them, for a crash and (lighter) for a brush past a trunk.
+- **Lifts.** Chairlifts have a drive hum at the stations, the grip rolling over each tower as you pass it, the chair creaking, the bar and the ramp at the top. The T-bar has skis sliding on the track, the rope, and the spring reeling the T in when you let go.
+- **Places.** People talking in the village, lift machinery near a station, wind in the trees and mountain chickadees in the forest, a hollow howl on the open summit. They fall back as you pick up speed.
+- **Interface sounds.** Menu moves and choices, pause, the 3-2-1-GO of a race start, gates, and chimes for landing grades, banked points, unlocks, a finish and a new best. The chimes follow the key of the procedural music.
+- **Sound lab** at `sound.html`: play each sound on its own, or drive the snow and wind by hand with sliders.
+
+### Changed
+
+- Sound now starts on the first tap on phones. It used to wait for a touch to start, which phones do not count as permission to play audio; the same fix applies to the music.
+- The audio engine sleeps while the tab is hidden or sound is muted, and recovers after a phone call interrupts it.
+- A limiter keeps stacked impacts from clipping, and rumble below hearing is filtered out so small speakers do not rattle.
+- Menu sounds play while the game is paused; the mountain still goes quiet.
+
 ## 0.9.51 (unreleased): Rider carry and transitions
 
 The skier and snowboarder hold their bodies the way real riders do from the chase camera, studied frame by frame from close follow-cam footage. Physics, steering and the camera are unchanged. Builds on 0.9.48 (independent of the 0.9.49 graphics and 0.9.50 mountain passes).
@@ -29,6 +148,7 @@ The Quickdraw side checked against the 2023 trail map and the LiDAR fall lines, 
 ### Added
 
 - `tests/mountainNetwork.test.ts`: every run starts on a lift top or another run and ends on a lift bottom or another run, and a bot skis 19 ways down from the Quickdraw top (the lift line, Ridge Run's drops, the bowl and every Wild Side run) to the bottom with no poling.
+
 ## 0.9.49 (unreleased): Light and atmosphere
 
 A graphics pass on light, air and colour, with the same art direction and models. No new draw calls or triangles on any level. Builds on 0.9.48.

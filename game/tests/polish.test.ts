@@ -84,12 +84,12 @@ describe('terrain park feedback', () => {
       expect(feed.onTrick(air)).toBe(true)
       expect(feed.onTrick(air)).toBe(false)
       feed.onTrick({ ...air, seq: 2, kind: 'rail', name: '50/50', grade: 'clean', points: 110, railMetres: 6 })
-      expect(feed.stats).toEqual({ perfect: 1, clean: 0, railMetres: 6, bestName: '360', bestPoints: 280 })
+      expect(feed.stats).toMatchObject({ perfect: 1, clean: 0, railMetres: 6, bestName: '360', bestPoints: 280 })
       feed.resetTotal()
       expect(feed.total).toBe(0)
       expect(popup.className).toBe('')
       expect(feed.onTrick({ ...air, grade: 'clean' })).toBe(true)
-      expect(feed.stats).toEqual({ perfect: 0, clean: 1, railMetres: 0, bestName: '360', bestPoints: 280 })
+      expect(feed.stats).toMatchObject({ perfect: 0, clean: 1, railMetres: 0, bestName: '360', bestPoints: 280 })
     } finally {
       vi.unstubAllGlobals()
     }

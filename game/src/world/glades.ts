@@ -32,9 +32,14 @@ export const GLADES: GladeArea[] = [
     ring: [[2613.4, 1449.1], [2624.2, 1449.9], [2663.5, 1422.1], [2685.2, 1420.9], [2735.2, 1397.9], [2754.6, 1373], [2789.2, 1362.9], [2799.3, 1349.1], [2817.2, 1343.9], [2845.2, 1323.9], [2851.5, 1312.5], [2873.2, 1313.9], [2911.5, 1282.8], [2942.2, 1273.9], [2952.6, 1260.2], [2970.2, 1258.9], [3023, 1217.3], [3044.2, 1216.9], [3069.8, 1188.5], [3099.6, 1172], [3147.5, 1159.4], [3133.4, 1135.5], [3074.1, 1129.2], [2934.3, 1164.9], [2859.3, 1209.3], [2859.2, 1226.2], [2845.3, 1228.9], [2833.3, 1246.8], [2816.5, 1234.7], [2634.2, 1342.7], [2624.2, 1359.2], [2595, 1376.3], [2583.1, 1398.1]],
   },
   {
-    // Uphill side of Whipsaw's first 380 m, just left of the Stock's top.
-    name: 'Hidden Gold', difficulty: 'advanced', cover: 0.51,
-    ring: [[1937.2, 1920.4], [1940.9, 1951.3], [1968.1, 1943.9], [1979.8, 1967.4], [1999.8, 1969.5], [2006.8, 1989.4], [2020, 1992.7], [2016.6, 2003.4], [1983.3, 2021.4], [2013.4, 2063.9], [2053.2, 2088.8], [2053.7, 2064.4], [2029.3, 2020.8], [2035.7, 1991.8], [2002.9, 1952.6], [1996.8, 1923.9], [2014.4, 1859.4], [2046.2, 1808.3], [2010, 1780.1], [2001.3, 1782.4], [1996.6, 1774.3], [1976.2, 1802.3], [1952.7, 1856.8], [1963.1, 1858.1], [1963.4, 1876.8], [1946.3, 1879.4]],
+    // The wedge of trees just below the Stock's top, between Sluice Box, Finger and Maverick.
+    // Accuracy pass (2026-11-28): the 2023 trail map paints Hidden Gold as a purple wedge with
+    // its point at the Stock's top station, Whipsaw above it and Finger below, and labels it
+    // with a black diamond. The research draft had it on the uphill side of Whipsaw (west of
+    // the top station), where the map shows the run-out of the bowl runs. OSM's unnamed black
+    // run from the top station through this wedge is its line (corrections.ts).
+    name: 'Hidden Gold', difficulty: 'advanced', cover: 0.47,
+    ring: [[2085, 1800], [2100, 1775], [2160, 1748], [2230, 1718], [2268, 1712], [2310, 1742], [2360, 1775], [2420, 1808], [2445, 1832], [2420, 1850], [2340, 1878], [2290, 1885], [2250, 1868], [2190, 1848], [2110, 1822]],
   },
 ]
 

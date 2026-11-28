@@ -4,6 +4,9 @@ import { fitRunsToCanopy } from './runEdges'
 import { nearestOnPolyline, pointInRing, runHalfWidth, type Resort } from './resort'
 
 /** Same ids as `fx/snow/mask.ts`. Kept here so the world module has no Three.js import. */
+/** Radius of the packed snow round the top of a lift, metres. */
+export const UNLOAD_PAD = 26
+
 export const SurfaceId = { groomed: 0, powder: 1, ice: 2, rock: 3, underTree: 4, park: 5 } as const
 
 export interface Canopy {
@@ -163,6 +166,24 @@ export function buildSurface(
       if (pointInRing(x, z, ring) || nearestOnPolyline(x, z, [...ring, ring[0]]).distanceSq < LOT_CLEAR * LOT_CLEAR) {
         clear[index] = 1
       }
+    })
+  }
+
+  // Lift unloads: the snow round the top of every lift is packed by the cat and by everyone
+  // getting off, not powder (the Quickdraw unload stood in deep snow between the run heads).
+  for (const lift of resort.lifts) {
+    const [tx, tz] = lift.top
+    const [bx, bz] = lift.bottom
+    const location = names.push(`Top of ${lift.name}`) - 1
+    const along = Math.atan2(tz - bz, tx - bx)
+    eachTexel(tx - UNLOAD_PAD, tz - UNLOAD_PAD, tx + UNLOAD_PAD, tz + UNLOAD_PAD, texel, width, height, (index, x, z) => {
+      if ((x - tx) ** 2 + (z - tz) ** 2 > UNLOAD_PAD * UNLOAD_PAD) return
+      // Runs that start here keep their name; ungroomed ones are still packed this close to the lift.
+      if (locations[index] && surface[index] === SurfaceId.groomed) return
+      clear[index] = 1
+      if (!locations[index]) locations[index] = location
+      surface[index] = SurfaceId.groomed
+      heading[index] = along
     })
   }
 

@@ -24,6 +24,8 @@ export const KEYS = {
   progress: 'skiscrapex.progress',
   targets: 'skiscrapex.targets',
   coach: 'skiscrapex.coach',
+  /** Free-ski control prompts already done or seen (app/hints.ts). */
+  hints: 'skiscrapex.hints',
   muted: 'apex.soundMuted',
   /** Highest graphics level Auto may use on this machine, learned from GPU resets and slow frames. */
   autoCap: 'skiscrapex.autoCap',

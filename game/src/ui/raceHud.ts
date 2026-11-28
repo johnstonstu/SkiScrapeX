@@ -11,7 +11,7 @@ export interface BeatCue {
   inSeconds: number
 }
 
-export function createRaceHud(parent: HTMLElement = document.body) {
+export function createRaceHud(parent: HTMLElement = document.body, onCount?: (text: string, tone: 'count' | 'go' | 'warn') => void) {
   const count = document.createElement('div')
   count.id = 'race-count'
   count.hidden = true
@@ -38,6 +38,7 @@ export function createRaceHud(parent: HTMLElement = document.body) {
       }
       if (text === lastCount && !count.hidden) return
       lastCount = text
+      onCount?.(text, tone)
       count.textContent = text
       count.className = tone
       count.hidden = false
