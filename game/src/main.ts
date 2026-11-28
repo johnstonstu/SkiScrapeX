@@ -24,7 +24,7 @@ import { addSceneLights, createLighting, createSky, followSun } from './render/l
 import { applyWeather, weatherGust, weatherPreset, type WeatherPreset } from './render/weather'
 import { createSkyEnvironment, driftClouds, hazeDensity, installAtmosphere, setCloudShadows, setHaze } from './render/atmosphere'
 import { createControls } from './player/input'
-import { createCameraRig } from './player/camera'
+import { CAMERA_LIFT, createCameraRig } from './player/camera'
 import { createSkiAudio } from './player/audio'
 import { cardSound } from './player/sfx/cards'
 import { createSoundScene } from './app/soundScene'
@@ -316,6 +316,7 @@ function applySetting(key?: keyof Settings) {
     haptics.setEnabled(settings.cameraShake)
   }
   if (all || key === 'cameraStyle') rig.setStyle(settings.cameraStyle)
+  if (all || key === 'cameraHeight') rig.setLift(CAMERA_LIFT[settings.cameraHeight] ?? 0)
   if (all || key === 'weather') {
     weatherLive = applyWeather(settings.weather, lighting, scene, sun, sky)
     scene.environment = skyEnvironment.update(lighting, weatherLive.sunIntensity)
@@ -1108,7 +1109,7 @@ function present(dt: number, frameMs: number, input: ReturnType<typeof controls.
     game.ride ? undefined : cameraBlocked,
     skierView.eye,
     skierView.object,
-    approach ? { x: approach.x, z: approach.z, strength: approach.kind === 'rail' ? 0.2 : 0.14 } : null,
+    approach ? { x: approach.x, z: approach.z, strength: approach.kind === 'rail' ? 0.2 : 0.14, distance: approach.distance, jump: approach.kind === 'jump' } : null,
   )
   sky.position.copy(camera.position)
   // Shadow box sits ahead of the skier along the view.

@@ -1,4 +1,4 @@
-import { FIXED_DT, SURFACES, createSkiState, stepSkier, type SkiInput, type SkiState, type SkiEnv } from '../src/sim'
+import { FIXED_DT, SURFACES, createSkiState, stepSkier, type SkiInput, type SkiState, type SkiEnv, type SampleTerrain } from '../src/sim'
 import { buildParkOverlay, dropInSpawn, jumpOutcome, placeFeatures, type ParkSite, type PlacedFeature } from '../src/world/park'
 import type { ApexWorld } from './apexWorld'
 import { createParkPace } from '../src/app/parkPace'
@@ -10,7 +10,7 @@ export interface Hit { feature: PlacedFeature; lip: number; outcome: string | nu
  * steering, no tuck or brake) with the park assist, as a player who just
  * points it down the main line. Optionally pops at each lip.
  */
-export function rideMainLine(world: ApexWorld, site: ParkSite, layout = site.layout, opts: { pop?: boolean; seconds?: number; pace?: number } = {}) {
+export function rideMainLine(world: ApexWorld, site: ParkSite, layout = site.layout, opts: { pop?: boolean; seconds?: number; pace?: number; onStep?: (s: SkiState, terrain: SampleTerrain, features: PlacedFeature[]) => void } = {}) {
   const features = placeFeatures(site, layout, world.grid.heightAt)
   const overlay = buildParkOverlay(features, world.grid.sampleTerrain, world.grid.heightAt)
   const env: SkiEnv = { rails: overlay.rails, sampleSurface: () => SURFACES.park }
@@ -48,6 +48,7 @@ export function rideMainLine(world: ApexWorld, site: ParkSite, layout = site.lay
     pace.step(s, input, features, overlay.rails, FIXED_DT, opts.pace ?? 1)
     const landed = pace.takeLanding()
     if (landed && landed.feature.lane === 0) hits.push({ feature: landed.feature, lip: landed.lipSpeed * 3.6, outcome: landed.outcome, grade: null })
+    opts.onStep?.(s, overlay.sampleTerrain, features)
     if (s.rail) rails++
     if (s.trick && s.trick.seq !== lastSeq) {
       lastSeq = s.trick.seq

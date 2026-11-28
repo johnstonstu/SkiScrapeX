@@ -32,6 +32,8 @@ export interface Settings {
   cameraShake: boolean
   /** Steady looks down the hill; tight turns with the skis. */
   cameraStyle: 'steady' | 'tight'
+  /** How high the follow camera rides: low is close behind the rider, high looks further down onto the snow ahead. */
+  cameraHeight: 'low' | 'standard' | 'high'
   /** Day conditions: snow density, fog and light. */
   weather: WeatherId
   landingRing: boolean
@@ -60,6 +62,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fov: 58,
   cameraShake: true,
   cameraStyle: 'steady',
+  cameraHeight: 'standard',
   weather: 'snow',
   landingRing: true,
   landingAssist: true,
@@ -77,6 +80,7 @@ export function readSettings(): Settings {
   if (!['procedural', 'tracks', 'radio'].includes(settings.musicSource)) settings.musicSource = 'procedural'
   if (typeof settings.lyrics !== 'boolean') settings.lyrics = DEFAULT_SETTINGS.lyrics
   if (!['all', 'vocal', 'instrumental'].includes(settings.radioMix)) settings.radioMix = DEFAULT_SETTINGS.radioMix
+  if (!['low', 'standard', 'high'].includes(settings.cameraHeight)) settings.cameraHeight = DEFAULT_SETTINGS.cameraHeight
   if (typeof settings.musicVolume !== 'number' || !Number.isFinite(settings.musicVolume)) settings.musicVolume = DEFAULT_SETTINGS.musicVolume
   if (!['auto', 'minimal', 'full'].includes(settings.hud)) settings.hud = DEFAULT_SETTINGS.hud
   if (!settings.weather || !['clear', 'snow', 'storm', 'flat'].includes(settings.weather)) settings.weather = 'snow'
@@ -329,6 +333,7 @@ export function createSettingsPanel(panel: HTMLElement, settings: Settings, appl
     heading('Camera')
     slider('Field of view', 'fov', 48, 75, 1, (v) => `${v}°`)
     chips('Camera follow', 'cameraStyle', [['steady', 'Steady'], ['tight', 'Tight']], 'Steady looks down the hill, tight turns with the skis')
+    chips('Camera height', 'cameraHeight', [['low', 'Low'], ['standard', 'Standard'], ['high', 'High']], 'High looks further down onto the snow ahead; it lifts by itself on moguls and into jumps')
     chips('Camera shake & rumble', 'cameraShake', [[true, 'On'], [false, 'Off']])
     heading('Controls')
     slider('Steering sensitivity', 'steering', 0.5, 1.5, 0.05, percent)
