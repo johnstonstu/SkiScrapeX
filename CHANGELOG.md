@@ -2,6 +2,26 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.55 (unreleased): Stoke, ranks and the day ticket
+
+The first two steps of the goals and progression plan: a reason to keep riding, built over the challenges that already exist. Nothing on the mountain is locked. Builds on 0.9.49.
+
+### Added
+
+- **Stoke and ranks.** Everything pays into one number: vertical skied (1 per 10 m), trick points banked (1 per 100, in free ski too), a run skied for the first time (50), a gold nugget (150) and medals (100, 250 and 500). Stoke climbs ten ranks from Greenhorn to Apex Legend. The rank and its bar show on the title screen and the Challenges menu, and every results card and lap card says what the run earned. Older saves are paid for the medals, runs, nuggets and vertical they already hold.
+- **The day ticket.** Three goals are always on, in free ski and in challenges: ski a named run, hit a speed, bank a combo, land a spin, flip, perfect landing or rail, ski vertical without a wipeout, win a medal, or find the nugget beside a named run. They are sized to the rider's rank. Finishing one pays Stoke and deals another. The ticket shows in the pause menu and at the top of Challenges.
+- **Run of the Day.** One timed run picked by the date, worth 300 Stoke for finishing it. It needs no server.
+- **Nine rank rewards.** Three colours (Apex orange, hi-vis, powder pink), five kits that set a whole look in one press (Park Rat, Ski Club race, Patrol, Stanfield's, Gold Rush) and the 225 straights, a ski model with a 40 m sidecut for Shoot the Chute. The four older rewards stay as they were.
+
+### Changed
+
+- **Park results explain the score.** A trick card marks a repeat (half points). The results card shows the best combo multiplier and, short of gold, one line on what cost points: repeats, or too few different tricks. The medal targets are unchanged: on Claim Jumper a bot that changes its grab each jump reaches bronze, one that adds 360s reaches silver, and one that repeats a single grab scores under a quarter of bronze.
+- **Lap card.** A free-ski lap is filed under the run it was mostly skied on, not the run the chair pointed at. The best lap trick score is kept. An open combo banks at the end of a lap or a park run instead of being lost.
+
+### Tests
+
+`tests/ticket.test.ts` covers ranks, medal Stoke, the save backfill, one reward per rank, every goal kind, dealing by rank and the Run of the Day. `tests/combo.test.ts` covers the results advice. `tuning/parkScore.test.ts` writes park scores for four riding styles against the medal targets.
+
 ## 0.9.54 (unreleased): Mountain accuracy pass
 
 Every run and lift checked against real life: the 2023 trail map (read zone by zone), published lift specs, the LidarBC elevation and tree-canopy scans, the run footage notes and resort reviews. Builds on 0.9.50 (the whole-mountain pass); numbered to follow the sound, rider and content passes.

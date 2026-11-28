@@ -30,6 +30,9 @@ import { bumpField } from '../world/moguls'
 import { EVENTS, buildEventCourse, matchDelta, paceRoute, raceTrack, type EventCourse } from '../world/events'
 import { UNLOCKS, awardMedal, readProgress, recordBest, skiedRuns, unlockedIds, writeProgress } from './progress'
 import { createTargetBook } from './targets'
+import { STOKE, backfillStoke, formatStoke, medalStoke, rankOf } from './stoke'
+import { dayOf, dealDaily, emptyTicket, fillTicket, ticketEvent, type DealContext, type Goal, type GoalEvent } from './ticket'
+import type { TrickEvent } from '../sim'
 import type { Challenge, Session } from './session'
 import type { Stage } from './stage'
 import { formatTime } from './format'
@@ -129,8 +132,83 @@ export function createGoals(options: {
   let lastX = NaN
   let lastZ = NaN
   let unsaved = 0
+  /** Metres on each named run since the lap began (free ski: lift top to lift bottom). */
+  const lap = new Map<string, number>()
 
   const skiedCount = () => skiedRuns(progress, lengths, SKIED_SHARE).length
+  // Saves from before Stoke: pay what their medals, runs, nuggets and vertical would have earned.
+  progress.stoke ??= backfillStoke(progress, skiedCount())
+  const ticket = (progress.ticket ??= emptyTicket())
+  /** The named run each nugget is beside, for its goal's hint. */
+  const nuggetNear = new Map(
+    nuggets.map((nugget) => {
+      let near = ''
+      let best = Infinity
+      for (const run of runs) {
+        if (/^(Unnamed|Unmapped)/.test(run.name)) continue
+        for (const [x, z] of mainLine(run)) {
+          const d = (x - nugget.x) ** 2 + (z - nugget.z) ** 2
+          if (d < best) ((best = d), (near = run.name))
+        }
+      }
+      return [nugget.id, near]
+    }),
+  )
+  /** Timed runs worth a trip: the Run of the Day and medal goals pick from these. */
+  const featuredTimed = timedRuns.filter((run) => !/^(Unnamed|Unmapped)/.test(run.name) && polylineLength(mainLine(run)) >= 400)
+  const dealContext = (): DealContext => {
+    const skied = new Set(skiedRuns(progress, lengths, SKIED_SHARE))
+    const medalOf = (id: string) => progress.medals[id] ?? null
+    return {
+      rank: rankOf(progress.stoke ?? 0).index,
+      runs: runs.filter((run) => lengths.has(run.name)).map((run) => ({ name: run.name, length: lengths.get(run.name)!, difficulty: run.difficulty, skied: skied.has(run.name) })),
+      challenges: [
+        ...events.map((course) => ({ id: `event:${course.def.id}`, name: course.def.name })),
+        ...slalomRuns.map((run) => ({ id: `slalom:${run.name}`, name: `${run.name} slalom` })),
+        ...parkSites.map((site) => ({ id: `park:${site.name}:${site.layout}`, name: `${site.name} park` })),
+        ...featuredTimed.map((run) => ({ id: `time:${run.name}`, name: `${run.name} timed run` })),
+      ].map((c) => ({ ...c, medal: medalOf(c.id) })),
+      nuggets: nuggets.filter((nugget) => !found.has(nugget.id) && nuggetNear.get(nugget.id)).map((nugget) => ({ id: nugget.id, near: nuggetNear.get(nugget.id)! })),
+      parks: parkSites.length > 0,
+    }
+  }
+  const refreshTicket = () => {
+    dealDaily(ticket, dayOf(new Date()), featuredTimed.map((run) => ({ id: `time:${run.name}`, name: run.name })))
+    fillTicket(ticket, dealContext())
+  }
+  refreshTicket()
+  /** Messages waiting for the HUD: one is shown per frame. */
+  const news: { title: string; detail: string }[] = []
+  /** Stoke at the start of the lap or challenge, for "+N" on its card. */
+  let stokeMark = progress.stoke
+  let lastY = NaN
+  let wasCrashed = false
+  /** Pay Stoke. A new rank is announced with what it unlocked. */
+  const addStoke = (amount: number) => {
+    if (!(amount > 0)) return
+    const now = progress.stoke ?? 0
+    const next = rankOf(now + amount)
+    if (next.index === rankOf(now).index) {
+      progress.stoke = now + amount
+      return
+    }
+    const before = unlocked()
+    progress.stoke = now + amount
+    const newly = commit(before)
+    news.push({ title: `Rank up: ${next.rank.name}`, detail: newly.length ? `unlocked ${newly.join(', ')}` : `${formatStoke(progress.stoke)} Stoke` })
+  }
+  /** Feed the ticket. Finished goals pay out and are replaced; returns them. */
+  const emit = (event: GoalEvent, announce = true): Goal[] => {
+    const done = ticketEvent(ticket, event)
+    if (!done.length) return done
+    for (const goal of done) {
+      addStoke(goal.stoke)
+      if (announce) news.push({ title: 'Goal done', detail: `${goal.text} · +${goal.stoke} Stoke` })
+    }
+    refreshTicket()
+    writeProgress(progress)
+    return done
+  }
   const unlocked = () => unlockedIds(progress, skiedCount())
   const symbolOf = (run: Run) => run.difficulty ?? 'unknown'
   const nearestLiftTop = (x: number, z: number): Lift | null =>
@@ -152,6 +230,24 @@ export function createGoals(options: {
 
     summary(): Summary {
       return { progress, skied: skiedCount(), runCount: lengths.size, nuggetCount: nuggets.length }
+    },
+    /** The day ticket as it stands: the three goals and the Run of the Day (null once done today). */
+    ticket(): { goals: readonly Goal[]; daily: Goal | null } {
+      refreshTicket()
+      return { goals: ticket.goals, daily: ticket.daily }
+    },
+    /** Stoke earned since the lap or challenge began. */
+    lapStoke(): number {
+      return Math.floor((progress.stoke ?? 0) - (stokeMark ?? 0))
+    },
+    /** A trick landed (or bailed): ticket goals watch for spins, flips, rails and perfect landings. */
+    onTrick(trick: TrickEvent) {
+      emit({ type: 'trick', kind: trick.kind, spinDeg: trick.spinDeg, flips: trick.flips, grade: trick.grade })
+    },
+    /** A combo banked: its points pay Stoke. */
+    onBank(points: number) {
+      addStoke(points * STOKE.trickPoint)
+      emit({ type: 'bank', points })
     },
 
     timed(run: Run): Challenge {
@@ -281,9 +377,11 @@ export function createGoals(options: {
       nuggetsView.update(dt)
       if (riding) {
         lastX = NaN
-        return null
+        return news.shift() ?? null
       }
       let message: { title: string; detail: string } | null = null
+      if (skier.crashed > 0 && !wasCrashed) emit({ type: 'crash' })
+      wasCrashed = skier.crashed > 0
       if (Number.isFinite(lastX)) {
         const step = Math.hypot(skier.x - lastX, skier.z - lastZ)
         // Teleports (respawns) are not skiing.
@@ -293,17 +391,29 @@ export function createGoals(options: {
             const length = lengths.get(name)!
             const before = progress.covered[name] ?? 0
             progress.covered[name] = before + step
+            lap.set(name, (lap.get(name) ?? 0) + step)
             if (before < length * SKIED_SHARE && before + step >= length * SKIED_SHARE) {
-              const newly = commit(unlocked())
-              message = { title: `Skied ${name}`, detail: `${skiedCount()}/${lengths.size} runs${newly.length ? ` · unlocked ${newly.join(', ')}` : ''}` }
+              const earlier = unlocked()
+              addStoke(STOKE.newRun)
+              const newly = commit(earlier)
+              message = { title: `Skied ${name}`, detail: `${skiedCount()}/${lengths.size} runs · +${STOKE.newRun} Stoke${newly.length ? ` · unlocked ${newly.join(', ')}` : ''}` }
             }
+            emit({ type: 'metres', run: name, metres: step })
           }
+          // Vertical pays Stoke and counts for the ticket; so does speed.
+          const drop = lastY - skier.y
+          if (drop > 0 && drop < 5) {
+            addStoke(drop * STOKE.vertical)
+            emit({ type: 'drop', metres: drop })
+          }
+          if (skier.grounded) emit({ type: 'speed', kmh: skier.speed * 3.6 })
           progress.totals.distance += step
           unsaved += step
         }
       }
       lastX = skier.x
       lastZ = skier.z
+      lastY = skier.y
       for (const nugget of nuggets) {
         if (found.has(nugget.id)) continue
         if (Math.abs(nugget.x - skier.x) > NUGGET_RADIUS || Math.abs(nugget.z - skier.z) > NUGGET_RADIUS) continue
@@ -313,12 +423,15 @@ export function createGoals(options: {
         found.add(nugget.id)
         progress.nuggets.push(nugget.id)
         nuggetsView.remove(nugget.id)
+        addStoke(STOKE.nugget)
         const newly = commit(before)
-        message = { title: 'Gold nugget!', detail: `${found.size}/${nuggets.length} found${newly.length ? ` · unlocked ${newly.join(', ')}` : ''}` }
+        message = { title: 'Gold nugget!', detail: `${found.size}/${nuggets.length} found · +${STOKE.nugget} Stoke${newly.length ? ` · unlocked ${newly.join(', ')}` : ''}` }
+        emit({ type: 'nugget', id: nugget.id })
       }
       // Coverage saves every 200 m skied, so a closed tab loses little.
       if (unsaved > 200) commit(unlocked())
-      return message
+      if (message) news.push(message)
+      return news.shift() ?? null
     },
 
     /** Score a finished (or abandoned) challenge, save it and build the results card. */
@@ -338,10 +451,15 @@ export function createGoals(options: {
       progress.totals.topSpeed = Math.max(progress.totals.topSpeed, stats.topSpeed)
       let medal: Medal | null = null
       let best: { previous?: number; improved: boolean } = { previous: progress.bests[challenge.id], improved: false }
+      const goalsDone: Goal[] = []
       if (!failed) {
         medal = challenge.targets ? (score ? medalForScore(value, challenge.targets) : medalForTime(value, challenge.targets)) : null
+        const held = progress.medals[challenge.id]
         awardMedal(progress, challenge.id, medal)
+        addStoke(medalStoke(held, medal))
         best = recordBest(progress, challenge.id, value, !score)
+        // The card lists goals this finish completed, so they are not announced on the HUD too.
+        goalsDone.push(...emit({ type: 'medal', id: challenge.id, medal: progress.medals[challenge.id] ?? null }, false), ...emit({ type: 'finish', id: challenge.id }, false))
       }
       const unlockedNow = commit(before)
       const lines: [string, string][] = [
@@ -383,6 +501,10 @@ export function createGoals(options: {
               : combined
                 ? `${challenge.run.name} · combined`
                 : challenge.run.name
+      for (const goal of goalsDone) lines.push(['Goal done', `${goal.text} · +${goal.stoke}`])
+      const rank = rankOf(progress.stoke ?? 0)
+      const earned = this.lapStoke()
+      lines.push(['Stoke', `${earned > 0 ? `+${earned.toLocaleString()} · ` : ''}${rank.rank.name}${rank.next ? ` · ${formatStoke(rank.next.at - (progress.stoke ?? 0))} to ${rank.next.name}` : ''}`])
       return {
         title,
         value,
@@ -395,6 +517,24 @@ export function createGoals(options: {
         lines: unlockedNow.length ? [...lines, ['Unlocked', unlockedNow.join(', ')]] : lines,
         unlockedNow,
       }
+    },
+
+    /** A new lap starts (a spawn or the top of a lift). */
+    lapReset() {
+      lap.clear()
+      stokeMark = progress.stoke ?? 0
+      lastY = NaN
+    },
+    /**
+     * The run this lap was mostly on: the named run with the most metres, when
+     * that is at least 150 m or 40 percent of the run. Null for a lap of traverses and trees.
+     */
+    lapRun(): string | null {
+      let best: string | null = null
+      let most = 0
+      for (const [name, metres] of lap) if (metres > most) ((most = metres), (best = name))
+      if (!best) return null
+      return most >= Math.min(150, (lengths.get(best) ?? Infinity) * 0.4) ? best : null
     },
 
     /** Free-ski run to a lift: totals only. */
@@ -443,6 +583,7 @@ export function createGoals(options: {
       }))
       return {
         summary: this.summary(),
+        ticket: this.ticket(),
         events: eventRows,
         slalom: slalomRuns.map((run) => lazy('slalom', run)),
         park: parkSites.map((site) => row(this.park(site) as Exclude<Challenge, { kind: 'free' }>, site.name, 'park', LAYOUTS.find((l) => l.id === site.layout)?.label ?? site.layout)),

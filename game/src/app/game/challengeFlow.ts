@@ -9,13 +9,16 @@ import type { Controls } from '../../player/input'
 import type { getUi } from '../dom'
 import { escapeHtml, formatTime } from '../format'
 import { KEYS, writeJson } from '../storage'
-import type { createTrickFeed } from '../tricks'
+import { MAX_MULTIPLIER, parkAdvice, type createTrickFeed } from '../tricks'
 import type { createRaceDirector } from '../raceDirector'
 import type { createCompDirector } from '../compDirector'
 import type { createRunout } from '../runout'
 import type { createCoach } from '../tutorial'
 import { createSession, type Challenge, type SessionEvent } from '../session'
 import type { GameState } from './state'
+
+/** Key in the free-ski bests for the best trick score of one lap (not a run name). */
+export const LAP_POINTS = '#lap-points'
 
 export interface ChallengeFlowDeps {
   ui: ReturnType<typeof getUi>
@@ -151,6 +154,8 @@ export function createChallengeFlow(game: GameState, deps: ChallengeFlowDeps) {
   function endChallenge(failed: string | null) {
     if (!game.goals || game.challenge.kind === 'free') return
     game.session.abandon()
+    // An open combo counts: bank it so its points pay out with the run.
+    tricks.bankNow()
     const finished = game.challenge
     const judged = comp.score(game.session.stats.time)
     const result = game.goals.finish(game.session, judged ? judged.total : tricks.total, failed)
@@ -166,6 +171,9 @@ export function createChallengeFlow(game: GameState, deps: ChallengeFlowDeps) {
       const { perfect, clean, railMetres, bestName } = tricks.stats
       result.lines.push(['Perfect / clean landings', `${perfect} / ${clean}`], ['Rail and box distance', `${railMetres.toFixed(1)} m`])
       if (bestName) result.lines.push(['Best trick', bestName])
+      result.lines.push(['Best combo', `×${tricks.stats.bestMultiplier} of ×${MAX_MULTIPLIER}`])
+      // Short of gold, say what the scoring rewards.
+      if (!failed && result.medal !== 'gold') result.advice = parkAdvice(tricks.stats, tricks.stats.landed) ?? undefined
     }
     if (result.unlockedNow.length) stylePanel.refresh()
     resultsNext = () => {
@@ -187,7 +195,7 @@ export function createChallengeFlow(game: GameState, deps: ChallengeFlowDeps) {
     deps.onResult?.(result.improved, Boolean(failed))
   }
 
-  function showRunCard(name: string, time: number, record: boolean) {
+  function showRunCard(name: string, time: number, record: boolean, pointsRecord = false, stoke = 0) {
     const { stats } = game.session
     const points = tricks.total
     ui.runCard.innerHTML =
@@ -197,7 +205,8 @@ export function createChallengeFlow(game: GameState, deps: ChallengeFlowDeps) {
       `<span><b>${Math.round(stats.topSpeed * 3.6)}</b>km/h top</span>` +
       `<span><b>${Math.round(stats.distance)}</b>m skied</span>` +
       `<span><b>${Math.round(stats.vertical)}</b>m vertical</span>` +
-      (points ? `<span><b>${points.toLocaleString()}</b>points</span>` : '') +
+      (points ? `<span><b>${points.toLocaleString()}</b>points${pointsRecord ? ' · best lap' : ''}</span>` : '') +
+      (stoke > 0 ? `<span><b>+${stoke.toLocaleString()}</b>Stoke</span>` : '') +
       '</span>'
     // Replay the entry animation when a new card replaces one still showing.
     ui.runCard.hidden = true
@@ -295,15 +304,19 @@ export function createChallengeFlow(game: GameState, deps: ChallengeFlowDeps) {
     if (game.challenge.kind === 'free' && game.session.stats.time > 10) {
       const lift = liftAtBottom(world.resort, game.skier.x, game.skier.z, 24)
       if (lift) {
+        tricks.bankNow()
         const time = game.session.total
-        const name = game.course?.startRun?.name ?? 'Apex'
+        // The lap is filed under the run it was mostly skied on, not the one the chair pointed at.
+        const name = game.goals?.lapRun() ?? game.course?.startRun?.name ?? 'Apex'
         const record = !bests[name] || time < bests[name]
-        if (record) {
-          bests[name] = time
-          writeJson(KEYS.bests, bests)
-        }
+        if (record) bests[name] = time
+        // Free-ski trick points count too: the best lap score is kept.
+        const points = tricks.total
+        const pointsRecord = points > 0 && points > (bests[LAP_POINTS] ?? 0)
+        if (pointsRecord) bests[LAP_POINTS] = points
+        if (record || pointsRecord) writeJson(KEYS.bests, bests)
         game.goals?.freeRun(game.session)
-        showRunCard(name, time, record)
+        showRunCard(name, time, record, pointsRecord, game.goals?.lapStoke() ?? 0)
         transition(`${name}\n${formatTime(time)}${record ? ' · best!' : ''}`, 1.8, () => startRide(lift))
       }
     }
