@@ -71,7 +71,24 @@ const BOARD_HEEL_SIT = 0.14
 /** Board torso: forward hinge, and the share of the lean the torso keeps on each edge. */
 const BOARD_HINGE = 0.2
 const BOARD_TORSO_TOE = 0.3
-const BOARD_TORSO_HEEL = 0.45
+const BOARD_TORSO_HEEL = 0.2
+/** How fast the held turn crouch lets go after the lean is gone, radians per second. */
+const TURN_HOLD_DECAY = 0.7
+/** Ski torso hinge: base forward bend and per unit of crouch (radians). A skier's back leans about 30° to 40° forward when moving. */
+const SKI_HINGE = 0.36
+const SKI_HINGE_FLEX = 0.6
+/** Longest a carried arm reaches, as a share of the arm: the elbows stay bent (about 110° to 130°). */
+const CARRY_REACH = 0.84
+/** Moving, the carried hands ride this much higher in chest space than HAND_DROP (the hinged torso already lowers them). */
+const CARRY_LIFT = 0.08
+/** Chest-space hand lift per radian of torso bend past the base hinge. */
+const PITCH_HAND_LIFT = 0.45
+/** Pole carried from the hand: angle back from straight down (radians), and how far it splays out. */
+const POLE_CARRY_BACK = 0.62
+const POLE_CARRY_OUT = 0.2
+/** Hand follow-through spring (Hz, damping). */
+const HAND_HZ = 5
+const HAND_ZETA = 0.72
 /** Lowest a board rider's hand goes, metres above the snow (root space). */
 const BOARD_HAND_FLOOR = 0.14
 /**
@@ -308,6 +325,13 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
   let railLook = 0
   /** 1 while the hips follow the skis' lean (on snow), easing to 0 in the air and on rails. */
   let legFollow = 0
+  /** Recent peak of the lean (radians), so the crouch holds through an edge change. */
+  let turnHold = 0
+  /** Each hand's carried position (chest space), sprung so the arms lag and follow through. */
+  const handSprings = [0, 1].map(() => [new Spring(), new Spring(), new Spring()])
+  let handSpringsLive = false
+  /** 1 while the elbows hang down carrying poles on snow, 0 in a tuck, the air, on a rail or a lift. */
+  let elbowDrop = 0
   const ease = (rate: number, dt: number) => 1 - Math.exp(-rate * dt)
 
   // ---- Crossfade between modes ---------------------------------------------
@@ -571,7 +595,10 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
   const placeArm = (index: number, hand: THREE.Vector3, poleTip: THREE.Vector3, inRoot = false, floor?: number) => {
     const arm = arms[index]
     // Elbows point back and out.
-    elbowHint.set(arm.side * 0.6, -0.2, -1)
+    // Elbows point back and out. Carrying poles on snow they also drop (the carried arms
+    // bend more now, and pointing them out flared them into chicken wings); folded into
+    // a tuck or a grab they stay out, clear of the knees.
+    elbowHint.set(arm.side * (0.6 - 0.32 * elbowDrop), -0.2 - 0.5 * elbowDrop, -1 + 0.35 * elbowDrop)
     if (inRoot) {
       root.updateMatrixWorld(true)
       handTarget.copy(hand)
@@ -777,6 +804,63 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
     head.rotation.y -= grabDof[2] * 0.5
   }
 
+  const shoulderRest = new THREE.Vector3()
+  /**
+   * Pull a chest-space hand target in toward its shoulder so the arm keeps a bent
+   * elbow (`share` of the full arm at most). Hands set at belt height a forward
+   * reach out locked the arms straight, poles out like outriggers.
+   */
+  const keepElbowBent = (index: number, hand: THREE.Vector3, share = CARRY_REACH) => {
+    shoulderRest.copy(arms[index].shoulder.position)
+    const max = (UPPER_ARM + FORE_ARM) * share
+    const d = hand.distanceTo(shoulderRest)
+    if (d > max) hand.sub(shoulderRest).multiplyScalar(max / d).add(shoulderRest)
+  }
+  const tipHand = new THREE.Vector3()
+  const gravityRoot = new THREE.Vector3()
+  const carryBack = new THREE.Vector3()
+  const carryOut = new THREE.Vector3()
+  const qRootInv = new THREE.Quaternion()
+  /**
+   * Where a carried pole's tip goes (root space): hanging from the hand partly
+   * under gravity (so it does not lie down along a steep pitch), angled back
+   * and a little out, the way a skier holds poles between plants. A tip that would go
+   * into the snow swings further back instead, so the shaft never stabs down through
+   * the surface or sticks out sideways from a raised hand.
+   */
+  const carriedTip = (side: number, handChest: THREE.Vector3, out: THREE.Vector3) => {
+    pointInRoot(chest, handChest, tipHand)
+    root.getWorldQuaternion(qRootInv).invert()
+    // Half gravity, half the slope's normal: the hand steers the pole, it does not hang free.
+    // Only its fore-aft part: across a traverse, gravity would swing the downhill pole out sideways.
+    gravityRoot.set(0, -1, 0).applyQuaternion(qRootInv).add(v2.set(0, -1, 0))
+    gravityRoot.x = 0
+    gravityRoot.normalize()
+    carryBack.set(0, 0, -1).addScaledVector(gravityRoot, gravityRoot.z).normalize()
+    carryOut.set(side, 0, 0)
+    const back = Math.sin(POLE_CARRY_BACK)
+    out.copy(gravityRoot).multiplyScalar(Math.cos(POLE_CARRY_BACK))
+      .addScaledVector(carryBack, back * Math.cos(POLE_CARRY_OUT))
+      .addScaledVector(carryOut, back * Math.sin(POLE_CARRY_OUT))
+      .normalize().multiplyScalar(POLE_REACH).add(tipHand)
+    const floor = 0.12
+    if (out.y < floor) {
+      // Swing back about the hand until the tip clears the snow.
+      const down = Math.max(0, tipHand.y - floor)
+      // Straight back along the skis (a low inside hand drags its pole behind, not out to the side).
+      const along = Math.sqrt(Math.max(0, POLE_REACH * POLE_REACH - down * down))
+      out.set(side * along * Math.sin(POLE_CARRY_OUT) * 0.5, -down, -along * Math.cos(POLE_CARRY_OUT * 0.5)).add(tipHand)
+    }
+    return out
+  }
+
+  const airTipAt = new THREE.Vector3()
+  /** A pole's tip in the air: back from the hand along the skis, angled a little down and out. */
+  const airTip = (side: number, handChest: THREE.Vector3) => {
+    pointInRoot(chest, handChest, tipHand)
+    return airTipAt.set(side * 0.25, -0.55, -0.8).normalize().multiplyScalar(POLE_REACH).add(tipHand)
+  }
+
   const resetJoints = () => {
     for (const ski of skis) ski.rotation.set(0, 0, 0)
     body.rotation.set(0, 0, 0)
@@ -883,6 +967,10 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       const ip = idles.step(dt, { active: !rig.firstPerson && (pose === 'sit' || stopped), sitting: pose === 'sit', boarding })
       props.show(ip)
 
+      if (pose === 'sit' || crashed) {
+        handSpringsLive = false
+        elbowDrop = 0
+      }
       if (pose === 'sit') {
         ridePhase += dt * 1.55
         applySitPose({
@@ -1028,7 +1116,10 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         // also rolls the skis back to their uphill edges (the sim holds the traverse);
         // that is not a new turn, and kicking the crouch there read as a bump back.
         if (edgeSign !== 0 && lastEdgeSign !== 0 && edgeSign !== lastEdgeSign && steerSign === edgeSign * stance) {
-          crouch.v -= (boarding ? 0.8 : 1.1) * Math.min(1, speed / 10)
+          // A strong skier releases the old edges by folding the legs (the skis come up
+          // under the body), not by standing up: a small dip, no up-pop. A board rider
+          // still rises a touch to unweight across the flat base.
+          crouch.v += (boarding ? -0.5 : 0.6) * Math.min(1, speed / 10)
         }
       }
       if (steerSign !== 0) lastSteerSign = steerSign
@@ -1149,8 +1240,12 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       const wiggle = crawl * Math.sin(wigglePhase) * 0.11 * (1 - hopUp)
       // Athletic base flex, plus terrain absorption, edging, tuck, braking and pop.
       // A board rider cruises taller (about 35° of knee bend) and sits lower on the heel edge.
-      let wantCrouch = pose === 'stand' ? 0.12 : still ? (boarding ? 0.15 : 0.22) : boarding ? 0.2 : 0.32
-      wantCrouch += Math.abs(incline.x) * 0.3 + (skiing ? Math.min(0.2, state.sink * 0.5) : 0)
+      let wantCrouch = pose === 'stand' ? 0.12 : still ? (boarding ? 0.15 : 0.22) : boarding ? 0.2 : 0.34
+      // Linked turns keep the legs flexed through the crossover: as the lean drains out
+      // of a turn, the crouch holds on to the recent peak of it and lets go slowly
+      // (following the lean alone stood the rider bolt upright at every edge change).
+      turnHold = skiing ? Math.max(Math.abs(incline.x), turnHold - dt * TURN_HOLD_DECAY) : 0
+      wantCrouch += Math.abs(incline.x) * 0.3 + (boarding ? 0 : Math.max(0, turnHold - Math.abs(incline.x)) * 0.6) + (skiing ? Math.min(0.2, state.sink * 0.5) : 0)
       // Heelside the rider sits down into the highbacks; toeside the knees drive forward into the hill.
       if (boarding && skiing) wantCrouch += heelSide(edge) * BOARD_HEEL_CROUCH + toeSide(edge) * BOARD_TOE_CROUCH
       if (skiing && ground?.mogulHeight) {
@@ -1300,7 +1395,10 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       root.position.y += ip.hop
       // A landing folds the chest down; a close call rocks it back first.
       const landBend = Math.max(0, landFold.x) * 0.35 - bobbleEnv * Math.cos(bobbleAge * 9) * 0.18
-      const bend = 0.12 + flex * 0.72 + landBend + herring.x * 0.2 + tuck.x * 0.6 + press.x * 0.18 + skateAmount * 0.18 + plow.x * 0.05 + doublePole * dp.crunch
+      // Moving on snow the back hinges further forward from the hips (about 30° to 40°);
+      // standing, in the air and folding into a tuck it keeps the older, more upright fit.
+      const hingeOn = skiing && !still ? 1 - THREE.MathUtils.clamp(tuck.x, 0, 1) : 0
+      const bend = 0.12 + (SKI_HINGE - 0.12) * hingeOn + flex * (0.72 + (SKI_HINGE_FLEX - 0.72) * hingeOn) + landBend + herring.x * 0.2 + tuck.x * 0.6 + press.x * 0.18 + skateAmount * 0.18 + plow.x * 0.05 + doublePole * dp.crunch
       legFollow += ((skiing ? 1 : 0) - legFollow) * ease(10, dt)
       if (boarding) {
         // Facing the toes, open a little toward the nose. In the hips' frame +Z is
@@ -1373,6 +1471,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         idle * 0.04 * Math.sin(state.time * 0.55) +
         cruise * 0.025 * Math.sin(state.time * 0.9 + 0.4)
       const handsBack = Math.max(0, Math.min(1, airBlend.x)) * (1 - grabBlend)
+      elbowDrop += ((skiing && !boarding ? 1 - Math.min(1, Math.max(0, tuck.x)) : 0) - elbowDrop) * ease(8, dt)
       for (let i = 0; i < 2; i++) {
         const side = arms[i].side
         const inside = Math.sign(incline.x) === -side ? 1 : 0 // left hand (side 1) is inside on a left turn (incline < 0)
@@ -1380,10 +1479,14 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         // Hands forward and a little wide, about belt height, as if holding a tray
         // (HAND_DROP below the chest keeps them there over the athletic stance).
         // In a turn the inside hand reaches forward and down toward the next plant; the outside one stays wide.
+        // Both hands stay in front (seen from behind, they show either side of the
+        // hips): the inside hand comes forward and a little up to lead the turn, the
+        // outside one stays a touch wider and lower by the outside knee.
+        const lean = Math.min(1, Math.abs(incline.x))
         const hand = v1.set(
-          side * (0.31 + (1 - inside) * Math.abs(incline.x) * 0.08) + side * idleHand * 0.35,
-          -HAND_DROP + breathe - inside * Math.abs(incline.x) * 0.12 + idle * Math.sin(state.time * 1.3 + side) * 0.012,
-          0.42 + inside * Math.abs(incline.x) * 0.14 + cruise * Math.sin(state.time * 0.7 + side) * 0.02,
+          side * (0.34 + (1 - inside) * lean * 0.04) + side * idleHand * 0.35,
+          -HAND_DROP + CARRY_LIFT * (1 - idle) + breathe + inside * lean * 0.04 - (1 - inside) * lean * 0.12 + idle * Math.sin(state.time * 1.3 + side) * 0.012,
+          0.36 + inside * lean * 0.06 + (1 - inside) * lean * 0.1 + cruise * Math.sin(state.time * 0.7 + side) * 0.02,
         )
         // Plant: a forward reach and wrist flick, then the hand rides past the planted pole.
         const reachIn = plantSide === side && skiing && plantAge < PLANT_REACH ? smooth(plantAge / PLANT_REACH) : 0
@@ -1414,18 +1517,32 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         // Deep carve: inside hand drops toward the snow.
         if (skiing && Math.abs(edge) > 0.45) {
           const insideDrop = Math.min(1, (Math.abs(edge) - 0.45) / 0.35)
-          if (Math.sign(edge) === side) hand.y -= insideDrop * 0.14
+          if (Math.sign(edge) === side) hand.y -= insideDrop * 0.08
         }
         // Skating: the arm opposite the pushing leg swings forward.
         hand.z -= side * stride * 0.2
         hand.y += Math.abs(stride) * 0.04
+        // The chest pitches forward with the crouch, which carries chest-space hands down
+        // toward the knees: lift them back to the belt line (skiers hold their hands up as
+        // they flex, they do not let them sink with the chest).
+        hand.y += Math.max(0, bend - SKI_HINGE) * PITCH_HAND_LIFT * hingeOn
+        hand.z -= Math.max(0, bend - SKI_HINGE) * PITCH_HAND_LIFT * 0.3 * hingeOn
+        keepElbowBent(i, hand)
+        // Holding a grab, the free arm swings out and up for balance (and clear of the knees
+        // the grab pulls up); the grab itself is placed after this.
+        const freeArm = grabBlend * Math.min(1, airBlend.x)
+        hand.x += side * freeArm * 0.2
+        hand.y += freeArm * 0.12
+        hand.z -= freeArm * 0.08
         // Racing tuck: fists together in front of the chin, elbows inside the knees.
         hand.lerp(v2.set(side * 0.1, 0.27, 0.43), Math.max(0, Math.min(1, tuck.x)))
         hand.lerp(v2.set(side * 0.38, 0.0, 0.3), brake.x * 0.7)
         hand.lerp(v2.set(side * 0.34, -0.02, 0.44), plow.x * 0.6)
         // Double pole: both arms reach, drive down past the hips, swing back through.
         hand.lerp(v2.set(side * dp.handX, dp.handY, dp.handZ), doublePole)
-        hand.lerp(v2.set(side * 0.55, 0.12, 0.15), handsBack)
+        // In the air the hands stay out in front and a little wide, about chest height (spread
+        // flat to the sides with the poles out, it read as flapping).
+        hand.lerp(v2.set(side * 0.44, 0.02, 0.3), handsBack)
         // Arms out for balance on a rail; the low side reaches further.
         if (rail) {
           const pressAmt = press.x
@@ -1443,13 +1560,17 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         if (boarding) {
           // Front hand out over the nose, back hand low over the tail; no poles.
           const front = side === 1
-          hand.set(front ? 0.42 : -0.32, front ? -0.02 : -0.16, 0.3 + Math.abs(incline.x) * 0.1)
+          // Relaxed arms, hands about hip height and a little away from the body: the front
+          // hand over the nose side, the back one by the back hip. (They used to ride up at
+          // the chest with the elbows folded tight, which read as stiff.)
+          hand.set(front ? 0.38 : -0.32, front ? -0.17 : -0.22, 0.22 + Math.abs(incline.x) * 0.06)
           // Heelside both hands come forward over the toes to balance the sit; toeside the
-          // front hand reaches low toward the snow and the back hand trails up and back.
+          // front hand reaches low over the toe edge and the back hand trails out by the tail.
           const heel = skiing ? heelSide(edge) : 0
           const toes = skiing ? toeSide(edge) : 0
-          hand.lerp(v2.set(front ? 0.46 : 0.02, front ? 0.04 : -0.06, 0.42), heel * 0.8)
-          hand.lerp(v2.set(front ? 0.36 : -0.48, front ? -0.24 : 0.02, front ? 0.36 : -0.02), toes * 0.8)
+          hand.lerp(v2.set(front ? 0.36 : -0.06, front ? -0.04 : -0.1, 0.4), heel * 0.85)
+          hand.lerp(v2.set(front ? 0.34 : -0.42, front ? -0.26 : -0.14, front ? 0.3 : 0.04), toes * 0.8)
+          keepElbowBent(i, hand, 0.9)
           hand.lerp(v2.set(side * 0.25, -0.08, 0.21), THREE.MathUtils.clamp(tuck.x, 0, 1))
           hand.lerp(v2.set(side * 0.55, 0.16, 0.1), Math.max(handsBack, Math.min(1, railBlend.x)))
           if (rig.firstPerson) hand.y += 0.3
@@ -1467,14 +1588,28 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
             }
           }
         }
+        // Follow-through: the hands carry a little weight, so they lag a quick change
+        // (an edge change, landing, a push) and settle instead of snapping. A plant
+        // stiffens the spring so the reach stays crisp.
+        const hs = handSprings[i]
+        if (!handSpringsLive) {
+          hs[0].x = hand.x
+          hs[1].x = hand.y
+          hs[2].x = hand.z
+          for (const k of hs) k.v = 0
+        }
+        const hz = HAND_HZ + planting * 6 + Math.min(1, railBlend.x + airBlend.x) * 3
+        hand.set(hs[0].step(hand.x, dt, hz, HAND_ZETA), hs[1].step(hand.y, dt, hz, HAND_ZETA), hs[2].step(hand.z, dt, hz, HAND_ZETA))
         const idleTarget = ip.hands[i]
         if (idleTarget) hand.lerp(v2.set(idleTarget.x, idleTarget.y, idleTarget.z), idleTarget.w)
         const handLocal = hand.clone()
         // Pole tip: carried just off the snow behind the boots, planted on a plant,
         // under the arms in a tuck.
-        const tipTarget = v3.set(side * 0.44, 0.05, -0.42)
+        const tipTarget = carriedTip(side, handLocal, v3)
         if (still) tipTarget.set(side * 0.55, 0, 0.15)
-        if (planting > 0) tipTarget.lerp(v2.set(side * 0.46, -0.02, Math.max(-0.6, PLANT_AHEAD - speed * Math.max(0, plantAge - PLANT_REACH))), planting)
+        // The tip strikes beside its own ski (the skis have slid out under the lean, so a
+        // spot fixed to the root's centre stretched the pole out sideways).
+        if (planting > 0) tipTarget.lerp(v2.set(skis[side === 1 ? 0 : 1].position.x + side * 0.28, -0.02, Math.max(-0.6, PLANT_AHEAD - speed * Math.max(0, plantAge - PLANT_REACH))), planting)
         if (skateAmount > 0.01) {
           // Each pole plants beside the boots as its arm comes forward, then pushes back.
           const reach = Math.max(0, -side * stride)
@@ -1484,7 +1619,9 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         }
         tipTarget.lerp(v2.set(side * 0.42, dp.tipY, dp.tipZ), doublePole)
         tipTarget.lerp(v2.set(side * 0.22, 0.95, -1.15), Math.max(0, Math.min(1, tuck.x)))
-        tipTarget.lerp(v2.set(side * 0.9, 0.3, -0.5), Math.max(0, Math.min(1, Math.max(airBlend.x, railBlend.x))))
+        // On a rail the poles go out wide for balance; in the air they trail back from the hands.
+        tipTarget.lerp(v2.set(side * 0.9, 0.3, -0.5), Math.max(0, Math.min(1, railBlend.x)))
+        if (airBlend.x > 0.01 && !rail) tipTarget.lerp(v2.copy(airTip(side, handLocal)), Math.max(0, Math.min(1, airBlend.x)))
         // A hand busy with an idle lets its pole hang from the strap, tip just off the snow.
         if (idleTarget) tipTarget.lerp(v2.set(side * 0.3, 0.02, 0.2), idleTarget.w)
         placeArm(i, handLocal, tipTarget.clone())
@@ -1496,9 +1633,12 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
           root.updateMatrixWorld(true)
           const current = root.worldToLocal(arms[spec.hand].hand.getWorldPosition(v2))
           target.lerp(current, 1 - grabBlend)
-          placeArm(spec.hand, target.clone(), v3.set(arms[spec.hand].side * 0.9, 0.5, -0.6).clone(), true)
+          // The grabbing hand's pole trails back and out from the grip, not off to a fixed spot.
+          const tipAt = v3.set(arms[spec.hand].side * 0.35, 0.25, -0.9).normalize().multiplyScalar(POLE_REACH).add(target)
+          placeArm(spec.hand, target.clone(), tipAt.clone(), true)
         }
       }
+      handSpringsLive = true
       applyFade(dt)
       rig.applyCloth()
     },

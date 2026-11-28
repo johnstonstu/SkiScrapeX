@@ -2,6 +2,20 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.51 (unreleased): Rider carry and transitions
+
+The skier and snowboarder hold their bodies the way real riders do from the chase camera, studied frame by frame from close follow-cam footage. Physics, steering and the camera are unchanged. Builds on 0.9.48 (independent of the 0.9.49 graphics and 0.9.50 mountain passes).
+
+### Changed
+
+- **Bent elbows, hands in front.** The carried hands sat at 95% of the arm's length, so the arms looked locked straight and the poles stuck out like outriggers. They now keep the elbows bent (at most 84% of the arm), forward at about belt height, and the hands rise back up as the chest folds into a crouch instead of sinking to the knees. The inside hand leads the turn a little higher; the outside one stays forward by the outside knee instead of trailing behind the hip. Elbows hang back and down instead of flaring out.
+- **Poles hang from the hands.** A carried pole now trails back from its own hand at about 55° (partly under gravity, so it does not lie flat along a steep pitch) instead of aiming at a fixed spot behind the boots, which swung it out sideways whenever the body leaned. A low inside hand drags its pole straight back. Plants strike beside the planting ski, not the body's centre. In the air the poles trail back from the hands, and a grabbing hand's pole no longer points out flat.
+- **No stand-up at every edge change.** The legs stay flexed through the crossover: the crouch holds the recent peak of the lean and lets go slowly, and an edge change folds the legs a touch (a retraction release) instead of kicking the rider upright. Knees average about 75° through the crossover, up from about 63°. The back hinges further forward from the hips when moving (about 30° to 40°).
+- **Hands follow through.** Each hand carries a little weight (a 5 Hz spring, stiffer during a plant), so quick changes like an edge change, a landing or a push settle instead of snapping.
+- **Free arm out in a grab.** Holding a grab, the free arm swings out and up for balance, clear of the knees the grab pulls up. In the air the arms stay forward and a little wide instead of spread flat.
+- **Board arms relaxed.** A snowboarder's hands ride about hip height and a little out from the body instead of up at the chest with the elbows folded tight. Heelside the chest comes further over the knees.
+- `tests/riderCarry.test.ts` checks the carry through real linked turns: bent elbows, hands ahead of the hips, pole tips out of the snow and flexed knees at the crossover.
+
 ## 0.9.48 (unreleased): Snow effects
 
 Bigger, livelier snow around the rider, read from the rider's state. Physics and steering are unchanged. Builds on 0.9.47.

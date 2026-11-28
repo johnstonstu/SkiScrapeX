@@ -127,6 +127,7 @@ Review links (`?dev`, `?park`, `?ride`, `?at`, `?perf`) skip the title screen.
   - Trees: `HARD_HIT` 8 m/s, `BRUSH_LOSS` and `CLEAR_LINE` in `src/world/treeSkiing.ts`, and `crashGraceTime` 2.5 s.
   - Controls and camera: `STICK_VERTICAL_SHARE` 0.7 in `src/player/input.ts`, and the steady camera rate (1.0) and fall-line pull in `src/player/camera.ts`.
   - Before changing any of them, compare with `npm run tune`: `tuning/inputs.test.ts` (keys, pad and touch, each snow, camera) and `tuning/trees.test.ts`.
+- Rider carry (0.9.51, all in `src/render/rider/skierView.ts`): `CARRY_REACH` (elbow bend), `CARRY_LIFT` and `PITCH_HAND_LIFT` (hand height), `POLE_CARRY_BACK` and `POLE_CARRY_OUT` (pole hang), `HAND_HZ` and `HAND_ZETA` (hand follow-through), `TURN_HOLD_DECAY` (crouch held through the crossover), `SKI_HINGE` and `SKI_HINGE_FLEX` (forward hinge). `tests/riderCarry.test.ts` and `tests/riderTurns.test.ts` guard them; `rider.html?sim&cam=back|front|side` shows them.
 - Freestyle: `FREESTYLE` in `src/sim/freestyle.ts`, kicker and rail specs in `src/world/park.ts`.
 - Music: `MUSIC_TUNING` in `src/player/musicState.ts` (when moods change), `MOOD_MIX` and the patterns in `src/player/musicScore.ts` (how they sound).
 - Medal targets: the pace bot in `src/world/challenges.ts` (times) and `parkTargets` (park scores).
