@@ -4,6 +4,9 @@ import { loadApexWorld } from './apexWorld'
 import { buildMoguls } from '../src/world/moguls'
 import { createSurfaceSampler } from '../src/world/snow'
 import { nearestOnPolyline, pointInRing, type Point2, type Run } from '../src/world/resort'
+import { placeTowerDrop } from '../src/world/cliffs'
+import { SurfaceId, surfaceAt } from '../src/world/surface'
+import { trailSignSpots } from '../src/render/scenery/signView'
 import { FIXED_DT, createSkiState, stepSkier, type SkiEnv } from '../src/sim'
 
 /**
@@ -86,6 +89,25 @@ describe.skipIf(!hasData)('whole mountain', () => {
     }
     expect(resort.runs.find((run) => run.name === "Adrian's Alley")!.groomed).toBe(true)
     expect(resort.runs.find((run) => run.name === "Kristi's Run")!.moguls).toBe(true)
+  })
+
+  it('keeps the Quickdraw unload clear and packed (Stu, 2026-11-28)', () => {
+    const { grid, resort, surface } = world!
+    const quickdraw = resort.lifts.find((lift) => /quickdraw/i.test(lift.name))!
+    const [tx, tz] = quickdraw.top
+    // The West Bank rock drop is down the run, not on the unload.
+    const drop = placeTowerDrop(grid, resort.runs, quickdraw.towers)!
+    expect(Math.hypot(drop.x - tx, drop.z - tz)).toBeGreaterThan(150)
+    // Packed snow all round the top station.
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+      for (const r of [6, 14, 22]) expect(surfaceAt(surface, tx + Math.cos(a) * r, tz + Math.sin(a) * r)).toBe(SurfaceId.groomed)
+    }
+    // Trail-head boards fan out with the runs: none within 12 m of another, none on the unload itself.
+    const spots = [...trailSignSpots(resort.runs).values()]
+    for (const [i, a] of spots.entries()) {
+      for (const b of spots.slice(i + 1)) expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThanOrEqual(12)
+    }
+    expect(spots.filter((s) => Math.hypot(s.x - tx, s.z - tz) < 20).length).toBe(0)
   })
 
   /** Ski `line` with a steering bot (no poling); how it went. */

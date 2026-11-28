@@ -51,8 +51,12 @@ export const RUN_DROPS: Record<string, DropSpec[]> = {
   ],
 }
 
-/** West Bank's drop sits beside the Quickdraw tower closest to the run, on its downhill side. */
-export const TOWER_DROP = { run: 'West Bank', lift: /quickdraw/i, beside: 6, width: 6, depth: 6, height: 2.8 }
+/**
+ * West Bank's drop sits beside the Quickdraw tower closest to the run, on its downhill side,
+ * at least `minAlong` metres down the run: since West Bank starts at the unload (0.9.50) the
+ * closest tower of all is the one at the top station, which put the rock on the unload.
+ */
+export const TOWER_DROP = { run: 'West Bank', lift: /quickdraw/i, beside: 6, width: 6, depth: 6, height: 2.8, minAlong: 200 }
 
 /** Across-the-lip wobble, metres, so the edge is not ruled. */
 function lipWobble(o: Outcrop, u: number): number {
@@ -142,7 +146,7 @@ export function placeTowerDrop(grid: TerrainGrid, runs: Run[], towers: [number, 
   for (const [tx, tz] of towers) {
     for (const line of run.parts) {
       const length = polylineLength(line)
-      for (let s = 0; s < length; s += 4) {
+      for (let s = length > (spec.minAlong ?? 0) * 2 ? (spec.minAlong ?? 0) : 0; s < length; s += 4) {
         const [px, pz] = pointAlong(line, s)
         const d = Math.hypot(px - tx, pz - tz)
         if (!best || d < best.d) best = { tx, tz, d, px, pz }
