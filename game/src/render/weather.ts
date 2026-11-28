@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { Lighting } from './lighting'
+import { hazeDensity, setHaze, syncAtmosphere } from './atmosphere'
 
 export type WeatherId = 'clear' | 'snow' | 'storm' | 'flat'
 
@@ -12,8 +13,12 @@ export interface WeatherPreset {
   windSouth: number
   sunIntensity: number
   hemiIntensity: number
-  fogNear: number
-  fogFar: number
+  /** Metres until the haze has all but swallowed the ground (at the base height). */
+  visibility: number
+  /** Warm glow of the air toward the sun, 0 to about 1. */
+  sunGlow: number
+  /** Darkness of drifting cloud shadows on the ground, 0 to 1. */
+  cloudShadow: number
   apply(lighting: Lighting): void
 }
 
@@ -26,15 +31,15 @@ const PRESETS: Record<WeatherId, WeatherPreset> = {
     windSouth: 0.05,
     sunIntensity: 2.15,
     hemiIntensity: 1.15,
-    fogNear: 280,
-    fogFar: 26000,
+    visibility: 30000,
+    sunGlow: 0.6,
+    cloudShadow: 0.28,
     apply(lighting) {
       lighting.sunDirection.set(0.67, 0.48, 0.56).normalize()
       lighting.sunColor.set('#fff2dc')
       lighting.skyColor.set('#a8c8ef')
       lighting.groundColor.set('#aeb4b6')
       lighting.fogColor.set('#d5e4f2')
-      lighting.fogDensity = 0.00005
       lighting.horizon.set('#d2e4f5')
       lighting.zenith.set('#2f6bb8')
     },
@@ -47,15 +52,15 @@ const PRESETS: Record<WeatherId, WeatherPreset> = {
     windSouth: 0.3,
     sunIntensity: 2.0,
     hemiIntensity: 1.1,
-    fogNear: 200,
-    fogFar: 24000,
+    visibility: 22000,
+    sunGlow: 0.45,
+    cloudShadow: 0.38,
     apply(lighting) {
       lighting.sunDirection.set(0.67, 0.43, 0.6).normalize()
       lighting.sunColor.set('#fff0d7')
       lighting.skyColor.set('#b5d1ee')
       lighting.groundColor.set('#aeb4b6')
       lighting.fogColor.set('#cfdde9')
-      lighting.fogDensity = 0.00008
       lighting.horizon.set('#cddfed')
       lighting.zenith.set('#3472b8')
     },
@@ -68,15 +73,15 @@ const PRESETS: Record<WeatherId, WeatherPreset> = {
     windSouth: 0.9,
     sunIntensity: 0.85,
     hemiIntensity: 0.95,
-    fogNear: 40,
-    fogFar: 9000,
+    visibility: 3500,
+    sunGlow: 0.08,
+    cloudShadow: 0,
     apply(lighting) {
       lighting.sunDirection.set(0.45, 0.28, 0.84).normalize()
       lighting.sunColor.set('#d8dde4')
       lighting.skyColor.set('#8a97a6')
       lighting.groundColor.set('#9aa0a4')
       lighting.fogColor.set('#b7c0c8')
-      lighting.fogDensity = 0.00028
       lighting.horizon.set('#b8c2cb')
       lighting.zenith.set('#5a6774')
     },
@@ -89,15 +94,15 @@ const PRESETS: Record<WeatherId, WeatherPreset> = {
     windSouth: 0.1,
     sunIntensity: 0.55,
     hemiIntensity: 1.35,
-    fogNear: 120,
-    fogFar: 16000,
+    visibility: 7000,
+    sunGlow: 0.12,
+    cloudShadow: 0,
     apply(lighting) {
       lighting.sunDirection.set(0.2, 0.72, 0.66).normalize()
       lighting.sunColor.set('#e8ecf0')
       lighting.skyColor.set('#c5ced6')
       lighting.groundColor.set('#c2c6c8')
       lighting.fogColor.set('#d4dade')
-      lighting.fogDensity = 0.00014
       lighting.horizon.set('#d0d6db')
       lighting.zenith.set('#8a96a2')
     },
@@ -114,7 +119,7 @@ export function weatherPreset(id: WeatherId): WeatherPreset {
 export function weatherGust(preset: WeatherPreset, timeSeconds: number): {
   windEast: number
   windSouth: number
-  fogFar: number
+  visibility: number
   strength: number
 } {
   // Occasional ~4 s gusts; stronger in storm, mild on bluebird.
@@ -126,7 +131,7 @@ export function weatherGust(preset: WeatherPreset, timeSeconds: number): {
   return {
     windEast: preset.windEast * (1 + strength * 1.8),
     windSouth: preset.windSouth * (1 + strength * 1.5),
-    fogFar: preset.fogFar * (1 - strength * (preset.id === 'storm' ? 0.35 : 0.18)),
+    visibility: preset.visibility * (1 - strength * (preset.id === 'storm' ? 0.35 : 0.18)),
     strength,
   }
 }
@@ -149,11 +154,9 @@ export function applyWeather(
     hemi.groundColor.copy(lighting.groundColor)
     hemi.intensity = preset.hemiIntensity
   }
-  if (scene.fog instanceof THREE.Fog) {
-    scene.fog.color.copy(lighting.fogColor)
-    scene.fog.near = preset.fogNear
-    scene.fog.far = preset.fogFar
-  }
+  lighting.fogDensity = hazeDensity(preset.visibility)
+  setHaze(scene, lighting.fogDensity, lighting.fogColor)
+  syncAtmosphere(lighting, preset.sunGlow, preset.cloudShadow)
   const material = sky.material as THREE.ShaderMaterial
   material.uniforms.uHorizon.value.copy(lighting.horizon)
   material.uniforms.uZenith.value.copy(lighting.zenith)

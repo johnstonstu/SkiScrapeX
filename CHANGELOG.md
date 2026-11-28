@@ -15,6 +15,21 @@ The skier and snowboarder hold their bodies the way real riders do from the chas
 - **Free arm out in a grab.** Holding a grab, the free arm swings out and up for balance, clear of the knees the grab pulls up. In the air the arms stay forward and a little wide instead of spread flat.
 - **Board arms relaxed.** A snowboarder's hands ride about hip height and a little out from the body instead of up at the chest with the elbows folded tight. Heelside the chest comes further over the knees.
 - `tests/riderCarry.test.ts` checks the carry through real linked turns: bent elbows, hands ahead of the hips, pole tips out of the snow and flexed knees at the crossover.
+## 0.9.49 (unreleased): Light and atmosphere
+
+A graphics pass on light, air and colour, with the same art direction and models. No new draw calls or triangles on any level. Builds on 0.9.48.
+
+### Changed
+
+- **Colour and tone.** Tone mapping moved from ACES to Khronos Neutral with a small built-in grade (a little contrast and saturation, cool shade and warm light). Sunlit snow is white instead of grey, jackets, signs and trees keep their colour, and the sky is blue again. The grade runs inside tone mapping, so it costs no extra pass.
+- **Aerial haze.** Every material, including the snow, now shares one haze. It is thicker low in the valleys than on the ridges and glows warm toward the sun, and it matches the sky at the horizon. Distant ridges step back in layers instead of fading into one white.
+- **Sky.** The horizon carries the same haze, so far ridges melt into it.
+- **Snow shade.** Shaded and away-facing snow is a softer, cooler blue (it was tuned for ACES, which greyed it).
+- **Forest shade past the shadow map.** Snow under and beside distant trees is shaded from the canopy map, looked up toward the sun, so forests and run edges read at any distance. On Low, which has no shadow map, it applies everywhere.
+- **Tree crowns** are darker inside and low down, so trees have volume instead of flat colour.
+- **Sky light on gear and metal.** The rider, lift steel, rails and cars pick up bounce light from the snow and reflect the sky (a small image-based light, rebuilt when the weather changes).
+- **Drifting cloud shadows** on Bluebird and Light snow, on Medium and High.
+- Weather presets give a haze visibility, sun glow and cloud shadow strength instead of linear fog near and far.
 
 ## 0.9.48 (unreleased): Snow effects
 

@@ -1,4 +1,4 @@
-export { SnowMaterial, setSnowDetail } from './snow/SnowMaterial';
+export { SnowMaterial, setForestShadeRange, setSnowDetail } from './snow/SnowMaterial';
 export type { SnowMaterialOptions } from './snow/SnowMaterial';
 export { Surface, headingFromDirection, writeMaskTexel } from './snow/mask';
 export type { SurfaceId } from './snow/mask';
@@ -12,3 +12,4 @@ export { SnowPuff } from './particles/SnowPuff';
 export type { PuffBurst, SnowPuffOptions } from './particles/SnowPuff';
 export { SpeedStreaks } from './particles/SpeedStreaks';
 export type { SpeedStreaksOptions } from './particles/SpeedStreaks';
+export * from './atmosphere';
