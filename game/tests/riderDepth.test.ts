@@ -115,3 +115,39 @@ describe('crash spin', () => {
     expect(Math.abs(crash(16, 3, 0))).toBeLessThan(1e-6)
   })
 })
+
+describe('snowboarder pushing on the flat', () => {
+  it('takes the back foot out to push and straps back in when the push ends', () => {
+    const slope = createSteadySlope(2, { width: 4000, depth: 8000 })
+    const view = createSkierView()
+    view.setColours({ ...DEFAULT_OUTFIT, model: 'snowboard', skiGraphic: 'solid' })
+    const board = view.object.getObjectByName('snowboard')!
+    const boot = board.children.filter((c) => c.name === 'snowboard-boot')[1]
+    const state = createSkiState({ x: 2000, z: 100, heading: 0 })
+    state.y = slope.sampleTerrain(2000, 100)!.height
+    let acc = 0
+    const run = (seconds: number, tuck: boolean, each?: () => void) => {
+      for (let f = 0; f < 60 * seconds; f++) {
+        const input: SkiInput = { steer: 0, brake: 0, tuck }
+        for (acc += 1 / 60; acc >= FIXED_DT; acc -= FIXED_DT) stepSkier(state, input, slope.sampleTerrain, FIXED_DT, { ski: SKI_MODELS.snowboard })
+        view.update(state, input, slope.sampleTerrain(state.x, state.z)!, 'ski', 1 / 60)
+        each?.()
+      }
+    }
+    run(0.5, false)
+    const home = boot.position.clone()
+    let reach = 0
+    let side = 0
+    run(4, true, () => {
+      reach = Math.max(reach, boot.position.distanceTo(home))
+      side = Math.max(side, Math.abs(boot.position.x - home.x))
+    })
+    // The foot leaves the binding, steps off the side of the board and strokes along it.
+    expect(side).toBeGreaterThan(0.15)
+    expect(reach).toBeGreaterThan(0.3)
+    expect(state.speed).toBeGreaterThan(2)
+    run(2.5, false)
+    expect(boot.position.distanceTo(home)).toBeLessThan(0.03)
+    expect(boot.children.every((c) => c.visible)).toBe(true)
+  })
+})

@@ -16,11 +16,13 @@ A second rider pass over the whole body: the snowboarder's stance on each edge, 
 - **Standing pose.** Arms hang relaxed with the hands low on the grips and the poles planted just outside the boots, the weight settles onto one leg and shifts now and then, and the chest breathes. The pose blends in and out around walking pace instead of switching.
 - **Pushing and creeping across a hill** no longer wring the chest 65° down the fall line (skating across a slope looked twisted, one arm reaching up the hill): counter-rotation builds with speed and tops out at about 50°.
 - **Takeoff and landing.** The skis and board ease flat in the air instead of snapping level on the frame of takeoff, and the back's forward hinge blends through takeoffs, landings and stops instead of jumping.
+- **Snowboarders push with a foot out.** Holding tuck at low speed on flat ground used to hop the board along (or just stand there while it sped up). The rider now takes the back foot out of the binding and skates: the foot plants beside the toe edge, strokes back along the board, lifts and swings forward again, with the hips turned down the board, the front knee working and the arms swinging against the leg. The foot goes back in the binding as soon as the push ends. Small hops are still there for a steer input at a crawl.
+- **Skiers lead with the uphill ski on a traverse.** Crossing a slope, the uphill ski rides up to 8 cm ahead, as the hips sit on a real traverse.
 - **Rolls and dips.** The legs give as the snow pushes up and reach as it falls away, from the body's own vertical acceleration.
 - **Rails and air.** Arms ride bent and lower for balance instead of straight out at shoulder height.
 - **Crashes.** The arms are thrown out and up for the first moments of a fall before the hands find the snow, and a fast crash slowly spins on the snow as it slides, squaring up over the get-up.
-- Rider lab: `action=tour` loops through turns, a tuck, a stop, a push off, an ollie, a crash and the get-up; `action=crash` repeats a crash at speed; `amp` scales the steer. The lab's snow is now a patch that follows the rider (one huge quad lost depth precision and swallowed a flat board).
-- `tests/riderDepth.test.ts` covers the board roll, the heelside knees, the uphill edges at a stop, the eased takeoff and the crash spin.
+- Rider lab: `action=tour` loops through turns, a tuck, a stop, a push off, an ollie, a crash and the get-up; `action=crash` repeats a crash at speed; `action=push` holds tuck from a standstill; `action=traverse` holds a line across the hill; `amp` scales the steer. The lab's snow is now a patch that follows the rider (one huge quad lost depth precision and swallowed a flat board).
+- `tests/riderDepth.test.ts` covers the board roll, the heelside knees, the uphill edges at a stop, the eased takeoff, the crash spin and the snowboarder's one-foot push.
 
 ## 0.9.51 (unreleased): Rider carry and transitions
 

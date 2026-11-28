@@ -352,6 +352,26 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
   let hingeBlend = 0
   /** The roll the skis and the board last showed, eased flat in the air instead of snapping at takeoff. */
   let skiRoll = 0
+  /** Board skating: 1 with the back foot out of its binding pushing along the flat, and the stride's phase (0 to 1). */
+  const boardSkate = new Spring()
+  let boardSkatePhase = 0
+  /** Skis in a traverse: the uphill ski leads (metres, + when the hill falls away to the right). */
+  const traverseLead = new Spring()
+  const freeFoot = new THREE.Vector3()
+  const qFoot = new THREE.Quaternion()
+  const boardInverse = new THREE.Matrix4()
+  const qBoardInv = new THREE.Quaternion()
+  /** The back boot drawn on the board (it follows the back foot when that steps off to skate). */
+  const backBoot = boardGroup.children.filter((c) => c.name === 'snowboard-boot')[1] as THREE.Object3D | undefined
+  const syncBackBoot = () => {
+    if (!backBoot || !rig.boarding) return
+    boardGroup.updateMatrix()
+    backBoot.position.copy(skis[1].position).applyMatrix4(boardInverse.copy(boardGroup.matrix).invert())
+    backBoot.quaternion.copy(qBoardInv.copy(boardGroup.quaternion).invert()).multiply(skis[1].quaternion)
+    // Off the board the boot leaves its binding behind (the binding is drawn with the boot, so hide it).
+    const off = boardSkate.x > 0.25
+    backBoot.children.forEach((part, i) => { if (i >= 2) part.visible = !off })
+  }
   let boardRoll = 0
   const ease = (rate: number, dt: number) => 1 - Math.exp(-rate * dt)
 
@@ -989,6 +1009,8 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       props.show(ip)
 
       if (pose === 'sit' || crashed) {
+        boardSkate.x = 0
+        boardSkate.v = 0
         handSpringsLive = false
         elbowDrop = 0
       }
@@ -1021,6 +1043,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
           }
         }
         applyFade(dt)
+        syncBackBoot()
         rig.applyCloth()
         return
       }
@@ -1045,6 +1068,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
           fitLegs,
         })
         applyFade(dt)
+        syncBackBoot()
         rig.applyCloth()
         return
       }
@@ -1275,14 +1299,24 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // Board at a crawl: strapped in, the rider wiggles the board along and, pushing
       // to get going (tuck or steer held), hops it forward.
       const crawl = boarding && skiing ? smooth(Math.min(1, Math.max(0, (3 - speed) / 2.2))) : 0
-      const wantHop = crawl > 0.5 && speed < 1.6 && (input.tuck || Math.abs(input.steer) > 0.3)
+      // Board on the flat with forward held: the back foot comes out of its binding and
+      // pushes along beside the board (skating), the way riders cross a flat or a cat track.
+      // Hops are left for steering at a standstill.
+      const boardSkating = boarding && skiing && input.tuck && !braking && !state.ridingSwitch && skateFade > 0.02 && slopeSin < 0.22
+      boardSkate.step(boardSkating ? skateFade : 0, dt, 2.2, 1)
+      const bSkate = THREE.MathUtils.clamp(boardSkate.x, 0, 1)
+      if (bSkate > 0.01) boardSkatePhase = (boardSkatePhase + dt * (0.85 + speed * 0.09)) % 1
+      // 0 to 1 through the push (foot on the snow, sliding back), then 0 to 1 through the swing forward.
+      const pushing = boardSkatePhase < 0.55 ? boardSkatePhase / 0.55 : 0
+      const swinging = boardSkatePhase >= 0.55 ? (boardSkatePhase - 0.55) / 0.45 : 0
+      const wantHop = crawl > 0.5 && speed < 1.6 && !boardSkating && bSkate < 0.2 && Math.abs(input.steer) > 0.3
       if (crawl > 0.01) wigglePhase += dt * (4.5 + speed)
       if (wantHop || boardHop > 0) boardHop += dt / BOARD_HOP_TIME
       if (boardHop >= 1) boardHop = wantHop ? boardHop - 1 : 0
       const hopUp = boardHop > 0.3 ? Math.sin(((boardHop - 0.3) / 0.7) * Math.PI) : 0
       const hopDip = boardHop > 0 && boardHop < 0.3 ? Math.sin((boardHop / 0.3) * Math.PI) : 0
       if (boarding) root.position.y += hopUp * 0.12
-      const wiggle = crawl * Math.sin(wigglePhase) * 0.11 * (1 - hopUp)
+      const wiggle = crawl * Math.sin(wigglePhase) * 0.11 * (1 - hopUp) * (1 - bSkate)
       // Athletic base flex, plus terrain absorption, edging, tuck, braking and pop.
       // A board rider cruises taller (about 35° of knee bend) and sits lower on the heel edge.
       let wantCrouch = pose === 'stand' ? 0.12 : still ? (boarding ? 0.15 : 0.22) : boarding ? 0.2 : 0.34
@@ -1293,6 +1327,8 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       wantCrouch += Math.abs(incline.x) * (boarding && incline.x < 0 ? 0 : 0.3) + (boarding ? 0 : Math.max(0, turnHold - Math.abs(incline.x)) * 0.6) + (skiing ? Math.min(0.2, state.sink * 0.5) : 0)
       // Heelside the rider sits down into the highbacks; toeside the knees drive forward into the hill.
       if (boarding && skiing) wantCrouch += heelSide(boardEdge) * BOARD_HEEL_CROUCH + toeSide(boardEdge) * BOARD_TOE_CROUCH
+      // Skating: the front knee dips as the back foot pushes off.
+      wantCrouch += bSkate * (0.1 + 0.14 * Math.sin(pushing * Math.PI))
       if (skiing && ground?.mogulHeight) {
         // Fold the legs up on the face and extend into the next trough.
         wantCrouch += Math.min(0.48, ground.mogulHeight * Math.max(0, speed / 12 + state.vy * 0.14))
@@ -1324,7 +1360,9 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       // higher the edge (about 12 cm of difference at 45°).
       const halfStance = 0.13 - powderStyle.x * 0.035 + iceStyle.x * 0.015 + brake.x * 0.03 + plow.x * 0.14 + skate.x * 0.03 - railBlend.x * 0.04 - tuck.x * 0.015 +
         Math.min(1, Math.abs(incline.x)) * 0.02
-      const lead = incline.x * 0.12
+      // Across a hill the uphill ski rides half a boot ahead of the downhill one.
+      traverseLead.step(skiing && !boarding ? THREE.MathUtils.clamp(slopeRoll * 0.3, -0.08, 0.08) * (1 - plow.x) : 0, dt, 2, 1)
+      const lead = incline.x * 0.12 - traverseLead.x
       // Skis drift under the outside of the turn so the body can incline.
       const shift = -Math.sin(incline.x) * 0.32
       skis[0].position.set(halfStance + shift, SKI_LIFT, SKI_FORE - lead)
@@ -1457,8 +1495,9 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         // Facing the toes, open a little toward the nose. In the hips' frame +Z is
         // now the toe edge and +X the nose, so leaning across the board is about X.
         // (A tuck opens the hips further toward the nose.)
-        hips.rotation.y = -Math.PI / 2 + 0.25 + tuckTurn * 0.4
-        const foreAft = (1 - 2 * switchLook) * (0.04 + tuck.x * 0.09)
+        hips.rotation.y = -Math.PI / 2 + 0.25 + tuckTurn * 0.4 + bSkate * 0.7
+        // Skating, the weight rides the front foot.
+        const foreAft = (1 - 2 * switchLook) * (0.04 + tuck.x * 0.09) + bSkate * 0.15
         // The legs' line leans off the board normal by the lean the board's roll does
         // not take, plus a little toward the toes (shins into the tongues) or back over
         // the heels (sitting into the highbacks).
@@ -1495,7 +1534,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         chest.rotation.z = counterTilt * 0.3
       }
       const upperTwist = boarding
-        ? 0.45 - switchLook * 0.78 + look.x * 0.28 + spinLead * 0.5 - boardLead.x - wiggle * 1.4 + tuckTurn * 0.45
+        ? 0.45 - switchLook * 0.78 + look.x * 0.28 + spinLead * 0.5 - boardLead.x - wiggle * 1.4 + tuckTurn * 0.45 + bSkate * (0.2 + 0.12 * Math.sin(boardSkatePhase * Math.PI * 2))
         : counter.x * 0.7 + spinLead * 0.5 + switchLook * 0.25 + railLook * 0.55 - stride * 0.12
       spine.rotation.y = upperTwist * 0.55
       chest.rotation.y = upperTwist * 0.45
@@ -1534,6 +1573,17 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
         hips.rotation.z += rest * 0.07
         spine.rotation.z -= rest * 0.06
         chest.rotation.z -= rest * 0.03
+      }
+      if (boarding && bSkate > 0.001) {
+        // The free foot, in root space: beside the board on the toe side, planted level with the
+        // front foot, sliding back as the board glides on, then lifted and swung forward.
+        const along = pushing > 0 ? 0.16 - pushing * 0.46 : -0.3 + smooth(swinging) * 0.46
+        const lift = swinging > 0 ? Math.sin(swinging * Math.PI) * 0.11 : 0
+        freeFoot.set(-0.27, 0.005 + lift, along)
+        skis[1].position.lerp(freeFoot, smooth(bSkate))
+        // Toes forward, a little out; the heel comes up as the push finishes.
+        qFoot.setFromEuler(new THREE.Euler(pushing > 0.6 ? (pushing - 0.6) * 0.9 : swinging > 0 ? 0.36 * (1 - swinging) : 0, -0.2, 0, 'YXZ'))
+        skis[1].quaternion.slerp(qFoot, smooth(bSkate))
       }
       fitLegs(boarding)
 
@@ -1640,6 +1690,9 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
           // hand over the nose side, the back one by the back hip. (They used to ride up at
           // the chest with the elbows folded tight, which read as stiff.)
           hand.set(front ? 0.38 : -0.32, front ? -0.17 : -0.22, 0.22 + Math.abs(incline.x) * 0.06)
+          // Skating, the arms swing against the pushing leg like a walk.
+          hand.z += bSkate * (front ? -1 : 1) * Math.cos(boardSkatePhase * Math.PI * 2) * 0.1
+          hand.x += bSkate * (front ? -0.06 : 0.1)
           // Heelside both hands come forward over the toes to balance the sit; toeside the
           // front hand reaches low over the toe edge and the back hand trails out by the tail.
           const heel = skiing ? heelSide(boardEdge) : 0
@@ -1718,6 +1771,7 @@ export function createSkierView(options: { asset?: RiderAsset } = {}): {
       }
       handSpringsLive = true
       applyFade(dt)
+      syncBackBoot()
       rig.applyCloth()
     },
   }

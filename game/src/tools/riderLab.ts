@@ -5,7 +5,7 @@
  * cloth cutting into another body part in red (see riderClipping.ts).
  * `?sim` instead runs the real ski sim through linked turns on a steady
  * slope behind the follow camera (`pitch`, `period` seconds per turn pair,
- * `cap` km/h; `amp` scales the steer; `action=tour` loops through turns, a
+ * `cap` km/h; `amp` scales the steer; `action=push` holds tuck from a standstill, `action=traverse` holds a line `across` degrees off the fall line; `action=tour` loops through turns, a
  * tuck, a stop, a push off, an ollie, a crash and the get-up). `window.__step(frames)` advances it frame by frame, for
  * reviewing turn transitions. `cam=back|front|side` puts a close camera on
  * the rider instead of the follow camera.
@@ -169,6 +169,7 @@ function runSim() {
   const steerAmp = Number(params.get('amp') ?? 1)
   /** Seconds in one `action=tour` loop. */
   const TOUR = 29
+  const traverseSign = Number(params.get('sign') ?? 1)
   const env = { ski: SKI_MODELS[outfit.model] ?? SKI_MODELS.allMountain }
   const capKmh = Number(params.get('cap') ?? 45)
   const slope = createSteadySlope(pitch, { width: 4000, depth: 8000 })
@@ -256,6 +257,16 @@ function runSim() {
       input = { steer: t > 3.4 && t < 4 ? 1 : 0, brake: 0, tuck: false }
       if (t > 4 && t - 1 / 60 <= 4 && state.crashed <= 0) beginCrash(state)
     }
+    if (action === 'push') {
+      // Tuck held from a standstill on a gentle pitch: the skate or one-foot push.
+      input = { steer: 0, brake: 0, tuck: true }
+    }
+    if (action === 'traverse') {
+      // Hold a line across the hill (`across` degrees off the fall line), pushing when slow.
+      const want = (Number(params.get('across') ?? 75) * Math.PI) / 180
+      const err = Math.atan2(Math.sin(want - state.heading), Math.cos(want - state.heading))
+      input = { steer: Math.max(-1, Math.min(1, err * traverseSign * 3)), brake: 0, tuck: params.has('tuck') }
+    }
     for (acc += 1 / 60; acc >= FIXED_DT; acc -= FIXED_DT) stepSkier(state, input, slope.sampleTerrain, FIXED_DT, env)
     const ground = slope.sampleTerrain(state.x, state.z)
     view.update(state, input, ground, 'ski', 1 / 60)
@@ -274,7 +285,7 @@ function runSim() {
     sun.target.position.set(state.x, state.y, state.z)
     sun.target.updateMatrixWorld()
     const phase = state.air ? (input.grab && state.air.grab ? 'grab' : 'air') : state.popCharge > 0 ? 'loading pop' : input.tuck ? 'tuck' : 'ground'
-    note.textContent = `${phase} · t ${time.toFixed(2)} · ${(state.speed * 3.6).toFixed(0)} km/h · steer ${input.steer > 0 ? 'R' : input.steer < 0 ? 'L' : '-'} · edge ${((state.edgeAngle * 180) / Math.PI).toFixed(0)}° · skid ${state.skid.toFixed(2)}`
+    note.textContent = `${phase} · t ${time.toFixed(2)} · ${(state.speed * 3.6).toFixed(0)} km/h · steer ${input.steer > 0 ? 'R' : input.steer < 0 ? 'L' : '-'} · edge ${((state.edgeAngle * 180) / Math.PI).toFixed(0)}° · skid ${state.skid.toFixed(2)} · hdg ${((state.heading * 180) / Math.PI).toFixed(0)}°`
   }
   const resizeSim = () => {
     renderer.setSize(innerWidth, innerHeight, false)
