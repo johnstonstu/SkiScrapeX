@@ -70,10 +70,11 @@ export function createForestView(forest: Forest, detail: ForestDetail) {
     shader.uniforms.uSightFrom = SIGHT_LINE.from
     shader.uniforms.uSightTo = SIGHT_LINE.to
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying float vCamDist;\nvarying vec3 vWorld;')
+      .replace('#include <common>', '#include <common>\nvarying float vCamDist;\nvarying vec3 vWorld;\nvarying float vTreeHeight;')
       .replace(
         '#include <project_vertex>',
         `#include <project_vertex>
+        vTreeHeight = position.y;
         vCamDist = -mvPosition.z;
         vec4 worldPoint = vec4(transformed, 1.0);
         #ifdef USE_INSTANCING
@@ -82,7 +83,9 @@ export function createForestView(forest: Forest, detail: ForestDetail) {
         vWorld = (modelMatrix * worldPoint).xyz;`,
       )
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vCamDist;\nvarying vec3 vWorld;\nuniform vec3 uSightFrom;\nuniform vec3 uSightTo;')
+      .replace('#include <common>', '#include <common>\nvarying float vCamDist;\nvarying vec3 vWorld;\nvarying float vTreeHeight;\nuniform vec3 uSightFrom;\nuniform vec3 uSightTo;')
+      // Crowns are darker inside and low down, where branches shade each other (shapes are unit height).
+      .replace('#include <color_fragment>', '#include <color_fragment>\n        diffuseColor.rgb *= mix(0.7, 1.06, smoothstep(0.08, 0.95, vTreeHeight));')
       .replace(
         '#include <clipping_planes_fragment>',
         `#include <clipping_planes_fragment>
