@@ -247,6 +247,20 @@ export const EXTRA_PEAKS: Peak[] = [{ name: 'Apex Mountain', x: 1768, z: 3988, e
 export const SUMMIT_HUT_FOOTPRINT = 'way/171556503'
 export const DROPPED_BUILDINGS = new Set(['way/171556518', 'way/171556521', 'way/171556575'])
 
+/**
+ * Lift towers the map leaves out. OSM maps 14 Quickdraw pylons with a 376 m hole
+ * between the ninth and tenth, over West Bank, where the others stand 75 to 125 m
+ * apart (Stu, 2026-11-28: "there's a big gap on it where a tower used to be").
+ * Two towers fill it at the spacing of the rest, set in the steady pitch between
+ * the two rollers there so neither stands on a lip or in a landing.
+ */
+export const EXTRA_LIFT_TOWERS: Record<string, Point2[]> = {
+  Quickdraw: [
+    [2043, 1319],
+    [1930, 1372],
+  ],
+}
+
 /** Apply the fixes in place. */
 export function applyCorrections(resort: Resort): void {
   for (const run of resort.runs) {
@@ -270,6 +284,13 @@ export function applyCorrections(resort: Resort): void {
     if (style) Object.assign(run, style)
     const fix = RUN_LINE_FIXES[run.name]
     if (fix && run.kind === 'line') fixRunLine(run, fix)
+  }
+  for (const lift of resort.lifts ?? []) {
+    const extra = EXTRA_LIFT_TOWERS[lift.name]
+    if (!extra || !lift.towers) continue
+    const along = ([x, z]: Point2) => Math.hypot(x - lift.bottom[0], z - lift.bottom[1])
+    const towers = [...lift.towers, ...extra.filter((t) => !lift.towers.some((o) => Math.hypot(o[0] - t[0], o[1] - t[1]) < 30))]
+    lift.towers = towers.sort((a, b) => along(a) - along(b))
   }
   if (resort.buildings) resort.buildings = resort.buildings.filter((b) => !(b.id && DROPPED_BUILDINGS.has(b.id)))
   for (const peak of EXTRA_PEAKS) if (!resort.peaks.some((p) => p.name === peak.name)) resort.peaks.push({ ...peak })
