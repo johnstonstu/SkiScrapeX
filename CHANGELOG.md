@@ -14,7 +14,7 @@ From the click on Free ski to the first turn. Builds on 0.9.54 (the mountain acc
 
 ### Changed
 
-- **Off the chair on a carved turn.** The rider used to glide straight out and spin on the spot to face the hill (137 degrees at the top of Quickdraw). They now ride down the ramp and make one round turn, 4.2 m radius where there is room, and arrive already moving the way they face. The ready spot is where that turn ends, about 7 m to the inside of the old one. Applies to every chair.
+- **Off the chair on a carved turn.** The rider used to glide straight out and spin on the spot to face the hill (137 degrees at the top of Quickdraw). They now ride down the ramp and make one round turn (up to 4.2 m radius, tighter where buildings or trees are close) and arrive already moving the way they face. The ready spot is where that turn ends, a few metres to the inside of the old one. Applies to every chair.
 - **Every chair arrival uses the new low shot** and a lens that opens as you come toward it; during play the camera eases to it as before. The camera's hand-over to the follow view now turns its look as it travels and always finishes in 2.4 seconds (it could lag behind a fast rider indefinitely).
 - **Free ski leads the title menu on a first visit.** "Learn to ski" is second until it has been done. The prompts teach the same first three lessons on the way down.
 - The "Lift ride" tip card no longer covers the arrival, and the always-on controls line at the bottom of the screen is gone (the pause menu has the full controls).

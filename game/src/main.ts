@@ -82,6 +82,7 @@ import { createHud } from './app/game/hud'
 import { startFrameLoop } from './app/game/frameLoop'
 import { createRenderer, fitToWindow, nextPaint, recompileMaterials, warmShaders, watchForGpuReset } from './app/game/graphics'
 import './ui/hudMinimal.css'
+import './ui/dropIn.css'
 
 const params = new URLSearchParams(location.search)
 const turnModel = (params.get('turns') ?? params.get('turn')) === 'wide' ? 'wide' : 'classic'

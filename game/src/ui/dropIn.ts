@@ -2,7 +2,7 @@
  * The pick before dropping in: skis or snowboard, and who is riding. It sits
  * on the title screen between Free ski and the chair, with the rider standing
  * over the mountain. One press of Drop in (it has the focus) keeps last
- * time's choice. Plain DOM; styles in ui/menus.css ("Drop-in pick").
+ * time's choice. Plain DOM; styles in ui/dropIn.css.
  */
 import { RIDERS, rideOf, riderOf, setRide, wearRider, type Ride, type RiderLook } from '../app/riders'
 import { escapeHtml } from '../app/format'
