@@ -5,13 +5,14 @@
  * cloth cutting into another body part in red (see riderClipping.ts).
  * `?sim` instead runs the real ski sim through linked turns on a steady
  * slope behind the follow camera (`pitch`, `period` seconds per turn pair,
- * `cap` km/h). `window.__step(frames)` advances it frame by frame, for
+ * `cap` km/h; `amp` scales the steer; `action=tour` loops through turns, a
+ * tuck, a stop, a push off, an ollie, a crash and the get-up). `window.__step(frames)` advances it frame by frame, for
  * reviewing turn transitions. `cam=back|front|side` puts a close camera on
  * the rider instead of the follow camera.
  */
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { FIXED_DT, createSkiState, createSteadySlope, stepSkier, type SkiInput } from '../sim'
+import { FIXED_DT, beginCrash, createSkiState, createSteadySlope, stepSkier, type SkiInput } from '../sim'
 import { createCameraRig } from '../player/camera'
 import { createSkierView } from '../render/rider/skierView'
 import { createClipCheck, type ClipCheck } from '../render/rider/riderClipping'
@@ -165,6 +166,9 @@ function runSim() {
   const pitch = Number(params.get('pitch') ?? 18)
   const period = Number(params.get('period') ?? 2.4)
   const action = params.get('action')
+  const steerAmp = Number(params.get('amp') ?? 1)
+  /** Seconds in one `action=tour` loop. */
+  const TOUR = 29
   const env = { ski: SKI_MODELS[outfit.model] ?? SKI_MODELS.allMountain }
   const capKmh = Number(params.get('cap') ?? 45)
   const slope = createSteadySlope(pitch, { width: 4000, depth: 8000 })
@@ -180,13 +184,21 @@ function runSim() {
   g.fillRect(32, 32, 32, 32)
   const map = new THREE.CanvasTexture(tex)
   map.wrapS = map.wrapT = THREE.RepeatWrapping
-  map.repeat.set(400, 800)
-  const plane = new THREE.PlaneGeometry(4000, 8000, 1, 1)
+  // A patch of the slope that follows the rider in 10 m steps (one checker period). One
+  // quad over the whole slope lost centimetres of depth precision a few kilometres from
+  // the origin, enough to swallow a board lying flat on the snow.
+  const PATCH = 600
+  map.repeat.set(PATCH / 10, PATCH / 10)
+  const plane = new THREE.PlaneGeometry(PATCH, PATCH, 1, 1)
   plane.rotateX(-Math.PI / 2)
-  plane.translate(2000, 0, 4000)
   const pos = plane.attributes.position
-  for (let i = 0; i < pos.count; i++) pos.setY(i, height(pos.getX(i), pos.getZ(i)))
+  for (let i = 0; i < pos.count; i++) pos.setY(i, height(2000 + pos.getX(i), 4000 + pos.getZ(i)) - height(2000, 4000))
   plane.computeVertexNormals()
+  const followPatch = (x: number, z: number) => {
+    const cx = Math.round(x / 10) * 10
+    const cz = Math.round(z / 10) * 10
+    snow.position.set(cx, height(cx, cz), cz)
+  }
   snow.geometry.dispose()
   snow.geometry = plane
   snow.rotation.set(0, 0, 0)
@@ -209,17 +221,40 @@ function runSim() {
   let acc = 0
   const step = () => {
     time += 1 / 60
-    const steer = time < 3 ? 0 : Math.sin(((time - 3) * Math.PI * 2) / period) > 0 ? 1 : -1
+    const steer = time < 3 ? 0 : (Math.sin(((time - 3) * Math.PI * 2) / period) > 0 ? 1 : -1) * steerAmp
     const cycle = time % 5
     const jump = action === 'ollie' && cycle > 3.2 && cycle < 3.55
     const grab = action === 'ollie' && cycle >= 3.55 && cycle < 3.84
-    const input: SkiInput = {
+    let input: SkiInput = {
       steer: action === 'ollie' ? 0 : steer,
       brake: state.speed * 3.6 > capKmh ? 0.5 : 0,
       tuck: action === 'tuck',
       jump,
       grab,
       grabKind: grab ? 'mute' : undefined,
+    }
+    if (action === 'tour') {
+      // One of everything, on a loop: turns, a tuck, a hockey stop held to a standstill,
+      // a push off, an ollie with a grab, a hard landing-speed crash and the get-up.
+      const t = time % TOUR
+      const turn = (Math.sin((t * Math.PI * 2) / period) > 0 ? 1 : -1) * steerAmp
+      const hop = t > 20.6 && t < 20.95
+      const air = t >= 20.95 && t < 21.3
+      input = {
+        steer: t > 2 && t < 7.5 ? turn : t > 22.2 && t < 23.6 ? turn : 0,
+        brake: t > 10.5 && t < 14 ? 1 : 0,
+        tuck: (t > 7.8 && t < 10.3) || (t > 14.6 && t < 17.5),
+        jump: hop,
+        grab: air,
+        grabKind: air ? 'mute' : undefined,
+      }
+      if (t > 24 && t - 1 / 60 <= 24 && state.crashed <= 0) beginCrash(state)
+    }
+    if (action === 'crash') {
+      // A crash at speed every ten seconds: the tumble, the slide and the get-up.
+      const t = time % 10
+      input = { steer: t > 3.4 && t < 4 ? 1 : 0, brake: 0, tuck: false }
+      if (t > 4 && t - 1 / 60 <= 4 && state.crashed <= 0) beginCrash(state)
     }
     for (acc += 1 / 60; acc >= FIXED_DT; acc -= FIXED_DT) stepSkier(state, input, slope.sampleTerrain, FIXED_DT, env)
     const ground = slope.sampleTerrain(state.x, state.z)
@@ -234,6 +269,7 @@ function runSim() {
       camera.position.set(state.x + (fx * along - fz * across) * camDist, state.y + 1.1, state.z + (fz * along + fx * across) * camDist)
       camera.lookAt(state.x, state.y + 0.75, state.z)
     }
+    followPatch(state.x, state.z)
     sun.position.set(state.x, state.y, state.z).addScaledVector(lighting.sunDirection, 40)
     sun.target.position.set(state.x, state.y, state.z)
     sun.target.updateMatrixWorld()

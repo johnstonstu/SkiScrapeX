@@ -76,6 +76,20 @@ const GET_UP_HIPS = new THREE.Vector3(0.02, 0.58, -0.12)
 const v = new THREE.Vector3()
 const q = new THREE.Quaternion()
 
+/**
+ * How far a crashed rider has spun on the snow (radians about the slope normal): a
+ * fast crash turns up to about 80° as it slides, toward the side it went down on,
+ * and comes back square over the get-up.
+ */
+export function crashSpin(state: SkiState): number {
+  const hard = THREE.MathUtils.clamp((state.crashSpeed - 4) / 10, 0, 1)
+  if (hard <= 0) return 0
+  const impactOff = Math.atan2(Math.sin(state.crashHeading - state.heading), Math.cos(state.crashHeading - state.heading))
+  const side = Math.sin(impactOff) < -0.05 ? -1 : 1
+  const rise = getUpShare(state.crashed)
+  return side * hard * 1.6 * (1 - Math.exp(-state.crashAge * 1.4)) * (1 - rise * rise * (3 - 2 * rise))
+}
+
 /** Yard-sale tumble then gather; same numbers as the former inline crash branch. */
 export function applyCrashPose(args: {
   state: SkiState
@@ -180,10 +194,20 @@ export function applyCrashPose(args: {
     if (d < 1e-4) return hand.set(headAt.x, hand.y, headAt.z + HAND_HEAD_GAP)
     return hand.set(headAt.x + (dx / d) * HAND_HEAD_GAP, hand.y, headAt.z + (dz / d) * HAND_HEAD_GAP)
   }
+  // The first moments of a fall the arms are thrown out and up, not yet on the snow.
+  const flail = Math.max(0, 1 - state.crashAge / 0.7) ** 1.5 * (0.5 + 0.5 * hard) * (1 - rise)
+  const fling = (hand: THREE.Vector3, i: number) => {
+    if (flail <= 0) return hand
+    const swing = Math.sin(state.crashAge * 12 + i * 2.4)
+    hand.y += flail * (0.32 + 0.2 * swing)
+    hand.x += (i === 0 ? 1 : -1) * flail * 0.18
+    hand.z += flail * 0.14 * Math.cos(state.crashAge * 9 + i)
+    return hand
+  }
   shoulderInRoot(0, shoulder)
   placeArm(
     0,
-    clearOfHead(new THREE.Vector3(shoulder.x + 0.2 + hard * 0.1 * gather + roll * 0.1, HAND_ON_SNOW, shoulder.z + 0.4 + hard * 0.1 * gather)),
+    fling(clearOfHead(new THREE.Vector3(shoulder.x + 0.2 + hard * 0.1 * gather + roll * 0.1, HAND_ON_SNOW, shoulder.z + 0.4 + hard * 0.1 * gather)), 0),
     new THREE.Vector3(0.75 + hard * 0.35 * gather, 0, 0.5 + hard * 0.25 * gather),
     true,
     HAND_ON_SNOW,
@@ -191,7 +215,7 @@ export function applyCrashPose(args: {
   shoulderInRoot(1, shoulder)
   placeArm(
     1,
-    clearOfHead(new THREE.Vector3(shoulder.x - 0.3 - hard * 0.15 * gather - roll * 0.1, HAND_ON_SNOW, shoulder.z + 0.3 + hard * 0.1 * gather)),
+    fling(clearOfHead(new THREE.Vector3(shoulder.x - 0.3 - hard * 0.15 * gather - roll * 0.1, HAND_ON_SNOW, shoulder.z + 0.3 + hard * 0.1 * gather)), 1),
     new THREE.Vector3(-0.15 - hard * 0.25 * gather, 0, 1.0 + hard * 0.35 * gather),
     true,
     HAND_ON_SNOW,
