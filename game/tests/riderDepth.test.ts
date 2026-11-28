@@ -182,3 +182,67 @@ describe('carried along a glide track', () => {
     expect(reach).toBeGreaterThan(0.3)
   })
 })
+
+describe('skier chest and the direction of travel', () => {
+  /** Yaw of the chest away from the skis, radians, measured in the snow plane. */
+  const run = (steerAt: (time: number, heading: number) => number, seconds: number) => {
+    const slope = createSteadySlope(14, { width: 4000, depth: 8000 })
+    const view = createSkierView()
+    view.setColours({ ...DEFAULT_OUTFIT, skiGraphic: 'solid' })
+    const state = createSkiState({ x: 2000, z: 100, heading: 0 })
+    state.y = slope.sampleTerrain(2000, 100)!.height
+    let acc = 0
+    const twist: number[] = []
+    for (let f = 0; f < 60 * seconds; f++) {
+      const time = (f + 1) / 60
+      const input: SkiInput = { steer: steerAt(time, state.heading), brake: 0, tuck: false }
+      for (acc += 1 / 60; acc >= FIXED_DT; acc -= FIXED_DT) stepSkier(state, input, slope.sampleTerrain, FIXED_DT, { ski: SKI_MODELS.allMountain })
+      view.update(state, input, slope.sampleTerrain(state.x, state.z)!, 'ski', 1 / 60)
+      if (time < seconds - 2) continue
+      view.object.updateMatrixWorld(true)
+      const fwd = (o: THREE.Object3D) => new THREE.Vector3(0, 0, 1).applyQuaternion(o.getWorldQuaternion(new THREE.Quaternion())).setY(0).normalize()
+      const chest = fwd(view.bones.chest)
+      const root = fwd(view.object)
+      twist.push(Math.abs(Math.atan2(chest.x * root.z - chest.z * root.x, chest.dot(root))))
+    }
+    return twist.reduce((a, b) => a + b, 0) / twist.length
+  }
+
+  it('faces where it is going on a steady traverse, and down the hill through linked turns', () => {
+    const hold = (want: number) => (_: number, heading: number) => Math.max(-1, Math.min(1, Math.atan2(Math.sin(want - heading), Math.cos(want - heading)) * 3))
+    const traverse = run(hold(0.87), 7)
+    const turns = run((time) => (time < 2 ? 0 : Math.sin(((time - 2) * Math.PI * 2) / 2.4) > 0 ? 1 : -1), 8)
+    // Across the hill the chest used to hold about 30° of twist toward the fall line.
+    expect(traverse).toBeLessThan(THREE.MathUtils.degToRad(14))
+    expect(turns).toBeGreaterThan(traverse + THREE.MathUtils.degToRad(8))
+  })
+})
+
+describe('standing up off a chair', () => {
+  it('rises out of a crouch over the first second and plays no idle on the ramp', () => {
+    const slope = createSteadySlope(4, { width: 4000, depth: 8000 })
+    const view = createSkierView()
+    view.setColours({ ...DEFAULT_OUTFIT, skiGraphic: 'solid' })
+    const state = createSkiState({ x: 2000, z: 100, heading: 0 })
+    const input: SkiInput = { steer: 0, brake: 0, tuck: false }
+    const hipHeight = () => {
+      view.object.updateMatrixWorld(true)
+      return view.bones.thigh_L.getWorldPosition(new THREE.Vector3()).y - state.y
+    }
+    const frame = (pose: 'sit' | 'stand') => {
+      state.z += 3 / 60
+      Object.assign(state, { y: slope.sampleTerrain(state.x, state.z)!.height, vz: 3, speed: 3 })
+      view.update(state, input, slope.sampleTerrain(state.x, state.z)!, pose, 1 / 60)
+    }
+    for (let f = 0; f < 60; f++) frame('sit')
+    const heights: number[] = []
+    for (let f = 0; f < 60 * 4; f++) {
+      frame('stand')
+      heights.push(hipHeight())
+      expect(view.idles.current, `idle at frame ${f}`).toBeNull()
+    }
+    // Still low a third of a second in, standing tall by two seconds, with no dip back down.
+    expect(heights[119] - heights[20]).toBeGreaterThan(0.08)
+    for (let f = 40; f < 120; f++) expect(heights[f]).toBeGreaterThan(heights[f - 20] - 0.01)
+  })
+})

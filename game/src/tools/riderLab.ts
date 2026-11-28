@@ -5,7 +5,7 @@
  * cloth cutting into another body part in red (see riderClipping.ts).
  * `?sim` instead runs the real ski sim through linked turns on a steady
  * slope behind the follow camera (`pitch`, `period` seconds per turn pair,
- * `cap` km/h; `amp` scales the steer; `action=push` holds tuck from a standstill, `action=traverse` holds a line `across` degrees off the fall line; `action=tour` loops through turns, a
+ * `cap` km/h; `amp` scales the steer; `action=push` holds tuck from a standstill, `action=traverse` holds a line `across` degrees off the fall line; `action=unload` stands up off a chair and glides away; `action=tour` loops through turns, a
  * tuck, a stop, a push off, an ollie, a crash and the get-up). `window.__step(frames)` advances it frame by frame, for
  * reviewing turn transitions. `cam=back|front|side` puts a close camera on
  * the rider instead of the follow camera.
@@ -267,7 +267,8 @@ function runSim() {
       const err = Math.atan2(Math.sin(want - state.heading), Math.cos(want - state.heading))
       input = { steer: Math.max(-1, Math.min(1, err * traverseSign * 3)), brake: 0, tuck: params.has('tuck') }
     }
-    for (acc += 1 / 60; acc >= FIXED_DT; acc -= FIXED_DT) stepSkier(state, input, slope.sampleTerrain, FIXED_DT, env)
+    if (action === 'unload') input = { steer: 0, brake: 0, tuck: false }
+    if (action !== 'unload' || time % 9 >= 4.6) for (acc += 1 / 60; acc >= FIXED_DT; acc -= FIXED_DT) stepSkier(state, input, slope.sampleTerrain, FIXED_DT, env)
     if (params.has('glide')) {
       // Stand in for a glide track: carried toward `glide` m/s with no input held.
       const cruise = Number(params.get('glide') || 15.5)
@@ -280,6 +281,20 @@ function runSim() {
       if (h <= 0.2) state.vz += 0.3
     }
     const ground = slope.sampleTerrain(state.x, state.z)
+    if (action === 'unload') {
+      // Off a chair, as app/game/liftRide.ts moves the rider: seated at chair speed, the seat
+      // drops to the snow over the first metres of the ramp, a slowing glide, then control.
+      const t = time % 9
+      const k = Math.min(1, Math.max(0, (t - 2) / 2.6))
+      const speed = t < 2 ? 2.6 : t < 4.6 ? 3.6 * (1.4 - 0.8 * k) : state.speed
+      if (t < 4.6) {
+        state.z += speed / 60
+        const g = height(state.x, state.z)
+        const drop = Math.min(1, k * (1.4 - 0.4 * k) * 3.2)
+        Object.assign(state, { y: g + 0.62 * (1 - drop * drop * (3 - 2 * drop)), vx: 0, vy: 0, vz: speed, speed, heading: 0 })
+      }
+      view.update(state, { steer: 0, brake: 0, tuck: false }, slope.sampleTerrain(state.x, state.z), t < 2 || (t < 4.6 && k * (1.4 - 0.4 * k) * 3.2 < 0.6) ? 'sit' : t < 4.6 ? 'stand' : 'ski', 1 / 60)
+    } else
     view.update(state, input, ground, 'ski', 1 / 60)
     rig.update(state, slope.sampleTerrain, 1 / 60)
     if (closeCam) {

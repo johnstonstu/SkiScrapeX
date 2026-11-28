@@ -2,6 +2,17 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.57 (unreleased): Skier faces where they are going, and the hop off the chair
+
+From Stu's playtest of the combined 0.9.56 build. Rider drawing only; physics, steering and the camera are unchanged here.
+
+### Changed
+
+- **Across the hill, the skier's chest and hands sit in front.** The chest used to hold its twist toward the fall line for as long as a traverse lasted (about 34° on a 14° slope), so both hands hung off the downhill side. The twist now belongs to turning: it builds within a fraction of a second when the skis start to turn or brake, and eases out over about a second on a steady line, leaving about a quarter of it. Linked turns and hockey stops face down the hill as before.
+- **Standing up off the chair.** The rider used to crossfade from the seated pose to a standing one in 0.4 s. Now the legs start folded and push up over the first second, the chest comes forward over the feet, one hand pushes off the seat, and the arms ride wide with a little rock down the ramp before settling. No idle move starts on the ramp.
+- Rider lab: `action=unload` plays the stand-up and glide on a loop.
+- Tests: the chest on a traverse against linked turns, and the stand-up rising with no idle. The standing stance test pins its random idle pick (the newer idles bend the knees on purpose and made it fail about one run in ten).
+
 ## 0.9.56 (unreleased): The first minute
 
 From the click on Free ski to the first turn. Builds on 0.9.54 (the mountain accuracy pass and its new Quickdraw summit); numbered to follow the sound, rider, mountain and progression passes.
