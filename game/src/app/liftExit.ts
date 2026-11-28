@@ -44,6 +44,55 @@ export const FACE_DOWN_MAX_PITCH = 7
 
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a))
 
+/** Flatter than this underfoot, the exit faces where the hill falls away (`frontYaw`). */
+export const FLAT_TOP_PITCH = 3
+/** How far out `frontYaw` looks for the drop, metres. */
+const FRONT_RING = [60, 90, 120]
+/** The front must be open this far: not through the top station or back across the lift line, metres. */
+const FRONT_CLEAR = 24
+/** ...and stay this far from the lift line (the station and bullwheel stand on it), metres. */
+const FRONT_LINE_MARGIN = 9
+
+function frontOpen(x: number, z: number, yaw: number, options: ExitOptions): boolean {
+  for (let d = 2; d <= FRONT_CLEAR; d += 2) {
+    const px = x + Math.sin(yaw) * d
+    const pz = z + Math.cos(yaw) * d
+    if (!options.sample(px, pz) || options.blocked(px, pz)) return false
+    if (options.lineDistanceSq(px, pz) < FRONT_LINE_MARGIN * FRONT_LINE_MARGIN) return false
+  }
+  return true
+}
+
+/**
+ * The way a flat top falls away: the direction with the most drop 60 to 120 m
+ * out, smoothed over ±20°, so a summit faces its front face, not the glide.
+ * Only directions `open` allows count (clear of the station and the lift line).
+ */
+export function frontYaw(x: number, z: number, sample: SampleTerrain, open: (yaw: number) => boolean = () => true): number | null {
+  const here = sample(x, z)?.height
+  if (here === undefined) return null
+  const steps = 72
+  const drop: number[] = []
+  for (let i = 0; i < steps; i++) {
+    const yaw = (i / steps) * Math.PI * 2
+    let sum = 0
+    for (const r of FRONT_RING) {
+      const h = sample(x + Math.sin(yaw) * r, z + Math.cos(yaw) * r)?.height
+      sum += h === undefined ? 0 : here - h
+    }
+    drop.push(sum)
+  }
+  let best = -Infinity
+  let bestYaw: number | null = null
+  for (let i = 0; i < steps; i++) {
+    if (!open((i / steps) * Math.PI * 2)) continue
+    let sum = 0
+    for (let k = -4; k <= 4; k++) sum += drop[(i + k + steps) % steps]
+    if (sum > best) ((best = sum), (bestYaw = wrap((i / steps) * Math.PI * 2)))
+  }
+  return best > 0 ? bestYaw : null
+}
+
 /** Clear metres along `yaw` from (x, z), up to `max`. */
 function clearance(x: number, z: number, yaw: number, max: number, options: ExitOptions, avoidLine: boolean): number {
   let clear = 0
@@ -103,7 +152,13 @@ export function chooseExit(x: number, z: number, lineYaw: number, options: ExitO
       if (!best || score > best.score) best = { yaw, x: ex, z: ez, face, score }
     }
   }
-  if (best) return { yaw: best.yaw, x: best.x, z: best.z, face: best.face }
+  if (best) {
+    // On a flat top (the Quickdraw summit) the ground underfoot says nothing:
+    // face the way the hill falls away, so the first view is the runs.
+    const fall = fallLine(best.x, best.z, options.sample)
+    const front = fall && fall.pitch < FLAT_TOP_PITCH ? frontYaw(best.x, best.z, options.sample, (yaw) => frontOpen(best!.x, best!.z, yaw, options)) : null
+    return { yaw: best.yaw, x: best.x, z: best.z, face: front ?? best.face }
+  }
   // Nowhere good: straight on (chairs) or a plain step aside, as before.
   const yaw = lineYaw + (options.aerial ? 0 : 1.25)
   const reach = reaches[0]

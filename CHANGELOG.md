@@ -2,6 +2,20 @@
 
 SkiScrapex uses [semantic versioning](https://semver.org/). Until 1.0 the minor number marks a milestone and the patch number a fix release; anything may change between minors. Each milestone is a merge to `main` with a `vX.Y.Z` tag. The version lives in `game/package.json` and shows in the pause menu.
 
+## 0.9.50 (unreleased): Whole-mountain pass
+
+The Quickdraw side checked against the 2023 trail map and the LiDAR fall lines, so the runs go where the hill does and every way down links up. Builds on 0.9.48; numbered after the 0.9.49 graphics pass (PR #137), which it does not depend on.
+
+### Changed
+
+- **West Bank runs under the chair.** It now starts at the Quickdraw unload and follows the lift-line fall line down the chair's south side (left, looking up), 20 to 50 m from the cable, as the trail map draws it and as Stu describes it ("a fun mogul run right underneath the chairlift"). OSM started it on Ridge Run 270 m out and left the lift line as unnamed off-piste. The old Ridge Run entrance stays as a second way in. At the bottom it carries on down its open corridor to Village Traverse instead of stopping in the open.
+- **Grouse Gulch starts at the top** on the chair's north side and links on to West Bank at the bottom.
+- **Getting off Quickdraw.** On the flat summit you used to end facing south-west over the plateau, away from every run. The exit now faces where the hill falls away, around the top station: the front of the mountain, with the Ridge Run, Golden Eagle and Great Wall signs ahead and the chair on your left. Sloped lift tops are unchanged.
+- **Runs join up.** Gromit, K, Magnum and cut L11 now start on the run above them (OSM started them 40 to 75 m short), and cut L11 links on to Grouse Gulch.
+
+### Added
+
+- `tests/mountainNetwork.test.ts`: every run starts on a lift top or another run and ends on a lift bottom or another run, and a bot skis 19 ways down from the Quickdraw top (the lift line, Ridge Run's drops, the bowl and every Wild Side run) to the bottom with no poling.
 ## 0.9.49 (unreleased): Light and atmosphere
 
 A graphics pass on light, air and colour, with the same art direction and models. No new draw calls or triangles on any level. Builds on 0.9.48.
